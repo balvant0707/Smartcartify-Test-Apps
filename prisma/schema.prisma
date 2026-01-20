@@ -1,0 +1,181 @@
+datasource db {
+  provider = "mysql"          // MariaDB માટે પણ આ જ
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Session {
+  id            String    @id @db.VarChar(191)
+  shop          String           @db.VarChar(255)
+  state         String           @db.VarChar(255)
+  isOnline      Boolean          @default(false)
+  scope         String?          @db.VarChar(1024)
+  expires       DateTime?
+  accessToken   String           @db.Text       
+  userId        BigInt?
+  firstName     String?          @db.VarChar(255)
+  lastName      String?          @db.VarChar(255)
+  email         String?          @db.VarChar(320)
+  accountOwner  Boolean          @default(false)
+  locale        String?          @db.VarChar(32)
+  collaborator  Boolean?         @default(false)
+  emailVerified Boolean?         @default(false)
+
+  @@map("session")   // table name `Session` (backticks સાથે) MySQL માં બને
+}
+
+// Shop Table
+model shop {
+  id            Int       @id @default(autoincrement())
+  shop          String    @db.VarChar(255) @unique
+  accessToken   String?   @db.Text
+  installed     Boolean   @default(false)
+  uninstalledAt DateTime?
+  onboardedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("shop")  // table name `Shop`
+}
+
+
+model ShippingRule {
+  id           Int      @id @default(autoincrement())
+  shop         String
+  rewardType   String
+  rateType     String?
+  amount       String?
+  minSubtotal  String?
+  method       String
+  iconChoice   String?  @default("truck") 
+  shopifyMethodDefinitionId String? @db.VarChar(255)
+  shopifyRateId String? @db.VarChar(255)
+  progressTextBefore String? @db.Text
+  progressTextAfter String? @db.Text
+  progressTextBelow String? @db.Text
+  campaignName String? @db.VarChar(255)
+  cartStepName String? @db.VarChar(255)
+  enabled      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@map("shippingrule")
+}
+
+model DiscountRule {
+  id           Int      @id @default(autoincrement())
+  shop         String
+  type         String
+  value        String?
+  valueType    String   @default("percent")
+  rewardType   String   @default("percent")
+  condition    String?  @db.VarChar(255)
+  scope        String?  @db.VarChar(255)
+  appliesTo    Json?
+  minPurchase  String?
+  iconChoice   String?  @default("tag") 
+  discountCode String?  @db.VarChar(255)
+  shopifyPriceRuleId   String? @db.VarChar(255) 
+  shopifyDiscountCodeId String? @db.VarChar(255) 
+  codeDiscountId String? @db.VarChar(255)
+  progressTextBefore String? @db.Text
+  progressTextAfter String? @db.Text
+  progressTextBelow String? @db.Text
+  campaignName String? @db.VarChar(255)
+  codeCampaignName String? @db.VarChar(255)
+  cartStepName String? @db.VarChar(255)
+  enabled      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@map("discountrule")
+}
+
+model FreeGiftRule {
+  id                    Int      @id @default(autoincrement())
+  shop                  String
+  trigger               String
+  minPurchase           String?
+  bonusProductId        String?   @db.VarChar(255) // Shopify product ID used for the free gift
+  allProductIds         Json?    // Optional list of Shopify product IDs for “all products” scenarios
+  qty                   String?
+  limitPerOrder         String?
+  iconChoice            String?   @default("gift") // default emoji/Polaris icon when no SVG uploaded
+  progressTextBefore    String?   @db.Text
+  progressTextAfter     String?   @db.Text
+  progressTextBelow     String?   @db.Text
+  campaignName          String?   @db.VarChar(255)
+  cartStepName          String?   @db.VarChar(255)
+  freeProductDiscountID String?   @db.VarChar(255) // Shopify price rule ID for synced free gift
+  minAmountFreeGiftDiscountId String? @db.VarChar(255) // Shopify automatic discount from min amount rule
+  minAmountShippingRateId String? @db.VarChar(255) // Shopify price-based shipping rate for min amount rule
+  enabled               Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  @@map("freegiftrule")
+}
+
+model BxgyRule {
+  id           Int      @id @default(autoincrement())
+  shop         String
+  xQty         String
+  yQty         String
+  scope        String
+  appliesTo    Json?
+  appliesProductIds    Json?   // Shopify product IDs when scope=product
+  appliesCollectionIds Json?   // Shopify collection IDs when scope=collection
+  appliesStore Boolean  @default(false) // true when scope=store
+  giftType     String
+  giftSku      String?
+  maxGifts     String?
+  allowStacking Boolean @default(false)
+  iconChoice   String?  @default("sparkles") // default emoji/Polaris icon when no SVG uploaded
+  buyxgetyId      String? @db.VarChar(255) // Shopify price rule ID (BXGY)
+  campaignName String? @db.VarChar(255)
+  beforeOfferUnlockMessage String?
+  afterOfferUnlockMessage  String?
+  enabled      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@map("bxgyrule")
+}
+
+// Stores the ordered steps for cart progress (cart page + cart drawer)
+model StyleSettings {
+  id           Int      @id @default(autoincrement())
+  shop         String
+  font         String
+  base         String
+  headingScale String
+  radius       String
+  textColor    String
+  bg           String
+  progress     String
+  cartDrawerImage String?
+  cartDrawerBackgroundMode String @default("color")
+  cartDrawerBackground String?
+  cartDrawerTextColor String?
+  cartDrawerHeaderColor String?
+  buttonColor        String?
+  borderColor        String?
+  discountCodeApply Boolean @default(false)
+  checkoutButtonText String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  @@map("stylesettings")
+}
+
+model PlanSubscription {
+  id               Int      @id @default(autoincrement())
+  shop             String   @db.VarChar(255) @unique
+  planId           String?  @db.VarChar(255)
+  planName         String?  @db.VarChar(255)
+  status           String?  @db.VarChar(45)
+  shopifySubGid    String?  @db.VarChar(191)
+  currentPeriodEnd DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("plansubscription")
+}

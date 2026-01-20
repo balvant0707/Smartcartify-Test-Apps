@@ -1,0 +1,2 @@
+-- Add Shopify rate id tracking to ShippingRule
+-- (already handled by 20251126120000_add_shopify_rate_id)

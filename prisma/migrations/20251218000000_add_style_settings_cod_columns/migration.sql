@@ -1,0 +1,3 @@
+ALTER TABLE `stylesettings`
+  ADD COLUMN `allowCOD` TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN `codNoticeText` VARCHAR(191);

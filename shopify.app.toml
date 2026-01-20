@@ -1,0 +1,47 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "b55a28208623440fd6a8987892e4aec3"
+name = "SmartCartify"
+application_url = "https://cartmilestone.smartreminder.in/"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2025-01"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app_subscriptions/update" ]
+  uri = "/webhooks"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "/webhooks"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_customers,read_delivery_customizations,read_discounts,read_merchant_managed_fulfillment_orders,read_orders,read_products,read_shipping,read_themes,write_customers,write_delivery_customizations,write_discounts,write_merchant_managed_fulfillment_orders,write_orders,write_price_rules,write_products,write_shipping,write_themes"
+
+[auth]
+redirect_urls = [
+  "https://cartmilestone.smartreminder.in//auth/callback",
+  "https://cartmilestone.smartreminder.in//auth/shopify/callback",
+  "https://cartmilestone.smartreminder.in//api/auth/callback"
+]
+
+[app_proxy]
+url = "https://cartmilestone.smartreminder.in//auth/callback/proxy/smart"
+subpath = "smart"
+prefix = "apps"
+
+[pos]
+embedded = true

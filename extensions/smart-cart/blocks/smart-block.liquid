@@ -1,0 +1,34 @@
+{% comment %}
+  SmartCartify – App Embed
+  Loads smartcartify.js once and mounts the drawer root globally
+{% endcomment %}
+
+<div
+  id="smart-embed-root"
+  data-proxy-path="/apps/smart/"
+  data-design-mode="{{ request.design_mode }}"
+  data-preview-enabled="{{ settings.preview_in_editor }}"
+></div>
+
+<script>
+  (function () {
+    if (window.__SMARTCARTIFY_EMBED_LOADED__) return;
+    window.__SMARTCARTIFY_EMBED_LOADED__ = true;
+
+    var script = document.createElement("script");
+    script.src = "{{ 'smartcartify.js' | asset_url }}";
+    script.defer = true;
+
+    (document.head || document.body).appendChild(script);
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "SmartCartify",
+  "target": "body",
+  "enabled_on": {
+    "templates": ["*"]
+  },
+}
+{% endschema %}
