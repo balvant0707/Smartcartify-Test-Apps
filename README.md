@@ -224,4 +224,4 @@ Internationalization:
 
 - [Internationalizing your app](https://shopify.dev/docs/apps/best-practices/internationalization/getting-started)
 #   S h o p i f y - C a r t D r a w e r A p p  
- 
+ "# Shopify-CartDrawerApp" 
