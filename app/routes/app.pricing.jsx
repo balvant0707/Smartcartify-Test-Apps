@@ -45,6 +45,89 @@ export async function loader({ request }) {
   const stripeSubscriptionId = record?.stripeSubscriptionId ?? null;
   const currentPeriodEnd = record?.currentPeriodEnd ?? null;
 
+  let stripePlans = {};
+  try {
+    const stripe = getStripe();
+    const currency = (process.env.STRIPE_CURRENCY || "USD").toLowerCase();
+    const monthlyPriceId = getStripePriceId("monthly");
+    const yearlyPriceId = getStripePriceId("yearly");
+
+    let monthly = null;
+    let yearly = null;
+
+    if (monthlyPriceId) {
+      monthly = await stripe.prices.retrieve(monthlyPriceId, {
+        expand: ["product"],
+      });
+    }
+    if (yearlyPriceId) {
+      yearly = await stripe.prices.retrieve(yearlyPriceId, {
+        expand: ["product"],
+      });
+    }
+
+    if (!monthly || !yearly) {
+      const pricesResp = await stripe.prices.list({
+        active: true,
+        limit: 100,
+        expand: ["data.product"],
+      });
+      const prices = pricesResp?.data || [];
+      const recurring = prices.filter(
+        (price) =>
+          price?.active &&
+          price?.recurring &&
+          price?.currency?.toLowerCase() === currency &&
+          price?.unit_amount != null,
+      );
+
+      const pick = (predicate) => recurring.find(predicate) || null;
+
+      if (!monthly) {
+        monthly = pick(
+          (price) =>
+            price?.recurring?.interval === "month" &&
+            (price?.recurring?.interval_count || 1) === 1,
+        );
+      }
+      if (!yearly) {
+        yearly =
+          pick(
+            (price) =>
+              price?.recurring?.interval === "year" &&
+              (price?.recurring?.interval_count || 1) === 1,
+          ) ||
+          pick(
+            (price) =>
+              price?.recurring?.interval === "month" &&
+              (price?.recurring?.interval_count || 1) === 12,
+          );
+      }
+    }
+
+    if (monthly) {
+      stripePlans.monthly = {
+        priceId: monthly.id,
+        amount: monthly.unit_amount,
+        currency: monthly.currency?.toUpperCase() || currency.toUpperCase(),
+        interval: "month",
+        name: monthly.nickname || monthly.product?.name || "Monthly",
+      };
+    }
+
+    if (yearly) {
+      stripePlans.yearly = {
+        priceId: yearly.id,
+        amount: yearly.unit_amount,
+        currency: yearly.currency?.toUpperCase() || currency.toUpperCase(),
+        interval: "year",
+        name: yearly.nickname || yearly.product?.name || "Yearly",
+      };
+    }
+  } catch (error) {
+    console.warn("Stripe price fetch failed:", error?.message || error);
+  }
+
   return {
     shop,
     dbReady,
@@ -52,6 +135,7 @@ export async function loader({ request }) {
     status,
     stripeSubscriptionId,
     currentPeriodEnd,
+    stripePlans,
   };
 }
 
@@ -67,6 +151,7 @@ export async function action({ request }) {
   // バ. top button intent
   const intent = String(form.get("intent") || "").trim();
   const rawPlanId = String(form.get("planId") || "").trim().toLowerCase();
+  const rawPriceId = String(form.get("priceId") || "").trim();
 
   console.log("Pricing action invoked:", { shop, host, rawPlanId, intent });
 
@@ -113,13 +198,23 @@ export async function action({ request }) {
     });
   };
 
-  // バ. Cancel current plan top button
+  // バ. Cancel current plan top button (cancel at period end)
   if (intent === "cancel_current") {
     const record = await prisma.planSubscription.findUnique({ where: { shop } });
     if (record?.stripeSubscriptionId) {
-      await stripe.subscriptions.cancel(record.stripeSubscriptionId);
+      const canceled = await stripe.subscriptions.update(record.stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
+      await prisma.planSubscription.update({
+        where: { shop },
+        data: {
+          status: "CANCEL_AT_PERIOD_END",
+          currentPeriodEnd: canceled.current_period_end
+            ? new Date(canceled.current_period_end * 1000)
+            : record.currentPeriodEnd,
+        },
+      }).catch(() => {});
     }
-    await upsertFree();
 
     const back = host
       ? `/app/pricing?host=${encodeURIComponent(host)}&shop=${encodeURIComponent(shop)}`
@@ -154,7 +249,7 @@ export async function action({ request }) {
   const plan = PLANS.find((p) => p.id === rawPlanId);
   if (!plan) throw new Error(`Plan config missing for: ${rawPlanId}`);
 
-  const priceId = getStripePriceId(plan.id);
+  const priceId = rawPriceId || getStripePriceId(plan.id);
   if (!priceId) throw new Error(`Missing Stripe price id for plan: ${plan.id}`);
 
   const origin = new URL(request.url).origin;
@@ -170,11 +265,45 @@ export async function action({ request }) {
 
   const successUrl =
     process.env.STRIPE_SUCCESS_URL ||
-    buildReturnUrl("/app/pricing", { stripe: "success", session_id: "{CHECKOUT_SESSION_ID}" });
+    buildReturnUrl("/app", { stripe: "success", session_id: "{CHECKOUT_SESSION_ID}" });
   const cancelUrl =
     process.env.STRIPE_CANCEL_URL || buildReturnUrl("/app/pricing", { stripe: "cancel" });
 
   const customerId = await getOrCreateStripeCustomer();
+  const existing = await prisma.planSubscription.findUnique({ where: { shop } });
+
+  if (existing?.stripeSubscriptionId && existing?.status === "ACTIVE") {
+    const subscription = await stripe.subscriptions.retrieve(
+      existing.stripeSubscriptionId,
+    );
+    const itemId = subscription?.items?.data?.[0]?.id;
+    if (!itemId) throw new Error("Stripe subscription item missing.");
+
+    const updated = await stripe.subscriptions.update(subscription.id, {
+      cancel_at_period_end: false,
+      proration_behavior: "create_prorations",
+      items: [{ id: itemId, price: priceId }],
+    });
+
+    await prisma.planSubscription.update({
+      where: { shop },
+      data: {
+        planId: plan.id,
+        planName: plan.name,
+        status: "ACTIVE",
+        stripePriceId: priceId,
+        currentPeriodEnd: updated.current_period_end
+          ? new Date(updated.current_period_end * 1000)
+          : existing.currentPeriodEnd,
+      },
+    }).catch(() => {});
+
+    const back = host
+      ? `/app/pricing?host=${encodeURIComponent(host)}&shop=${encodeURIComponent(shop)}`
+      : "/app/pricing";
+    return redirect(back);
+  }
+
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
@@ -213,13 +342,23 @@ export async function action({ request }) {
 }
 
 export default function Pricing() {
-  const { currentPlanId, status, stripeSubscriptionId, currentPeriodEnd, dbReady } =
+  const {
+    currentPlanId,
+    status,
+    stripeSubscriptionId,
+    currentPeriodEnd,
+    dbReady,
+    stripePlans,
+  } =
     useLoaderData();
 
   const navigation = useNavigation();
 
   const [loadingPlanId, setLoadingPlanId] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [billingInterval, setBillingInterval] = useState(
+    currentPlanId === "yearly" ? "year" : "month",
+  );
 
   useEffect(() => {
     if (navigation.state === "idle") {
@@ -368,19 +507,44 @@ export default function Pricing() {
   };
 
   const buttonWrapperStyle = { marginTop: "auto" };
+  const toggleWrapStyle = {
+    display: "flex",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 16,
+  };
+  const toggleButtonStyle = (active) => ({
+    borderRadius: 999,
+    padding: "6px 16px",
+    border: active ? "2px solid #017e01" : "1px solid #d0d5dd",
+    background: active ? "#ecfdf3" : "#fff",
+    fontWeight: 600,
+  });
 
   const cancelDisabled = !paidActiveAndNotExpired || navigation.state !== "idle";
 
   // バ. IMPORTANT: if DB has no row yet, keep ALL plan buttons enabled
   const bypassDisable = !dbReady;
 
+  const formatAmount = (amount, currency = "USD") =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount / 100);
+
   const monthlyPlan = UI_PLANS.find((plan) => plan.id === "monthly");
   const yearlyPlan = UI_PLANS.find((plan) => plan.id === "yearly");
-  const yearlyFromMonthly =
-    monthlyPlan?.price !== undefined ? Number(monthlyPlan.price) * 12 : null;
+  const monthlyAmount =
+    stripePlans?.monthly?.amount ??
+    (monthlyPlan?.price !== undefined ? Number(monthlyPlan.price) * 100 : null);
+  const yearlyAmount =
+    stripePlans?.yearly?.amount ??
+    (yearlyPlan?.price !== undefined ? Number(yearlyPlan.price) * 100 : null);
+  const yearlyFromMonthly = monthlyAmount !== null ? Number(monthlyAmount) * 12 : null;
   const yearlySavings =
-    yearlyFromMonthly !== null && yearlyPlan?.price !== undefined
-      ? Math.max(0, yearlyFromMonthly - Number(yearlyPlan.price))
+    yearlyFromMonthly !== null && yearlyAmount !== null
+      ? Math.max(0, yearlyFromMonthly - Number(yearlyAmount))
       : null;
   const yearlySavingsPercent =
     yearlySavings !== null && yearlyFromMonthly
@@ -390,6 +554,10 @@ export default function Pricing() {
     yearlyFromMonthly !== null
       ? `${yearlySavingsPercent ?? 0}% Saving`
       : "Annual offer";
+  const plansToRender = UI_PLANS.filter((plan) => {
+    if (plan.id === "free") return true;
+    return billingInterval === "month" ? plan.id === "monthly" : plan.id === "yearly";
+  });
 
   return (
     <Page title="Choose your plan" style={{ padding: 0 }}>
@@ -397,6 +565,22 @@ export default function Pricing() {
         type="text/css"
         dangerouslySetInnerHTML={{ __html: PRICING_BADGE_CSS }}
       />
+      <div style={toggleWrapStyle}>
+        <Button
+          onClick={() => setBillingInterval("month")}
+          variant={billingInterval === "month" ? "primary" : "secondary"}
+          style={toggleButtonStyle(billingInterval === "month")}
+        >
+          Monthly
+        </Button>
+        <Button
+          onClick={() => setBillingInterval("year")}
+          variant={billingInterval === "year" ? "primary" : "secondary"}
+          style={toggleButtonStyle(billingInterval === "year")}
+        >
+          Yearly
+        </Button>
+      </div>
       {/* Top Cancel Current Plan Button */}
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
         <Form method="post" onSubmit={() => setCancelLoading(true)} reloadDocument>
@@ -414,9 +598,17 @@ export default function Pricing() {
 
       <div style={{ padding: "16px 0" }}>
         <div style={containerStyle}>
-          {UI_PLANS.map((plan) => {
+          {plansToRender.map((plan) => {
             const details = planDetails[plan.id];
             const isCurrent = plan.id === currentPlanId;
+            const priceLabel =
+              plan.id === "free"
+                ? "Free"
+                : plan.id === "monthly" && monthlyAmount !== null
+                ? formatAmount(monthlyAmount, stripePlans?.monthly?.currency || "USD")
+                : plan.id === "yearly" && yearlyAmount !== null
+                ? formatAmount(yearlyAmount, stripePlans?.yearly?.currency || "USD")
+                : details?.priceLabel ?? `$${plan.price}`;
 
             const disableBecauseCurrentActive =
               isCurrent &&
@@ -463,7 +655,7 @@ export default function Pricing() {
                     {details?.subtitle ?? plan.name}
                   </Text>
 
-                  <div style={priceTextStyle}>{details?.priceLabel ?? `$${plan.price}`}</div>
+                  <div style={priceTextStyle}>{priceLabel}</div>
                 </div>
 
                 <div style={bodyStyle}>
@@ -487,6 +679,17 @@ export default function Pricing() {
                   <div style={buttonWrapperStyle}>
                     <Form method="post" onSubmit={() => setLoadingPlanId(plan.id)} reloadDocument>
                       <input type="hidden" name="planId" value={plan.id} />
+                      <input
+                        type="hidden"
+                        name="priceId"
+                        value={
+                          plan.id === "monthly"
+                            ? stripePlans?.monthly?.priceId || ""
+                            : plan.id === "yearly"
+                            ? stripePlans?.yearly?.priceId || ""
+                            : ""
+                        }
+                      />
                       {/* <Button
                         submit
                         fullWidth

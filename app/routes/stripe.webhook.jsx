@@ -6,7 +6,10 @@ import {
   getStripeWebhookSecret,
 } from "../stripe.server.js";
 
-const normalizeStatus = (status) => {
+const normalizeStatus = (status, cancelAtPeriodEnd) => {
+  if (cancelAtPeriodEnd && (status === "active" || status === "trialing")) {
+    return "CANCEL_AT_PERIOD_END";
+  }
   if (status === "active" || status === "trialing") return "ACTIVE";
   if (status === "canceled") return "CANCELED";
   if (status === "incomplete" || status === "incomplete_expired") return "PENDING";
@@ -33,7 +36,7 @@ const upsertFromSubscription = async (subscription, shopHint) => {
   const priceId = subscription?.items?.data?.[0]?.price?.id || null;
   const planId = getPlanIdFromPriceId(priceId) || subscription?.metadata?.planId || null;
   const planName = resolvePlanName(planId, subscription?.items?.data?.[0]?.price?.nickname);
-  const status = normalizeStatus(subscription?.status);
+  const status = normalizeStatus(subscription?.status, subscription?.cancel_at_period_end);
   const currentPeriodEnd = subscription?.current_period_end
     ? new Date(subscription.current_period_end * 1000)
     : null;
@@ -76,6 +79,7 @@ export async function action({ request }) {
   }
 
   try {
+    console.log("Stripe webhook:", event.type, event.id);
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
       const subscriptionId = session?.subscription;
