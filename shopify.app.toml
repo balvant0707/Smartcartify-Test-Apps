@@ -33,13 +33,13 @@ scopes = "read_customers,read_delivery_customizations,read_discounts,read_mercha
 
 [auth]
 redirect_urls = [
-  "https://cartmilestone.smartreminder.in//auth/callback",
-  "https://cartmilestone.smartreminder.in//auth/shopify/callback",
-  "https://cartmilestone.smartreminder.in//api/auth/callback"
+  "https://cartmilestone.smartreminder.in/auth/callback",
+  "https://cartmilestone.smartreminder.in/auth/shopify/callback",
+  "https://cartmilestone.smartreminder.in/api/auth/callback"
 ]
 
 [app_proxy]
-url = "https://cartmilestone.smartreminder.in//auth/callback/proxy/smart"
+url = "https://cartmilestone.smartreminder.in/auth/callback/proxy/smart"
 subpath = "smart"
 prefix = "apps"
 

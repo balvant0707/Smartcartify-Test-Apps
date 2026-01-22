@@ -173,6 +173,9 @@ model PlanSubscription {
   planName         String?  @db.VarChar(255)
   status           String?  @db.VarChar(45)
   shopifySubGid    String?  @db.VarChar(191)
+  stripeCustomerId String?  @db.VarChar(255)
+  stripeSubscriptionId String?  @db.VarChar(255)
+  stripePriceId    String?  @db.VarChar(255)
   currentPeriodEnd DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

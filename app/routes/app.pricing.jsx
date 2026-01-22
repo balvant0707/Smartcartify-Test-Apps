@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { PLANS } from "../lib/plans.js";
+import { getStripe, getStripePriceId } from "../stripe.server.js";
 
 const toDateOrNull = (value) => {
   if (!value) return null;
@@ -13,7 +14,7 @@ const toDateOrNull = (value) => {
 
 const isPaidPlanId = (planId) => planId === "monthly" || planId === "yearly";
 
-// ✅ Make sure FREE exists in UI even if PLANS file forgets it
+// バ. Make sure FREE exists in UI even if PLANS file forgets it
 const UI_PLANS = (() => {
   const hasFree = PLANS?.some((p) => p.id === "free");
   if (hasFree) return PLANS;
@@ -28,70 +29,34 @@ const PRICING_BADGE_CSS = `
 `;
 
 export async function loader({ request }) {
-  const { admin, session } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
-  // ✅ Read DB record only (NO auto insert)
+  // バ. Read DB record only (NO auto insert)
   const record = await prisma.planSubscription.findUnique({ where: { shop } });
 
-  // ✅ Read Shopify active subscription (NO DB write here)
-  let active = null;
-  let activeList = [];
-  try {
-    const query = `#graphql
-      query ActiveSubs {
-        currentAppInstallation {
-          activeSubscriptions {
-            id
-            name
-            status
-            currentPeriodEnd
-          }
-        }
-      }
-    `;
-    const resp = await admin.graphql(query);
-    const json = await resp.json();
-    activeList = json?.data?.currentAppInstallation?.activeSubscriptions ?? [];
-    active = activeList.find((s) => s.status === "ACTIVE") || null;
-    console.log("Pricing loader activeSubscriptions:", activeList);
-  } catch (e) {
-    console.log("Pricing loader activeSubscriptions fetch failed:", e?.message);
-  }
-
-  // ✅ Decide UI state:
+  // バ. Decide UI state:
   // - If DB record exists -> use it
   // - If no DB record -> show FREE in UI but keep all buttons enabled (dbReady=false)
   const dbReady = Boolean(record);
 
   const currentPlanId = record?.planId ?? "free";
   const status = record?.status ?? "NONE";
-  const shopifySubGid = record?.shopifySubGid ?? null;
+  const stripeSubscriptionId = record?.stripeSubscriptionId ?? null;
   const currentPeriodEnd = record?.currentPeriodEnd ?? null;
-
-  // ✅ Expose Shopify active too (optional) - not used for disable until dbReady
-  const shopifyActive = active
-    ? {
-      id: active.id,
-      name: active.name,
-      status: active.status,
-      currentPeriodEnd: active.currentPeriodEnd ?? null,
-    }
-    : null;
 
   return {
     shop,
     dbReady,
     currentPlanId,
     status,
-    shopifySubGid,
+    stripeSubscriptionId,
     currentPeriodEnd,
-    shopifyActive,
   };
 }
 
 export async function action({ request }) {
-  const { admin, session, redirect } = await authenticate.admin(request);
+  const { session, redirect } = await authenticate.admin(request);
   const shop = session.shop;
 
   const reqUrl = new URL(request.url);
@@ -99,48 +64,30 @@ export async function action({ request }) {
 
   const form = await request.formData();
 
-  // ✅ top button intent
+  // バ. top button intent
   const intent = String(form.get("intent") || "").trim();
   const rawPlanId = String(form.get("planId") || "").trim().toLowerCase();
 
   console.log("Pricing action invoked:", { shop, host, rawPlanId, intent });
 
-  const getActiveShopifySub = async () => {
-    const query = `#graphql
-      query ActiveSubs {
-        currentAppInstallation {
-          activeSubscriptions {
-            id
-            name
-            status
-            currentPeriodEnd
-          }
-        }
-      }
-    `;
-    const resp = await admin.graphql(query);
-    const json = await resp.json();
-    const list = json?.data?.currentAppInstallation?.activeSubscriptions ?? [];
-    const active = list.find((s) => s.status === "ACTIVE") || null;
-    return { active, list };
-  };
+  const stripe = getStripe();
 
-  const cancelShopifySub = async (subscriptionId) => {
-    const mutation = `#graphql
-      mutation CancelSub($id: ID!, $prorate: Boolean!) {
-        appSubscriptionCancel(id: $id, prorate: $prorate) {
-          userErrors { field message }
-          appSubscription { id status name }
-        }
-      }
-    `;
-    const resp = await admin.graphql(mutation, {
-      variables: { id: subscriptionId, prorate: false },
+  const getOrCreateStripeCustomer = async () => {
+    const record = await prisma.planSubscription.findUnique({ where: { shop } });
+    if (record?.stripeCustomerId) return record.stripeCustomerId;
+
+    const customer = await stripe.customers.create({
+      name: shop,
+      metadata: { shop },
     });
-    const json = await resp.json();
-    const err = json?.data?.appSubscriptionCancel?.userErrors?.[0]?.message;
-    if (err) throw new Error(err);
-    return json;
+
+    await prisma.planSubscription.upsert({
+      where: { shop },
+      update: { stripeCustomerId: customer.id },
+      create: { shop, stripeCustomerId: customer.id },
+    });
+
+    return customer.id;
   };
 
   const upsertFree = async () => {
@@ -150,7 +97,8 @@ export async function action({ request }) {
         planId: "free",
         planName: "Free",
         status: "ACTIVE",
-        shopifySubGid: null,
+        stripeSubscriptionId: null,
+        stripePriceId: null,
         currentPeriodEnd: null,
       },
       create: {
@@ -158,20 +106,20 @@ export async function action({ request }) {
         planId: "free",
         planName: "Free",
         status: "ACTIVE",
-        shopifySubGid: null,
+        stripeSubscriptionId: null,
+        stripePriceId: null,
         currentPeriodEnd: null,
       },
     });
   };
 
-  // ✅ Cancel current plan top button
+  // バ. Cancel current plan top button
   if (intent === "cancel_current") {
-    const { active } = await getActiveShopifySub();
-    if (active?.id) await cancelShopifySub(active.id);
-
-    // NOTE: You asked "free select kare toj entry" - so cancel button WILL NOT auto-insert free.
-    // If you still want cancel button to set free in DB, uncomment next line:
-    // await upsertFree();
+    const record = await prisma.planSubscription.findUnique({ where: { shop } });
+    if (record?.stripeSubscriptionId) {
+      await stripe.subscriptions.cancel(record.stripeSubscriptionId);
+    }
+    await upsertFree();
 
     const back = host
       ? `/app/pricing?host=${encodeURIComponent(host)}&shop=${encodeURIComponent(shop)}`
@@ -179,7 +127,7 @@ export async function action({ request }) {
     return redirect(back);
   }
 
-  // ✅ Must have planId when selecting plans
+  // バ. Must have planId when selecting plans
   if (!rawPlanId) {
     const back = host
       ? `/app/pricing?host=${encodeURIComponent(host)}&shop=${encodeURIComponent(shop)}`
@@ -187,11 +135,11 @@ export async function action({ request }) {
     return redirect(back);
   }
 
-  // ✅ FREE => DB entry only when user selects Free
+  // バ. FREE => DB entry only when user selects Free
   if (rawPlanId === "free") {
-    const { active } = await getActiveShopifySub();
-    if (active?.id) {
-      await cancelShopifySub(active.id);
+    const record = await prisma.planSubscription.findUnique({ where: { shop } });
+    if (record?.stripeSubscriptionId) {
+      await stripe.subscriptions.cancel(record.stripeSubscriptionId);
     }
     await upsertFree();
 
@@ -206,65 +154,66 @@ export async function action({ request }) {
   const plan = PLANS.find((p) => p.id === rawPlanId);
   if (!plan) throw new Error(`Plan config missing for: ${rawPlanId}`);
 
-  const returnUrlObj = new URL("/app/billing/return", request.url);
-  if (host) returnUrlObj.searchParams.set("host", host);
-  returnUrlObj.searchParams.set("shop", shop);
-  returnUrlObj.protocol = "https:";
-  const returnUrl = returnUrlObj.toString();
+  const priceId = getStripePriceId(plan.id);
+  if (!priceId) throw new Error(`Missing Stripe price id for plan: ${plan.id}`);
 
-  const mutation = `#graphql
-    mutation CreateSub(
-      $name: String!
-      $returnUrl: URL!
-      $price: MoneyInput!
-      $interval: AppPricingInterval!
-      $trialDays: Int
-      $test: Boolean!
-    ) {
-      appSubscriptionCreate(
-        name: $name
-        returnUrl: $returnUrl
-        test: $test
-        trialDays: $trialDays
-        lineItems: [{ plan: { appRecurringPricingDetails: { price: $price, interval: $interval } } }]
-      ) {
-        userErrors { field message }
-        confirmationUrl
-        appSubscription { id status name }
-      }
-    }
-  `;
+  const origin = new URL(request.url).origin;
+  const buildReturnUrl = (path, extraParams = {}) => {
+    const url = new URL(path, origin);
+    if (host) url.searchParams.set("host", host);
+    url.searchParams.set("shop", shop);
+    Object.entries(extraParams).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+    return url.toString();
+  };
 
-  const resp = await admin.graphql(mutation, {
-    variables: {
-      name: plan.name,
-      returnUrl,
-      price: { amount: plan.price, currencyCode: "USD" },
-      interval: plan.interval,
-      trialDays: 7,
-      test: true,
+  const successUrl =
+    process.env.STRIPE_SUCCESS_URL ||
+    buildReturnUrl("/app/pricing", { stripe: "success", session_id: "{CHECKOUT_SESSION_ID}" });
+  const cancelUrl =
+    process.env.STRIPE_CANCEL_URL || buildReturnUrl("/app/pricing", { stripe: "cancel" });
+
+  const customerId = await getOrCreateStripeCustomer();
+  const checkoutSession = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    customer: customerId,
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    client_reference_id: shop,
+    subscription_data: {
+      metadata: { shop, planId: plan.id },
     },
+    metadata: { shop, planId: plan.id },
   });
 
-  const json = await resp.json();
-  const data = json?.data?.appSubscriptionCreate;
-  const err = data?.userErrors?.[0]?.message;
-  if (err) throw new Error(err);
-
-  const confirmationUrl = data?.confirmationUrl;
-  if (!confirmationUrl) throw new Error("No confirmationUrl returned from Shopify.");
+  if (!checkoutSession?.url) throw new Error("No Stripe checkout URL returned.");
 
   await prisma.planSubscription.upsert({
     where: { shop },
-    update: { planId: plan.id, planName: plan.name, status: "PENDING" },
-    create: { shop, planId: plan.id, planName: plan.name, status: "PENDING" },
+    update: {
+      planId: plan.id,
+      planName: plan.name,
+      status: "PENDING",
+      stripePriceId: priceId,
+      stripeCustomerId: customerId,
+    },
+    create: {
+      shop,
+      planId: plan.id,
+      planName: plan.name,
+      status: "PENDING",
+      stripePriceId: priceId,
+      stripeCustomerId: customerId,
+    },
   });
 
-  return redirect(confirmationUrl, { target: "_top" });
+  return redirect(checkoutSession.url, { target: "_top" });
 }
 
 export default function Pricing() {
-  const { currentPlanId, status, shopifySubGid, currentPeriodEnd, dbReady } =
+  const { currentPlanId, status, stripeSubscriptionId, currentPeriodEnd, dbReady } =
     useLoaderData();
 
   const navigation = useNavigation();
@@ -280,7 +229,7 @@ export default function Pricing() {
   }, [navigation.state]);
 
   const hasPaidActive =
-    status === "ACTIVE" && Boolean(shopifySubGid) && isPaidPlanId(currentPlanId);
+    status === "ACTIVE" && Boolean(stripeSubscriptionId) && isPaidPlanId(currentPlanId);
 
   const isExpired =
     currentPeriodEnd ? new Date(currentPeriodEnd).getTime() < Date.now() : false;
@@ -422,7 +371,7 @@ export default function Pricing() {
 
   const cancelDisabled = !paidActiveAndNotExpired || navigation.state !== "idle";
 
-  // ✅ IMPORTANT: if DB has no row yet, keep ALL plan buttons enabled
+  // バ. IMPORTANT: if DB has no row yet, keep ALL plan buttons enabled
   const bypassDisable = !dbReady;
 
   const monthlyPlan = UI_PLANS.find((plan) => plan.id === "monthly");
@@ -484,7 +433,7 @@ export default function Pricing() {
               disableBecausePending ||
               disableFreeBecausePaidActive;
 
-            // ✅ Until DB entry exists -> everything enabled
+            // バ. Until DB entry exists -> everything enabled
             if (bypassDisable) disableButton = false;
 
             const isThisSubmitting =
