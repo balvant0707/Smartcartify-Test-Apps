@@ -31,6 +31,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { maybeDecryptToken } from "../lib/tokenCrypto.server.js";
 import {
   syncMinAmountFreeGiftDiscount,
   syncFreeProductDiscountsToShopify,
@@ -1468,7 +1469,8 @@ export const loader = async ({ request }) => {
   });
 
   const shop = shopRow?.shop || sessionShop || null;
-  if (!shopRow || !shopRow.accessToken) {
+  const shopAccessToken = maybeDecryptToken(shopRow?.accessToken);
+  if (!shopRow || !shopAccessToken) {
     return json(
       { error: "Shop record missing access token" },
       { status: 400 }
@@ -1480,7 +1482,6 @@ export const loader = async ({ request }) => {
   });
   const planId = planRecord?.planId ?? "free";
 
-  const shopAccessToken = shopRow.accessToken;
   const shopDomain = shopRow.shop || shop;
   let payload = null;
 
@@ -1668,14 +1669,14 @@ export const action = async ({ request }) => {
       orderBy: { id: "desc" },
     });
 
-    if (!shopRow?.accessToken) {
+    const shopAccessToken = maybeDecryptToken(shopRow?.accessToken);
+    if (!shopAccessToken) {
       return json(
         { error: "Missing Shopify Admin access token in database" },
         { status: 401 }
       );
     }
 
-    const shopAccessToken = shopRow.accessToken;
     const shopDomain = shopRow.shop || shop;
     const planRecord = await prisma.planSubscription.findUnique({
       where: { shop },

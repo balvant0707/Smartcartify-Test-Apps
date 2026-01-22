@@ -1,4 +1,6 @@
+import crypto from "node:crypto";
 import prisma from "../db.server";
+import { maybeDecryptToken } from "../lib/tokenCrypto.server.js";
 
 const jsonResponse = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -9,6 +11,7 @@ const jsonResponse = (data, status = 200) =>
   });
 
 const ADMIN_API_VERSION = "2024-10";
+const APP_PROXY_TTL_MS = 5 * 60 * 1000;
 
 const normalizeVariantIdInput = (value) => {
   if (value === undefined || value === null) return null;
@@ -164,10 +167,49 @@ const buildShopMetadata = (shopRow) => {
   };
 };
 
+const verifyAppProxyRequest = (request) => {
+  const secret = process.env.SHOPIFY_API_SECRET || "";
+  if (!secret) {
+    throw new Error("SHOPIFY_API_SECRET is required to verify app proxy calls.");
+  }
+
+  const url = new URL(request.url);
+  const signature = url.searchParams.get("signature") || "";
+  const timestamp = url.searchParams.get("timestamp");
+  if (!signature || !timestamp) return false;
+
+  const tsNumber = Number(timestamp);
+  if (!Number.isFinite(tsNumber)) return false;
+  const age = Math.abs(Date.now() - tsNumber * 1000);
+  if (age > APP_PROXY_TTL_MS) return false;
+
+  const message = [...url.searchParams.entries()]
+    .filter(([key]) => key !== "signature")
+    .sort(([a, aVal], [b, bVal]) => {
+      const keyCompare = a.localeCompare(b);
+      if (keyCompare !== 0) return keyCompare;
+      return String(aVal).localeCompare(String(bVal));
+    })
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
+
+  const expected = crypto.createHmac("sha256", secret).update(message).digest("hex");
+
+  if (expected.length !== signature.length) return false;
+  return crypto.timingSafeEqual(
+    Buffer.from(expected, "utf8"),
+    Buffer.from(signature, "utf8")
+  );
+};
+
 export const loader = async ({ request }) => {
   const shop = getShopFromRequest(request);
   if (!shop) {
     return jsonResponse({ ok: false, error: "Shop domain not provided" }, 400);
+  }
+
+  if (!verifyAppProxyRequest(request)) {
+    return jsonResponse({ ok: false, error: "Invalid app proxy signature" }, 401);
   }
 
   try {
@@ -192,7 +234,7 @@ export const loader = async ({ request }) => {
       }),
     ]);
 
-    const shopAccessToken = shopRow?.accessToken;
+    const shopAccessToken = maybeDecryptToken(shopRow?.accessToken);
     const shopDomain = shopRow?.shop || shop;
 
     const bonusToGid = new Map();

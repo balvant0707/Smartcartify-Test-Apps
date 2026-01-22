@@ -103,15 +103,6 @@ app.use((req, res, next) => {
 // -----------------------------------------------------
 app.get("/healthz", (_req, res) => res.status(200).send("OK"));
 app.get("/ping", (_req, res) => res.type("text").send("pong"));
-app.get("/debug-env", (_req, res) => {
-  res.status(200).json({
-    NODE_ENV: process.env.NODE_ENV || "production",
-    SHOPIFY_APP_URL: process.env.SHOPIFY_APP_URL || "https://cartmilestone.smartreminder.in",
-    APP_URL: process.env.APP_URL || "https://cartmilestone.smartreminder.in",
-    PORT_PRESENT: Boolean(process.env.PORT),
-    DB_URL_PRESENT: Boolean(process.env.DATABASE_URL),
-  });
-});
 
 // -----------------------------------------------------
 // 📁 Static assets

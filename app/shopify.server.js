@@ -13,6 +13,7 @@ import {
   buildOwnerInstallEmail,
 } from "./lib/emailTemplates.server.js";
 import { sendEmail } from "./lib/email.server.js";
+import { maybeEncryptToken } from "./lib/tokenCrypto.server.js";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -35,16 +36,20 @@ const shopify = shopifyApp({
       const isNewInstall = !existingShop || existingShop.installed === false;
       const forceSend = process.env.FORCE_INSTALL_EMAIL === "true";
 
+      const encryptedAccessToken = session?.accessToken
+        ? maybeEncryptToken(session.accessToken)
+        : null;
+
       await prisma.shop.upsert({
         where: { shop },
         update: {
-          accessToken: session?.accessToken ?? undefined,
+          accessToken: encryptedAccessToken ?? undefined,
           installed: true,
           uninstalledAt: null,
         },
         create: {
           shop,
-          accessToken: session?.accessToken ?? null,
+          accessToken: encryptedAccessToken,
           installed: true,
           onboardedAt: new Date(),
         },
