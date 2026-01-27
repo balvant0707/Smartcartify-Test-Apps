@@ -31,7 +31,6 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { maybeDecryptToken } from "../lib/tokenCrypto.server.js";
 import {
   syncMinAmountFreeGiftDiscount,
   syncFreeProductDiscountsToShopify,
@@ -225,6 +224,26 @@ const isCssGradient = (val) =>
   (val.includes("linear-gradient") ||
     val.includes("radial-gradient") ||
     val.includes("conic-gradient"));
+
+const extractGradientHexColors = (value) => {
+  if (!isCssGradient(value)) return null;
+  const matches = value.match(/#(?:[0-9a-fA-F]{3}){1,2}/g);
+  if (!matches || matches.length < 2) return null;
+  return { start: matches[0], end: matches[1] };
+};
+
+const normalizeGradientColors = (background, fallbackHex) => {
+  const parsed = extractGradientHexColors(background);
+  if (parsed) return parsed;
+  const base = normalizeHex(background) || normalizeHex(fallbackHex) || "#000000";
+  return { start: base, end: base };
+};
+
+const buildLinearGradient = (start, end, fallbackHex) => {
+  const safeStart = normalizeHex(start) || normalizeHex(fallbackHex) || start || "#000000";
+  const safeEnd = normalizeHex(end) || normalizeHex(fallbackHex) || end || safeStart;
+  return `linear-gradient(180deg, ${safeStart} 0%, ${safeEnd} 100%)`;
+};
 
 const pickNumber = (...vals) => {
   const v = vals.find((x) => x !== undefined && x !== null && x !== "");
@@ -449,12 +468,16 @@ const buildThemeFromStyles = (styles) => {
     borderColor: String(
       s.borderColor ?? DEFAULT_STYLE_SETTINGS.borderColor ?? "#E1E5ED"
     ),
-    cartDrawerBackground: String(s.cartDrawerBackground || "#927011"),
+    cartDrawerBackground: String(
+      s.cartDrawerBackground || DEFAULT_STYLE_SETTINGS.cartDrawerBackground
+    ),
     cartDrawerTextColor: String(s.cartDrawerTextColor || "#111827"),
     cartDrawerHeaderColor: String(s.cartDrawerHeaderColor || "#111827"),
     discountCodeApply: Boolean(Number(s.discountCodeApply ?? 1)),
     cartDrawerImage: s.cartDrawerImage ? String(s.cartDrawerImage) : "",
-    cartDrawerBackgroundMode: String(s.cartDrawerBackgroundMode || "color").toLowerCase(),
+    cartDrawerBackgroundMode: String(
+      s.cartDrawerBackgroundMode || DEFAULT_STYLE_SETTINGS.cartDrawerBackgroundMode
+    ).toLowerCase(),
     checkoutButtonText: String(
       (s.checkoutButtonText || "").trim() || "Checkout"
     ),
@@ -494,11 +517,13 @@ const composeRulesResponse = ({
   shop,
   minAmountRule,
   planId,
+  planSelected,
 }) => ({
   ...payload,
   shop,
   minAmountRule: seedMinAmountRule(minAmountRule),
   planId: planId || "free",
+  planSelected: Boolean(planSelected),
 });
 
 const LOAD_RULES_QUERY = `
@@ -850,11 +875,11 @@ const DEFAULT_STYLE_SETTINGS = {
   progress: "#000000",
   buttonColor: "#74590f",
   borderColor: "#E1E5ED",
-  cartDrawerBackground: "#74590f",
+  cartDrawerBackground: "linear-gradient(180deg, #74590f 0%, #2d1f06 100%)",
   cartDrawerTextColor: "#ffffff",
   cartDrawerHeaderColor: "#ffffff",
   discountCodeApply: false,
-  cartDrawerBackgroundMode: "color",
+  cartDrawerBackgroundMode: "gradient",
   cartDrawerImage: "",
   progressTextAfter: "🎉 Congratulations! You have unlocked Free Shipping!",
   checkoutButtonText: "Checkout",
@@ -1229,11 +1254,13 @@ const buildRulesPayload = (data = {}) => {
       progress: styleRow.progress || "#1B84F1",
       buttonColor: styleRow.buttonColor || DEFAULT_STYLE_SETTINGS.buttonColor,
       borderColor: styleRow.borderColor || DEFAULT_STYLE_SETTINGS.borderColor,
-      cartDrawerBackground: styleRow.cartDrawerBackground || "",
+      cartDrawerBackground:
+        styleRow.cartDrawerBackground || DEFAULT_STYLE_SETTINGS.cartDrawerBackground,
       cartDrawerTextColor: styleRow.cartDrawerTextColor || "",
       cartDrawerHeaderColor: styleRow.cartDrawerHeaderColor || "",
       cartDrawerImage: styleRow.cartDrawerImage || "",
-      cartDrawerBackgroundMode: styleRow.cartDrawerBackgroundMode || "color",
+      cartDrawerBackgroundMode:
+        styleRow.cartDrawerBackgroundMode || DEFAULT_STYLE_SETTINGS.cartDrawerBackgroundMode,
       discountCodeApply: Boolean(styleRow.discountCodeApply),
       checkoutButtonText:
         styleRow.checkoutButtonText || DEFAULT_STYLE_SETTINGS.checkoutButtonText,
@@ -1469,7 +1496,7 @@ export const loader = async ({ request }) => {
   });
 
   const shop = shopRow?.shop || sessionShop || null;
-  const shopAccessToken = maybeDecryptToken(shopRow?.accessToken);
+  const shopAccessToken = shopRow?.accessToken || null;
   if (!shopRow || !shopAccessToken) {
     return json(
       { error: "Shop record missing access token" },
@@ -1481,6 +1508,7 @@ export const loader = async ({ request }) => {
     where: { shop },
   });
   const planId = planRecord?.planId ?? "free";
+  const planSelected = Boolean(planRecord);
 
   const shopDomain = shopRow.shop || shop;
   let payload = null;
@@ -1574,6 +1602,7 @@ export const loader = async ({ request }) => {
             shop,
             minAmountRule,
             planId,
+            planSelected,
           }),
         },
         { status: 200 }
@@ -1589,6 +1618,7 @@ export const loader = async ({ request }) => {
       shop,
       minAmountRule,
       planId,
+      planSelected,
     })
   );
 };
@@ -1669,7 +1699,7 @@ export const action = async ({ request }) => {
       orderBy: { id: "desc" },
     });
 
-    const shopAccessToken = maybeDecryptToken(shopRow?.accessToken);
+    const shopAccessToken = shopRow?.accessToken || null;
     if (!shopAccessToken) {
       return json(
         { error: "Missing Shopify Admin access token in database" },
@@ -1683,6 +1713,7 @@ export const action = async ({ request }) => {
     });
     const planId = planRecord?.planId ?? "free";
     const isFreePlan = planId === "free";
+    const isPlanSelected = Boolean(planRecord);
     let freeGiftAllProductsCollectionId = null;
 
     if (shopAccessToken && shopDomain) {
@@ -2100,6 +2131,13 @@ export const action = async ({ request }) => {
       const normalizer = normalizerForSection[sectionName];
       return normalizer ? dedupeRules(next, normalizer) : next;
     };
+
+    if (!isPlanSelected && (section === "shipping" || section === "discount")) {
+      return json(
+        { error: "Please select a plan to enable this rule." },
+        { status: 403 }
+      );
+    }
 
     if (isFreePlan) {
       const payloadRules = Array.isArray(payload) ? payload : [];
@@ -3007,7 +3045,9 @@ export const action = async ({ request }) => {
 
       case "style": {
         const data = payload ?? {};
-        const mode = data.cartDrawerBackgroundMode === "image" ? "image" : "color";
+        const modeRaw = String(data.cartDrawerBackgroundMode || "").toLowerCase();
+        const mode =
+          modeRaw === "image" || modeRaw === "gradient" ? modeRaw : "color";
         const parseText = (value) =>
           typeof value === "string" && value.trim() ? value.trim() : null;
         const requestedImage = parseText(data.cartDrawerImage);
@@ -5723,11 +5763,14 @@ export default function AppRules() {
     previewItems: previewItemsSeed = [],
     shop: loaderShop = null,
     planId: planIdSeed = "free",
+    planSelected: planSelectedSeed = false,
   } = loaderData;
 
   const normalizedPlanId =
     typeof planIdSeed === "string" ? planIdSeed.toLowerCase() : "free";
   const isFreePlan = normalizedPlanId === "free";
+  const isPlanSelected = Boolean(planSelectedSeed);
+  const isPlanLocked = !isPlanSelected;
 
   const [selected, setSelected] = React.useState(0);
 
@@ -6157,6 +6200,19 @@ export default function AppRules() {
     styleSeed.cartDrawerImage ?? ""
   );
 
+  const gradientDefaults = normalizeGradientColors(
+    styleSeed.cartDrawerBackground,
+    DEFAULT_STYLE_SETTINGS.cartDrawerBackground
+  );
+
+  const [cartDrawerGradientStart, setCartDrawerGradientStart] = React.useState(
+    gradientDefaults.start
+  );
+
+  const [cartDrawerGradientEnd, setCartDrawerGradientEnd] = React.useState(
+    gradientDefaults.end
+  );
+
   const [checkoutButtonText, setCheckoutButtonText] = React.useState(
     styleSeed.checkoutButtonText ?? DEFAULT_STYLE_SETTINGS.checkoutButtonText
   );
@@ -6166,7 +6222,10 @@ export default function AppRules() {
   );
 
   const [cartDrawerBackgroundMode, setCartDrawerBackgroundMode] =
-    React.useState(styleSeed.cartDrawerBackgroundMode ?? "color");
+    React.useState(
+      styleSeed.cartDrawerBackgroundMode ??
+        DEFAULT_STYLE_SETTINGS.cartDrawerBackgroundMode
+    );
 
   const cartSteps = React.useMemo(() => {
     const derived = deriveCartStepsFromRules(
@@ -6220,6 +6279,15 @@ export default function AppRules() {
     return map;
   }, [shippingRules, discountRules, freeRules]);
 
+  const cartDrawerBackgroundValue =
+    cartDrawerBackgroundMode === "gradient"
+      ? buildLinearGradient(
+        cartDrawerGradientStart,
+        cartDrawerGradientEnd,
+        DEFAULT_STYLE_SETTINGS.cartDrawerBackground
+      )
+      : cartDrawerBackground;
+
   const stylePreviewSettings = React.useMemo(
     () => ({
       font,
@@ -6231,7 +6299,7 @@ export default function AppRules() {
       progress,
       buttonColor,
       borderColor,
-      cartDrawerBackground,
+      cartDrawerBackground: cartDrawerBackgroundValue,
       cartDrawerTextColor,
       cartDrawerHeaderColor,
       cartDrawerImage,
@@ -6249,7 +6317,7 @@ export default function AppRules() {
       progress,
       buttonColor,
       borderColor,
-      cartDrawerBackground,
+      cartDrawerBackgroundValue,
       cartDrawerTextColor,
       cartDrawerHeaderColor,
       cartDrawerImage,
@@ -6583,15 +6651,44 @@ export default function AppRules() {
     (value) => {
       setCartDrawerBackgroundMode(value);
 
+      if (value === "gradient") {
+        const fallback =
+          normalizeHex(cartDrawerBackground) ||
+          normalizeHex(DEFAULT_STYLE_SETTINGS.cartDrawerBackground) ||
+          "#000000";
+        setCartDrawerGradientStart((prev) => prev || fallback);
+        setCartDrawerGradientEnd((prev) => prev || fallback);
+      }
+
+      triggerThemeBurst();
+    },
+
+    [cartDrawerBackground, triggerThemeBurst]
+  );
+
+  const handleCartDrawerImageChange = React.useCallback(
+    (value) => {
+      setCartDrawerImage(value);
+
       triggerThemeBurst();
     },
 
     [triggerThemeBurst]
   );
 
-  const handleCartDrawerImageChange = React.useCallback(
+  const handleCartDrawerGradientStartChange = React.useCallback(
     (value) => {
-      setCartDrawerImage(value);
+      setCartDrawerGradientStart(value);
+
+      triggerThemeBurst();
+    },
+
+    [triggerThemeBurst]
+  );
+
+  const handleCartDrawerGradientEndChange = React.useCallback(
+    (value) => {
+      setCartDrawerGradientEnd(value);
 
       triggerThemeBurst();
     },
@@ -6833,8 +6930,8 @@ export default function AppRules() {
 
           borderColor,
 
-          cartDrawerBackground: cartDrawerBackground.trim()
-            ? cartDrawerBackground.trim()
+          cartDrawerBackground: cartDrawerBackgroundValue.trim()
+            ? cartDrawerBackgroundValue.trim()
             : "",
 
           cartDrawerTextColor,
@@ -6857,6 +6954,11 @@ export default function AppRules() {
       let payloadForSection = payloadMap[section];
 
       if (!payloadForSection) return;
+
+      if (isPlanLocked && (section === "shipping" || section === "discount")) {
+        showToast("Please select a plan first.", "warning");
+        return;
+      }
 
       if (isFreePlan) {
         const sectionRules = Array.isArray(payloadForSection)
@@ -7176,6 +7278,7 @@ export default function AppRules() {
 
       discountCodeApply,
       isFreePlan,
+      isPlanLocked,
 
       showToast,
 
@@ -7334,9 +7437,11 @@ export default function AppRules() {
   const automaticDiscountCount = discountRules.filter(
     (rule) => String(rule?.type || "automatic").toLowerCase() !== "code"
   ).length;
-  const canAddShipping = !isFreePlan || shippingRules.length < 1;
-  const canAddAutomaticDiscount = !isFreePlan || automaticDiscountCount < 1;
-  const canAddCodeDiscount = !isFreePlan;
+  const canAddShipping =
+    !isPlanLocked && (!isFreePlan || shippingRules.length < 1);
+  const canAddAutomaticDiscount =
+    !isPlanLocked && (!isFreePlan || automaticDiscountCount < 1);
+  const canAddCodeDiscount = !isPlanLocked && !isFreePlan;
   const canUseFreeGift = !isFreePlan;
   const canUseBxgy = !isFreePlan;
 
@@ -7364,8 +7469,8 @@ export default function AppRules() {
         textColor,
         bg,
         progress,
-        cartDrawerBackground: cartDrawerBackground.trim()
-          ? cartDrawerBackground.trim()
+        cartDrawerBackground: cartDrawerBackgroundValue.trim()
+          ? cartDrawerBackgroundValue.trim()
           : "",
         cartDrawerTextColor,
         cartDrawerHeaderColor,
@@ -7399,6 +7504,10 @@ export default function AppRules() {
   /* add/remove handlers */
 
   const addShipping = () => {
+    if (isPlanLocked) {
+      showToast("Please select a plan first.", "warning");
+      return;
+    }
     if (!canAddShipping) {
       showToast("Free plan allows only 1 shipping rule.", "warning");
       return;
@@ -7438,6 +7547,10 @@ export default function AppRules() {
 
   const addDiscount = (type = "automatic") => {
     const normalizedType = String(type || "automatic").toLowerCase();
+    if (isPlanLocked) {
+      showToast("Please select a plan first.", "warning");
+      return;
+    }
     if (normalizedType === "code" && !canAddCodeDiscount) {
       showToast("Discount codes require a paid plan.", "warning");
       return;
@@ -8149,6 +8262,11 @@ export default function AppRules() {
     return Math.min(100, ((idx + 1) * 100) / discountCenterCount);
   });
 
+  const shippingReadOnly = !isPlanSelected;
+  const shippingUpgradeForAdd =
+    !isPlanSelected || (isFreePlan && !canAddShipping);
+  const shippingUpgradeForSave = !isPlanSelected;
+
   const ShippingPanel = (
     <BlockStack gap="300">
       <InlineStack align="space-between" blockAlign="center">
@@ -8157,7 +8275,7 @@ export default function AppRules() {
         </Text>
 
         <InlineStack gap="200">
-          {isFreePlan && !canAddShipping ? (
+          {shippingUpgradeForAdd ? (
             <UpgradePlanButton />
           ) : (
             <Button onClick={addShipping} disabled={!canAddShipping}>
@@ -8170,14 +8288,19 @@ export default function AppRules() {
       {shippingRules.map((r, i) => {
         const contentActions = (
           <InlineStack align="end">
-            <Button
-              size="slim"
-              variant="primary"
-              loading={saving}
-              onClick={() => handleSectionSave("shipping", i)}
-            >
-              Save Rule
-            </Button>
+            {shippingUpgradeForSave ? (
+              <UpgradePlanButton size="slim" />
+            ) : (
+              <Button
+                size="slim"
+                variant="primary"
+                loading={saving}
+                onClick={() => handleSectionSave("shipping", i)}
+                disabled={shippingReadOnly}
+              >
+                Save Rule
+              </Button>
+            )}
           </InlineStack>
         );
 
@@ -8190,6 +8313,7 @@ export default function AppRules() {
             summary={shippingSummary(r)}
             icon={r.iconChoice}
             defaultOpen={!r.isNew}
+            disableRemove={shippingReadOnly}
           >
             <BlockStack gap="400">
               <div
@@ -8206,6 +8330,7 @@ export default function AppRules() {
                 <Checkbox
                   label="Enable"
                   checked={r.enabled}
+                  disabled={shippingReadOnly}
                   onChange={(v) =>
                     setShippingRules((x) =>
                       x.map((it, idx) => (idx === i ? { ...it, enabled: v } : it))
@@ -8216,6 +8341,7 @@ export default function AppRules() {
                   <span style={{ fontSize: 13, fontWeight: 600 }}>Reward Type</span>
                   <Select
                     labelHidden
+                    disabled={shippingReadOnly}
                     options={[
                       { label: "Free Shipping", value: "free" },
                       { label: "Reduced Shipping", value: "reduced" },
@@ -8239,6 +8365,7 @@ export default function AppRules() {
                   <TextField
                     size="small"
                     labelHidden
+                    disabled={shippingReadOnly}
                     value={r.minSubtotal}
                     onChange={(v) =>
                       setShippingRules((x) =>
@@ -8261,6 +8388,7 @@ export default function AppRules() {
                     <TextField
                       size="small"
                       labelHidden
+                      disabled={shippingReadOnly}
                       value={r.amount}
                       onChange={(v) =>
                         setShippingRules((x) =>
@@ -8277,6 +8405,7 @@ export default function AppRules() {
                   <div style={{ fontSize: 13, fontWeight: 600 }}>Rule icon</div>
                   <Select
                     labelHidden
+                    disabled={shippingReadOnly}
                     options={ICON_OPTIONS}
                     value={r.iconChoice || "truck"}
                     onChange={(v) =>
@@ -8331,7 +8460,9 @@ export default function AppRules() {
                         i,
                         "progressTextBefore",
                         value?.trim() ? value : null
-                      )
+                      ),
+                    null,
+                    { disabled: shippingReadOnly }
                   )}
                 </Box>
                 <Box style={{ width: "100%", marginTop: 5 }}>
@@ -8344,7 +8475,9 @@ export default function AppRules() {
                         i,
                         "progressTextAfter",
                         value?.trim() ? value : null
-                      )
+                      ),
+                    null,
+                    { disabled: shippingReadOnly }
                   )}
                 </Box>
               </BlockStack>
@@ -8359,12 +8492,15 @@ export default function AppRules() {
                         i,
                         "progressTextBelow",
                         value?.trim() ? value : null
-                      )
+                      ),
+                    null,
+                    { disabled: shippingReadOnly }
                   )}
                 </Box>
                 <Box style={{ flex: "1 1 280px" }}>
                   <TextField
                     label="Campaign name"
+                    disabled={shippingReadOnly}
                     value={r.campaignName || "Free Shipping"}
                     onChange={(value) =>
                       updateShippingRuleField(
@@ -8379,6 +8515,7 @@ export default function AppRules() {
                 <Box style={{ flex: "1 1 220px" }}>
                   <Select
                     label="Cart Step"
+                    disabled={shippingReadOnly}
                     options={getCartStepOptions("shipping", i)}
                     value={r.cartStepName || ""}
                     onChange={(value) =>
@@ -9357,6 +9494,10 @@ export default function AppRules() {
     );
   };
 
+  const discountRequiresPlan = !isPlanSelected;
+  const discountUpgradeForAdd =
+    discountRequiresPlan || (isFreePlan && !canAddAutomaticDiscount);
+
   const DiscountPanel = renderDiscountPanel(
     "Automatic Discounts",
     (rule) => rule.type !== "code",
@@ -9369,9 +9510,9 @@ export default function AppRules() {
     true,
     false,
     canAddAutomaticDiscount,
-    isFreePlan && !canAddAutomaticDiscount,
-    false,
-    false
+    discountUpgradeForAdd,
+    discountRequiresPlan,
+    discountRequiresPlan
   );
 
   const DiscountCodePanel = renderDiscountPanel(
@@ -10335,18 +10476,21 @@ export default function AppRules() {
                       options={[
                         { label: "Color", value: "color" },
                         { label: "Image URL", value: "image" },
+                        { label: "Gradient background", value: "gradient" },
                       ]}
                       value={cartDrawerBackgroundMode}
                       onChange={handleCartDrawerBackgroundModeChange}
                     />
 
-                    {cartDrawerBackgroundMode === "color" ? (
+                    {cartDrawerBackgroundMode === "color" && (
                       <ColorField
                         label="Background color"
                         value={cartDrawerBackground}
                         onChange={handleCartDrawerBackgroundChange}
                       />
-                    ) : (
+                    )}
+
+                    {cartDrawerBackgroundMode === "image" && (
                       <TextField
                         label="Cart drawer image URL"
                         value={cartDrawerImage}
@@ -10354,10 +10498,29 @@ export default function AppRules() {
                         autoComplete="off"
                       />
                     )}
+
+                    {cartDrawerBackgroundMode === "gradient" && (
+                      <React.Fragment>
+                        <ColorField
+                          label="Gradient start"
+                          value={cartDrawerGradientStart}
+                          onChange={handleCartDrawerGradientStartChange}
+                        />
+                        <ColorField
+                          label="Gradient end"
+                          value={cartDrawerGradientEnd}
+                          onChange={handleCartDrawerGradientEndChange}
+                        />
+                      </React.Fragment>
+                    )}
                   </InlineStack>
 
                   <Text tone="" variant="bodySm">
-                    {cartDrawerBackgroundMode === "color"}
+                    {cartDrawerBackgroundMode === "image"
+                      ? "Using image background."
+                      : cartDrawerBackgroundMode === "gradient"
+                        ? "Using gradient background."
+                        : "Using solid background color."}
                   </Text>
 
                   <InlineStack gap="200" wrap>

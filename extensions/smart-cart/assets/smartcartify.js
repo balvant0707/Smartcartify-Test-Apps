@@ -11,9 +11,13 @@
   // ✅ Turn ON to see table-wise logs in console
   const DEBUG_TABLES = true;
 
-  // ✅ Always force trailing slash
-  let proxyPath = (root.dataset.proxyPath || "/apps/smart/").trim();
-  if (!proxyPath.endsWith("/")) proxyPath += "/";
+  // ✅ App proxy path (prefer embed data, fallback to /apps/smart)
+  let proxyPath = root.dataset.proxyPath || "/apps/smart";
+  proxyPath = String(proxyPath || "").trim();
+  if (proxyPath && !/^https?:\/\//i.test(proxyPath) && !proxyPath.startsWith("/")) {
+    proxyPath = `/${proxyPath}`;
+  }
+  if (proxyPath.endsWith("/")) proxyPath = proxyPath.slice(0, -1);
 
   /* =========================================================
    ✅ DISABLE THEME DEFAULT <cart-drawer> (Dawn / OS2 drawers)
@@ -763,19 +767,45 @@
     });
 
     const ct = r.headers.get("content-type") || "";
-    if (!ct.includes("application/json")) {
-      const text = await r.text();
-      throw new Error(
-        `[SmartCartify] Proxy not JSON. status=${r.status} ct=${ct} body=${text.slice(
-          0,
-          220
-        )}...`
-      );
+    if (!r.ok) {
+      let text = "";
+      try {
+        text = await r.text();
+      } catch { }
+      return {
+        ok: true,
+        _proxyError: new Error(
+          `[SmartCartify] Proxy fetch failed (${r.status}). ct=${ct} body=${text.slice(
+            0,
+            220
+          )}...`
+        ),
+      };
     }
 
-    if (!r.ok) throw new Error(`[SmartCartify] Proxy fetch failed (${r.status})`);
+    if (!ct.includes("application/json")) {
+      let text = "";
+      try {
+        text = await r.text();
+      } catch { }
+      return {
+        ok: true,
+        _proxyError: new Error(
+          `[SmartCartify] Proxy not JSON. status=${r.status} ct=${ct} body=${text.slice(
+            0,
+            220
+          )}...`
+        ),
+      };
+    }
+
     const j = await r.json();
-    if (!j?.ok) throw new Error(j?.error || "Invalid proxy response (ok:false)");
+    if (!j?.ok) {
+      return {
+        ok: true,
+        _proxyError: new Error(j?.error || "Invalid proxy response (ok:false)"),
+      };
+    }
     return j;
   };
 
@@ -2115,20 +2145,25 @@ body.sc-cartify-open .shopify-section-group-header-group{
     if (checkoutLabelEl) checkoutLabelEl.textContent = checkoutLabelText;
 
     if (mode === "image") {
-      const imgUrl = buildCssUrl(pick(style, ["cartDrawerImage", "drawerImage", "topBgImage"], null));
+      const rawImage =
+        pick(style, ["cartDrawerBackground", "cartDrawerImage", "drawerImage", "topBgImage"], null) || "";
+      const imgUrl =
+        /^url\(/i.test(String(rawImage)) ? String(rawImage) : buildCssUrl(rawImage);
+
       if (imgUrl) {
         r.setProperty("--sc-top-bg-image", `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), ${imgUrl}`);
       } else {
         r.setProperty("--sc-top-bg-image", "none");
       }
-      r.setProperty("--sc-top-bg-color", isValidCssColor(baseBg) ? baseBg : "transparent");
-      r.setProperty("--sc-top-bg-color-effective", "var(--sc-top-bg-color)");
+      r.setProperty("--sc-top-bg-color", "transparent");
+      r.setProperty("--sc-top-bg-color-effective", "transparent");
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
       const drawerBg = pickBackground(style, ["drawerBg", "cartDrawerBodyBg", "bodyBg"], null);
-      r.setProperty("--sc-drawer-bg", drawerBg || "transparent");
+      r.setProperty("--sc-drawer-bg", drawerBg || (imgUrl ? imgUrl : "transparent"));
     } else {
-      const isGradient = /gradient\(/i.test(String(baseBg));
+      const isGradient =
+        mode === "gradient" ? true : /gradient\(/i.test(String(baseBg));
 
       if (isGradient) {
         r.setProperty("--sc-top-bg-color", "transparent");
@@ -3304,9 +3339,27 @@ body.sc-cartify-open .shopify-section-group-header-group{
   const preload = async () => {
     try {
       setProgressLoading(true);
-      const [proxy, cart] = await Promise.all([fetchProxy(), fetchCart()]);
-      PROXY = proxy;
-      CART = cart;
+      const [proxyRes, cartRes] = await Promise.allSettled([
+        fetchProxy(),
+        fetchCart(),
+      ]);
+
+      if (cartRes.status !== "fulfilled") {
+        throw cartRes.reason || new Error("Cart preload failed");
+      }
+
+      CART = cartRes.value;
+      PROXY =
+        proxyRes.status === "fulfilled"
+          ? proxyRes.value
+          : { ok: true, _proxyError: proxyRes.reason };
+
+      if (proxyRes.status !== "fulfilled") {
+        console.warn(
+          "[SmartCartify] Proxy preload failed; continuing without proxy data.",
+          proxyRes.reason
+        );
+      }
 
       await enforceRewardValidity();
 

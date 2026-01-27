@@ -1,5 +1,5 @@
 import "@shopify/shopify-app-react-router/adapters/node";
-import { BillingInterval } from "@shopify/shopify-api";
+import { BillingInterval, DeliveryMethod } from "@shopify/shopify-api";
 import {
   ApiVersion,
   AppDistribution,
@@ -13,7 +13,6 @@ import {
   buildOwnerInstallEmail,
 } from "./lib/emailTemplates.server.js";
 import { sendEmail } from "./lib/email.server.js";
-import { maybeEncryptToken } from "./lib/tokenCrypto.server.js";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -32,13 +31,18 @@ const shopify = shopifyApp({
         return;
       }
 
+      try {
+        await shopify.registerWebhooks({ session });
+        console.log("[webhooks] registered", { shop });
+      } catch (error) {
+        console.warn("[webhooks] register failed", { shop, error });
+      }
+
       const existingShop = await prisma.shop.findUnique({ where: { shop } });
       const isNewInstall = !existingShop || existingShop.installed === false;
       const forceSend = process.env.FORCE_INSTALL_EMAIL === "true";
 
-      const encryptedAccessToken = session?.accessToken
-        ? maybeEncryptToken(session.accessToken)
-        : null;
+      const encryptedAccessToken = session?.accessToken || null;
 
       await prisma.shop.upsert({
         where: { shop },
@@ -153,6 +157,32 @@ const shopify = shopifyApp({
       }
     },
   },
+  webhooks: {
+    APP_SUBSCRIPTIONS_UPDATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks",
+    },
+    APP_UNINSTALLED: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks/app/uninstalled",
+    },
+    APP_SCOPES_UPDATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks/app/scopes_update",
+    },
+    CUSTOMERS_DATA_REQUEST: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks/gdpr",
+    },
+    CUSTOMERS_REDACT: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks/gdpr",
+    },
+    SHOP_REDACT: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks/gdpr",
+    },
+  },
   billing: Object.fromEntries(
     PLANS.filter((plan) => plan.price > 0).map((plan) => [
       plan.id,
@@ -165,10 +195,8 @@ const shopify = shopifyApp({
               plan.interval === "ANNUAL"
                 ? BillingInterval.Annual
                 : BillingInterval.Every30Days,
-            price: {
-              amount: plan.price,
-              currencyCode: "USD",
-            },
+            amount: plan.price,
+            currencyCode: "USD",
           },
         ],
       },

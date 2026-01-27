@@ -39,9 +39,9 @@ redirect_urls = [
 ]
 
 [app_proxy]
-url = "https://cartmilestone.smartreminder.in/auth/callback/proxy/smart"
-subpath = "smart"
 prefix = "apps"
+subpath = "smart"
+url = "https://cartmilestone.smartreminder.in/proxy/smart"
 
 [pos]
 embedded = true

@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import prisma from "../db.server";
+import { PLANS } from "../lib/plans.js";
 
 const deleteShopData = async (shop) => {
   if (!shop) return;
@@ -68,11 +69,27 @@ export async function action({ request }) {
     const shopifyStatus =
       payload?.status || payload?.app_subscription?.status || "UNKNOWN";
 
+    const subscription =
+      payload?.app_subscription || payload?.appSubscription || payload;
+
+    const planName =
+      subscription?.name || payload?.app_subscription?.name || null;
+    const matchedPlan = planName
+      ? PLANS.find((plan) => plan.name === planName)
+      : null;
+    const planId = matchedPlan?.id || null;
+
     // Subscription id can come as:
     // - payload.id (often numeric or gid)
     // - payload.admin_graphql_api_id (gid://shopify/AppSubscription/...)
     const subId =
       payload?.admin_graphql_api_id || payload?.id || payload?.app_subscription?.admin_graphql_api_id;
+
+    const createdAtRaw =
+      subscription?.created_at || subscription?.createdAt || null;
+    const trialDaysRaw =
+      subscription?.trial_days || subscription?.trialDays || null;
+    const isTestRaw = subscription?.test;
 
     // Period end can come as:
     // - payload.current_period_end
@@ -80,13 +97,30 @@ export async function action({ request }) {
     const periodEndRaw = payload?.current_period_end || payload?.currentPeriodEnd;
     const periodEnd = toDateOrNull(periodEndRaw);
 
+    const lineItems =
+      subscription?.line_items || subscription?.lineItems || [];
+    const firstItem = Array.isArray(lineItems) ? lineItems[0] : null;
+    const pricingDetails =
+      firstItem?.plan?.pricing_details || firstItem?.plan?.pricingDetails || null;
+    const amount = pricingDetails?.price?.amount ?? null;
+    const currencyCode = pricingDetails?.price?.currencyCode ?? null;
+    const interval = pricingDetails?.interval ?? null;
+
     // ✅ Update only what we have (DON'T overwrite with null)
     await prisma.planSubscription.updateMany({
       where: { shop },
       data: {
         status: shopifyStatus, // ACTIVE / CANCELLED / FROZEN / etc
 
+        ...(planId ? { planId } : {}),
+        ...(planName ? { planName } : {}),
         ...(subId ? { shopifySubGid: String(subId) } : {}),
+        ...(createdAtRaw ? { subscriptionCreatedAt: toDateOrNull(createdAtRaw) } : {}),
+        ...(typeof trialDaysRaw === "number" ? { trialDays: trialDaysRaw } : {}),
+        ...(typeof isTestRaw === "boolean" ? { isTest: isTestRaw } : {}),
+        ...(interval ? { billingInterval: String(interval) } : {}),
+        ...(amount != null ? { billingAmount: Number(amount) } : {}),
+        ...(currencyCode ? { billingCurrency: String(currencyCode) } : {}),
         ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
       },
     });

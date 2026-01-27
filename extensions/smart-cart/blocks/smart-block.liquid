@@ -1,11 +1,11 @@
 {% comment %}
-  SmartCartify – App Embed
+  SmartCartify - App Embed
   Loads smartcartify.js once and mounts the drawer root globally
 {% endcomment %}
 
 <div
   id="smart-embed-root"
-  data-proxy-path="/apps/smart/"
+  data-proxy-path="/apps/smart"
   data-design-mode="{{ request.design_mode }}"
   data-preview-enabled="{{ settings.preview_in_editor }}"
 ></div>
@@ -29,6 +29,6 @@
   "target": "body",
   "enabled_on": {
     "templates": ["*"]
-  },
+  }
 }
 {% endschema %}
