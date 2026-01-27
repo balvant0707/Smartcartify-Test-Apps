@@ -239,7 +239,7 @@ export default function Index() {
   const host = params.get("host");
   const [copied, setCopied] = useState(false);
 
-  const HEADER_SNIPPET ='<a data-smart-cartify-open class="my-cart-icon">My Cart</a>';
+  const HEADER_SNIPPET = '<a data-smart-cartify-open class="my-cart-icon">My Cart</a>';
 
   const withHost = (path) => {
     if (!host) return path;
@@ -258,7 +258,7 @@ export default function Index() {
     },
     {
       title: "Discount Automations",
-      body: "Automate cart discounts based on value, payment type, or customer rules.",
+      body: "Automate cart discounts based on value, or customer rules.",
       imageSrc: "/images/AutomaticDiscount.png",
       imageAlt: "Discount automations",
       href: withHost("/app/rules?tab=discount"),
@@ -600,7 +600,7 @@ export default function Index() {
                     alignItems: "center",
                     justifyContent: "center",
                     fontSize: "26px",
-                     boxShadow: "0 12px 35px #ffffff",
+                    boxShadow: "0 12px 35px #ffffff",
                   }}
                 >
                   <img
@@ -614,7 +614,7 @@ export default function Index() {
                     }}
                   />
                 </div>
-                <text style={{ fontSize: "18px",fontWeight: "600" }}>
+                <text style={{ fontSize: "18px", fontWeight: "600" }}>
                   {card.title}
                 </text>
               </div>

@@ -1708,12 +1708,6 @@ export const action = async ({ request }) => {
     }
 
     const shopDomain = shopRow.shop || shop;
-    const planRecord = await prisma.planSubscription.findUnique({
-      where: { shop },
-    });
-    const planId = planRecord?.planId ?? "free";
-    const isFreePlan = planId === "free";
-    const isPlanSelected = Boolean(planRecord);
     let freeGiftAllProductsCollectionId = null;
 
     if (shopAccessToken && shopDomain) {
@@ -2132,55 +2126,6 @@ export const action = async ({ request }) => {
       return normalizer ? dedupeRules(next, normalizer) : next;
     };
 
-    if (!isPlanSelected && (section === "shipping" || section === "discount")) {
-      return json(
-        { error: "Please select a plan to enable this rule." },
-        { status: 403 }
-      );
-    }
-
-    if (isFreePlan) {
-      const payloadRules = Array.isArray(payload) ? payload : [];
-      if (section === "shipping") {
-        const mergedRules = await mergeRulesWithExisting(
-          "shipping",
-          payloadRules,
-          index
-        );
-        const ruleCount = Array.isArray(mergedRules) ? mergedRules.length : 0;
-        if (ruleCount > 1) {
-          return json(
-            { error: "Free plan allows only 1 shipping rule." },
-            { status: 403 }
-          );
-        }
-      }
-
-      if (section === "discount") {
-        const mergedRules = await mergeRulesWithExisting(
-          "discount",
-          payloadRules,
-          index
-        );
-        const nonCodeRules = (Array.isArray(mergedRules) ? mergedRules : []).filter(
-          (rule) => String(rule?.type || "automatic").toLowerCase() !== "code"
-        );
-        if (nonCodeRules.length > 1) {
-          return json(
-            { error: "Free plan allows only 1 automatic discount rule." },
-            { status: 403 }
-          );
-        }
-      }
-
-      if (section === "free" || section === "bxgy" || section === "freeGiftMinAmount") {
-        return json(
-          { error: "This rule requires a paid plan." },
-          { status: 403 }
-        );
-      }
-    }
-
     switch (section) {
       case "shipping": {
         const existingShippingRules = await prisma.shippingRule.findMany({
@@ -2443,12 +2388,7 @@ export const action = async ({ request }) => {
           orderBy: { id: "asc" },
         });
 
-        const incomingPayload = isFreePlan
-          ? (Array.isArray(payload) ? payload : []).filter(
-            (rule) =>
-              String(rule?.type || "automatic").toLowerCase() !== "code"
-          )
-          : payload;
+        const incomingPayload = payload;
 
         const rules = dedupeRules(incomingPayload, normalizeDiscountRuleForKey);
 
@@ -2457,12 +2397,6 @@ export const action = async ({ request }) => {
           rules,
           index
         );
-        if (isFreePlan) {
-          mergedRules = (Array.isArray(mergedRules) ? mergedRules : []).filter(
-            (rule) => String(rule?.type || "automatic").toLowerCase() !== "code"
-          );
-          mergedRules = mergedRules.slice(0, 1);
-        }
 
         const normalizedRules = mergedRules.map((rule) => ({
           enabled: Boolean(rule.enabled),
@@ -5762,15 +5696,7 @@ export default function AppRules() {
     steps: stepsSeed = ["", "", "", ""],
     previewItems: previewItemsSeed = [],
     shop: loaderShop = null,
-    planId: planIdSeed = "free",
-    planSelected: planSelectedSeed = false,
   } = loaderData;
-
-  const normalizedPlanId =
-    typeof planIdSeed === "string" ? planIdSeed.toLowerCase() : "free";
-  const isFreePlan = normalizedPlanId === "free";
-  const isPlanSelected = Boolean(planSelectedSeed);
-  const isPlanLocked = !isPlanSelected;
 
   const [selected, setSelected] = React.useState(0);
 
@@ -5853,29 +5779,7 @@ export default function AppRules() {
     navigate(targetUrl, { replace: true });
   }, [location.search, location.pathname, navigate, selected]);
 
-  const pricingUrl = React.useMemo(() => {
-    const params = new URLSearchParams(location.search || "");
-    const host = params.get("host");
-    const shopParam = params.get("shop") || loaderShop;
-    const next = new URLSearchParams();
-    if (host) next.set("host", host);
-    if (shopParam) next.set("shop", shopParam);
-    const query = next.toString();
-    return query ? `/app/pricing?${query}` : "/app/pricing";
-  }, [location.search, loaderShop]);
-
-  const UpgradePlanButton = React.useCallback(
-    ({ size = "slim" } = {}) => (
-      <Button
-        variant="primary"
-        size={size}
-        onClick={() => navigate(pricingUrl)}
-      >
-        Upgrade Plan
-      </Button>
-    ),
-    [navigate, pricingUrl]
-  );
+  // Pricing/upgrade UI removed; keep navigation for other use-cases.
 
   /* ------- products (for pickers via /api/products) ------- */
 
@@ -6224,7 +6128,7 @@ export default function AppRules() {
   const [cartDrawerBackgroundMode, setCartDrawerBackgroundMode] =
     React.useState(
       styleSeed.cartDrawerBackgroundMode ??
-        DEFAULT_STYLE_SETTINGS.cartDrawerBackgroundMode
+      DEFAULT_STYLE_SETTINGS.cartDrawerBackgroundMode
     );
 
   const cartSteps = React.useMemo(() => {
@@ -6955,34 +6859,6 @@ export default function AppRules() {
 
       if (!payloadForSection) return;
 
-      if (isPlanLocked && (section === "shipping" || section === "discount")) {
-        showToast("Please select a plan first.", "warning");
-        return;
-      }
-
-      if (isFreePlan) {
-        const sectionRules = Array.isArray(payloadForSection)
-          ? payloadForSection
-          : [];
-        if (section === "shipping" && sectionRules.length > 1) {
-          showToast("Free plan allows only 1 shipping rule.", "warning");
-          return;
-        }
-        if (section === "discount") {
-          const nonCodeRules = sectionRules.filter(
-            (rule) => String(rule?.type || "automatic").toLowerCase() !== "code"
-          );
-          if (nonCodeRules.length > 1) {
-            showToast("Free plan allows only 1 automatic discount rule.", "warning");
-            return;
-          }
-        }
-        if (section === "free" || section === "bxgy" || section === "freeGiftMinAmount") {
-          showToast("This rule requires a paid plan.", "warning");
-          return;
-        }
-      }
-
       let bxgyTargetIndexes = null;
 
       if (section === "bxgy") {
@@ -7047,16 +6923,6 @@ export default function AppRules() {
       }
 
       let isPartial = Number.isInteger(index);
-
-      if (isFreePlan && section === "discount") {
-        payloadForSection = Array.isArray(payloadForSection)
-          ? payloadForSection.filter(
-            (rule) =>
-              String(rule?.type || "automatic").toLowerCase() !== "code"
-          )
-          : payloadForSection;
-        isPartial = false;
-      }
 
       if (isPartial && Array.isArray(payloadForSection)) {
         const item = payloadForSection[index];
@@ -7266,6 +7132,12 @@ export default function AppRules() {
 
       progress,
 
+      buttonColor,
+
+      borderColor,
+
+      cartDrawerBackgroundValue,
+
       cartDrawerBackground,
 
       cartDrawerTextColor,
@@ -7277,8 +7149,8 @@ export default function AppRules() {
       cartDrawerImage,
 
       discountCodeApply,
-      isFreePlan,
-      isPlanLocked,
+
+      checkoutButtonText,
 
       showToast,
 
@@ -7424,26 +7296,19 @@ export default function AppRules() {
   const handleMinAmountSave = React.useCallback(() => {
     setMinAmountSyncError("");
 
-    if (isFreePlan) {
-      showToast("This rule requires a paid plan.", "warning");
-      return;
-    }
-
     if (!validateMinAmountRule()) return;
 
     handleSectionSave("freeGiftMinAmount");
-  }, [handleSectionSave, isFreePlan, setMinAmountSyncError, showToast, validateMinAmountRule]);
+  }, [handleSectionSave, setMinAmountSyncError, validateMinAmountRule]);
 
   const automaticDiscountCount = discountRules.filter(
     (rule) => String(rule?.type || "automatic").toLowerCase() !== "code"
   ).length;
-  const canAddShipping =
-    !isPlanLocked && (!isFreePlan || shippingRules.length < 1);
-  const canAddAutomaticDiscount =
-    !isPlanLocked && (!isFreePlan || automaticDiscountCount < 1);
-  const canAddCodeDiscount = !isPlanLocked && !isFreePlan;
-  const canUseFreeGift = !isFreePlan;
-  const canUseBxgy = !isFreePlan;
+  const canAddShipping = true;
+  const canAddAutomaticDiscount = true;
+  const canAddCodeDiscount = true;
+  const canUseFreeGift = true;
+  const canUseBxgy = true;
 
   const handleSave = () => {
     setSaving(true);
@@ -7504,14 +7369,6 @@ export default function AppRules() {
   /* add/remove handlers */
 
   const addShipping = () => {
-    if (isPlanLocked) {
-      showToast("Please select a plan first.", "warning");
-      return;
-    }
-    if (!canAddShipping) {
-      showToast("Free plan allows only 1 shipping rule.", "warning");
-      return;
-    }
     setShippingRules((r) => [
       ...r,
       {
@@ -7529,7 +7386,7 @@ export default function AppRules() {
         progressTextAfter: DEFAULT_STYLE_SETTINGS.progressTextAfter,
         progressTextBelow: DEFAULT_STYLE_SETTINGS.progressTextBelow,
         campaignName: "Free Shipping",
-        cartStepName: "",
+        cartStepName: "Free Shipping",
       },
     ]);
   };
@@ -7547,18 +7404,6 @@ export default function AppRules() {
 
   const addDiscount = (type = "automatic") => {
     const normalizedType = String(type || "automatic").toLowerCase();
-    if (isPlanLocked) {
-      showToast("Please select a plan first.", "warning");
-      return;
-    }
-    if (normalizedType === "code" && !canAddCodeDiscount) {
-      showToast("Discount codes require a paid plan.", "warning");
-      return;
-    }
-    if (normalizedType !== "code" && !canAddAutomaticDiscount) {
-      showToast("Free plan allows only 1 automatic discount rule.", "warning");
-      return;
-    }
     setDiscountRules((r) => [
       ...r,
       createDefaultDiscountRule({
@@ -7658,10 +7503,6 @@ export default function AppRules() {
   );
 
   const addFree = () => {
-    if (!canUseFreeGift) {
-      showToast("Free product rules require a paid plan.", "warning");
-      return;
-    }
     setFreeRules((r) => [
       ...r,
       {
@@ -7793,10 +7634,6 @@ export default function AppRules() {
   );
 
   const addBxgy = () => {
-    if (!canUseBxgy) {
-      showToast("BXGY rules require a paid plan.", "warning");
-      return;
-    }
     setBxgyRules((r) => [
       ...r,
       {
@@ -8262,10 +8099,7 @@ export default function AppRules() {
     return Math.min(100, ((idx + 1) * 100) / discountCenterCount);
   });
 
-  const shippingReadOnly = !isPlanSelected;
-  const shippingUpgradeForAdd =
-    !isPlanSelected || (isFreePlan && !canAddShipping);
-  const shippingUpgradeForSave = !isPlanSelected;
+  const shippingReadOnly = false;
 
   const ShippingPanel = (
     <BlockStack gap="300">
@@ -8275,32 +8109,24 @@ export default function AppRules() {
         </Text>
 
         <InlineStack gap="200">
-          {shippingUpgradeForAdd ? (
-            <UpgradePlanButton />
-          ) : (
-            <Button onClick={addShipping} disabled={!canAddShipping}>
-              Add Rule
-            </Button>
-          )}
+          <Button onClick={addShipping} disabled={!canAddShipping}>
+            Add Rule
+          </Button>
         </InlineStack>
       </InlineStack>
 
       {shippingRules.map((r, i) => {
         const contentActions = (
           <InlineStack align="end">
-            {shippingUpgradeForSave ? (
-              <UpgradePlanButton size="slim" />
-            ) : (
-              <Button
-                size="slim"
-                variant="primary"
-                loading={saving}
-                onClick={() => handleSectionSave("shipping", i)}
-                disabled={shippingReadOnly}
-              >
-                Save Rule
-              </Button>
-            )}
+            <Button
+              size="slim"
+              variant="primary"
+              loading={saving}
+              onClick={() => handleSectionSave("shipping", i)}
+              disabled={shippingReadOnly}
+            >
+              Save Rule
+            </Button>
           </InlineStack>
         );
 
@@ -8867,8 +8693,6 @@ export default function AppRules() {
     showContentExtras = true,
     showProgressPreview = false,
     allowAdd = true,
-    upgradeForAdd = false,
-    upgradeForSave = false,
     readOnly = false
   ) => {
     const filteredRules = discountRules
@@ -8883,16 +8707,12 @@ export default function AppRules() {
           </Text>
 
           <InlineStack gap="200">
-            {upgradeForAdd ? (
-              <UpgradePlanButton />
-            ) : (
-              <Button
-                onClick={() => addDiscount(defaultType)}
-                disabled={!allowAdd}
-              >
-                {addLabel}
-              </Button>
-            )}
+            <Button
+              onClick={() => addDiscount(defaultType)}
+              disabled={!allowAdd}
+            >
+              {addLabel}
+            </Button>
           </InlineStack>
         </InlineStack>
 
@@ -9473,18 +9293,14 @@ export default function AppRules() {
                 )}
 
                 <InlineStack align="end">
-                  {upgradeForSave ? (
-                    <UpgradePlanButton size="slim" />
-                  ) : (
-                    <Button
-                      size="slim"
-                      variant="primary"
-                      loading={saving}
-                      onClick={() => handleSectionSave("discount", index)}
-                    >
-                      Save Rule
-                    </Button>
-                  )}
+                  <Button
+                    size="slim"
+                    variant="primary"
+                    loading={saving}
+                    onClick={() => handleSectionSave("discount", index)}
+                  >
+                    Save Rule
+                  </Button>
                 </InlineStack>
               </BlockStack>
             </RuleShell>
@@ -9493,10 +9309,6 @@ export default function AppRules() {
       </BlockStack>
     );
   };
-
-  const discountRequiresPlan = !isPlanSelected;
-  const discountUpgradeForAdd =
-    discountRequiresPlan || (isFreePlan && !canAddAutomaticDiscount);
 
   const DiscountPanel = renderDiscountPanel(
     "Automatic Discounts",
@@ -9510,9 +9322,7 @@ export default function AppRules() {
     true,
     false,
     canAddAutomaticDiscount,
-    discountUpgradeForAdd,
-    discountRequiresPlan,
-    discountRequiresPlan
+    false
   );
 
   const DiscountCodePanel = renderDiscountPanel(
@@ -9527,12 +9337,10 @@ export default function AppRules() {
     false,
     false,
     canAddCodeDiscount,
-    isFreePlan,
-    isFreePlan,
-    isFreePlan
+    false
   );
 
-  const freeReadOnly = isFreePlan;
+  const freeReadOnly = false;
 
   const FreeProductPanel = (
     <BlockStack gap="300">
@@ -9542,13 +9350,9 @@ export default function AppRules() {
         </Text>
 
         <InlineStack gap="200">
-          {isFreePlan ? (
-            <UpgradePlanButton />
-          ) : (
-            <Button onClick={addFree} disabled={!canUseFreeGift}>
-              Add Rule
-            </Button>
-          )}
+          <Button onClick={addFree} disabled={!canUseFreeGift}>
+            Add Rule
+          </Button>
         </InlineStack>
       </InlineStack>
 
@@ -9820,18 +9624,14 @@ export default function AppRules() {
               </BlockStack>
 
               <InlineStack align="end">
-                {isFreePlan ? (
-                  <UpgradePlanButton size="slim" />
-                ) : (
-                  <Button
-                    size="slim"
-                    variant="primary"
-                    loading={saving}
-                    onClick={() => handleSectionSave("free", i)}
-                  >
-                    Save Rule
-                  </Button>
-                )}
+                <Button
+                  size="slim"
+                  variant="primary"
+                  loading={saving}
+                  onClick={() => handleSectionSave("free", i)}
+                >
+                  Save Rule
+                </Button>
               </InlineStack>
             </BlockStack>
           </RuleShell>
@@ -9880,7 +9680,7 @@ export default function AppRules() {
     { label: "Whole Store", value: "store" },
   ];
 
-  const bxgyReadOnly = isFreePlan;
+  const bxgyReadOnly = false;
 
   const BxgyPanel = (
     <React.Fragment>
@@ -9891,13 +9691,9 @@ export default function AppRules() {
           </Text>
 
           <InlineStack gap="200">
-            {isFreePlan ? (
-              <UpgradePlanButton />
-            ) : (
-              <Button onClick={addBxgy} disabled={!canUseBxgy}>
-                Add Rule
-              </Button>
-            )}
+            <Button onClick={addBxgy} disabled={!canUseBxgy}>
+              Add Rule
+            </Button>
           </InlineStack>
         </InlineStack>
 
@@ -10218,18 +10014,14 @@ export default function AppRules() {
                 </InlineStack>
 
                 <InlineStack align="end">
-                  {isFreePlan ? (
-                    <UpgradePlanButton size="slim" />
-                  ) : (
-                    <Button
-                      size="slim"
-                      variant="primary"
-                      loading={saving}
-                      onClick={() => handleSectionSave("bxgy", i)}
-                    >
-                      Save Rule
-                    </Button>
-                  )}
+                  <Button
+                    size="slim"
+                    variant="primary"
+                    loading={saving}
+                    onClick={() => handleSectionSave("bxgy", i)}
+                  >
+                    Save Rule
+                  </Button>
                 </InlineStack>
               </BlockStack>
             </RuleShell>
