@@ -287,8 +287,8 @@ export default function Index() {
     {
       title: "Upsell Product",
       body: "Auto Show Product,Select Product,Select Collection & Customize.",
-      imageSrc: "/images/Preview.png",
-      imageAlt: "Style and theme preview",
+      imageSrc: "/images/upsellproduct.png",
+      imageAlt: "Upsell product",
       href: withHost("/app/rules?tab=upsell"),
     },
   ];
