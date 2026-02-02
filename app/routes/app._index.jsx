@@ -285,11 +285,11 @@ export default function Index() {
       href: withHost("/app/rules?tab=discount-code"),
     },
     {
-      title: "Style & Theme preview",
-      body: "Customize design, colors, and layout with real-time theme preview.",
+      title: "Upsell Product",
+      body: "Auto Show Product,Select Product,Select Collection & Customize.",
       imageSrc: "/images/Preview.png",
       imageAlt: "Style and theme preview",
-      href: withHost("/app/rules?tab=style"),
+      href: withHost("/app/rules?tab=upsell"),
     },
   ];
 

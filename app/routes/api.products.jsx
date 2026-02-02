@@ -27,6 +27,17 @@ export async function loader({ request }) {
               id
               title
               handle
+              products(first: 10, sortKey: TITLE) {
+                edges {
+                  node {
+                    id
+                    title
+                    handle
+                    variants(first: 1) { edges { node { id price title selectedOptions { name value } } } }
+                    images(first: 1)   { edges { node { url altText } } }
+                  }
+                }
+              }
             }
           }
         }
@@ -45,6 +56,8 @@ export async function loader({ request }) {
         handle: p.handle,
         price: v?.price ?? null,
         variantId: v?.id ?? null,
+        variantTitle: v?.title ?? null,
+        variantOptions: v?.selectedOptions ?? [],
         image: img?.url ?? null,
       };
     });
@@ -52,6 +65,20 @@ export async function loader({ request }) {
       id: c.id,
       title: c.title,
       handle: c.handle,
+      products: edge(c.products).map((p) => {
+        const v = edge(p.variants)[0];
+        const img = edge(p.images)[0];
+        return {
+          id: p.id,
+          title: p.title,
+          handle: p.handle,
+          price: v?.price ?? null,
+          variantId: v?.id ?? null,
+          variantTitle: v?.title ?? null,
+          variantOptions: v?.selectedOptions ?? [],
+          image: img?.url ?? null,
+        };
+      }),
     }));
 
     return new Response(JSON.stringify({ products: items, collections }), {

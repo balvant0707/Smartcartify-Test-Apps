@@ -14,6 +14,7 @@ import {
   Select,
   TextField,
   ChoiceList,
+  RadioButton,
   Banner,
   Divider,
   Badge,
@@ -518,12 +519,14 @@ const composeRulesResponse = ({
   minAmountRule,
   planId,
   planSelected,
+  upsellSettings,
 }) => ({
   ...payload,
   shop,
   minAmountRule: seedMinAmountRule(minAmountRule),
   planId: planId || "free",
   planSelected: Boolean(planSelected),
+  upsellSettings: upsellSettings || DEFAULT_UPSELL_SETTINGS,
 });
 
 const LOAD_RULES_QUERY = `
@@ -885,6 +888,21 @@ const DEFAULT_STYLE_SETTINGS = {
   checkoutButtonText: "Checkout",
 };
 
+const DEFAULT_UPSELL_SETTINGS = {
+  enabled: true,
+  showAsSlider: true,
+  autoplay: true,
+  recommendationMode: "auto",
+  sectionTitle: "You may also like",
+  buttonText: "Add to cart",
+  backgroundColor: "#F8FAFC",
+  textColor: "#0F172A",
+  borderColor: "#E2E8F0",
+  arrowColor: "#111827",
+  selectedProductIds: [],
+  selectedCollectionIds: [],
+};
+
 const DEFAULT_PROGRESS_TEXT = {
   before: "Add {{goal}} more to get Free Shipping on this order",
   after: "dYZ% Congratulations! You have unlocked Free Shipping!",
@@ -971,11 +989,41 @@ const DISCOUNT_SLIDE_ANIMATION = `
   }
 `;
 
+const UPSELL_CAROUSEL_ANIMATION = `
+  @keyframes upsellCarouselSlide {
+    0%, 45% { transform: translateX(0); }
+    55%, 100% { transform: translateX(-50%); }
+  }
+  .upsell-carousel {
+    position: relative;
+    overflow: hidden;
+  }
+  .upsell-carousel-track {
+    display: flex;
+    gap: 12px;
+    will-change: transform;
+  }
+  .upsell-carousel-track.autoplay {
+    animation: upsellCarouselSlide 6s ease-in-out infinite;
+  }
+`;
+
 const RURAL_DRAWER_IMAGE =
   "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80";
 
 const normalizeIds = (value) =>
   Array.isArray(value) ? [...new Set(value.map(String))].sort() : [];
+
+const parseJsonArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return normalizeIds(value);
+  try {
+    const parsed = JSON.parse(value);
+    return normalizeIds(parsed);
+  } catch {
+    return [];
+  }
+};
 
 const normalizeShippingRuleForKey = (rule = {}) => ({
   enabled: Boolean(rule.enabled),
@@ -1557,6 +1605,14 @@ export const loader = async ({ request }) => {
             orderBy: { id: "desc" },
           }),
         ]);
+      let upsellRow = null;
+      try {
+        upsellRow = await prisma.upsellSettings.findUnique({
+          where: { shop },
+        });
+      } catch (err) {
+        console.warn("Upsell settings table missing or unavailable", err);
+      }
 
       const fallbackData = {
         shippingRules: shippingRows,
@@ -1581,6 +1637,27 @@ export const loader = async ({ request }) => {
         })),
       };
 
+      const upsellSettings = upsellRow
+        ? {
+            enabled: Boolean(upsellRow.enabled),
+            showAsSlider: Boolean(upsellRow.showAsSlider),
+            autoplay: Boolean(upsellRow.autoplay),
+            recommendationMode:
+              upsellRow.recommendationMode || DEFAULT_UPSELL_SETTINGS.recommendationMode,
+            sectionTitle:
+              upsellRow.sectionTitle ?? DEFAULT_UPSELL_SETTINGS.sectionTitle,
+            buttonText: upsellRow.buttonText ?? DEFAULT_UPSELL_SETTINGS.buttonText,
+            backgroundColor:
+              upsellRow.backgroundColor ?? DEFAULT_UPSELL_SETTINGS.backgroundColor,
+            textColor: upsellRow.textColor ?? DEFAULT_UPSELL_SETTINGS.textColor,
+            borderColor:
+              upsellRow.borderColor ?? DEFAULT_UPSELL_SETTINGS.borderColor,
+            arrowColor: upsellRow.arrowColor ?? DEFAULT_UPSELL_SETTINGS.arrowColor,
+            selectedProductIds: parseJsonArray(upsellRow.selectedProductIds),
+            selectedCollectionIds: parseJsonArray(upsellRow.selectedCollectionIds),
+          }
+        : DEFAULT_UPSELL_SETTINGS;
+
       payload = buildRulesPayload({
         ...fallbackData,
         styleSettings: styleRow,
@@ -1603,6 +1680,7 @@ export const loader = async ({ request }) => {
             minAmountRule,
             planId,
             planSelected,
+            upsellSettings: DEFAULT_UPSELL_SETTINGS,
           }),
         },
         { status: 200 }
@@ -1612,6 +1690,35 @@ export const loader = async ({ request }) => {
 
   const minAmountRule = await loadMinAmountRuleForShop(shop);
 
+  let upsellRow = null;
+  try {
+    upsellRow = await prisma.upsellSettings.findUnique({
+      where: { shop },
+    });
+  } catch (err) {
+    console.warn("Upsell settings table missing or unavailable", err);
+  }
+  const upsellSettings = upsellRow
+    ? {
+        enabled: Boolean(upsellRow.enabled),
+        showAsSlider: Boolean(upsellRow.showAsSlider),
+        autoplay: Boolean(upsellRow.autoplay),
+        recommendationMode:
+          upsellRow.recommendationMode || DEFAULT_UPSELL_SETTINGS.recommendationMode,
+        sectionTitle:
+          upsellRow.sectionTitle ?? DEFAULT_UPSELL_SETTINGS.sectionTitle,
+        buttonText: upsellRow.buttonText ?? DEFAULT_UPSELL_SETTINGS.buttonText,
+        backgroundColor:
+          upsellRow.backgroundColor ?? DEFAULT_UPSELL_SETTINGS.backgroundColor,
+        textColor: upsellRow.textColor ?? DEFAULT_UPSELL_SETTINGS.textColor,
+        borderColor:
+          upsellRow.borderColor ?? DEFAULT_UPSELL_SETTINGS.borderColor,
+        arrowColor: upsellRow.arrowColor ?? DEFAULT_UPSELL_SETTINGS.arrowColor,
+        selectedProductIds: parseJsonArray(upsellRow.selectedProductIds),
+        selectedCollectionIds: parseJsonArray(upsellRow.selectedCollectionIds),
+      }
+    : DEFAULT_UPSELL_SETTINGS;
+
   return json(
     composeRulesResponse({
       payload,
@@ -1619,6 +1726,7 @@ export const loader = async ({ request }) => {
       minAmountRule,
       planId,
       planSelected,
+      upsellSettings,
     })
   );
 };
@@ -2379,6 +2487,59 @@ export const action = async ({ request }) => {
 
         responseMessage = "Shipping rules saved successfully.";
         payloadForLog = normalizedRules;
+        break;
+      }
+
+      case "upsell": {
+        const data = payload ?? {};
+        const parseText = (value) =>
+          typeof value === "string" && value.trim() ? value.trim() : null;
+        const selectedProductIds = normalizeIds(data.selectedProductIds || []);
+        const selectedCollectionIds = normalizeIds(
+          data.selectedCollectionIds || []
+        );
+        const settings = {
+          enabled: Boolean(data.enabled),
+          showAsSlider: Boolean(data.showAsSlider),
+          autoplay: Boolean(data.autoplay),
+          recommendationMode: String(data.recommendationMode || "auto"),
+          sectionTitle: parseText(data.sectionTitle),
+          buttonText: parseText(data.buttonText),
+          backgroundColor: parseText(data.backgroundColor),
+          textColor: parseText(data.textColor),
+          borderColor: parseText(data.borderColor),
+          arrowColor: parseText(data.arrowColor),
+          selectedProductIds: JSON.stringify(selectedProductIds),
+          selectedCollectionIds: JSON.stringify(selectedCollectionIds),
+        };
+
+        try {
+          await prisma.upsellSettings.upsert({
+            where: { shop },
+            create: { shop, ...settings },
+            update: settings,
+          });
+        } catch (err) {
+          const message =
+            err instanceof Error
+              ? err.message
+              : "Failed to save upsell settings";
+          return json(
+            {
+              error:
+                "Upsell settings table not found. Run migrations or create the table.",
+              details: message,
+            },
+            { status: 400 }
+          );
+        }
+
+        responseMessage = "Upsell settings saved successfully.";
+        payloadForLog = {
+          ...settings,
+          selectedProductIds,
+          selectedCollectionIds,
+        };
         break;
       }
 
@@ -5693,6 +5854,7 @@ export default function AppRules() {
     bxgyRules: bxgySeed = [createDefaultBxgyRule()],
     minAmountRule: minAmountSeed = DEFAULT_MIN_AMOUNT_RULE,
     style: styleSeed = DEFAULT_STYLE_SETTINGS,
+    upsellSettings: upsellSeed = DEFAULT_UPSELL_SETTINGS,
     steps: stepsSeed = ["", "", "", ""],
     previewItems: previewItemsSeed = [],
     shop: loaderShop = null,
@@ -5737,6 +5899,10 @@ export default function AppRules() {
       content: buildTabContent("Buy X Get Y (BXGY)", "🎁"),
     },
     {
+      id: "upsell",
+      content: buildTabContent("Upsell Products", "🎁"),
+    },
+    {
       id: "style",
       content: buildTabContent("Customize & Preview", "🎨"),
     },
@@ -5762,7 +5928,8 @@ export default function AppRules() {
       free: 2,
       "discount-code": 3,
       bxgy: 4,
-      style: 5,
+      upsell: 5,
+      style: 6,
     };
 
     const nextIndex = tabIndexMap[tabParam];
@@ -6009,6 +6176,52 @@ export default function AppRules() {
 
   const [discountCollectionPickerIndex, setDiscountCollectionPickerIndex] =
     React.useState(null);
+
+  const [upsellEnabled, setUpsellEnabled] = React.useState(
+    Boolean(upsellSeed?.enabled)
+  );
+  const [upsellShowAsSlider, setUpsellShowAsSlider] = React.useState(
+    Boolean(upsellSeed?.showAsSlider)
+  );
+  const [upsellAutoplay, setUpsellAutoplay] = React.useState(
+    Boolean(upsellSeed?.autoplay)
+  );
+  const [upsellPreviewIndex, setUpsellPreviewIndex] = React.useState(0);
+  const [upsellMode, setUpsellMode] = React.useState(
+    upsellSeed?.recommendationMode || "auto"
+  );
+  const [upsellSectionTitle, setUpsellSectionTitle] = React.useState(
+    upsellSeed?.sectionTitle || DEFAULT_UPSELL_SETTINGS.sectionTitle
+  );
+  const [upsellButtonText, setUpsellButtonText] = React.useState(
+    upsellSeed?.buttonText || DEFAULT_UPSELL_SETTINGS.buttonText
+  );
+  const [upsellBgColor, setUpsellBgColor] = React.useState(
+    upsellSeed?.backgroundColor || DEFAULT_UPSELL_SETTINGS.backgroundColor
+  );
+  const [upsellTextColor, setUpsellTextColor] = React.useState(
+    upsellSeed?.textColor || DEFAULT_UPSELL_SETTINGS.textColor
+  );
+  const [upsellBorderColor, setUpsellBorderColor] = React.useState(
+    upsellSeed?.borderColor || DEFAULT_UPSELL_SETTINGS.borderColor
+  );
+  const [upsellArrowColor, setUpsellArrowColor] = React.useState(
+    upsellSeed?.arrowColor || DEFAULT_UPSELL_SETTINGS.arrowColor
+  );
+  const [upsellProductIds, setUpsellProductIds] = React.useState(
+    Array.isArray(upsellSeed?.selectedProductIds)
+      ? upsellSeed.selectedProductIds
+      : []
+  );
+  const [upsellCollectionIds, setUpsellCollectionIds] = React.useState(
+    Array.isArray(upsellSeed?.selectedCollectionIds)
+      ? upsellSeed.selectedCollectionIds
+      : []
+  );
+  const [upsellProductPickerOpen, setUpsellProductPickerOpen] =
+    React.useState(false);
+  const [upsellCollectionPickerOpen, setUpsellCollectionPickerOpen] =
+    React.useState(false);
 
   React.useEffect(() => {
     setMinAmountRule(seedMinAmountRule(minAmountSeed));
@@ -6853,6 +7066,20 @@ export default function AppRules() {
           checkoutButtonText:
             checkoutButtonText?.trim() || DEFAULT_STYLE_SETTINGS.checkoutButtonText,
         },
+        upsell: {
+          enabled: upsellEnabled,
+          showAsSlider: upsellShowAsSlider,
+          autoplay: upsellAutoplay,
+          recommendationMode: upsellMode,
+          sectionTitle: upsellSectionTitle?.trim() || "",
+          buttonText: upsellButtonText?.trim() || "",
+          backgroundColor: upsellBgColor,
+          textColor: upsellTextColor,
+          borderColor: upsellBorderColor,
+          arrowColor: upsellArrowColor,
+          selectedProductIds: upsellProductIds,
+          selectedCollectionIds: upsellCollectionIds,
+        },
       };
 
       let payloadForSection = payloadMap[section];
@@ -7151,6 +7378,19 @@ export default function AppRules() {
       discountCodeApply,
 
       checkoutButtonText,
+
+      upsellEnabled,
+      upsellShowAsSlider,
+      upsellAutoplay,
+      upsellMode,
+      upsellSectionTitle,
+      upsellButtonText,
+      upsellBgColor,
+      upsellTextColor,
+      upsellBorderColor,
+      upsellArrowColor,
+      upsellProductIds,
+      upsellCollectionIds,
 
       showToast,
 
@@ -10169,6 +10409,573 @@ export default function AppRules() {
     </React.Fragment>
   );
 
+  const upsellSelectedProducts = React.useMemo(
+    () =>
+      upsellProductIds
+        .map((id) => productsById[id])
+        .filter(Boolean),
+    [upsellProductIds, productsById]
+  );
+
+  const upsellSelectedCollections = React.useMemo(
+    () =>
+      upsellCollectionIds
+        .map((id) => collectionsById[id])
+        .filter(Boolean),
+    [upsellCollectionIds, collectionsById]
+  );
+
+  const getVariantLabel = React.useCallback((item) => {
+    const options = Array.isArray(item?.variantOptions)
+      ? item.variantOptions
+      : [];
+    const sizeOpt = options.find(
+      (opt) => String(opt?.name || "").toLowerCase() === "size"
+    );
+    return sizeOpt?.value ? String(sizeOpt.value) : "";
+  }, []);
+
+  const upsellPreviewItems = React.useMemo(() => {
+    const productItems =
+      upsellSelectedProducts.length > 0
+        ? upsellSelectedProducts.map((p) => ({
+            title: p.title || "Product",
+            price: p.price ? `Rs. ${p.price}` : "Rs. 25.00",
+            option: getVariantLabel(p),
+            image: p.image || "",
+          }))
+        : [];
+
+    const collectionProducts = upsellSelectedCollections.flatMap((c) =>
+      Array.isArray(c?.products) ? c.products : []
+    );
+    const collectionItems =
+      collectionProducts.length > 0
+        ? collectionProducts.map((p) => ({
+            title: p.title || "Product",
+            price: p.price ? `Rs. ${p.price}` : "Rs. 25.00",
+            option: getVariantLabel(p),
+            image: p.image || "",
+          }))
+        : [];
+
+    const modeItems =
+      upsellMode === "product"
+        ? productItems
+        : upsellMode === "collection"
+          ? collectionItems
+          : [];
+
+    const base = modeItems.length
+      ? modeItems
+      : [
+          { title: "Product 1", price: "Rs. 25.00", option: "Color", image: "" },
+          { title: "Product 2", price: "Rs. 40.00", option: "Size", image: "" },
+        ];
+
+    if (base.length === 1) {
+      return [
+        base[0],
+        { title: "Product 2", price: "Rs. 40.00", option: "Size", image: "" },
+      ];
+    }
+
+    return base.slice(0, 2);
+  }, [upsellMode, upsellSelectedProducts, upsellSelectedCollections, getVariantLabel]);
+
+  React.useEffect(() => {
+    setUpsellPreviewIndex(0);
+  }, [upsellMode, upsellPreviewItems.length]);
+
+  React.useEffect(() => {
+    if (!upsellShowAsSlider || !upsellAutoplay) return;
+    if (upsellPreviewItems.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setUpsellPreviewIndex((prev) =>
+        prev + 1 >= upsellPreviewItems.length ? 0 : prev + 1
+      );
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [upsellShowAsSlider, upsellAutoplay, upsellPreviewItems.length]);
+
+  const handleUpsellPrev = React.useCallback(() => {
+    if (!upsellShowAsSlider || upsellPreviewItems.length <= 1) return;
+    setUpsellPreviewIndex((prev) =>
+      prev - 1 < 0 ? upsellPreviewItems.length - 1 : prev - 1
+    );
+  }, [upsellShowAsSlider, upsellPreviewItems.length]);
+
+  const handleUpsellNext = React.useCallback(() => {
+    if (!upsellShowAsSlider || upsellPreviewItems.length <= 1) return;
+    setUpsellPreviewIndex((prev) =>
+      prev + 1 >= upsellPreviewItems.length ? 0 : prev + 1
+    );
+  }, [upsellShowAsSlider, upsellPreviewItems.length]);
+
+  const UpsellPanel = (
+    <React.Fragment>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "60% 40%",
+          gap: 16,
+          alignItems: "start",
+        }}
+      >
+        <Card>
+          <Box padding="300">
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text as="h4" variant="headingSm">
+                  Upsell Product
+                </Text>
+              </InlineStack>
+
+              <InlineStack gap="200" wrap>
+                 <Checkbox
+                  label="Enable"
+                  checked={upsellEnabled}
+                  onChange={setUpsellEnabled}
+                />
+                <Checkbox
+                  label="Show as Slider (Carousel)"
+                  checked={upsellShowAsSlider}
+                  onChange={setUpsellShowAsSlider}
+                />
+                {upsellShowAsSlider && (
+                  <Checkbox
+                    label="Autoplay"
+                    checked={upsellAutoplay}
+                    onChange={setUpsellAutoplay}
+                  />
+                )}
+              </InlineStack>
+              <InlineStack gap="400" wrap>
+                <TextField
+                  label='Section Title'
+                  value={upsellSectionTitle}
+                  onChange={setUpsellSectionTitle}
+                  autoComplete="off"
+                />
+
+                <TextField
+                  label='Button Text'
+                  value={upsellButtonText}
+                  onChange={setUpsellButtonText}
+                  autoComplete="off"
+                />
+              </InlineStack>
+              <InlineStack gap="400" wrap>
+                <ColorField
+                  label="Background"
+                  value={upsellBgColor}
+                  onChange={setUpsellBgColor}
+                />
+                <ColorField
+                  label="Text color"
+                  value={upsellTextColor}
+                  onChange={setUpsellTextColor}
+                />
+                <ColorField
+                  label="Border Color"
+                  value={upsellBorderColor}
+                  onChange={setUpsellBorderColor}
+                />
+                <ColorField
+                  label="Slider Arrow Color"
+                  value={upsellArrowColor}
+                  onChange={setUpsellArrowColor}
+                />
+              </InlineStack>
+
+              <Divider />
+
+              <BlockStack gap="200">
+                <Text as="h3" variant="bodyMd" fontWeight="semibold">
+                  Recommendation mode
+                </Text>
+                <InlineStack gap="400" wrap>
+                  <RadioButton
+                    label="Auto"
+                    checked={upsellMode === "auto"}
+                    name="upsell-recommendation-mode"
+                    onChange={() => setUpsellMode("auto")}
+                  />
+                  <RadioButton
+                    label="Select Product"
+                    checked={upsellMode === "product"}
+                    name="upsell-recommendation-mode"
+                    onChange={() => setUpsellMode("product")}
+                  />
+                  <RadioButton
+                    label="Select Collection"
+                    checked={upsellMode === "collection"}
+                    name="upsell-recommendation-mode"
+                    onChange={() => setUpsellMode("collection")}
+                  />
+                </InlineStack>
+              </BlockStack>
+
+              {upsellMode === "product" && (
+                <BlockStack gap="200">
+                  {products.length === 0 && (
+                    <Banner tone="info" title="Products not loaded">
+                      <p>Use the Products picker to sync items.</p>
+                    </Banner>
+                  )}
+
+                  <InlineStack gap="100" align="start">
+                    <Button
+                      size="slim"
+                      onClick={() => setUpsellProductPickerOpen(true)}
+                      disabled={products.length === 0}
+                    >
+                      Choose products
+                    </Button>
+                    <Badge tone={upsellProductIds.length ? "success" : "warning"}>
+                      {upsellProductIds.length
+                        ? `${upsellProductIds.length} selected`
+                        : "None selected"}
+                    </Badge>
+                  </InlineStack>
+
+                  {upsellSelectedProducts.length > 0 && (
+                    <InlineStack gap="100" wrap>
+                      {upsellSelectedProducts.map((item) => (
+                        <Badge key={item.id}>{item.title}</Badge>
+                      ))}
+                    </InlineStack>
+                  )}
+                </BlockStack>
+              )}
+
+              {upsellMode === "collection" && (
+                <BlockStack gap="200">
+                  {collections.length === 0 && (
+                    <Banner tone="warning" title="Collections not available">
+                      <p>Collections API response was empty.</p>
+                    </Banner>
+                  )}
+
+                  <InlineStack gap="100" align="start">
+                    <Button
+                      size="slim"
+                      onClick={() => setUpsellCollectionPickerOpen(true)}
+                      disabled={collections.length === 0}
+                    >
+                      Choose collections
+                    </Button>
+                    <Badge
+                      tone={upsellCollectionIds.length ? "success" : "warning"}
+                    >
+                      {upsellCollectionIds.length
+                        ? `${upsellCollectionIds.length} selected`
+                        : "None selected"}
+                    </Badge>
+                  </InlineStack>
+
+                  {upsellSelectedCollections.length > 0 && (
+                    <InlineStack gap="100" wrap>
+                      {upsellSelectedCollections.map((item) => (
+                        <Badge key={item.id}>{item.title}</Badge>
+                      ))}
+                    </InlineStack>
+                  )}
+                </BlockStack>
+              )}
+              <InlineStack align="end">
+                <Button
+                  variant="primary"
+                  loading={saving}
+                  onClick={() => handleSectionSave("upsell")}
+                >
+                  Save Upsell Settings
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Box>
+        </Card>
+          
+        <Card>
+          <Box padding="100">
+            <BlockStack gap="200">
+              <Text as="h5" variant="headingXs">
+                Preview
+              </Text>
+              <Box
+                borderWidth="1"
+                borderRadius="200"
+                background="bg-surface"
+                style={{
+                  borderColor: upsellBorderColor,
+                  background: "#ffffff",
+                }}
+              >
+                <BlockStack gap="200">
+                  <InlineStack align="center" blockAlign="center">
+                    <Text
+                      as="h3"
+                      variant="headingSm"
+                      style={{ color: upsellTextColor }}
+                    >
+                      {upsellSectionTitle}
+                    </Text>
+                  </InlineStack>
+
+                  <div
+                    className="upsell-carousel"
+                    style={{
+                      position: "relative",
+                      padding: upsellShowAsSlider ? "0 0px" : 0,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {upsellShowAsSlider && (
+                      <React.Fragment>
+                        <button
+                          type="button"
+                          onClick={handleUpsellPrev}
+                          aria-label="Previous"
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: 24,
+                            height: 24,
+                            borderRadius: 999,
+                            border: `1px solid ${upsellBorderColor}`,
+                            display: "grid",
+                            placeItems: "center",
+                            color: upsellArrowColor,
+                            fontWeight: 700,
+                            background: "#ffffff",
+                            cursor: "pointer",
+                            zIndex: 2,
+                          }}
+                        >
+                          &#x2039;
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleUpsellNext}
+                          aria-label="Next"
+                          style={{
+                            position: "absolute",
+                            right: 4,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: 24,
+                            height: 24,
+                            borderRadius: 999,
+                            border: `1px solid ${upsellBorderColor}`,
+                            display: "grid",
+                            placeItems: "center",
+                            color: upsellArrowColor,
+                            fontWeight: 700,
+                            background: "#ffffff",
+                            cursor: "pointer",
+                            zIndex: 2,
+                          }}
+                        >
+                          &#x203A;
+                        </button>
+                      </React.Fragment>
+                    )}
+                    <div
+                      className="upsell-carousel-track"
+                      style={
+                        upsellShowAsSlider
+                          ? {
+                              width: "100%",
+                              transform: `translateX(-${upsellPreviewIndex * 100}%)`,
+                              transition: "transform 360ms ease",
+                              gap: 0,
+                            }
+                          : {
+                              width: "100%",
+                              flexDirection: "column",
+                              transform: "none",
+                            }
+                      }
+                    >
+                      {upsellPreviewItems.map((item, idx) => (
+                        <div
+                          key={`${item.title}-${idx}`}
+                          style={{
+                            flex: upsellShowAsSlider ? "0 0 100%" : "0 0 auto",
+                            padding: 10,
+                            borderRadius: 12,
+                            border: `1px solid ${upsellBorderColor}`,
+                            background: upsellBgColor,
+                            boxSizing: "border-box",
+                            width: "100%",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "64px minmax(0, 1fr) auto",
+                              gap: 12,
+                              alignItems: "center",
+                              minWidth: 0,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 64,
+                                height: 64,
+                                borderRadius: 12,
+                                background: "#EEF2F7",
+                                overflow: "hidden",
+                                justifySelf: "center",
+                                display: "grid",
+                                placeItems: "center",
+                              }}
+                            >
+                              {item.image ? (
+                                <img
+                                  src={item.image}
+                                  alt=""
+                                  width={64}
+                                  height={64}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              ) : null}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <InlineStack align="space-between" blockAlign="center">
+                                <Text
+                                  as="span"
+                                  variant="bodyMd"
+                                  style={{
+                                    fontWeight: 600,
+                                    color: upsellTextColor,
+                                  }}
+                                >
+                                  {item.title}
+                                </Text>
+                                <Text
+                                  as="span"
+                                  variant="bodyMd"
+                                  style={{
+                                    fontWeight: 600,
+                                    color: upsellTextColor,
+                                  }}
+                                >
+                                  {item.price}
+                                </Text>
+                              </InlineStack>
+                              {item.option ? (
+                                <Text
+                                  as="span"
+                                  variant="bodySm"
+                                  style={{
+                                    display: "block",
+                                    color: upsellTextColor,
+                                    opacity: 0.7,
+                                    marginTop: 4,
+                                  }}
+                                >
+                                  {item.option}
+                                </Text>
+                              ) : null}
+                              <div
+                                style={{
+                                  marginTop: 8,
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: 10,
+                                  alignItems: "center",
+                                  minWidth: 0,
+                                }}
+                              >
+                                {item.option ? (
+                                  <div
+                                    style={{
+                                      border: `1px solid ${upsellBorderColor}`,
+                                      borderRadius: 10,
+                                      padding: "8px 12px",
+                                      fontSize: 12,
+                                      color: upsellTextColor,
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      background: "#ffffff",
+                                    }}
+                                  >
+                                    {item.option}
+                                    <span style={{ fontSize: 14 }}>&#x25BC;</span>
+                                  </div>
+                                ) : (
+                                  <div />
+                                )}
+                                <div
+                                  style={{
+                                    padding: "8px 10px",
+                                    borderRadius: 10,
+                                    background: "#111111",
+                                    color: "#ffffff",
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    whiteSpace: "nowrap",
+                                    width: 100,
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  +
+                                  <span style={{ textTransform: "lowercase" }}>
+                                    {upsellButtonText}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </BlockStack>
+              </Box>
+            </BlockStack>
+          </Box>
+        </Card>
+      </div>
+
+      <ResourcePickerModal
+        open={upsellProductPickerOpen}
+        onClose={() => setUpsellProductPickerOpen(false)}
+        title="Select upsell products"
+        items={productPickerItems}
+        selected={upsellProductIds}
+        onApply={(values) => setUpsellProductIds(values)}
+        emptyText="No products available."
+        kindLabel="products"
+      />
+
+      <ResourcePickerModal
+        open={upsellCollectionPickerOpen}
+        onClose={() => setUpsellCollectionPickerOpen(false)}
+        title="Select upsell collections"
+        items={collectionPickerItems}
+        selected={upsellCollectionIds}
+        onApply={(values) => setUpsellCollectionIds(values)}
+        emptyText="No collections available."
+        kindLabel="collections"
+      />
+    </React.Fragment>
+  );
+
   const StylePanel = (
     <BlockStack gap="300">
       <Text as="h4" variant="headingSm">
@@ -10397,6 +11204,7 @@ export default function AppRules() {
     { content: FreeProductPanel, preview: FreeProductPreviewCard },
     { content: DiscountCodePanel },
     { content: BxgyPanel },
+    { content: UpsellPanel },
     { content: StylePanel },
   ];
   const activePanelConfig = panelConfigs[selected] ?? panelConfigs[0];
@@ -10470,6 +11278,7 @@ export default function AppRules() {
     <Frame>
       <style>{celebrationStyles}</style>
       <style>{DISCOUNT_SLIDE_ANIMATION}</style>
+      <style>{UPSELL_CAROUSEL_ANIMATION}</style>
       <style dangerouslySetInnerHTML={{ __html: LEFT_ALIGN_BUTTON_CSS }} />
       <Page title="Cart Rules Settings" fullWidth>
         <Modal

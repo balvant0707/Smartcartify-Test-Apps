@@ -95,6 +95,11 @@
   let PROXY = null;
   let CART = null;
 
+  let UPSELL_INDEX = 0;
+  let UPSELL_TIMER = null;
+  let UPSELL_DYNAMIC = null;
+  let UPSELL_LOADING = false;
+
   let LAST_DONE = 0;
   let LAST_BXGY_DONE = false;
 
@@ -505,6 +510,646 @@
       if (Array.isArray(v)) return v;
     }
     return [];
+  };
+
+  const parseIdArray = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String);
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const getUpsellSettings = () => {
+    const raw = PROXY?.upsellSettings || {};
+    return {
+      enabled: to01(raw.enabled) === 1,
+      showAsSlider: to01(raw.showAsSlider) === 1,
+      autoplay: to01(raw.autoplay) === 1,
+      recommendationMode: String(raw.recommendationMode || "auto").toLowerCase(),
+      sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "You may also like"),
+      buttonText: pickTextAny(raw, ["buttonText"], "add to cart"),
+      backgroundColor: pickBackground(raw, ["backgroundColor", "background"], "#f8fafc"),
+      textColor: pickColor(raw, ["textColor", "text"], "#111827"),
+      borderColor: pickColor(raw, ["borderColor", "border"], "#e2e8f0"),
+      arrowColor: pickColor(raw, ["arrowColor", "arrow"], "#111827"),
+      selectedProductIds: parseIdArray(raw.selectedProductIds),
+      selectedCollectionIds: parseIdArray(raw.selectedCollectionIds),
+    };
+  };
+
+  const getVariantOptionsFromItem = (item) =>
+    Array.isArray(item?.variantOptions)
+      ? item.variantOptions
+      : Array.isArray(item?.options_with_values)
+        ? item.options_with_values
+        : Array.isArray(item?.optionsWithValues)
+          ? item.optionsWithValues
+          : [];
+
+  const getPreferredVariantFromItem = (item) => {
+    const options = getVariantOptionsFromItem(item);
+    if (!options.length) return null;
+    const sizeOpt = options.find(
+      (opt) => String(opt?.name || "").trim().toLowerCase() === "size"
+    );
+    const pickOpt = sizeOpt || options[0];
+    if (!pickOpt?.name && !pickOpt?.value) return null;
+    return {
+      name: String(pickOpt?.name || "Option"),
+      value: String(pickOpt?.value || ""),
+    };
+  };
+
+  const normalizeImage = (value) =>
+    typeof value === "string" ? value : value?.url || value?.src || "";
+
+  const getUpsellImageFromItem = (item) =>
+    normalizeImage(item?.image) ||
+    normalizeImage(item?.featured_image) ||
+    normalizeImage(item?.product_image) ||
+    normalizeImage(item?.image_url) ||
+    "";
+
+  const getUpsellImageFromProduct = (product) =>
+    normalizeImage(product?.featured_image) ||
+    normalizeImage(product?.images?.[0]) ||
+    "";
+
+  const normalizeVariantId = (value) => {
+    if (value == null) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    if (/^\d+$/.test(raw)) return raw;
+    const m = raw.match(/\/(\d+)\s*$/);
+    return m ? m[1] : null;
+  };
+
+  const normalizeProxyVariants = (variants) =>
+    (Array.isArray(variants) ? variants : []).map((v) => {
+      const opts = Array.isArray(v?.variantOptions) ? v.variantOptions : [];
+      const out = { ...v };
+      opts.forEach((opt, idx) => {
+        const key = `option${idx + 1}`;
+        if (out[key] == null && opt?.value != null) out[key] = opt.value;
+      });
+      return out;
+    });
+
+  const pickOptionIndexFromVariantOptions = (options) => {
+    const opts = Array.isArray(options) ? options : [];
+    if (!opts.length) return 0;
+    const sizeIndex = opts.findIndex(
+      (opt) => String(opt?.name || "").trim().toLowerCase() === "size"
+    );
+    return sizeIndex >= 0 ? sizeIndex : 0;
+  };
+
+  const getOptionValuesFromVariants = (variants, optionIndex) => {
+    const values = (Array.isArray(variants) ? variants : [])
+      .map((v) => {
+        const rawOpts = Array.isArray(v?.variantOptions) ? v.variantOptions : [];
+        const opt = rawOpts[optionIndex];
+        const val = opt?.value ?? v?.[`option${optionIndex + 1}`];
+        return val != null ? String(val) : null;
+      })
+      .filter((v) => v && String(v).trim() !== "");
+    return Array.from(new Set(values));
+  };
+
+  const priceToCents = (value) => {
+    if (value == null) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    if (raw.includes(".")) return Math.round(n * 100);
+    if (Number.isInteger(n) && n >= 1000) return n;
+    return Math.round(n * 100);
+  };
+
+  const buildUpsellItemsFromProxyProducts = (products, currency) => {
+    const list = Array.isArray(products) ? products : [];
+    return list.map((p) => {
+      const variantsRaw = Array.isArray(p?.variants) ? p.variants : [];
+      const variants = normalizeProxyVariants(variantsRaw);
+      const firstVariant = variants[0] || null;
+      const optionSeed = Array.isArray(firstVariant?.variantOptions)
+        ? firstVariant.variantOptions
+        : [];
+      const optionIndex = pickOptionIndexFromVariantOptions(optionSeed);
+      const optionName = String(
+        optionSeed?.[optionIndex]?.name || optionSeed?.[0]?.name || "Option"
+      );
+      const optionValue = optionSeed?.[optionIndex]?.value ?? "";
+      const optionValues = getOptionValuesFromVariants(variants, optionIndex);
+      const hasVariants = variants.length > 1;
+      const size = hasVariants
+        ? {
+            name: optionName || "Option",
+            value: optionValue ? String(optionValue) : "",
+          }
+        : null;
+      const priceRaw = p?.variantPrice ?? firstVariant?.price ?? null;
+      const priceCents = priceToCents(priceRaw);
+      return {
+        title: safe(p?.title || "Product"),
+        price:
+          priceCents != null
+            ? formatMoney(priceCents, currency)
+            : formatMoney(2500, currency),
+        image: normalizeImage(p?.image) || "",
+        size,
+        variantId: p?.variantId || firstVariant?.id || null,
+        hasVariants,
+        variants,
+        optionIndex,
+        optionName,
+        optionValues,
+      };
+    });
+  };
+
+  const buildUpsellItemsFromProxyCollections = (collections, currency) => {
+    const list = Array.isArray(collections) ? collections : [];
+    const products = list.flatMap((c) =>
+      Array.isArray(c?.products) ? c.products : []
+    );
+    const seen = new Set();
+    const deduped = [];
+    products.forEach((p) => {
+      const key = String(p?.id || p?.variantId || p?.title || "");
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      deduped.push(p);
+    });
+    return buildUpsellItemsFromProxyProducts(deduped, currency);
+  };
+
+  const getOrderedSelectedProducts = (settings) => {
+    const list = Array.isArray(PROXY?.upsellSelectedProducts)
+      ? PROXY.upsellSelectedProducts
+      : [];
+    if (!list.length) return [];
+    const desired = Array.isArray(settings?.selectedProductIds)
+      ? settings.selectedProductIds
+      : [];
+    const desiredIds = desired
+      .map((id) => gidToId(id) || (id ? String(id) : null))
+      .filter(Boolean);
+    if (!desiredIds.length) return list;
+    const map = new Map(list.map((p) => [String(p?.id || ""), p]));
+    const ordered = desiredIds
+      .map((id) => map.get(String(id)))
+      .filter(Boolean);
+    return ordered.length ? ordered : list;
+  };
+
+  const getOrderedSelectedCollections = (settings) => {
+    const list = Array.isArray(PROXY?.upsellSelectedCollections)
+      ? PROXY.upsellSelectedCollections
+      : [];
+    if (!list.length) return [];
+    const desired = Array.isArray(settings?.selectedCollectionIds)
+      ? settings.selectedCollectionIds
+      : [];
+    const desiredIds = desired
+      .map((id) => gidToId(id) || (id ? String(id) : null))
+      .filter(Boolean);
+    if (!desiredIds.length) return list;
+    const map = new Map(list.map((c) => [String(c?.id || ""), c]));
+    const ordered = desiredIds
+      .map((id) => map.get(String(id)))
+      .filter(Boolean);
+    return ordered.length ? ordered : list;
+  };
+
+  const buildUpsellItems = (settings) => {
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    const currency = CART?.currency || "INR";
+
+    const mapFromCart = (it) => {
+      const qty = Math.max(1, Number(it?.quantity || 1));
+      const unitCents =
+        Number(it?.final_line_price || it?.price || 0) / qty || 0;
+      const options = getVariantOptionsFromItem(it);
+      const hasVariants =
+        !!options.length && !Boolean(it?.product_has_only_default_variant);
+      return {
+        title: safe(it?.product_title || "Product"),
+        price: formatMoney(unitCents, currency),
+        image: getUpsellImageFromItem(it),
+        size: hasVariants ? getPreferredVariantFromItem(it) : null,
+        variantId: it?.variant_id || it?.id || null,
+        hasVariants,
+      };
+      };
+
+    const cartItems = items.map(mapFromCart);
+
+    if (settings.recommendationMode === "auto") {
+      if (Array.isArray(UPSELL_DYNAMIC) && UPSELL_DYNAMIC.length) {
+        return UPSELL_DYNAMIC.slice(0, 5);
+      }
+      return cartItems.length ? cartItems : [];
+    }
+
+    if (settings.recommendationMode === "product") {
+      const selectedProducts = getOrderedSelectedProducts(settings);
+      if (selectedProducts.length && settings.selectedProductIds.length) {
+        return buildUpsellItemsFromProxyProducts(selectedProducts, currency).slice(
+          0,
+          5
+        );
+      }
+    }
+
+    if (settings.recommendationMode === "collection") {
+      const selectedCollections = getOrderedSelectedCollections(settings);
+      if (selectedCollections.length && settings.selectedCollectionIds.length) {
+        return buildUpsellItemsFromProxyCollections(
+          selectedCollections,
+          currency
+        ).slice(0, 5);
+      }
+    }
+
+    return cartItems.length ? cartItems : [];
+  };
+
+  const clearUpsellTimer = () => {
+    if (UPSELL_TIMER) {
+      clearInterval(UPSELL_TIMER);
+      UPSELL_TIMER = null;
+    }
+  };
+
+  const updateUpsellSliderPosition = (wrap) => {
+    if (!wrap) return false;
+    const track = wrap.querySelector(".sc-upsell-track");
+    if (!track) return false;
+    const offset = -UPSELL_INDEX * 100;
+    requestAnimationFrame(() => {
+      track.style.transform = `translateX(${offset}%)`;
+    });
+    return true;
+  };
+
+  const getPreferredVariantFromProductJson = (product, variant) => {
+    const options = Array.isArray(product?.options) ? product.options : [];
+    if (!options.length) return null;
+    const sizeIndex = options.findIndex(
+      (opt) => String(opt?.name || "").trim().toLowerCase() === "size"
+    );
+    const optionIndex = sizeIndex >= 0 ? sizeIndex : 0;
+    const key = `option${optionIndex + 1}`;
+    const value = variant?.[key];
+    const name = String(options[optionIndex]?.name || "Option");
+    if (!value && !name) return null;
+    return {
+      name,
+      value: value ? String(value) : "",
+    };
+  };
+
+  const fetchRelatedProducts = async (productId, currency) => {
+    if (!productId) return [];
+    try {
+      const r = await fetch(
+        `/recommendations/products.json?product_id=${encodeURIComponent(
+          productId
+        )}&limit=8&intent=related`,
+        { headers: { Accept: "application/json" }, credentials: "same-origin" }
+      );
+      if (!r.ok) return [];
+      const data = await r.json();
+      const products = Array.isArray(data?.products) ? data.products : [];
+        return products.map((p) => {
+          const variants = Array.isArray(p?.variants) ? p.variants : [];
+          const firstVariant = variants[0] || null;
+          const priceRaw = firstVariant?.price ?? null;
+          const hasVariants =
+            variants.length > 1 && !Boolean(p?.has_only_default_variant);
+          const size = hasVariants
+            ? getPreferredVariantFromProductJson(p, firstVariant)
+            : null;
+          const options = Array.isArray(p?.options) ? p.options : [];
+          const sizeIndex = options.findIndex(
+            (opt) => String(opt?.name || "").trim().toLowerCase() === "size"
+          );
+          const optionIndex = sizeIndex >= 0 ? sizeIndex : 0;
+          const optionName = String(options[optionIndex]?.name || size?.name || "Option");
+          const optionValues =
+            Array.isArray(options[optionIndex]?.values) && options[optionIndex].values.length
+              ? options[optionIndex].values
+              : Array.from(
+                  new Set(
+                    variants
+                      .map((v) => v?.[`option${optionIndex + 1}`])
+                      .filter((v) => v != null && String(v).trim() !== "")
+                  )
+                );
+          return {
+            title: safe(p?.title || "Product"),
+            price: priceRaw != null ? formatMoney(Number(priceRaw) || 0, currency) : formatMoney(2500, currency),
+            image: getUpsellImageFromProduct(p),
+            size,
+            variantId: firstVariant?.id || null,
+            hasVariants,
+            variants,
+            optionIndex,
+            optionName,
+            optionValues,
+          };
+        });
+    } catch (err) {
+      console.error("[SmartCartify] related products fetch failed", err);
+      return [];
+    }
+  };
+
+  const ensureUpsellDynamic = async (settings) => {
+    if (UPSELL_LOADING || Array.isArray(UPSELL_DYNAMIC)) return;
+    if (settings.recommendationMode !== "auto") return;
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    const first = items.find((it) => it?.product_id);
+    if (!first) return;
+    UPSELL_LOADING = true;
+    try {
+      const currency = CART?.currency || "INR";
+      const related = await fetchRelatedProducts(first.product_id, currency);
+      if (related.length) {
+        const unique = [];
+        const seen = new Set();
+        related.forEach((p) => {
+          const key = String(p.variantId || p.title || Math.random());
+          if (seen.has(key)) return;
+          seen.add(key);
+          unique.push(p);
+        });
+        UPSELL_DYNAMIC = unique.slice(0, 5);
+      }
+    } finally {
+      UPSELL_LOADING = false;
+    }
+  };
+
+  const renderUpsellSection = () => {
+    const wrap = drawer.querySelector(".sc-upsell");
+    if (!wrap) return;
+
+    const settings = getUpsellSettings();
+    if (!settings.enabled) {
+      wrap.hidden = true;
+      clearUpsellTimer();
+      return;
+    }
+
+    void ensureUpsellDynamic(settings);
+    const items = buildUpsellItems(settings);
+    if (!items.length) {
+      wrap.hidden = true;
+      clearUpsellTimer();
+      return;
+    }
+
+    wrap.hidden = false;
+    wrap.style.setProperty("--sc-upsell-bg", settings.backgroundColor || "#f8fafc");
+    wrap.style.setProperty("--sc-upsell-text", settings.textColor || "#111827");
+    wrap.style.setProperty("--sc-border", settings.borderColor || "#e2e8f0");
+    wrap.style.setProperty("--sc-upsell-arrow", settings.arrowColor || "#111827");
+
+    const total = items.length;
+    if (UPSELL_INDEX >= total) UPSELL_INDEX = 0;
+    const visibleItems = settings.showAsSlider ? items : items.slice(0, 2);
+    const upsellItemMap = new Map();
+
+    const renderCard = (item, idx) => {
+      const sizeRaw = item?.size;
+      const size =
+        sizeRaw && typeof sizeRaw === "object"
+          ? {
+              name: trimToNull(sizeRaw.name) || "Size",
+              value: trimToNull(sizeRaw.value) || "",
+            }
+          : null;
+      const sizeLabel = trimToNull(item?.optionName) || (size ? size.name : "");
+      const sizeSelect = size ? size.value || size.name : "";
+      const showSelect =
+        !!item?.hasVariants &&
+        Array.isArray(item?.optionValues) &&
+        item.optionValues.length > 0;
+      const key = `upsell-${UPSELL_INDEX}-${idx}-${safe(item?.variantId || item?.title || "")}`;
+      upsellItemMap.set(key, item);
+      const selectMarkup = showSelect
+        ? `
+          <div class="sc-upsell-select-wrap">
+            <select class="sc-upsell-select" data-upsell-select="${safe(key)}" data-upsell-opt-index="${item?.optionIndex ?? 0}">
+              ${item.optionValues
+                .map((v) => {
+                  const sv = safe(v);
+                  const selected = sv === safe(sizeSelect) ? "selected" : "";
+                  return `<option value="${sv}" ${selected}>${sv}</option>`;
+                })
+                .join("")}
+            </select>
+            <span class="sc-upsell-select-arrow">▼</span>
+          </div>
+        `
+        : "";
+      return `
+          <div class="sc-upsell-item">
+            <div class="sc-upsell-row">
+              <div class="sc-upsell-img">
+                ${item.image ? `<img src="${safe(item.image)}" alt="${safe(item.title)}" />` : ""}
+              </div>
+              <div class="sc-upsell-info">
+                <div class="sc-upsell-top">
+                  <div class="sc-upsell-name">${safe(item.title)}</div>
+                  <div class="sc-upsell-price">${safe(item.price)}</div>
+                </div>
+                ${sizeLabel ? `<div class="sc-upsell-sub">${safe(sizeLabel)}</div>` : ""}
+                <div class="sc-upsell-controls">
+                  ${selectMarkup || `<div></div>`}
+                  <button class="sc-upsell-btn" type="button" data-upsell-add="${safe(
+                    item.variantId || ""
+                  )}" data-upsell-key="${safe(key)}">
+                    + ${safe(settings.buttonText)}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+    };
+
+    const arrows =
+      settings.showAsSlider && total > 0
+        ? `
+          <button class="sc-upsell-arrow left" type="button" data-upsell-prev aria-label="Previous">‹</button>
+          <button class="sc-upsell-arrow right" type="button" data-upsell-next aria-label="Next">›</button>
+        `
+        : "";
+
+    const sliderMarkup = settings.showAsSlider
+      ? `
+        <div class="sc-upsell-viewport">
+          <div class="sc-upsell-track" style="transform: translateX(-${UPSELL_INDEX * 100}%);">
+            ${visibleItems
+              .map((item, i) => `<div class="sc-upsell-slide">${renderCard(item, i)}</div>`)
+              .join("")}
+          </div>
+        </div>
+      `
+      : visibleItems.map((item, i) => renderCard(item, i)).join("");
+
+    wrap.innerHTML = `
+      <div class="sc-upsell-card">
+        <div class="sc-upsell-title">${safe(settings.sectionTitle)}</div>
+        <div class="sc-upsell-inner">
+          ${arrows}
+          ${sliderMarkup}
+        </div>
+      </div>
+    `;
+
+    wrap.querySelector("[data-upsell-prev]")?.addEventListener("click", () => {
+      if (total <= 1) return;
+      UPSELL_INDEX = UPSELL_INDEX - 1 < 0 ? total - 1 : UPSELL_INDEX - 1;
+      updateUpsellSliderPosition(wrap);
+    });
+
+    wrap.querySelector("[data-upsell-next]")?.addEventListener("click", () => {
+      if (total <= 1) return;
+      UPSELL_INDEX = UPSELL_INDEX + 1 >= total ? 0 : UPSELL_INDEX + 1;
+      updateUpsellSliderPosition(wrap);
+    });
+
+    wrap.querySelectorAll("[data-upsell-add]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        let variantId = btn.getAttribute("data-upsell-add");
+        const key = btn.getAttribute("data-upsell-key");
+        const itemForLog = key ? upsellItemMap.get(key) : null;
+        console.log("[SmartCartify] upsell button click", {
+          key,
+          variantId,
+          item: itemForLog || null,
+        });
+        if (!variantId) {
+          const item = itemForLog;
+          const variants = Array.isArray(item?.variants) ? item.variants : [];
+          const picked = variants[0] || null;
+          variantId = picked?.id || item?.variantId || null;
+        }
+        const legacyId = normalizeVariantId(variantId);
+        console.log("[SmartCartify] upsell add resolved", {
+          variantId,
+          legacyId,
+        });
+        if (!legacyId) return;
+        try {
+          setProgressLoading(true);
+          btn.disabled = true;
+          const body = new URLSearchParams();
+          body.set("id", legacyId);
+          body.set("quantity", "1");
+          const res = await fetch("/cart/add.js", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            },
+            credentials: "same-origin",
+            body,
+          });
+          if (!res.ok) {
+            let errText = "";
+            try {
+              errText = await res.text();
+            } catch {}
+            throw new Error(`Upsell add failed (${res.status}) ${errText}`.trim());
+          }
+          await refreshFromNetwork();
+        } catch (err) {
+          console.error("[SmartCartify] upsell add failed:", err);
+        } finally {
+          btn.disabled = false;
+          setProgressLoading(false);
+        }
+      });
+    });
+
+    wrap.querySelectorAll("[data-upsell-select]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const key = select.getAttribute("data-upsell-select");
+        const item = key ? upsellItemMap.get(key) : null;
+        if (!item) return;
+        const optIndex = Number(select.getAttribute("data-upsell-opt-index") || 0);
+        const val = select.value;
+        const variants = Array.isArray(item?.variants) ? item.variants : [];
+        const picked =
+          variants.find((v) => String(v?.[`option${optIndex + 1}`]) === String(val)) ||
+          variants[0] ||
+          null;
+        const btn = select.closest(".sc-upsell-item")?.querySelector("[data-upsell-add]");
+        if (btn) btn.setAttribute("data-upsell-add", safe(picked?.id || ""));
+        const priceEl = select.closest(".sc-upsell-item")?.querySelector(".sc-upsell-price");
+        if (priceEl && picked?.price != null) {
+          const nextPrice = formatMoney(Number(picked.price) || 0, CART?.currency || "INR");
+          priceEl.textContent = nextPrice;
+        }
+      });
+    });
+
+    clearUpsellTimer();
+    if (settings.showAsSlider && settings.autoplay && total > 1) {
+      UPSELL_TIMER = setInterval(() => {
+        UPSELL_INDEX = UPSELL_INDEX + 1 >= total ? 0 : UPSELL_INDEX + 1;
+        updateUpsellSliderPosition(wrap);
+      }, 5200);
+    }
+  };
+
+  const logProxyTables = (proxy) => {
+    if (!DEBUG_TABLES) return;
+    const tables = {
+      shipping: getProxyArray(proxy, ["shippingRules", "shippingRule", "shippingrule"]),
+      discount: getProxyArray(proxy, ["discountRules", "discountRule", "discountrule"]),
+      freeGift: getProxyArray(proxy, ["freeGiftRules", "freeGiftRule", "freegiftrule"]),
+      bxgy: getProxyArray(proxy, [
+        "buyxgetyRules",
+        "buyxgetyRule",
+        "buyxgetyrule",
+        "buyXGetYRules",
+        "bxgyrule",
+        "bxgyRules",
+        "bxgyRule",
+      ]),
+    };
+
+    console.groupCollapsed("[SC] Proxy Tables");
+    Object.entries(tables).forEach(([label, rows]) => {
+      console.groupCollapsed(label);
+      console.table(Array.isArray(rows) ? rows : []);
+      console.groupEnd();
+    });
+
+    if (proxy?.styleSettings) {
+      console.groupCollapsed("styleSettings");
+      console.table([proxy.styleSettings]);
+      console.groupEnd();
+    }
+
+    if (proxy?.upsellSettings) {
+      console.groupCollapsed("upsellSettings");
+      console.table([proxy.upsellSettings]);
+      console.groupEnd();
+    }
+
+    console.groupEnd();
   };
 
   const getCartTotalQty = () => {
@@ -1490,6 +2135,162 @@ body.sc-cartify-open .shopify-section-group-header-group{
   color:var(--sc-free-tag-color);
 }
 
+.sc-upsell{
+  padding: 0 10px 6px;
+}
+.sc-upsell-card{
+  border-radius: 10px;
+  border: 1px solid var(--sc-border);
+  background: var(--sc-upsell-bg, #f8fafc);
+  padding: 6px;
+}
+.sc-upsell-title{
+  font-size: var(--sc-base-font-size);
+  font-weight: 700;
+  text-align: center;
+  margin: 3px 0 6px;
+  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+}
+.sc-upsell-inner{
+  border-radius: 8px;
+  border: 1px solid var(--sc-border);
+  background: var(--sc-upsell-bg, #f8fafc);
+  padding: 6px 14px;
+  position: relative;
+  overflow: visible;
+}
+.sc-upsell-viewport{
+  overflow: hidden;
+}
+.sc-upsell-track{
+  display: flex;
+  width: 100%;
+  transition: transform 700ms ease;
+  gap: 0;
+}
+.sc-upsell-item + .sc-upsell-item{
+  margin-top: 12px;
+}
+.sc-upsell-slide{
+  flex: 0 0 100%;
+  min-width: 100%;
+}
+.sc-upsell-row{
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 20px;
+  align-items: center;
+}
+.sc-upsell-info{
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.sc-upsell-top{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+.sc-upsell-img{
+  width: 70px;
+  height: 70px;
+  border-radius: 8px;
+  background: #eef2f7;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.sc-upsell-img img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sc-upsell-name{
+  font-weight: 600;
+  font-size: var(--sc-base-font-size);
+  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sc-upsell-sub{
+  font-size: var(--sc-small-font-size);
+  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+  opacity: 0.75;
+  display: none;
+}
+.sc-upsell-price{
+  font-weight: 600;
+  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+  white-space: nowrap;
+}
+.sc-upsell-controls{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 8px;
+}
+.sc-upsell-select-wrap{
+  position: relative;
+}
+.sc-upsell-select{
+  width: 100%;
+  border: 1px solid var(--sc-border);
+  border-radius: 10px;
+  padding: 6px 28px 6px 10px;
+  font-size: var(--sc-small-font-size);
+  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+  background: #ffffff;
+  min-height: 30px;
+  appearance: none;
+}
+.sc-upsell-select:focus{
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  border-color: #2563eb;
+}
+.sc-upsell-select-arrow{
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--sc-upsell-arrow, #111827);
+  pointer-events: none;
+  font-size: 12px;
+}
+.sc-upsell-btn{
+  border-radius: 10px;
+  background: #111111;
+  color: #ffffff;
+  padding: 4px 8px;
+  font-size: 12px;
+  min-height: 30px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.sc-upsell-arrow{
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--sc-border);
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  color: var(--sc-upsell-arrow, #111827);
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 2;
+}
+.sc-upsell-arrow.left{left: 6px;}
+.sc-upsell-arrow.right{right: 6px;}
+
 /* remove icon */
 .sc-remove-x{
   flex:0 0 auto;
@@ -1772,7 +2573,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
       <div class="sc-progress-loading" aria-hidden="true"></div>
     </div>
 
-    <div class="sc-items"><div class="sc-empty">Loading cart…</div></div>
+    <div class="sc-items">
+      <div class="sc-empty">Loading cart…</div>
+      <div class="sc-upsell" hidden></div>
+    </div>
 
     <div class="sc-footer">
       <div class="sc-footer-row">
@@ -1975,7 +2779,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
     const drawerWidth = normalizeLen(
       pick(style, ["cartDrawerWidth", "drawerWidth", "width"], null),
-      "min(480px,92vw)"
+      "min(450px,92vw)"
     );
     const milestoneWidth = pick(
       style,
@@ -2414,10 +3218,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
           <path fill-rule="evenodd" clip-rule="evenodd" d="M13.6359 0C6.10501 0 0 6.10663 0 13.6395C0 21.1724 6.10501 27.2791 13.6359 27.2791H20.7503C28.3315 27.2791 34.7667 32.1872 37.0532 39H37.0444V148.047C37.0444 161.802 48.1927 172.953 61.9448 172.953H208.092C220.391 172.953 231.168 164.72 234.404 152.851L253.6 88.4363C260.387 63.5385 241.649 39 215.849 39H64.8815C62.1832 17.02 43.4539 0 20.7503 0H13.6359ZM116.139 227.5C116.139 242.688 103.588 255 88.1056 255C72.6231 255 60.072 242.688 60.072 227.5C60.072 212.312 72.6231 200 88.1056 200C103.588 200 116.139 212.312 116.139 227.5ZM186.724 255C201.93 255 214.257 242.688 214.257 227.5C214.257 212.312 201.93 200 186.724 200C171.518 200 159.191 212.312 159.191 227.5C159.191 242.688 171.518 255 186.724 255Z"></path>
         </svg>
         <div class="sc-empty-text">No items in the cart</div>
-      </div>`;
+      </div>
+      <div class="sc-upsell" hidden></div>`;
+      renderUpsellSection();
       return;
     }
 
+    const existingUpsell = itemsWrap.querySelector(".sc-upsell");
     itemsWrap.innerHTML = items
       .map((it, idx) => {
         const line = idx + 1;
@@ -2473,6 +3280,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
         `;
       })
       .join("");
+
+    if (existingUpsell) {
+      itemsWrap.appendChild(existingUpsell);
+    } else {
+      const upsell = document.createElement("div");
+      upsell.className = "sc-upsell";
+      upsell.hidden = true;
+      itemsWrap.appendChild(upsell);
+    }
+
+    renderUpsellSection();
   }
 
   /* =========================================================
@@ -3328,6 +4146,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     if (!PROXY || !CART) return;
     applyStyleSettings(PROXY?.styleSettings);
     renderCart();
+    renderUpsellSection();
     renderProgress();
     refreshAnnouncementFromRules();
     maybeShowAppliedDiscountCodePopup();
@@ -3360,6 +4179,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
           proxyRes.reason
         );
       }
+
+      logProxyTables(PROXY);
 
       await enforceRewardValidity();
 
