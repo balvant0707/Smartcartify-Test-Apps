@@ -10921,7 +10921,7 @@ export default function AppRules() {
                                     padding: "8px 10px",
                                     borderRadius: 10,
                                     background: "#111111",
-                                    color: "#ffffff",
+                                    color: upsellTextColor,
                                     fontSize: 12,
                                     fontWeight: 600,
                                     display: "flex",
