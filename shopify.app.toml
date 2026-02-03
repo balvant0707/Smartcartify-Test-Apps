@@ -1,8 +1,8 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "b55a28208623440fd6a8987892e4aec3"
-name = "SmartCartify"
-application_url = "https://cartmilestone.smartreminder.in/"
+client_id = "7a85831b0c4fec1f323dc285f026c1fd"
+name = "Smartcartify Test App"
+application_url = "https://smartcartify-test-apps.vercel.app/"
 embedded = true
 
 [build]
@@ -29,19 +29,25 @@ api_version = "2025-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_discounts,read_products,read_shipping,read_themes,write_discounts,write_price_rules,write_products,write_shipping,write_themes"
+# Minimal scopes required for SmartCartify cart drawer functionality:
+# - read_products: Display products in cart drawer
+# - read_themes/write_themes: Theme app extension integration
+# - read_discounts/write_discounts: Discount rules management
+# - write_price_rules: Price-based discount rules
+# - read_shipping/write_shipping: Shipping rules for free shipping thresholds
+scopes = "read_products,read_themes,write_themes,read_discounts,write_discounts,write_price_rules,read_shipping,write_shipping"
 
 [auth]
 redirect_urls = [
-  "https://cartmilestone.smartreminder.in/auth/callback",
-  "https://cartmilestone.smartreminder.in/auth/shopify/callback",
-  "https://cartmilestone.smartreminder.in/api/auth/callback"
+  "https://smartcartify-test-apps.vercel.app/auth/callback",
+  "https://smartcartify-test-apps.vercel.app/auth/shopify/callback",
+  "https://smartcartify-test-apps.vercel.app/api/auth/callback"
 ]
 
 [app_proxy]
 prefix = "apps"
 subpath = "smart"
-url = "https://cartmilestone.smartreminder.in/proxy/smart"
+url = "https://smartcartify-test-apps.vercel.app/proxy/smart"
 
 [pos]
 embedded = true
