@@ -10,7 +10,7 @@ export async function loader({ request }) {
 
     const gql = `
       query ProductsForPicker {
-        products(first: 50, sortKey: TITLE) {
+        products(first: 250, sortKey: TITLE) {
           edges {
             node {
               id
@@ -21,13 +21,13 @@ export async function loader({ request }) {
             }
           }
         }
-        collections(first: 50, sortKey: TITLE) {
+        collections(first: 250, sortKey: TITLE) {
           edges {
             node {
               id
               title
               handle
-              products(first: 10, sortKey: TITLE) {
+              products(first: 25, sortKey: TITLE) {
                 edges {
                   node {
                     id

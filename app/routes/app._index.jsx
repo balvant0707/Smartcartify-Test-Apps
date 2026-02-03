@@ -288,7 +288,7 @@ export default function Index() {
     {
       title: "Upsell Product",
       body: "Auto Show Product,Select Product,Select Collection & Customize.",
-      imageSrc: "/images/upsellproduct.png",
+      imageSrc: "/images/download.svg",
       imageAlt: "Upsell product",
       href: withHost("/app/rules?tab=upsell"),
     },
@@ -302,7 +302,7 @@ export default function Index() {
       bg: "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)",
     },
     {
-      label: "Style preview",
+      label: "Customize & Preview",
       href: withHost("/app/rules?tab=style"),
       icon: PaintBrushFlatIcon,
       bg: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)",

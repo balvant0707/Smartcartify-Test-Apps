@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { decryptAccessToken } from "../lib/accessTokenCrypto.server.js";
 import logger from "../lib/logger.server.js";
 import { apiVersion } from "../shopify.server.js";
-import { normalizeShopDomain, getShopFromRequest } from "../lib/shopUtils.server.js";
+import { getShopFromRequest } from "../lib/shopUtils.server.js";
 // Note: `proxy.smart.jsx` re-exports this loader for the app proxy path (/proxy/smart).
 
 // Use centralized API version from shopify.server.js
