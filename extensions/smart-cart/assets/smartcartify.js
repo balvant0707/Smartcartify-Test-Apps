@@ -24,6 +24,24 @@
   ========================================================= */
   const disableThemeCartDrawer = () => {
     try {
+      const removeThemeDrawers = () => {
+        document
+          .querySelectorAll(
+            "cart-drawer, cart-drawer-items, cart-notification, cart-notification-drawer"
+          )
+          .forEach((n) => n.remove());
+      };
+
+      let cleanupQueued = false;
+      const scheduleThemeDrawerCleanup = () => {
+        if (cleanupQueued) return;
+        cleanupQueued = true;
+        requestAnimationFrame(() => {
+          cleanupQueued = false;
+          removeThemeDrawers();
+        });
+      };
+
       const styleId = "smartcartify-disable-theme-cart-drawer";
       if (!document.getElementById(styleId)) {
         const st = document.createElement("style");
@@ -50,23 +68,18 @@
         document.head.appendChild(st);
       }
 
-      document
-        .querySelectorAll(
-          "cart-drawer, cart-drawer-items, cart-notification, cart-notification-drawer"
-        )
-        .forEach((n) => n.remove());
+      removeThemeDrawers();
 
       document.body.classList.add("sc-cartify-lock-theme-cart");
 
       if (!window.__SC_DISABLE_DRAWER_OBSERVER__) {
         window.__SC_DISABLE_DRAWER_OBSERVER__ = true;
-        new MutationObserver(() => {
-          document
-            .querySelectorAll(
-              "cart-drawer, cart-drawer-items, cart-notification, cart-notification-drawer"
-            )
-            .forEach((n) => n.remove());
-        }).observe(document.documentElement, { childList: true, subtree: true });
+        const obs = new MutationObserver(scheduleThemeDrawerCleanup);
+        obs.observe(document.body || document.documentElement, {
+          childList: true,
+          subtree: true,
+        });
+        window.__SC_DISABLE_DRAWER_OBSERVER_REF__ = obs;
       }
     } catch { }
   };
@@ -94,11 +107,22 @@
 
   let PROXY = null;
   let CART = null;
+  const CART_CACHE_TTL_MS = 1200;
+  let cartCacheValue = null;
+  let cartCacheTs = 0;
+  let cartFetchInFlight = null;
+
+  const invalidateCartCache = () => {
+    cartCacheValue = null;
+    cartCacheTs = 0;
+  };
 
   let UPSELL_INDEX = 0;
   let UPSELL_TIMER = null;
   let UPSELL_DYNAMIC = null;
   let UPSELL_LOADING = false;
+  let openButtonsObserver = null;
+  let bindQueued = false;
 
   let LAST_DONE = 0;
   let LAST_BXGY_DONE = false;
@@ -532,6 +556,7 @@
       recommendationMode: String(raw.recommendationMode || "auto").toLowerCase(),
       sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "You may also like"),
       buttonText: pickTextAny(raw, ["buttonText"], "add to cart"),
+      buttonColor: pickColor(raw, ["buttonColor", "button"], "#111111"),
       backgroundColor: pickBackground(raw, ["backgroundColor", "background"], "#f8fafc"),
       textColor: pickColor(raw, ["textColor", "text"], "#111827"),
       borderColor: pickColor(raw, ["borderColor", "border"], "#e2e8f0"),
@@ -919,6 +944,7 @@
     wrap.hidden = false;
     wrap.style.setProperty("--sc-upsell-bg", settings.backgroundColor || "#f8fafc");
     wrap.style.setProperty("--sc-upsell-text", settings.textColor || "#111827");
+    wrap.style.setProperty("--sc-upsell-button-bg", settings.buttonColor || "#111111");
     wrap.style.setProperty("--sc-border", settings.borderColor || "#e2e8f0");
     wrap.style.setProperty("--sc-upsell-arrow", settings.arrowColor || "#111827");
 
@@ -1396,13 +1422,29 @@
   /* =========================================================
    FETCHERS
   ========================================================= */
-  const fetchCart = async () => {
-    const r = await fetch("/cart.js", {
+  const fetchCart = async ({ force = false } = {}) => {
+    const now = Date.now();
+    if (!force && cartCacheValue && now - cartCacheTs < CART_CACHE_TTL_MS) {
+      return cartCacheValue;
+    }
+    if (!force && cartFetchInFlight) return cartFetchInFlight;
+
+    cartFetchInFlight = fetch("/cart.js", {
       headers: { Accept: "application/json" },
       credentials: "same-origin",
-    });
-    if (!r.ok) throw new Error(`[SmartCartify] Cart fetch failed (${r.status})`);
-    return r.json();
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`[SmartCartify] Cart fetch failed (${r.status})`);
+        const j = await r.json();
+        cartCacheValue = j;
+        cartCacheTs = Date.now();
+        return j;
+      })
+      .finally(() => {
+        cartFetchInFlight = null;
+      });
+
+    return cartFetchInFlight;
   };
 
   const fetchProxy = async () => {
@@ -1455,6 +1497,7 @@
   };
 
   const cartChange = async (line, quantity) => {
+    invalidateCartCache();
     const r = await fetch("/cart/change.js", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -1462,7 +1505,25 @@
       body: JSON.stringify({ line, quantity }),
     });
     if (!r.ok) throw new Error(`[SmartCartify] Cart change failed (${r.status})`);
-    return r.json();
+    const j = await r.json();
+    cartCacheValue = j;
+    cartCacheTs = Date.now();
+    return j;
+  };
+
+  const cartUpdate = async (updates) => {
+    invalidateCartCache();
+    const r = await fetch("/cart/update.js", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ updates }),
+    });
+    if (!r.ok) throw new Error(`[SmartCartify] Cart update failed (${r.status})`);
+    const j = await r.json();
+    cartCacheValue = j;
+    cartCacheTs = Date.now();
+    return j;
   };
 
   /* =========================================================
@@ -2261,7 +2322,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-upsell-btn{
   border-radius: 10px;
-  background: #111111;
+  background: var(--sc-upsell-button-bg, #111111);
+  border: 1px solid var(--sc-border, #e2e8f0);
   color: #ffffff;
   padding: 4px 8px;
   font-size: 12px;
@@ -2603,6 +2665,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     overlay.setAttribute("aria-hidden", "false");
     document.documentElement.style.overflow = "hidden";
     document.body.classList.add("sc-cartify-open");
+    stopOpenButtonObserver();
   }
 
   function closeDrawer() {
@@ -2611,6 +2674,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
     overlay.setAttribute("aria-hidden", "true");
     document.documentElement.style.overflow = "";
     document.body.classList.remove("sc-cartify-open");
+    startOpenButtonObserver();
+    queueOpenButtonBind();
   }
 
   const $ = (sel) => drawer.querySelector(sel);
@@ -3337,6 +3402,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
       if (markAutoAdded && guardKey) scStore.set(keyAutoAdded(kind, guardKey), "1");
 
+      invalidateCartCache();
       await refreshFromNetwork();
       return true;
     } catch (err) {
@@ -3830,18 +3896,36 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
       if (!linesToRemove.length) return;
 
-      linesToRemove.sort((a, b) => b - a);
+      const keyUpdates = {};
+      linesToRemove.forEach((line) => {
+        const key = trimToNull(items[line - 1]?.key);
+        if (key) keyUpdates[key] = 0;
+      });
 
-      for (const line of linesToRemove) {
+      let removedInBulk = false;
+      const keyCount = Object.keys(keyUpdates).length;
+      if (keyCount === linesToRemove.length && keyCount > 0) {
         try {
-          CART = await cartChange(line, 0);
+          CART = await cartUpdate(keyUpdates);
+          removedInBulk = true;
         } catch (e) {
-          console.error("[SC] auto-remove failed line", line, e);
+          console.warn("[SC] bulk reward cleanup failed; falling back to line-by-line remove.", e);
+        }
+      }
+
+      if (!removedInBulk) {
+        linesToRemove.sort((a, b) => b - a);
+        for (const line of linesToRemove) {
+          try {
+            CART = await cartChange(line, 0);
+          } catch (e) {
+            console.error("[SC] auto-remove failed line", line, e);
+          }
         }
       }
 
       try {
-        CART = await fetchCart();
+        CART = await fetchCart({ force: true });
       } catch { }
     } finally {
       __SC_ENFORCING_REWARDS__ = false;
@@ -4236,7 +4320,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
       refreshTimer = setTimeout(async () => {
         try {
           setProgressLoading(true);
-          CART = await fetchCart();
+          CART = await fetchCart({ force: true });
 
           await enforceRewardValidity();
 
@@ -4329,43 +4413,25 @@ body.sc-cartify-open .shopify-section-group-header-group{
   );
 
   /* =========================================================
-   ✅ XHR WATCH
+   ✅ CART REFRESH WATCH (no global fetch/xhr monkey-patching)
   ========================================================= */
-  const _xhrOpen = XMLHttpRequest.prototype.open;
-  const _xhrSend = XMLHttpRequest.prototype.send;
-
-  const isAddToCartUrl = (url) => {
-    const u = safe(url);
-    return u.includes("/cart/add") || u.includes("/cart/add.js");
-  };
-  const watchUrl = (url) => {
-    const u = safe(url);
-    return (
-      u.includes("/cart/add") ||
-      u.includes("/cart/change") ||
-      u.includes("/cart/update") ||
-      u.includes("/cart/add.js") ||
-      u.includes("/cart/change.js") ||
-      u.includes("/cart/update.js")
-    );
-  };
-
-  XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-    this.__sc_url = url;
-    return _xhrOpen.call(this, method, url, ...rest);
-  };
-
-  XMLHttpRequest.prototype.send = function (body) {
-    try {
-      this.addEventListener("load", () => {
-        try {
-          if (isAddToCartUrl(this.__sc_url) && this.status >= 200 && this.status < 300) {
-            setTimeout(openAndRefreshDrawer, 80);
-          }
-        } catch { }
-      });
-    } catch { }
-    return _xhrSend.call(this, body);
+  let passiveRefreshTimer = null;
+  const schedulePassiveRefresh = (delay = 120) => {
+    if (!drawer.classList.contains("open")) return;
+    if (passiveRefreshTimer) clearTimeout(passiveRefreshTimer);
+    passiveRefreshTimer = setTimeout(async () => {
+      passiveRefreshTimer = null;
+      try {
+        setProgressLoading(true);
+        CART = await fetchCart({ force: true });
+        await enforceRewardValidity();
+        if (drawer.classList.contains("open")) renderAllFromCache();
+      } catch (err) {
+        console.error("[SmartCartify] passive cart refresh failed:", err);
+      } finally {
+        if (drawer.classList.contains("open")) setProgressLoading(false);
+      }
+    }, Math.max(40, Number(delay) || 120));
   };
 
   /* =========================================================
@@ -4498,41 +4564,75 @@ body.sc-cartify-open .shopify-section-group-header-group{
       );
     });
   };
-  ensureOpenButton();
-  bindOpenButtons();
-  new MutationObserver(bindOpenButtons).observe(document.documentElement, {
-    childList: true,
-    subtree: true,
+
+  function queueOpenButtonBind() {
+    if (bindQueued) return;
+    bindQueued = true;
+    requestAnimationFrame(() => {
+      bindQueued = false;
+      ensureOpenButton();
+      bindOpenButtons();
+    });
+  }
+
+  function startOpenButtonObserver() {
+    if (openButtonsObserver || drawer.classList.contains("open")) return;
+    openButtonsObserver = new MutationObserver(queueOpenButtonBind);
+    openButtonsObserver.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  function stopOpenButtonObserver() {
+    if (!openButtonsObserver) return;
+    openButtonsObserver.disconnect();
+    openButtonsObserver = null;
+  }
+
+  queueOpenButtonBind();
+  startOpenButtonObserver();
+
+  const passiveCartEvents = [
+    "cart:refresh",
+    "cart:updated",
+    "cart:change",
+    "ajaxProduct:added",
+    "product:added",
+  ];
+
+  passiveCartEvents.forEach((eventName) => {
+    document.addEventListener(
+      eventName,
+      () => {
+        schedulePassiveRefresh(100);
+      },
+      true
+    );
   });
 
-  /* =========================================================
-   ✅ FETCH WATCH
-  ========================================================= */
-  const originalFetch = window.fetch;
-  window.fetch = async function (...args) {
-    const res = await originalFetch.apply(this, args);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") schedulePassiveRefresh(160);
+  });
 
-    try {
-      const url = args?.[0];
-      if (isAddToCartUrl(url) && res?.ok) {
-        setTimeout(openAndRefreshDrawer, 80);
-        return res;
-      }
-      if (watchUrl(url)) {
-        if (drawer.classList.contains("open")) setProgressLoading(true);
-        fetchCart()
-          .then(async (c) => {
-            CART = c;
-            await enforceRewardValidity();
-            if (drawer.classList.contains("open")) renderAllFromCache();
-          })
-          .catch(() => { })
-          .finally(() => {
-            if (drawer.classList.contains("open")) setProgressLoading(false);
-          });
-      }
-    } catch { }
-    return res;
-  };
+  window.addEventListener("focus", () => {
+    schedulePassiveRefresh(160);
+  });
+
+  window.addEventListener("pagehide", () => {
+    stopOpenButtonObserver();
+    if (passiveRefreshTimer) {
+      clearTimeout(passiveRefreshTimer);
+      passiveRefreshTimer = null;
+    }
+    const themeObs = window.__SC_DISABLE_DRAWER_OBSERVER_REF__;
+    if (themeObs && typeof themeObs.disconnect === "function") {
+      try {
+        themeObs.disconnect();
+      } catch { }
+      window.__SC_DISABLE_DRAWER_OBSERVER_REF__ = null;
+    }
+  });
+
   preload();
 })();

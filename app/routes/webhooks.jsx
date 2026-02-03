@@ -11,6 +11,8 @@ const deleteShopData = async (shop) => {
     prisma.bxgyRule,
     prisma.cartStepConfig,
     prisma.styleSettings,
+    prisma.upsellSettings,
+    prisma.planSubscription,
   ];
   await Promise.all(
     deletable.map((model) => model.deleteMany({ where: { shop } })),
@@ -24,6 +26,7 @@ const deleteShopData = async (shop) => {
 function verifyShopifyHmac(request, rawBody) {
   const hmac = request.headers.get("X-Shopify-Hmac-Sha256");
   const secret = process.env.SHOPIFY_API_SECRET || "";
+  if (!secret || !hmac) return false;
 
   const digest = crypto
     .createHmac("sha256", secret)
@@ -54,6 +57,7 @@ export async function action({ request }) {
   const topic = request.headers.get("X-Shopify-Topic");
   const shopHeader = request.headers.get("X-Shopify-Shop-Domain");
   const shop = normalizeShopDomain(shopHeader);
+  if (!shop) return new Response("Invalid shop", { status: 400 });
 
   const rawBody = await request.text();
 
@@ -61,7 +65,12 @@ export async function action({ request }) {
     return new Response("Invalid HMAC", { status: 401 });
   }
 
-  const payload = rawBody ? JSON.parse(rawBody) : {};
+  let payload = {};
+  try {
+    payload = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    return new Response("Invalid JSON payload", { status: 400 });
+  }
 
   // ✅ Billing/subscription updates
   if (topic === "app_subscriptions/update") {

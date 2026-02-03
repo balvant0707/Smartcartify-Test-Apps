@@ -177,6 +177,7 @@ model UpsellSettings {
   recommendationMode    String   @default("auto") @db.VarChar(32)
   sectionTitle          String?  @db.VarChar(255)
   buttonText            String?  @db.VarChar(255)
+  buttonColor           String?  @db.VarChar(32)
   backgroundColor       String?  @db.VarChar(32)
   textColor             String?  @db.VarChar(32)
   borderColor           String?  @db.VarChar(32)

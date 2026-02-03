@@ -14,6 +14,8 @@ const deleteShopData = async (shop) => {
     db.bxgyRule,
     db.cartStepConfig,
     db.styleSettings,
+    db.upsellSettings,
+    db.planSubscription,
   ];
   await Promise.all(
     deletable.map((model) => model.deleteMany({ where: { shop } })),

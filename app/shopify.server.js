@@ -13,6 +13,7 @@ import {
   buildOwnerInstallEmail,
 } from "./lib/emailTemplates.server.js";
 import { sendEmail } from "./lib/email.server.js";
+import { decryptAccessToken, encryptAccessToken } from "./lib/accessTokenCrypto.server.js";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -42,7 +43,8 @@ const shopify = shopifyApp({
       const isNewInstall = !existingShop || existingShop.installed === false;
       const forceSend = process.env.FORCE_INSTALL_EMAIL === "true";
 
-      const encryptedAccessToken = session?.accessToken || null;
+      const encryptedAccessToken = encryptAccessToken(session?.accessToken);
+      const hadTokenBefore = Boolean(decryptAccessToken(existingShop?.accessToken));
 
       await prisma.shop.upsert({
         where: { shop },
@@ -59,7 +61,7 @@ const shopify = shopifyApp({
         },
       });
 
-      if (!isNewInstall && !forceSend) {
+      if (!isNewInstall && !forceSend && hadTokenBefore) {
         console.log("[email] afterAuth not new install; skipping email.", { shop });
         return;
       }

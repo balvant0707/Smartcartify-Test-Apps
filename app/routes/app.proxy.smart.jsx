@@ -1,7 +1,10 @@
 import prisma from "../db.server.js";
+import crypto from "crypto";
+import { decryptAccessToken } from "../lib/accessTokenCrypto.server.js";
 // Note: `proxy.smart.jsx` re-exports this loader for the app proxy path (/proxy/smart).
 
 const ADMIN_API_VERSION = "2024-10";
+const APP_PROXY_HMAC_TOLERANCE_SEC = 300;
 
 const jsonResponse = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -15,7 +18,56 @@ const normalizeShopDomain = (value) => {
   if (!value) return null;
   const trimmed = String(value).trim();
   if (!trimmed) return null;
-  return trimmed.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  const normalized = trimmed.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(normalized)) return null;
+  return normalized.toLowerCase();
+};
+
+const timingSafeEqual = (a, b) => {
+  const left = Buffer.from(String(a || ""), "utf8");
+  const right = Buffer.from(String(b || ""), "utf8");
+  if (left.length !== right.length) return false;
+  return crypto.timingSafeEqual(left, right);
+};
+
+const isTimestampFresh = (timestampRaw) => {
+  const ts = Number(timestampRaw || 0);
+  if (!Number.isFinite(ts) || ts <= 0) return false;
+  const now = Math.trunc(Date.now() / 1000);
+  return Math.abs(now - ts) <= APP_PROXY_HMAC_TOLERANCE_SEC;
+};
+
+const verifyAppProxySignature = (request) => {
+  const secret = process.env.SHOPIFY_API_SECRET || "";
+  if (!secret) return false;
+
+  const url = new URL(request.url);
+  const params = {};
+
+  for (const [key, value] of url.searchParams.entries()) {
+    if (key === "signature" || key === "hmac") continue;
+    if (params[key] == null) {
+      params[key] = value;
+    } else if (Array.isArray(params[key])) {
+      params[key].push(value);
+    } else {
+      params[key] = [params[key], value];
+    }
+  }
+
+  const providedSignature = url.searchParams.get("signature") || "";
+  if (!providedSignature) return false;
+  if (!isTimestampFresh(params.timestamp)) return false;
+
+  const sorted = Object.entries(params)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .reduce((acc, [key, value]) => {
+      const normalizedValue = Array.isArray(value) ? value.join(",") : String(value ?? "");
+      return `${acc}${key}=${normalizedValue}`;
+    }, "");
+
+  const local = crypto.createHmac("sha256", secret).update(sorted).digest("hex");
+  return timingSafeEqual(providedSignature, local);
 };
 
 const getShopFromRequest = (request) => {
@@ -215,6 +267,10 @@ const fetchProductsForCollection = async (shopDomain, accessToken, collectionId)
 };
 
 export const loader = async ({ request }) => {
+  if (!verifyAppProxySignature(request)) {
+    return jsonResponse({ ok: false, error: "Invalid proxy signature" }, 401);
+  }
+
   const shop = getShopFromRequest(request);
   if (!shop) {
     return jsonResponse({ ok: false, error: "Shop domain not provided" }, 400);
@@ -239,9 +295,15 @@ export const loader = async ({ request }) => {
       prisma.upsellSettings.findUnique({ where: { shop } }),
     ]);
 
+    const shopAccessToken = decryptAccessToken(shopRow?.accessToken);
+
+    if (!shopRow || !shopRow.installed || !shopAccessToken) {
+      return jsonResponse({ ok: false, error: "Shop is not authorized" }, 403);
+    }
+
     const bestSellingProducts = await fetchBestSellingProducts(
       shop,
-      shopRow?.accessToken || null
+      shopAccessToken
     );
 
     const selectedProductIds = parseJsonArray(
@@ -253,7 +315,7 @@ export const loader = async ({ request }) => {
     const selectedProductsRaw = selectedProductIdsNormalized.length
       ? await fetchProductsByIds(
           shop,
-          shopRow?.accessToken || null,
+          shopAccessToken,
           selectedProductIdsNormalized
         )
       : [];
@@ -273,7 +335,7 @@ export const loader = async ({ request }) => {
     const selectedCollectionsRaw = selectedCollectionIdsNormalized.length
       ? await fetchCollectionsByIds(
           shop,
-          shopRow?.accessToken || null,
+          shopAccessToken,
           selectedCollectionIdsNormalized
         )
       : [];
@@ -287,7 +349,7 @@ export const loader = async ({ request }) => {
     for (const col of selectedCollectionsOrdered) {
       const products = await fetchProductsForCollection(
         shop,
-        shopRow?.accessToken || null,
+        shopAccessToken,
         col?.id
       );
       selectedCollectionsWithProducts.push({
@@ -334,5 +396,5 @@ export const action = () =>
   );
 
 export const headers = () => ({
-  "Cache-Control": "public, max-age=30",
+  "Cache-Control": "public, max-age=300, stale-while-revalidate=300",
 });

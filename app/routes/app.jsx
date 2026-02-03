@@ -9,6 +9,7 @@ import { AppProvider as PolarisProvider, Page, Card, Text } from "@shopify/polar
 import en from "@shopify/polaris/locales/en.json";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { encryptAccessToken } from "../lib/accessTokenCrypto.server.js";
 
 const normalizeShopDomain = (value) => {
   if (!value) return null;
@@ -20,6 +21,7 @@ const normalizeShopDomain = (value) => {
 // 2) Loader (auth check)
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
+  const encryptedAccessToken = encryptAccessToken(session?.accessToken);
   const headerShop =
     normalizeShopDomain(request.headers.get("x-shopify-shop-domain")) ||
     normalizeShopDomain(request.headers.get("x-shopify-shop")) ||
@@ -31,14 +33,14 @@ export const loader = async ({ request }) => {
     await prisma.shop.upsert({
       where: { shop: resolvedShop },
       update: {
-        accessToken: session?.accessToken ?? undefined,
+        accessToken: encryptedAccessToken ?? undefined,
         installed: true,
         uninstalledAt: null,
         updatedAt: new Date(),
       },
       create: {
         shop: resolvedShop,
-        accessToken: session?.accessToken ?? null,
+        accessToken: encryptedAccessToken ?? null,
         installed: true,
         onboardedAt: new Date(),
       },
