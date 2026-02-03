@@ -1,6 +1,9 @@
 import prisma from "../db.server.js";
 import crypto from "crypto";
-import { decryptAccessToken } from "../lib/accessTokenCrypto.server.js";
+import {
+  decryptAccessToken,
+  encryptAccessToken,
+} from "../lib/accessTokenCrypto.server.js";
 import logger from "../lib/logger.server.js";
 import { apiVersion } from "../shopify.server.js";
 import { getShopFromRequest } from "../lib/shopUtils.server.js";
@@ -246,6 +249,54 @@ const fetchProductsForCollection = async (shopDomain, accessToken, collectionId)
   }
 };
 
+const resolveShopAccessToken = async (shop, shopRow) => {
+  const primary = decryptAccessToken(shopRow?.accessToken);
+  if (shopRow?.installed && primary) return primary;
+
+  const offlineSessionId = `offline_${shop}`;
+  let fallbackToken = null;
+
+  const offlineSession = await prisma.session.findUnique({
+    where: { id: offlineSessionId },
+    select: { accessToken: true },
+  });
+  if (offlineSession?.accessToken) {
+    fallbackToken = String(offlineSession.accessToken);
+  }
+
+  if (!fallbackToken) {
+    const anySession = await prisma.session.findFirst({
+      where: { shop, accessToken: { not: null } },
+      select: { accessToken: true },
+      orderBy: { expires: "desc" },
+    });
+    if (anySession?.accessToken) {
+      fallbackToken = String(anySession.accessToken);
+    }
+  }
+
+  if (!fallbackToken) return null;
+
+  const encrypted = encryptAccessToken(fallbackToken);
+  await prisma.shop.upsert({
+    where: { shop },
+    update: {
+      accessToken: encrypted ?? undefined,
+      installed: true,
+      uninstalledAt: null,
+      updatedAt: new Date(),
+    },
+    create: {
+      shop,
+      accessToken: encrypted ?? null,
+      installed: true,
+      onboardedAt: new Date(),
+    },
+  });
+
+  return fallbackToken;
+};
+
 export const loader = async ({ request }) => {
   if (!verifyAppProxySignature(request)) {
     return jsonResponse({ ok: false, error: "Invalid proxy signature" }, 401);
@@ -275,16 +326,18 @@ export const loader = async ({ request }) => {
       prisma.upsellSettings.findUnique({ where: { shop } }),
     ]);
 
-    const shopAccessToken = decryptAccessToken(shopRow?.accessToken);
+    const shopAccessToken = await resolveShopAccessToken(shop, shopRow);
+    const isAuthorized = Boolean(shopAccessToken);
 
-    if (!shopRow || !shopRow.installed || !shopAccessToken) {
-      return jsonResponse({ ok: false, error: "Shop is not authorized" }, 403);
+    if (!isAuthorized) {
+      logger.warn("Proxy request without shop token; returning DB-only config", {
+        shop,
+      });
     }
 
-    const bestSellingProducts = await fetchBestSellingProducts(
-      shop,
-      shopAccessToken
-    );
+    const bestSellingProducts = isAuthorized
+      ? await fetchBestSellingProducts(shop, shopAccessToken)
+      : [];
 
     const selectedProductIds = parseJsonArray(
       upsellSettings?.selectedProductIds
@@ -292,7 +345,7 @@ export const loader = async ({ request }) => {
     const selectedProductIdsNormalized = selectedProductIds
       .map(normalizeProductId)
       .filter(Boolean);
-    const selectedProductsRaw = selectedProductIdsNormalized.length
+    const selectedProductsRaw = isAuthorized && selectedProductIdsNormalized.length
       ? await fetchProductsByIds(
           shop,
           shopAccessToken,
@@ -312,7 +365,7 @@ export const loader = async ({ request }) => {
     const selectedCollectionIdsNormalized = selectedCollectionIds
       .map(normalizeCollectionId)
       .filter(Boolean);
-    const selectedCollectionsRaw = selectedCollectionIdsNormalized.length
+    const selectedCollectionsRaw = isAuthorized && selectedCollectionIdsNormalized.length
       ? await fetchCollectionsByIds(
           shop,
           shopAccessToken,
@@ -333,11 +386,10 @@ export const loader = async ({ request }) => {
       const batch = selectedCollectionsOrdered.slice(i, i + BATCH_SIZE);
       const batchResults = await Promise.all(
         batch.map(async (col) => {
-          const products = await fetchProductsForCollection(
-            shop,
-            shopAccessToken,
-            col?.id
-          );
+          const products =
+            isAuthorized && col?.id
+              ? await fetchProductsForCollection(shop, shopAccessToken, col?.id)
+              : [];
           return {
             id: col?.id ?? null,
             title: col?.title ?? "",
@@ -351,6 +403,7 @@ export const loader = async ({ request }) => {
     return jsonResponse({
       ok: true,
       shop,
+      authorized: isAuthorized,
       metadata: buildShopMetadata(shopRow),
       shippingRules,
       discountRules,

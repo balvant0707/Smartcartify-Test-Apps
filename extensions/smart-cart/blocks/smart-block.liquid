@@ -5,7 +5,7 @@
 
 <div
   id="smart-embed-root"
-  data-proxy-path="/apps/smart"
+  data-proxy-path="{{ settings.custom_proxy_path | default: '/apps/smart' }}"
   data-design-mode="{{ request.design_mode }}"
   data-preview-enabled="{{ settings.preview_in_editor }}"
 ></div>
