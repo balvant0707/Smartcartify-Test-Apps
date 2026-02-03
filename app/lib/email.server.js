@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import logger from "./logger.server.js";
 
 const parsePort = (value, fallback) => {
   const parsed = Number(value);
@@ -51,18 +52,18 @@ const emailConfigSummary = () => ({
 
 export const sendEmail = async ({ to, subject, html, text, replyTo, cc }) => {
   if (!emailEnabled()) {
-    console.warn("[email] SMTP not configured; skipping email send.", emailConfigSummary());
+    logger.warn("[email] SMTP not configured; skipping email send.", emailConfigSummary());
     return { skipped: true };
   }
 
   if (!to && !cc) {
-    console.warn("[email] Missing recipient; skipping email send.");
+    logger.warn("[email] Missing recipient; skipping email send.");
     return { skipped: true };
   }
 
   const transporter = getTransporter();
   if (process.env.SMTP_DEBUG === "true") {
-    console.log("[email] send start", {
+    logger.log("[email] send start", {
       to,
       cc,
       subject,
@@ -82,7 +83,7 @@ export const sendEmail = async ({ to, subject, html, text, replyTo, cc }) => {
     ...(replyTo ? { replyTo } : {}),
   });
   if (process.env.SMTP_DEBUG === "true") {
-    console.log("[email] send success", { messageId: info.messageId });
+    logger.log("[email] send success", { messageId: info.messageId });
   }
 
   return { messageId: info.messageId };

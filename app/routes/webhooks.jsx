@@ -1,27 +1,7 @@
 import crypto from "crypto";
 import prisma from "../db.server";
 import { PLANS } from "../lib/plans.js";
-
-const deleteShopData = async (shop) => {
-  if (!shop) return;
-  const deletable = [
-    prisma.shippingRule,
-    prisma.discountRule,
-    prisma.freeGiftRule,
-    prisma.bxgyRule,
-    prisma.cartStepConfig,
-    prisma.styleSettings,
-    prisma.upsellSettings,
-    prisma.planSubscription,
-  ];
-  await Promise.all(
-    deletable.map((model) => model.deleteMany({ where: { shop } })),
-  );
-  await Promise.all([
-    prisma.session.deleteMany({ where: { shop } }),
-    prisma.shop.deleteMany({ where: { shop } }),
-  ]);
-};
+import { normalizeShopDomain } from "../lib/shopUtils.server.js";
 
 function verifyShopifyHmac(request, rawBody) {
   const hmac = request.headers.get("X-Shopify-Hmac-Sha256");
@@ -39,13 +19,6 @@ function verifyShopifyHmac(request, rawBody) {
   if (provided.length !== expected.length) return false;
   return crypto.timingSafeEqual(expected, provided);
 }
-
-const normalizeShopDomain = (value) => {
-  if (!value) return null;
-  const trimmed = String(value).trim();
-  if (!trimmed) return null;
-  return trimmed.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-};
 
 const toDateOrNull = (value) => {
   if (!value) return null;
@@ -151,17 +124,8 @@ export async function action({ request }) {
     return new Response("OK", { status: 200 });
   }
 
-  // ✅ GDPR topics (ignore)
-  if (
-    topic === "customers/data_request" ||
-    topic === "customers/redact" ||
-    topic === "shop/redact"
-  ) {
-    if (topic === "shop/redact") {
-      await deleteShopData(shop);
-    }
-    return new Response("OK", { status: 200 });
-  }
+  // GDPR topics are handled by webhooks.gdpr.jsx via dedicated callback URL
+  // configured in shopify.app.toml
 
   return new Response("Unhandled topic", { status: 200 });
 }

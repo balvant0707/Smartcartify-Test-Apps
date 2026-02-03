@@ -4,9 +4,18 @@ import { useEffect } from "react";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
+// Performance logging only in development
+const perfLog = (...args) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.log(...args);
+  }
+};
+
 export default function App() {
   useEffect(() => {
     if (typeof window === "undefined" || !("performance" in window)) return;
+    // Skip performance logging in production
+    if (process.env.NODE_ENV === "production") return;
 
     const toSeconds = (ms) =>
       typeof ms === "number" ? (ms / 1000).toFixed(2) : "n/a";
@@ -19,8 +28,8 @@ export default function App() {
       ? navEntry.domInteractive - navEntry.startTime
       : null;
 
-    console.log("[Perf] Page open time (s):", toSeconds(pageOpenMs));
-    console.log("[Perf] Install time (s):", toSeconds(installMs));
+    perfLog("[Perf] Page open time (s):", toSeconds(pageOpenMs));
+    perfLog("[Perf] Install time (s):", toSeconds(installMs));
 
     if (!("PerformanceObserver" in window)) return;
 
@@ -31,7 +40,7 @@ export default function App() {
       if (reported) return;
       reported = true;
       if (!lastLcpEntry) return;
-      console.log(
+      perfLog(
         "[Perf] Largest Contentful Paint (s):",
         toSeconds(lastLcpEntry.startTime),
       );

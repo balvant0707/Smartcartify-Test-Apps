@@ -8,8 +8,8 @@
   const root = document.getElementById("smart-embed-root");
   if (!root) return;
 
-  // ✅ Turn ON to see table-wise logs in console
-  const DEBUG_TABLES = true;
+  // ✅ Turn ON to see table-wise logs in console (set to false for production)
+  const DEBUG_TABLES = false;
 
   // ✅ App proxy path (prefer embed data, fallback to /apps/smart)
   let proxyPath = root.dataset.proxyPath || "/apps/smart";
@@ -172,7 +172,16 @@
   /* =========================================================
    HELPERS
   ========================================================= */
-  const safe = (v) => (v == null ? "" : String(v));
+  // XSS-safe string helper - escapes HTML entities to prevent injection
+  const safe = (v) => {
+    if (v == null) return "";
+    return String(v)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
   const trimToNull = (v) => {
     const s = String(v ?? "").trim();
     return s ? s : null;
@@ -320,16 +329,21 @@
       "step_label",
     ]);
 
-  const formatMoney = (cents, currency = "INR") => {
+  // Currency formatting - uses shop currency from Shopify.locale or defaults to shop's setting
+  const formatMoney = (cents, currency = null) => {
     const amount = (Number(cents) || 0) / 100;
+    // Try to get currency from Shopify global or default to USD
+    const shopCurrency = currency || window.Shopify?.currency?.active || window.Shopify?.currency?.rate || "USD";
+    const locale = window.Shopify?.locale || navigator.language || "en-US";
     try {
-      return new Intl.NumberFormat("en-IN", {
+      return new Intl.NumberFormat(locale, {
         style: "currency",
-        currency,
-        maximumFractionDigits: 0,
+        currency: shopCurrency,
+        maximumFractionDigits: 2,
       }).format(amount);
     } catch {
-      return `₹${Math.round(amount)}`;
+      // Fallback for unsupported currencies
+      return `${shopCurrency} ${Math.round(amount)}`;
     }
   };
 

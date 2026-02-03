@@ -5,11 +5,12 @@ import {
   buildOwnerUninstallEmail,
   buildUninstallEmail,
 } from "../lib/emailTemplates.server.js";
+import logger from "../lib/logger.server.js";
 
 export const action = async ({ request }) => {
   const { shop, session, topic } = await authenticate.webhook(request);
 
-  console.log(`Received ${topic} webhook for ${shop}`);
+  logger.log(`Received ${topic} webhook for ${shop}`);
 
   // Webhook requests can trigger multiple times and after an app has already been uninstalled.
   // If this webhook already ran, the session may have been deleted previously.
@@ -53,12 +54,12 @@ export const action = async ({ request }) => {
           text: storeEmail.text,
           replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
         });
-        console.log("[email] store uninstall email sent", {
+        logger.log("[email] store uninstall email sent", {
           shop,
           to: storeRecipient,
         });
       } else {
-        console.warn("[email] store owner email missing; uninstall email skipped");
+        logger.warn("[email] store owner email missing; uninstall email skipped");
       }
 
       if (ownerEmail) {
@@ -76,13 +77,13 @@ export const action = async ({ request }) => {
           text: ownerEmailContent.text,
           replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
         });
-        console.log("[email] owner uninstall email sent", {
+        logger.log("[email] owner uninstall email sent", {
           shop,
           to: ownerEmail,
         });
       }
     } catch (error) {
-      console.warn("[email] uninstall email failed:", error);
+      logger.warn("[email] uninstall email failed:", error);
     }
   }
 

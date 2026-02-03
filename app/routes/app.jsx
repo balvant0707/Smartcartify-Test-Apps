@@ -10,13 +10,7 @@ import en from "@shopify/polaris/locales/en.json";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { encryptAccessToken } from "../lib/accessTokenCrypto.server.js";
-
-const normalizeShopDomain = (value) => {
-  if (!value) return null;
-  const trimmed = String(value).trim();
-  if (!trimmed) return null;
-  return trimmed.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-};
+import { normalizeShopDomain } from "../lib/shopUtils.server.js";
 
 // 2) Loader (auth check)
 export const loader = async ({ request }) => {

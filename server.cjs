@@ -231,34 +231,36 @@ try {
 // tiny helper for __fs
 const dirList = (p) => { try { return fs.readdirSync(p); } catch { return "(cannot read)"; } };
 
-// probes
-app.get("/__build", (_req, res) => {
-  res.status(200).json({
-    buildExists,
-    loaded: !!BUILD,
-    BUILD_PATH: BUILD_PATH || "(not found)",
-    error: buildErr ? String(buildErr.stack || buildErr) : null
+// Debug probes - only available in non-production environments
+if (process.env.NODE_ENV !== "production") {
+  app.get("/__build", (_req, res) => {
+    res.status(200).json({
+      buildExists,
+      loaded: !!BUILD,
+      BUILD_PATH: BUILD_PATH || "(not found)",
+      error: buildErr ? String(buildErr.stack || buildErr) : null
+    });
   });
-});
-app.get("/__fs", (_req, res) => {
-  const root = __dirname;
-  res.status(200).json({
-    root,
-    exists: {
-      "build/": fs.existsSync(path.join(root, "build")),
-      "build/server/": fs.existsSync(path.join(root, "build", "server")),
-      "build/server/index.cjs": fs.existsSync(path.join(root, "build", "server", "index.cjs")),
-      "build/server/index.js": fs.existsSync(path.join(root, "build", "server", "index.js")),
-      "public/build/": fs.existsSync(path.join(root, "public", "build")),
-      "node_modules/": fs.existsSync(path.join(root, "node_modules")),
-    },
-    list: {
-      "build/": dirList(path.join(root, "build")),
-      "build/server/": dirList(path.join(root, "build", "server")),
-      "public/build/": dirList(path.join(root, "public", "build")),
-    }
+  app.get("/__fs", (_req, res) => {
+    const root = __dirname;
+    res.status(200).json({
+      root,
+      exists: {
+        "build/": fs.existsSync(path.join(root, "build")),
+        "build/server/": fs.existsSync(path.join(root, "build", "server")),
+        "build/server/index.cjs": fs.existsSync(path.join(root, "build", "server", "index.cjs")),
+        "build/server/index.js": fs.existsSync(path.join(root, "build", "server", "index.js")),
+        "public/build/": fs.existsSync(path.join(root, "public", "build")),
+        "node_modules/": fs.existsSync(path.join(root, "node_modules")),
+      },
+      list: {
+        "build/": dirList(path.join(root, "build")),
+        "build/server/": dirList(path.join(root, "build", "server")),
+        "public/build/": dirList(path.join(root, "public", "build")),
+      }
+    });
   });
-});
+}
 
 // -----------------------------------------------------
 // 🚦 Remix handler / fallback

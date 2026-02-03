@@ -1,9 +1,10 @@
-import { Form, useLoaderData, useNavigation } from "react-router";
-import { Page, Text, Button, Badge } from "@shopify/polaris";
+import { Form, useLoaderData, useNavigation, useRouteError } from "react-router";
+import { Page, Text, Button, Badge, Card } from "@shopify/polaris";
 import { useEffect, useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { PLANS } from "../lib/plans.js";
+import logger from "../lib/logger.server.js";
 
 const toDateOrNull = (value) => {
   if (!value) return null;
@@ -52,7 +53,7 @@ export async function loader({ request }) {
       isTest,
     });
   } catch (error) {
-    console.warn("Shopify billing check failed:", error?.message || error);
+    logger.warn("Shopify billing check failed:", error?.message || error);
   }
 
   const activeSubscription =
@@ -152,7 +153,7 @@ export async function action({ request }) {
   const intent = String(form.get("intent") || "").trim();
   const rawPlanId = String(form.get("planId") || "").trim().toLowerCase();
 
-  console.log("Pricing action invoked:", { shop, host, rawPlanId, intent });
+  logger.log("Pricing action invoked:", { shop, host, rawPlanId, intent });
 
   const origin = new URL(request.url).origin;
   const buildReturnUrl = (path, extraParams = {}) => {
@@ -678,6 +679,23 @@ export default function Pricing() {
           })}
         </div>
       </div>
+    </Page>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  return (
+    <Page title="Error">
+      <Card>
+        <Text as="h2" variant="headingMd">Something went wrong</Text>
+        <Text tone="subdued">
+          We encountered an error loading the pricing page. Please try refreshing or contact support if the issue persists.
+        </Text>
+        {process.env.NODE_ENV !== "production" && error?.message && (
+          <Text tone="critical">{error.message}</Text>
+        )}
+      </Card>
     </Page>
   );
 }

@@ -1,6 +1,6 @@
 // app/routes/app.rules.jsx
 import React from "react";
-import { useLoaderData, useLocation, useNavigate } from "react-router";
+import { useLoaderData, useLocation, useNavigate, useRouteError } from "react-router";
 import {
   Page,
   Layout,
@@ -30,7 +30,7 @@ import {
 import {
   CheckCircleIcon,
 } from "@shopify/polaris-icons";
-import { authenticate } from "../shopify.server";
+import { authenticate, apiVersion } from "../shopify.server";
 import prisma from "../db.server";
 import {
   syncMinAmountFreeGiftDiscount,
@@ -38,6 +38,13 @@ import {
   resolveAllProductsCollectionId,
 } from "../lib/minAmountFreeGift.server.js";
 import { decryptAccessToken, encryptAccessToken } from "../lib/accessTokenCrypto.server.js";
+import logger from "../lib/logger.server.js";
+
+// Client-side conditional logging (only logs in development)
+const isDev = typeof window !== "undefined" ? false : process.env.NODE_ENV !== "production";
+const clientLog = (...args) => { if (isDev) logger.log(...args); };
+const clientWarn = (...args) => { if (isDev) logger.warn(...args); };
+const clientError = (...args) => { logger.error(...args); }; // Always log errors
 
 const LEFT_ALIGN_BUTTON_CSS = `
 .Polaris-Button--textAlignCenter {
@@ -46,10 +53,23 @@ const LEFT_ALIGN_BUTTON_CSS = `
 }
 `;
 
-const fmtINR = (value = 0) => {
+// Currency formatting helper - uses shop currency when available, falls back to USD
+const formatCurrency = (value = 0, currency = "USD", locale = "en-US") => {
   const num = Number(value || 0);
-  return `Rs ${num.toLocaleString("en-IN")}`;
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(num);
+  } catch {
+    // Fallback for unsupported currencies
+    return `${currency} ${num.toLocaleString(locale)}`;
+  }
 };
+
+// Legacy helper for backward compatibility (will use shop currency from context)
+const fmtINR = (value = 0, currency = "USD") => formatCurrency(value, currency);
 
 const PROGRESS_TOKEN_PATTERN = /\{\{\s*(\w+)\s*\}\}/g;
 const HIGHLIGHT_TOKENS = new Set(["discount", "discount_code"]);
@@ -152,10 +172,8 @@ const gqlRequest = async (
   return payload.data || {};
 };
 
-const fmtINRPlain = (n) => {
-  const num = Number(n || 0);
-  return `Rs${num.toLocaleString("en-IN")}`;
-};
+// Use formatCurrency for all currency display - supports shop currency
+const fmtINRPlain = (n, currency = "USD") => formatCurrency(n, currency);
 
 const STEP_SLOTS = ["step1", "step2", "step3", "step4"];
 const normalizeStepSlot = (value) => {
@@ -733,7 +751,8 @@ const DELIVERY_PROFILE_ZONES_QUERY = `
   }
 `;
 
-const ADMIN_API_VERSION = "2024-10";
+// Use centralized API version from shopify.server.js
+const ADMIN_API_VERSION = apiVersion;
 
 const ENABLE_SHOPIFY_SHIPPING_SYNC =
   process.env.ENABLE_SHOPIFY_SHIPPING_SYNC !== "false";
@@ -1424,7 +1443,7 @@ const loadCurrentRulesForSection = async (
       const payload = buildRulesPayload(data);
       return payload[key] || [];
     } catch (err) {
-      console.warn(
+      logger.warn(
         `Load current ${section} rules via GraphQL failed, falling back to Prisma`,
         err
       );
@@ -1487,7 +1506,7 @@ const loadCurrentRulesForSection = async (
       );
     }
   } catch (err) {
-    console.warn(`Load current ${section} rules via Prisma failed`, err);
+    logger.warn(`Load current ${section} rules via Prisma failed`, err);
   }
   return [];
 };
@@ -1501,7 +1520,7 @@ const loadMinAmountRuleForShop = async (shop) => {
       orderBy: { id: "desc" },
     });
   } catch (err) {
-    console.warn("Failed to load min amount free gift rule", err);
+    logger.warn("Failed to load min amount free gift rule", err);
 
     return null;
   }
@@ -1608,7 +1627,7 @@ export const loader = async ({ request }) => {
 
       payload = buildRulesPayload(data);
     } catch (error) {
-      console.error(
+      logger.error(
         "Failed to load rules via GraphQL, falling back to Prisma",
         error
       );
@@ -1646,7 +1665,7 @@ export const loader = async ({ request }) => {
           where: { shop },
         });
       } catch (err) {
-        console.warn("Upsell settings table missing or unavailable", err);
+        logger.warn("Upsell settings table missing or unavailable", err);
       }
 
       const fallbackData = {
@@ -1700,7 +1719,7 @@ export const loader = async ({ request }) => {
         styleSettings: styleRow,
       });
     } catch (dbError) {
-      console.error("Fallback to Prisma failed", dbError);
+      logger.error("Fallback to Prisma failed", dbError);
       const minAmountRule = await loadMinAmountRuleForShop(shop);
       return json(
         {
@@ -1733,7 +1752,7 @@ export const loader = async ({ request }) => {
       where: { shop },
     });
   } catch (err) {
-    console.warn("Upsell settings table missing or unavailable", err);
+    logger.warn("Upsell settings table missing or unavailable", err);
   }
   const upsellSettings = upsellRow
     ? {
@@ -1815,7 +1834,7 @@ export const action = async ({ request }) => {
     const message =
       "Shop URL not available in session. Please open the app from Shopify and try again.";
 
-    console.error("[App Rules] cannot save without shop domain", {
+    logger.error("[App Rules] cannot save without shop domain", {
       url: new URL(request.url).pathname,
     });
 
@@ -1896,7 +1915,7 @@ export const action = async ({ request }) => {
           shopAccessToken
         );
       } catch (resolveErr) {
-        console.warn(
+        logger.warn(
           "Failed to resolve all-products collection for free gift sync",
           resolveErr
         );
@@ -1982,7 +2001,7 @@ export const action = async ({ request }) => {
           message &&
           message.toLowerCase().includes("does not exist");
         if (!ignored) {
-          console.warn(
+          logger.warn(
             "Automatic discount toggle reported error",
             toggleErr
           );
@@ -1996,7 +2015,7 @@ export const action = async ({ request }) => {
             { status: 500 }
           );
         } else {
-          console.debug(
+          logger.log(
             "Automatic discount toggle reported error (ignored)",
             toggleErr
           );
@@ -2022,7 +2041,7 @@ export const action = async ({ request }) => {
             deleteShopifyBxgy
           );
         } catch (err) {
-          console.error(
+          logger.error(
             "Failed to delete Shopify BXGY discount from admin removal",
             err
           );
@@ -2047,7 +2066,7 @@ export const action = async ({ request }) => {
           });
         }
       } catch (err) {
-        console.error("Failed to delete BXGY rule", err);
+        logger.error("Failed to delete BXGY rule", err);
 
         return json(
           { error: "Failed to delete BXGY rule" },
@@ -2170,7 +2189,7 @@ export const action = async ({ request }) => {
             },
           });
         } catch (err) {
-          console.error("Free gift min amount sync failed", err);
+          logger.error("Free gift min amount sync failed", err);
           syncError =
             err instanceof Error ? err.message : "Unknown Shopify sync error.";
         }
@@ -2204,7 +2223,7 @@ export const action = async ({ request }) => {
           deleteShopifyDiscount
         );
       } catch (err) {
-        console.error(
+        logger.error(
           "Failed to delete Shopify discount from admin removal",
           err
         );
@@ -2239,7 +2258,7 @@ export const action = async ({ request }) => {
             deleteFreeProductDiscount
           );
         } catch (err) {
-          console.error(
+          logger.error(
             "Failed to delete Shopify free gift discount from admin removal",
             err
           );
@@ -2388,7 +2407,7 @@ export const action = async ({ request }) => {
           }),
         });
 
-        console.log(
+        logger.log(
           `[App Rules] persisted ${normalizedRulesToPersist} shipping rules for shop ${shop}`
         );
 
@@ -2448,7 +2467,7 @@ export const action = async ({ request }) => {
               shopDomain
             );
           } catch (err) {
-            console.warn(
+            logger.warn(
               "GraphQL save shipping failed, falling back to Prisma",
               err
             );
@@ -2480,7 +2499,7 @@ export const action = async ({ request }) => {
               shopAccessToken
             );
 
-            console.log("[SHOPIFY SHIPPING SYNC] results", adminSyncResults);
+            logger.log("[SHOPIFY SHIPPING SYNC] results", adminSyncResults);
 
             // Persist returned rate IDs back to DB
 
@@ -2548,10 +2567,10 @@ export const action = async ({ request }) => {
               ruleIndexToRowId,
             });
           } catch (syncErr) {
-            console.error("[SHOPIFY SHIPPING SYNC] failed", syncErr);
+            logger.error("[SHOPIFY SHIPPING SYNC] failed", syncErr);
           }
         } else {
-          console.log(
+          logger.log(
             "[SHOPIFY SHIPPING SYNC] Skipped (ENABLE_SHOPIFY_SHIPPING_SYNC != true)"
           );
         }
@@ -2769,7 +2788,7 @@ export const action = async ({ request }) => {
               shopDomain
             );
           } catch (err) {
-            console.warn(
+            logger.warn(
               "GraphQL save discount failed, falling back to Prisma",
               err
             );
@@ -2795,7 +2814,7 @@ export const action = async ({ request }) => {
             try {
               await deleteShopifyDiscountById(shopDomain, shopAccessToken, rid);
             } catch (deleteErr) {
-              console.error(
+              logger.error(
                 "[SHOPIFY DISCOUNT CLEANUP] failed to delete removed discount",
                 { id: rid, error: deleteErr }
               );
@@ -2830,10 +2849,10 @@ export const action = async ({ request }) => {
               });
             }
           } catch (persistErr) {
-            console.error("Failed to persist Shopify discount IDs", persistErr);
+            logger.error("Failed to persist Shopify discount IDs", persistErr);
           }
         } catch (syncErr) {
-          console.error("Shopify discount sync failed", syncErr);
+          logger.error("Shopify discount sync failed", syncErr);
 
           return json(
             {
@@ -2910,7 +2929,7 @@ export const action = async ({ request }) => {
               shopDomain
             );
           } catch (err) {
-            console.warn(
+            logger.warn(
               "GraphQL save free gift failed, falling back to Prisma",
               err
             );
@@ -2945,7 +2964,7 @@ export const action = async ({ request }) => {
               collectionId: freeGiftAllProductsCollectionId,
             });
           } catch (syncErr) {
-            console.error("Shopify free product discount sync failed", syncErr);
+            logger.error("Shopify free product discount sync failed", syncErr);
             shopifySyncError =
               syncErr instanceof Error
                 ? syncErr.message
@@ -3043,7 +3062,7 @@ export const action = async ({ request }) => {
                 discountId
               );
             } catch (cleanupErr) {
-              console.warn(
+              logger.warn(
                 "[SHOPIFY BXGY CLEANUP] failed to delete disabled discount",
                 { id: discountId, error: cleanupErr }
               );
@@ -3142,7 +3161,7 @@ export const action = async ({ request }) => {
               shopDomain
             );
           } catch (err) {
-            console.warn(
+            logger.warn(
               "GraphQL save bxgy failed, falling back to Prisma",
               err
             );
@@ -3186,7 +3205,7 @@ export const action = async ({ request }) => {
             try {
               await deleteShopifyDiscountById(shopDomain, shopAccessToken, rid);
             } catch (cleanupErr) {
-              console.warn(
+              logger.warn(
                 "[SHOPIFY BXGY CLEANUP] failed to delete removed discount",
                 { id: rid, error: cleanupErr }
               );
@@ -3224,7 +3243,7 @@ export const action = async ({ request }) => {
             }
           }
         } catch (syncErr) {
-          console.error("Shopify BXGY discount sync failed", syncErr);
+          logger.error("Shopify BXGY discount sync failed", syncErr);
           return json(
             {
               error:
@@ -3308,7 +3327,7 @@ export const action = async ({ request }) => {
           );
         } catch (err) {
           if (GRAPHQL_ENDPOINT) {
-            console.warn(
+            logger.warn(
               "GraphQL save style failed, falling back to Prisma",
               err
             );
@@ -3324,12 +3343,12 @@ export const action = async ({ request }) => {
     }
 
     if (payloadForLog) {
-      console.log(`[${section.toUpperCase()} SAVE]`, {
+      logger.log(`[${section.toUpperCase()} SAVE]`, {
         shop,
         payload: payloadForLog,
       });
     } else {
-      console.log(`[${section.toUpperCase()} SAVE]`, {
+      logger.log(`[${section.toUpperCase()} SAVE]`, {
         shop,
         payload: "No payload provided",
       });
@@ -3347,7 +3366,7 @@ export const action = async ({ request }) => {
     }
 
     const message = error instanceof Error ? error.message || "Failed to save" : "Failed to save";
-    console.error("Failed to save rules", error);
+    logger.error("Failed to save rules", error);
 
     return json(
       { error: message },
@@ -3375,13 +3394,13 @@ const normalizeShopifyRateId = (id) => {
 
 const shippingSummary = (r) => {
   const method = r.method === "express" ? "Express" : "Standard";
-  const reward = r.rewardType === "free" ? "Free shipping" : r.rateType === "flat" ? `Shipping Rs${r.amount || 0}` : `${r.amount || 0}% off shipping`;
-  const threshold = notEmpty(r.minSubtotal) ? `Min Rs${r.minSubtotal}` : "No minimum";
+  const reward = r.rewardType === "free" ? "Free shipping" : r.rateType === "flat" ? `Shipping ${formatCurrency(r.amount || 0)}` : `${r.amount || 0}% off shipping`;
+  const threshold = notEmpty(r.minSubtotal) ? `Min ${formatCurrency(r.minSubtotal)}` : "No minimum";
   return `Summary: ${reward} via ${method}  ${threshold}`;
 };
 
 const discountSummary = (r) => {
-  const min = notEmpty(r.minPurchase) ? `Min Rs${r.minPurchase}` : "No minimum";
+  const min = notEmpty(r.minPurchase) ? `Min ${formatCurrency(r.minPurchase)}` : "No minimum";
   if (r.rewardType === "free_shipping") {
     if (r.type === "code") {
       const code = notEmpty(r.discountCode) ? r.discountCode : "Code";
@@ -3416,7 +3435,7 @@ const adminGraphql = async (shopDomain, accessToken, query, variables = {}) => {
     ""
   )}/admin/api/${ADMIN_API_VERSION}/graphql.json`;
 
-  console.log("[ADMIN GQL] request", {
+  logger.log("[ADMIN GQL] request", {
     endpoint,
     variables,
     snippet: query.slice(0, 80),
@@ -3465,7 +3484,7 @@ const adminGraphql = async (shopDomain, accessToken, query, variables = {}) => {
   if (userErrors.length) {
     throw new Error(userErrors.map((e) => e.message).join("; "));
   }
-  console.log("[ADMIN GQL] success", json?.data);
+  logger.log("[ADMIN GQL] success", json?.data);
   return json.data;
 };
 
@@ -3482,7 +3501,7 @@ const discountItemsInput = () => ({ all: true });
 const buildFreeShippingCodeInput = (rule, code, index = null) => {
   const minSubtotal = num(rule.minPurchase);
   const minSubtotalInput = minSubtotal ? minSubtotal.toFixed(2) : null;
-  const baseTitle = `Free shipping ${minSubtotal ? `Rs${minSubtotal}` : ""}`.trim();
+  const baseTitle = `Free shipping ${minSubtotal ? formatCurrency(minSubtotal) : ""}`.trim();
   return {
     title: appendRuleIndexSuffix(baseTitle, index),
     code,
@@ -3753,7 +3772,7 @@ const findAndDeleteDiscountByTitle = async (
       query: queryString,
     });
   } catch (err) {
-    console.warn(
+    logger.warn(
       "[SHOPIFY DISCOUNT] title lookup failed; skipping delete retry",
       err
     );
@@ -3965,7 +3984,7 @@ const fetchShopCurrency = async (shopDomain, accessToken) => {
 
     return data?.shop?.currencyCode || "USD";
   } catch (err) {
-    console.warn("[SHOPIFY SHIPPING SYNC] Shop currency lookup failed", err);
+    logger.warn("[SHOPIFY SHIPPING SYNC] Shop currency lookup failed", err);
 
     return "USD";
   }
@@ -4021,7 +4040,7 @@ const getDeliveryProfileContext = async (shopDomain, accessToken) => {
       zones: zones || [],
     };
   } catch (err) {
-    console.warn("[SHOPIFY SHIPPING SYNC] GraphQL profile lookup failed", err);
+    logger.warn("[SHOPIFY SHIPPING SYNC] GraphQL profile lookup failed", err);
     return null;
   }
 };
@@ -4114,14 +4133,14 @@ const syncShippingRateViaGraphql = async ({
 
   const zone = findGraphqlZoneByName(profileContext.zones, zoneName);
   if (!zone?.id) {
-    console.warn(
+    logger.warn(
       "[SHOPIFY SHIPPING SYNC] GraphQL fallback skipped - no zone found"
     );
     return null;
   }
 
   if (!zone.locationGroupId) {
-    console.warn(
+    logger.warn(
       "[SHOPIFY SHIPPING SYNC] GraphQL fallback skipped - zone missing location group"
     );
 
@@ -4181,7 +4200,7 @@ const syncShippingRateViaGraphql = async ({
 
     const errors = data?.deliveryProfileUpdate?.userErrors || [];
     if (errors.length) {
-      console.warn("[SHOPIFY SHIPPING SYNC] GraphQL create failed", errors);
+      logger.warn("[SHOPIFY SHIPPING SYNC] GraphQL create failed", errors);
     }
 
     const refreshed = await fetchDeliveryProfileZones(
@@ -4205,7 +4224,7 @@ const syncShippingRateViaGraphql = async ({
 
     return null;
   } catch (err) {
-    console.warn("[SHOPIFY SHIPPING SYNC] GraphQL create failed", err);
+    logger.warn("[SHOPIFY SHIPPING SYNC] GraphQL create failed", err);
     return null;
   }
 };
@@ -4354,17 +4373,17 @@ const deleteShippingRatesFromShopify = async (
         if (!errs.length) {
           return; // deletion done
         }
-        console.warn("[SHOPIFY SHIPPING SYNC] GraphQL delete userErrors", errs);
+        logger.warn("[SHOPIFY SHIPPING SYNC] GraphQL delete userErrors", errs);
       }
     }
   } catch (err) {
-    console.warn("[SHOPIFY SHIPPING SYNC] GraphQL delete failed", err);
+    logger.warn("[SHOPIFY SHIPPING SYNC] GraphQL delete failed", err);
   }
 };
 
 const syncShippingRatesToShopify = async (rules, shopDomain, accessToken) => {
   if (!shopDomain || !accessToken) {
-    console.warn(
+    logger.warn(
       "[SHOPIFY SHIPPING SYNC] Skipping - missing shopDomain or accessToken"
     );
 
@@ -4375,7 +4394,7 @@ const syncShippingRatesToShopify = async (rules, shopDomain, accessToken) => {
     .map((rule, originalIdx) => ({ rule, originalIdx }))
     .filter(({ rule }) => rule.enabled);
   if (!enabledRules.length) {
-    console.log("[SHOPIFY SHIPPING SYNC] No enabled rules, skipping sync");
+    logger.log("[SHOPIFY SHIPPING SYNC] No enabled rules, skipping sync");
     return [];
   }
 
@@ -4527,7 +4546,7 @@ const hydrateGraphqlMethodDefinitionIds = async ({
       rule.shopifyMethodDefinitionId = methodId;
     }
   } catch (err) {
-    console.warn(
+    logger.warn(
       "[SHOPIFY SHIPPING SYNC] hydrate GraphQL method definition IDs failed",
       err
     );
@@ -4657,7 +4676,7 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
           },
         });
       } catch (err) {
-        console.error("Shopify discount expire failed", err);
+        logger.error("Shopify discount expire failed", err);
       }
     }
   }
@@ -4711,7 +4730,7 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
           : generateDiscountCode(rule, titleIndex);
 
         const input = buildFreeShippingCodeInput(rule, code, titleIndex);
-        console.log(
+        logger.log(
           "[SHOPIFY DISCOUNT] free-shipping code create input",
           input
         );
@@ -4734,7 +4753,7 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
         });
       } else if (rule.rewardType === "free_shipping" && rule.type !== "code") {
         const input = buildAutomaticFreeShippingInput(rule, titleIndex);
-        console.log(
+        logger.log(
           "[SHOPIFY DISCOUNT] auto free shipping create input",
           input
         );
@@ -4765,7 +4784,7 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
           currencyCode,
           titleIndex
         );
-        console.log("[SHOPIFY DISCOUNT] code create input", input);
+        logger.log("[SHOPIFY DISCOUNT] code create input", input);
 
         const create = async () =>
           adminGraphql(shopDomain, accessToken, codeMutation, {
@@ -4800,7 +4819,7 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
           currencyCode,
           titleIndex
         );
-        console.log("[SHOPIFY DISCOUNT] automatic create input", input);
+        logger.log("[SHOPIFY DISCOUNT] automatic create input", input);
         const create = async () =>
           adminGraphql(shopDomain, accessToken, AUTOMATIC_DISCOUNT_MUTATION, {
             automaticBasicDiscount: input,
@@ -4831,7 +4850,7 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
         });
       }
     } catch (err) {
-      console.error("Shopify discount sync failed", err);
+      logger.error("Shopify discount sync failed", err);
       results.push({
         error: err instanceof Error ? err.message : "Unknown error",
         rule,
@@ -4875,7 +4894,7 @@ const syncBxgyRulesToShopify = async (rules = [], shopDomain, accessToken) => {
         );
       }
     } catch (cleanupErr) {
-      console.warn(
+      logger.warn(
         "[SHOPIFY BXGY CLEANUP] failed to delete existing discount",
 
         { id: rule.buyxgetyId, error: cleanupErr }
@@ -4916,7 +4935,7 @@ const syncBxgyRulesToShopify = async (rules = [], shopDomain, accessToken) => {
           data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id || null,
       });
     } catch (err) {
-      console.error("Shopify BXGY discount sync failed", err);
+      logger.error("Shopify BXGY discount sync failed", err);
       results.push({
         index: idx,
         error: err instanceof Error ? err.message : "Unknown error",
@@ -4935,7 +4954,7 @@ const freeSummary = (r, productsById) => {
   const gift = productsById[r.bonus]?.title || r.bonus || "Gift";
   const quantity = notEmpty(r.qty) ? r.qty : "1";
   const threshold = notEmpty(r.minPurchase)
-    ? ` when order >= Rs${r.minPurchase}`
+    ? ` when order >= ${formatCurrency(r.minPurchase)}`
     : "";
 
   return `Summary: auto-add ${gift} (${quantity})${threshold}`;
@@ -5273,7 +5292,7 @@ function CartDrawerPreview({
   const remaining = nextThreshold ? Math.max(0, nextThreshold - subtotal) : 0;
   const rewardText =
     hasSteps && nextThreshold
-      ? `Spend Rs${Number(remaining).toLocaleString("en-IN")} more for next reward`
+      ? `Spend ${formatCurrency(remaining)} more for next reward`
       : hasSteps
         ? "All rewards unlocked"
         : "";
@@ -5694,7 +5713,7 @@ function CartDrawerPreview({
                       {item?.title || "Product"}
                     </div>
                     <div style={{ fontSize: Math.max(11, theme.base - 2), color: upsellText, opacity: 0.85 }}>
-                      {item?.price || "Rs. 0"}
+                      {item?.price || "$0.00"}
                     </div>
                   </div>
 
@@ -6259,9 +6278,9 @@ export default function AppRules() {
         if (!abort && Array.isArray(j.collections))
           setCollections(j.collections);
 
-        if (!abort && j.error) console.warn("Products API error:", j.error);
+        if (!abort && j.error) logger.warn("Products API error:", j.error);
       } catch (e) {
-        console.error("Load products failed:", e);
+        logger.error("Load products failed:", e);
       }
     })();
 
@@ -7372,7 +7391,7 @@ export default function AppRules() {
         payloadForSection = [item];
       }
 
-      console.log("[RULES API REQUEST]", {
+      logger.log("[RULES API REQUEST]", {
         section,
 
         payload: payloadForSection,
@@ -7444,7 +7463,7 @@ export default function AppRules() {
           return;
         }
 
-        console.log("[RULES API RESPONSE]", {
+        logger.log("[RULES API RESPONSE]", {
           section,
           result,
           payload: payloadMap[section],
@@ -7537,7 +7556,7 @@ export default function AppRules() {
           showToast("Saved successfully");
         }
       } catch (err) {
-        console.error("[RULES API ERROR]", err);
+        logger.error("[RULES API ERROR]", err);
         showToast(
           `Save failed: ${err instanceof Error ? err.message : "Unknown error"
           }`,
@@ -7692,7 +7711,7 @@ export default function AppRules() {
           enable ? "Automatic discount enabled" : "Automatic discount disabled"
         );
       } catch (toggleErr) {
-        console.error("Automatic discount toggle failed", toggleErr);
+        logger.error("Automatic discount toggle failed", toggleErr);
         showToast(
           toggleErr instanceof Error
             ? toggleErr.message
@@ -7807,7 +7826,7 @@ export default function AppRules() {
 
     setPayloadPreview(payload);
 
-    console.log("SAVE (UI-only):", payload);
+    logger.log("SAVE (UI-only):", payload);
 
     setTimeout(() => {
       setSaving(false);
@@ -7937,7 +7956,7 @@ export default function AppRules() {
 
         showToast("Shopify discount deleted", "success");
       } catch (err) {
-        console.error("Failed to delete Shopify discount", err);
+        logger.error("Failed to delete Shopify discount", err);
 
         showToast("Unable to delete Shopify discount", "critical");
       } finally {
@@ -8058,7 +8077,7 @@ export default function AppRules() {
 
         showToast("Free product rule removed", "success");
       } catch (err) {
-        console.error("Failed to delete free product rule", err);
+        logger.error("Failed to delete free product rule", err);
 
         showToast("Unable to delete free product rule", "critical");
       } finally {
@@ -8199,7 +8218,7 @@ export default function AppRules() {
 
         showToast(toastMessage, "success");
       } catch (err) {
-        console.error("Failed to delete Shopify BXGY discount", err);
+        logger.error("Failed to delete Shopify BXGY discount", err);
 
         showToast("Unable to delete Shopify BXGY discount", "critical");
       } finally {
@@ -10654,7 +10673,7 @@ export default function AppRules() {
       upsellSelectedProducts.length > 0
         ? upsellSelectedProducts.map((p) => ({
             title: p.title || "Product",
-            price: p.price ? `Rs. ${p.price}` : "Rs. 25.00",
+            price: p.price ? `$${p.price}` : "$25.00",
             option: getVariantLabel(p),
             image: p.image || "",
           }))
@@ -10667,7 +10686,7 @@ export default function AppRules() {
       collectionProducts.length > 0
         ? collectionProducts.map((p) => ({
             title: p.title || "Product",
-            price: p.price ? `Rs. ${p.price}` : "Rs. 25.00",
+            price: p.price ? `$${p.price}` : "$25.00",
             option: getVariantLabel(p),
             image: p.image || "",
           }))
@@ -10683,14 +10702,14 @@ export default function AppRules() {
     const base = modeItems.length
       ? modeItems
       : [
-          { title: "Product 1", price: "Rs. 25.00", option: "Color", image: "" },
-          { title: "Product 2", price: "Rs. 40.00", option: "Size", image: "" },
+          { title: "Product 1", price: "$25.00", option: "Color", image: "" },
+          { title: "Product 2", price: "$40.00", option: "Size", image: "" },
         ];
 
     if (base.length === 1) {
       return [
         base[0],
-        { title: "Product 2", price: "Rs. 40.00", option: "Size", image: "" },
+        { title: "Product 2", price: "$40.00", option: "Size", image: "" },
       ];
     }
 
@@ -11625,6 +11644,25 @@ export default function AppRules() {
       )}
       {savingOverlay}
       {deletionOverlay}
+    </Frame>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  return (
+    <Frame>
+      <Page title="Error">
+        <Card>
+          <Text as="h2" variant="headingMd">Something went wrong</Text>
+          <Text tone="subdued">
+            We encountered an error loading the rules configuration. Please try refreshing or contact support if the issue persists.
+          </Text>
+          {process.env.NODE_ENV !== "production" && error?.message && (
+            <Text tone="critical">{error.message}</Text>
+          )}
+        </Card>
+      </Page>
     </Frame>
   );
 }

@@ -29,6 +29,30 @@
   "target": "body",
   "enabled_on": {
     "templates": ["*"]
-  }
+  },
+  "settings": [
+    {
+      "type": "header",
+      "content": "Cart Drawer Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "preview_in_editor",
+      "label": "Preview in Theme Editor",
+      "default": true,
+      "info": "Show cart drawer preview when editing your theme"
+    },
+    {
+      "type": "header",
+      "content": "Advanced"
+    },
+    {
+      "type": "text",
+      "id": "custom_proxy_path",
+      "label": "Custom Proxy Path",
+      "default": "/apps/smart",
+      "info": "Only change if you have a custom app proxy configuration"
+    }
+  ]
 }
 {% endschema %}

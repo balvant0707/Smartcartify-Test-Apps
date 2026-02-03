@@ -1,5 +1,8 @@
+import { useRouteError } from "react-router";
+import { Page, Card, Text } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import logger from "../lib/logger.server.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -34,7 +37,7 @@ export async function loader({ request }) {
     const list = json?.data?.currentAppInstallation?.activeSubscriptions ?? [];
     active = list.find((s) => s.status === "ACTIVE") || null;
 
-    console.log("Billing return attempt", i + 1, "activeSubscriptions:", list);
+    logger.log("Billing return attempt", i + 1, "activeSubscriptions:", list);
 
     if (active) break;
     await sleep(700);
@@ -64,7 +67,7 @@ export async function loader({ request }) {
       },
     });
   } else {
-    console.log("No ACTIVE subscription found yet for shop:", shop);
+    logger.log("No ACTIVE subscription found yet for shop:", shop);
     // Optional: keep PENDING if not found
     await prisma.planSubscription.update({
       where: { shop },
@@ -84,4 +87,21 @@ export async function loader({ request }) {
 
 export default function BillingReturn() {
   return null;
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  return (
+    <Page title="Billing Error">
+      <Card>
+        <Text as="h2" variant="headingMd">Billing Error</Text>
+        <Text tone="subdued">
+          We encountered an error processing your billing request. Please try again or contact support if the issue persists.
+        </Text>
+        {process.env.NODE_ENV !== "production" && error?.message && (
+          <Text tone="critical">{error.message}</Text>
+        )}
+      </Card>
+    </Page>
+  );
 }

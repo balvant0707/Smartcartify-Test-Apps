@@ -1,5 +1,6 @@
 // app.documents.jsx
 import React from "react";
+import { useRouteError } from "react-router";
 import {
   Page,
   Card,
@@ -198,6 +199,23 @@ export default function Documents() {
           ))}
         </BlockStack>
       </BlockStack>
+    </Page>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  return (
+    <Page title="Error">
+      <Card>
+        <Text as="h2" variant="headingMd">Something went wrong</Text>
+        <Text tone="subdued">
+          We encountered an error loading the documents page. Please try refreshing or contact support if the issue persists.
+        </Text>
+        {process.env.NODE_ENV !== "production" && error?.message && (
+          <Text tone="critical">{error.message}</Text>
+        )}
+      </Card>
     </Page>
   );
 }

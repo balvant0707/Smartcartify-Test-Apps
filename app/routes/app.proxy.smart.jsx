@@ -1,9 +1,13 @@
 import prisma from "../db.server.js";
 import crypto from "crypto";
 import { decryptAccessToken } from "../lib/accessTokenCrypto.server.js";
+import logger from "../lib/logger.server.js";
+import { apiVersion } from "../shopify.server.js";
+import { normalizeShopDomain, getShopFromRequest } from "../lib/shopUtils.server.js";
 // Note: `proxy.smart.jsx` re-exports this loader for the app proxy path (/proxy/smart).
 
-const ADMIN_API_VERSION = "2024-10";
+// Use centralized API version from shopify.server.js
+const ADMIN_API_VERSION = apiVersion;
 const APP_PROXY_HMAC_TOLERANCE_SEC = 300;
 
 const jsonResponse = (data, status = 200) =>
@@ -13,15 +17,6 @@ const jsonResponse = (data, status = 200) =>
       "Content-Type": "application/json",
     },
   });
-
-const normalizeShopDomain = (value) => {
-  if (!value) return null;
-  const trimmed = String(value).trim();
-  if (!trimmed) return null;
-  const normalized = trimmed.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(normalized)) return null;
-  return normalized.toLowerCase();
-};
 
 const timingSafeEqual = (a, b) => {
   const left = Buffer.from(String(a || ""), "utf8");
@@ -70,22 +65,7 @@ const verifyAppProxySignature = (request) => {
   return timingSafeEqual(providedSignature, local);
 };
 
-const getShopFromRequest = (request) => {
-  const headers = request.headers;
-  const candidates = [
-    headers.get("x-shopify-shop-domain"),
-    headers.get("x-shopify-shop"),
-    headers.get("shop"),
-  ];
-
-  for (const candidate of candidates) {
-    const normalized = normalizeShopDomain(candidate);
-    if (normalized) return normalized;
-  }
-
-  const url = new URL(request.url);
-  return normalizeShopDomain(url.searchParams.get("shop"));
-};
+// getShopFromRequest is now imported from shopUtils.server.js
 
 const buildShopMetadata = (shopRow) => {
   if (!shopRow) return null;
@@ -172,7 +152,7 @@ const fetchBestSellingProducts = async (shopDomain, accessToken) => {
     const products = Array.isArray(data?.products) ? data.products : [];
     return mapAdminProducts(products);
   } catch (err) {
-    console.error("Best-selling products fetch failed", err);
+    logger.error("Best-selling products fetch failed", err);
     return [];
   }
 };
@@ -196,7 +176,7 @@ const fetchProductsByIds = async (shopDomain, accessToken, ids = []) => {
     const products = Array.isArray(data?.products) ? data.products : [];
     return mapAdminProducts(products);
   } catch (err) {
-    console.error("Selected products fetch failed", err);
+    logger.error("Selected products fetch failed", err);
     return [];
   }
 };
@@ -241,7 +221,7 @@ const fetchCollectionsByIds = async (shopDomain, accessToken, ids = []) => {
 
     return [...customCollections, ...smartCollections];
   } catch (err) {
-    console.error("Selected collections fetch failed", err);
+    logger.error("Selected collections fetch failed", err);
     return [];
   }
 };
@@ -261,7 +241,7 @@ const fetchProductsForCollection = async (shopDomain, accessToken, collectionId)
     const products = Array.isArray(data?.products) ? data.products : [];
     return mapAdminProducts(products);
   } catch (err) {
-    console.error("Collection products fetch failed", err);
+    logger.error("Collection products fetch failed", err);
     return [];
   }
 };
@@ -345,18 +325,27 @@ export const loader = async ({ request }) => {
     const selectedCollectionsOrdered = selectedCollectionIdsNormalized
       .map((id) => selectedCollectionsMap.get(String(id)))
       .filter(Boolean);
+
+    // Batch API calls to avoid rate limiting (max 3 concurrent requests)
+    const BATCH_SIZE = 3;
     const selectedCollectionsWithProducts = [];
-    for (const col of selectedCollectionsOrdered) {
-      const products = await fetchProductsForCollection(
-        shop,
-        shopAccessToken,
-        col?.id
+    for (let i = 0; i < selectedCollectionsOrdered.length; i += BATCH_SIZE) {
+      const batch = selectedCollectionsOrdered.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (col) => {
+          const products = await fetchProductsForCollection(
+            shop,
+            shopAccessToken,
+            col?.id
+          );
+          return {
+            id: col?.id ?? null,
+            title: col?.title ?? "",
+            products,
+          };
+        })
       );
-      selectedCollectionsWithProducts.push({
-        id: col?.id ?? null,
-        title: col?.title ?? "",
-        products,
-      });
+      selectedCollectionsWithProducts.push(...batchResults);
     }
 
     return jsonResponse({
@@ -375,7 +364,7 @@ export const loader = async ({ request }) => {
       fetchedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Smart proxy loader failed", error);
+    logger.error("Smart proxy loader failed", error);
     return jsonResponse(
       {
         ok: false,

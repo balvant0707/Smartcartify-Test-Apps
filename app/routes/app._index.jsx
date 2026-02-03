@@ -1,7 +1,8 @@
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useEffect, useRef, useState } from "react";
-import { useLoaderData, useLocation } from "react-router";
+import { useLoaderData, useLocation, useRouteError } from "react-router";
 import { authenticate, apiVersion } from "../shopify.server";
+import { Page, Card, Text } from "@shopify/polaris";
 
 import { Icon } from "@shopify/polaris";
 import {
@@ -697,3 +698,20 @@ export default function Index() {
 }
 
 export const headers = (headersArgs) => boundary.headers(headersArgs);
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  return (
+    <Page title="Error">
+      <Card>
+        <Text as="h2" variant="headingMd">Something went wrong</Text>
+        <Text tone="subdued">
+          We encountered an error loading the dashboard. Please try refreshing or contact support if the issue persists.
+        </Text>
+        {process.env.NODE_ENV !== "production" && error?.message && (
+          <Text tone="critical">{error.message}</Text>
+        )}
+      </Card>
+    </Page>
+  );
+}

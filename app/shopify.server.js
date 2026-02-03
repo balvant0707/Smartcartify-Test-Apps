@@ -14,6 +14,7 @@ import {
 } from "./lib/emailTemplates.server.js";
 import { sendEmail } from "./lib/email.server.js";
 import { decryptAccessToken, encryptAccessToken } from "./lib/accessTokenCrypto.server.js";
+import logger from "./lib/logger.server.js";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -28,15 +29,15 @@ const shopify = shopifyApp({
     afterAuth: async ({ session, admin }) => {
       const shop = session?.shop;
       if (!shop) {
-        console.warn("[email] afterAuth missing shop; skipping install email.");
+        logger.warn("[email] afterAuth missing shop; skipping install email.");
         return;
       }
 
       try {
         await shopify.registerWebhooks({ session });
-        console.log("[webhooks] registered", { shop });
+        logger.log("[webhooks] registered", { shop });
       } catch (error) {
-        console.warn("[webhooks] register failed", { shop, error });
+        logger.warn("[webhooks] register failed", { shop, error });
       }
 
       const existingShop = await prisma.shop.findUnique({ where: { shop } });
@@ -62,7 +63,7 @@ const shopify = shopifyApp({
       });
 
       if (!isNewInstall && !forceSend && hadTokenBefore) {
-        console.log("[email] afterAuth not new install; skipping email.", { shop });
+        logger.log("[email] afterAuth not new install; skipping email.", { shop });
         return;
       }
 
@@ -82,17 +83,17 @@ const shopify = shopifyApp({
         );
         const data = await response.json();
         if (data?.errors?.length) {
-          console.warn("[email] Shopify GraphQL errors", data.errors);
+          logger.warn("[email] Shopify GraphQL errors", data.errors);
         }
         shopInfo = data?.data?.shop || {};
       } catch (error) {
-        console.warn("[email] Shopify GraphQL failed; using session fallback.", error);
+        logger.warn("[email] Shopify GraphQL failed; using session fallback.", error);
       }
 
       const testRecipient = process.env.TEST_OWNER_EMAIL || "";
       const toEmail = testRecipient || shopInfo.email || session.email;
       if (!toEmail) {
-        console.warn("[email] Shop email missing; skipping install email.");
+        logger.warn("[email] Shop email missing; skipping install email.");
         return;
       }
 
@@ -122,7 +123,7 @@ const shopify = shopifyApp({
           text: emailContent.text,
           replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
         });
-        console.log("[email] install email sent", {
+        logger.log("[email] install email sent", {
           shop,
           to: toEmail,
           cc: ownerEmail || null,
@@ -148,14 +149,14 @@ const shopify = shopifyApp({
             text: ownerContent.text,
             replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
           });
-          console.log("[email] owner install email sent", {
+          logger.log("[email] owner install email sent", {
             shop,
             to: ownerEmail,
             forced: forceSend,
           });
         }
       } catch (error) {
-        console.warn("[email] Install email failed:", error);
+        logger.warn("[email] Install email failed:", error);
       }
     },
   },

@@ -1,5 +1,6 @@
 // /app/routes/app.help.jsx
 import React from "react";
+import { useRouteError } from "react-router";
 import {
   Page,
   Card,
@@ -105,6 +106,23 @@ export default function Help() {
           </Card>
         </Layout.Section>
       </Layout>
+    </Page>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  return (
+    <Page title="Error">
+      <Card>
+        <Text as="h2" variant="headingMd">Something went wrong</Text>
+        <Text tone="subdued">
+          We encountered an error loading the help page. Please try refreshing or contact support if the issue persists.
+        </Text>
+        {process.env.NODE_ENV !== "production" && error?.message && (
+          <Text tone="critical">{error.message}</Text>
+        )}
+      </Card>
     </Page>
   );
 }

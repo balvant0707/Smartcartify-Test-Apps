@@ -1,4 +1,48 @@
 import { apiVersion } from "../shopify.server";
+import logger from "./logger.server.js";
+
+// ============ TTL Cache Implementation ============
+// Caches expire after 5 minutes to prevent memory leaks
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_SIZE = 1000; // Maximum entries per cache
+
+class TTLCache {
+  constructor(ttl = CACHE_TTL_MS, maxSize = MAX_CACHE_SIZE) {
+    this.cache = new Map();
+    this.ttl = ttl;
+    this.maxSize = maxSize;
+  }
+
+  get(key) {
+    const entry = this.cache.get(key);
+    if (!entry) return undefined;
+    if (Date.now() > entry.expiry) {
+      this.cache.delete(key);
+      return undefined;
+    }
+    return entry.value;
+  }
+
+  set(key, value) {
+    // Evict oldest entries if cache is full
+    if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+    this.cache.set(key, {
+      value,
+      expiry: Date.now() + this.ttl,
+    });
+  }
+
+  has(key) {
+    return this.get(key) !== undefined;
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
 
 const AUTOMATIC_DISCOUNT_MUTATION = `
   mutation DiscountAutomaticBasicCreate($automaticBasicDiscount: DiscountAutomaticBasicInput!) {
@@ -76,7 +120,7 @@ const ALL_PRODUCTS_COLLECTION_QUERY = `
   }
 `;
 const ALL_PRODUCTS_COLLECTION_HANDLES = ["all", "all-products"];
-const allProductsCollectionCache = new Map();
+const allProductsCollectionCache = new TTLCache();
 
 const ALL_PRODUCT_IDS_QUERY = `
   query AllProductIds($first: Int!, $after: String) {
@@ -112,8 +156,8 @@ const GIFT_VARIANT_QUERY = `
   }
 `;
 
-const allProductsIdsCache = new Map();
-const giftVariantCache = new Map();
+const allProductsIdsCache = new TTLCache();
+const giftVariantCache = new TTLCache();
 
 const resolveGiftVariantId = async (shopDomain, accessToken, giftId) => {
   if (!giftId) return null;
@@ -364,7 +408,7 @@ export const syncMinAmountFreeGiftDiscount = async (params) => {
         rule.freeProductDiscountID,
       );
     } catch (err) {
-      console.warn(
+      logger.warn(
         "Failed to delete existing min amount free gift discount",
         err,
       );
@@ -448,7 +492,7 @@ const buildBxgyDiscountInput = (
 
   // IMPORTANT: customerGets.items must use DiscountItemsInput.products.productVariantsToAdd
   return {
-    title: `SmartCartify Free gift >= Rs${minPurchaseValue}`,
+    title: `SmartCartify Free gift >= $${minPurchaseValue}`,
     startsAt: new Date().toISOString(),
     combinesWith: {
       orderDiscounts: true,
@@ -494,7 +538,7 @@ const syncSingleBxgyDiscount = async (params) => {
           enabled: false,
         });
       } catch (err) {
-        console.warn("Failed to deactivate existing free product discount", err);
+        logger.warn("Failed to deactivate existing free product discount", err);
       }
     }
     return { id: existingDiscountId ?? null };
@@ -508,7 +552,7 @@ const syncSingleBxgyDiscount = async (params) => {
         existingDiscountId,
       );
     } catch (err) {
-      console.warn("Failed to delete existing free product discount", err);
+      logger.warn("Failed to delete existing free product discount", err);
     }
   }
 
@@ -569,7 +613,7 @@ export const syncFreeProductDiscountsToShopify = async (params) => {
         accessToken,
       );
     } catch (err) {
-      console.warn(
+      logger.warn(
         "Failed to resolve the all-products collection ID for free product discounts.",
         err,
       );
@@ -586,7 +630,7 @@ export const syncFreeProductDiscountsToShopify = async (params) => {
     (!allProductsCollectionId || !allProductsCollectionId.length) &&
     !collectionId
   ) {
-    console.warn(
+    logger.warn(
       "All-products collection not resolved, falling back to all product IDs.",
     );
 
@@ -596,11 +640,11 @@ export const syncFreeProductDiscountsToShopify = async (params) => {
         accessToken,
       );
     } catch (err) {
-      console.warn("Failed to load all product IDs for fallback", err);
+      logger.warn("Failed to load all product IDs for fallback", err);
     }
 
     if (!fallbackProductIds?.length) {
-      console.warn(
+      logger.warn(
         "Skipping free product discount sync because the all-products collection ID could not be resolved, and product IDs fallback failed.",
       );
       return rules.map((_, index) => ({
