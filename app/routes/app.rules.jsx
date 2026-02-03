@@ -2584,26 +2584,56 @@ export const action = async ({ request }) => {
           selectedProductIds: JSON.stringify(selectedProductIds),
           selectedCollectionIds: JSON.stringify(selectedCollectionIds),
         };
-
-        try {
+        const persistUpsell = async (payloadToPersist) => {
           await prisma.upsellSettings.upsert({
             where: { shop },
-            create: { shop, ...settings },
-            update: settings,
+            create: { shop, ...payloadToPersist },
+            update: payloadToPersist,
           });
+        };
+
+        try {
+          await persistUpsell(settings);
         } catch (err) {
           const message =
             err instanceof Error
               ? err.message
               : "Failed to save upsell settings";
-          return json(
-            {
-              error:
-                "Upsell settings table not found. Run migrations or create the table.",
-              details: message,
-            },
-            { status: 400 }
-          );
+          const schemaMismatch =
+            /buttonColor|Unknown arg|Unknown argument|Unknown column|does not exist|P2022/i.test(
+              message
+            );
+
+          if (schemaMismatch) {
+            const legacySettings = { ...settings };
+            delete legacySettings.buttonColor;
+            try {
+              await persistUpsell(legacySettings);
+              shopifySyncError =
+                "Upsell button color was skipped because production DB schema is older. Run latest migrations.";
+            } catch (legacyErr) {
+              const legacyMessage =
+                legacyErr instanceof Error
+                  ? legacyErr.message
+                  : "Failed to save legacy upsell settings";
+              return json(
+                {
+                  error:
+                    "Failed to save upsell settings. Run Prisma migrations on production.",
+                  details: legacyMessage,
+                },
+                { status: 500 }
+              );
+            }
+          } else {
+            return json(
+              {
+                error: "Failed to save upsell settings.",
+                details: message,
+              },
+              { status: 500 }
+            );
+          }
         }
 
         responseMessage = "Upsell settings saved successfully.";
