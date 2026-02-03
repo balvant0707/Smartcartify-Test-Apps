@@ -5123,6 +5123,9 @@ function CartDrawerPreview({
   rulesById = {},
   stylesFromDb = {},
   previewItems = [],
+  upsellEnabled = false,
+  upsellItems = [],
+  upsellSettings = {},
 }) {
   const theme = buildThemeFromStyles(stylesFromDb);
   const checkoutLabel = theme.checkoutButtonText || "Checkout";
@@ -5261,6 +5264,16 @@ function CartDrawerPreview({
     fontWeight: 600,
     fontSize: Math.max(12, theme.base - 2),
   };
+
+  const upsellPreviewEnabled = Boolean(upsellEnabled && Array.isArray(upsellItems) && upsellItems.length);
+  const upsellTitle = String(upsellSettings?.sectionTitle || "You may also like");
+  const upsellBtnText = String(upsellSettings?.buttonText || "add to cart");
+  const upsellBg = upsellSettings?.backgroundColor || "rgba(255,255,255,0.08)";
+  const upsellText = upsellSettings?.textColor || surfaceText;
+  const upsellBorder = upsellSettings?.borderColor || cardBorder;
+  const upsellButtonBg = upsellSettings?.buttonColor || theme.buttonColor || surface2;
+  const upsellShowAsSlider = Boolean(upsellSettings?.showAsSlider);
+  const upsellVisibleItems = upsellShowAsSlider ? upsellItems.slice(0, 1) : upsellItems.slice(0, 2);
 
   return (
     <div style={{ width: "100%" }}>
@@ -5513,6 +5526,100 @@ function CartDrawerPreview({
               </div>
             );
           })}
+
+          {upsellPreviewEnabled && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: 10,
+                borderRadius: radius,
+                border: `1px solid ${upsellBorder}`,
+                background: upsellBg,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: Math.max(12, theme.base),
+                  fontWeight: 700,
+                  color: upsellText,
+                  textAlign: "center",
+                  marginBottom: 8,
+                }}
+              >
+                {upsellTitle}
+              </div>
+
+              {upsellVisibleItems.map((item, idx) => (
+                <div
+                  key={`upsell-${idx}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "56px 1fr auto",
+                    gap: 10,
+                    alignItems: "center",
+                    padding: 8,
+                    borderRadius: 10,
+                    border: `1px solid ${upsellBorder}`,
+                    background: "rgba(255,255,255,0.06)",
+                    marginBottom: idx === upsellVisibleItems.length - 1 ? 0 : 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      background: "rgba(255,255,255,0.12)",
+                    }}
+                  >
+                    {item?.image ? (
+                      <img
+                        src={item.image}
+                        alt=""
+                        width={56}
+                        height={56}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : null}
+                  </div>
+
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: Math.max(12, theme.base),
+                        fontWeight: 600,
+                        color: upsellText,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {item?.title || "Product"}
+                    </div>
+                    <div style={{ fontSize: Math.max(11, theme.base - 2), color: upsellText, opacity: 0.85 }}>
+                      {item?.price || "Rs. 0"}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      borderRadius: 10,
+                      border: `1px solid ${upsellBorder}`,
+                      background: upsellButtonBg,
+                      color: "#ffffff",
+                      padding: "6px 8px",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    + {upsellBtnText}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={footerWrapStyle}>
@@ -11194,6 +11301,17 @@ export default function AppRules() {
                   rulesById={rulesById}
                   stylesFromDb={stylePreviewSettings}
                   previewItems={previewItems}
+                  upsellEnabled={upsellEnabled}
+                  upsellItems={upsellPreviewItems}
+                  upsellSettings={{
+                    sectionTitle: upsellSectionTitle,
+                    buttonText: upsellButtonText,
+                    showAsSlider: upsellShowAsSlider,
+                    backgroundColor: upsellBgColor,
+                    textColor: upsellTextColor,
+                    borderColor: upsellBorderColor,
+                    buttonColor: upsellButtonColor,
+                  }}
                 />
               </BlockStack>
             </Box>
