@@ -37,7 +37,7 @@ import {
   syncFreeProductDiscountsToShopify,
   resolveAllProductsCollectionId,
 } from "../lib/minAmountFreeGift.server.js";
-import { decryptAccessToken } from "../lib/accessTokenCrypto.server.js";
+import { decryptAccessToken, encryptAccessToken } from "../lib/accessTokenCrypto.server.js";
 
 const LEFT_ALIGN_BUTTON_CSS = `
 .Polaris-Button--textAlignCenter {
@@ -1546,8 +1546,41 @@ export const loader = async ({ request }) => {
   });
 
   const shop = shopRow?.shop || sessionShop || null;
-  const shopAccessToken = decryptAccessToken(shopRow?.accessToken);
-  if (!shopRow || !shopAccessToken) {
+  const dbAccessToken = decryptAccessToken(shopRow?.accessToken);
+  const sessionAccessToken = session?.accessToken ? String(session.accessToken) : null;
+  const shopAccessToken = dbAccessToken || sessionAccessToken || null;
+
+  if (!shopRow && shop && sessionAccessToken) {
+    try {
+      await prisma.shop.upsert({
+        where: { shop },
+        update: {
+          accessToken: encryptAccessToken(sessionAccessToken),
+          installed: true,
+          uninstalledAt: null,
+        },
+        create: {
+          shop,
+          accessToken: encryptAccessToken(sessionAccessToken),
+          installed: true,
+          onboardedAt: new Date(),
+        },
+      });
+    } catch { }
+  } else if (shopRow?.id && !dbAccessToken && sessionAccessToken) {
+    try {
+      await prisma.shop.update({
+        where: { id: shopRow.id },
+        data: {
+          accessToken: encryptAccessToken(sessionAccessToken),
+          installed: true,
+          uninstalledAt: null,
+        },
+      });
+    } catch { }
+  }
+
+  if (!shop || !shopAccessToken) {
     return json(
       { error: "Shop record missing access token" },
       { status: 400 }
@@ -1560,7 +1593,7 @@ export const loader = async ({ request }) => {
   const planId = planRecord?.planId ?? "free";
   const planSelected = Boolean(planRecord);
 
-  const shopDomain = shopRow.shop || shop;
+  const shopDomain = shopRow?.shop || shop;
   let payload = null;
 
   if (GRAPHQL_ENDPOINT) {
@@ -1812,7 +1845,40 @@ export const action = async ({ request }) => {
       orderBy: { id: "desc" },
     });
 
-    const shopAccessToken = decryptAccessToken(shopRow?.accessToken);
+    const dbAccessToken = decryptAccessToken(shopRow?.accessToken);
+    const sessionAccessToken = session?.accessToken ? String(session.accessToken) : null;
+    const shopAccessToken = dbAccessToken || sessionAccessToken || null;
+
+    if (!shopRow && shop && sessionAccessToken) {
+      try {
+        await prisma.shop.upsert({
+          where: { shop },
+          update: {
+            accessToken: encryptAccessToken(sessionAccessToken),
+            installed: true,
+            uninstalledAt: null,
+          },
+          create: {
+            shop,
+            accessToken: encryptAccessToken(sessionAccessToken),
+            installed: true,
+            onboardedAt: new Date(),
+          },
+        });
+      } catch { }
+    } else if (shopRow?.id && !dbAccessToken && sessionAccessToken) {
+      try {
+        await prisma.shop.update({
+          where: { id: shopRow.id },
+          data: {
+            accessToken: encryptAccessToken(sessionAccessToken),
+            installed: true,
+            uninstalledAt: null,
+          },
+        });
+      } catch { }
+    }
+
     if (!shopAccessToken) {
       return json(
         { error: "Missing Shopify Admin access token in database" },
@@ -1820,7 +1886,7 @@ export const action = async ({ request }) => {
       );
     }
 
-    const shopDomain = shopRow.shop || shop;
+    const shopDomain = shopRow?.shop || shop;
     let freeGiftAllProductsCollectionId = null;
 
     if (shopAccessToken && shopDomain) {
