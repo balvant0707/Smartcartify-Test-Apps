@@ -532,6 +532,7 @@
       recommendationMode: String(raw.recommendationMode || "auto").toLowerCase(),
       sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "You may also like"),
       buttonText: pickTextAny(raw, ["buttonText"], "add to cart"),
+      buttonColor: pickColor(raw, ["buttonColor", "button"], "#111111"),
       backgroundColor: pickBackground(raw, ["backgroundColor", "background"], "#f8fafc"),
       textColor: pickColor(raw, ["textColor", "text"], "#111827"),
       borderColor: pickColor(raw, ["borderColor", "border"], "#e2e8f0"),
@@ -919,6 +920,7 @@
     wrap.hidden = false;
     wrap.style.setProperty("--sc-upsell-bg", settings.backgroundColor || "#f8fafc");
     wrap.style.setProperty("--sc-upsell-text", settings.textColor || "#111827");
+    wrap.style.setProperty("--sc-upsell-button-bg", settings.buttonColor || "#111111");
     wrap.style.setProperty("--sc-border", settings.borderColor || "#e2e8f0");
     wrap.style.setProperty("--sc-upsell-arrow", settings.arrowColor || "#111827");
 
@@ -2261,7 +2263,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-upsell-btn{
   border-radius: 10px;
-  background: #111111;
+  background: var(--sc-upsell-button-bg, #111111);
   color: #ffffff;
   padding: 4px 8px;
   font-size: 12px;

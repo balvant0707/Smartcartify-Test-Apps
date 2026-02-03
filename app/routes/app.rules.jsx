@@ -895,6 +895,7 @@ const DEFAULT_UPSELL_SETTINGS = {
   recommendationMode: "auto",
   sectionTitle: "You may also like",
   buttonText: "Add to cart",
+  buttonColor: "#111111",
   backgroundColor: "#F8FAFC",
   textColor: "#0F172A",
   borderColor: "#E2E8F0",
@@ -1647,6 +1648,8 @@ export const loader = async ({ request }) => {
             sectionTitle:
               upsellRow.sectionTitle ?? DEFAULT_UPSELL_SETTINGS.sectionTitle,
             buttonText: upsellRow.buttonText ?? DEFAULT_UPSELL_SETTINGS.buttonText,
+            buttonColor:
+              upsellRow.buttonColor ?? DEFAULT_UPSELL_SETTINGS.buttonColor,
             backgroundColor:
               upsellRow.backgroundColor ?? DEFAULT_UPSELL_SETTINGS.backgroundColor,
             textColor: upsellRow.textColor ?? DEFAULT_UPSELL_SETTINGS.textColor,
@@ -1708,6 +1711,7 @@ export const loader = async ({ request }) => {
         sectionTitle:
           upsellRow.sectionTitle ?? DEFAULT_UPSELL_SETTINGS.sectionTitle,
         buttonText: upsellRow.buttonText ?? DEFAULT_UPSELL_SETTINGS.buttonText,
+        buttonColor: upsellRow.buttonColor ?? DEFAULT_UPSELL_SETTINGS.buttonColor,
         backgroundColor:
           upsellRow.backgroundColor ?? DEFAULT_UPSELL_SETTINGS.backgroundColor,
         textColor: upsellRow.textColor ?? DEFAULT_UPSELL_SETTINGS.textColor,
@@ -2505,6 +2509,7 @@ export const action = async ({ request }) => {
           recommendationMode: String(data.recommendationMode || "auto"),
           sectionTitle: parseText(data.sectionTitle),
           buttonText: parseText(data.buttonText),
+          buttonColor: parseText(data.buttonColor),
           backgroundColor: parseText(data.backgroundColor),
           textColor: parseText(data.textColor),
           borderColor: parseText(data.borderColor),
@@ -6196,6 +6201,9 @@ export default function AppRules() {
   const [upsellButtonText, setUpsellButtonText] = React.useState(
     upsellSeed?.buttonText || DEFAULT_UPSELL_SETTINGS.buttonText
   );
+  const [upsellButtonColor, setUpsellButtonColor] = React.useState(
+    upsellSeed?.buttonColor || DEFAULT_UPSELL_SETTINGS.buttonColor
+  );
   const [upsellBgColor, setUpsellBgColor] = React.useState(
     upsellSeed?.backgroundColor || DEFAULT_UPSELL_SETTINGS.backgroundColor
   );
@@ -7073,6 +7081,7 @@ export default function AppRules() {
           recommendationMode: upsellMode,
           sectionTitle: upsellSectionTitle?.trim() || "",
           buttonText: upsellButtonText?.trim() || "",
+          buttonColor: upsellButtonColor,
           backgroundColor: upsellBgColor,
           textColor: upsellTextColor,
           borderColor: upsellBorderColor,
@@ -7385,6 +7394,7 @@ export default function AppRules() {
       upsellMode,
       upsellSectionTitle,
       upsellButtonText,
+      upsellButtonColor,
       upsellBgColor,
       upsellTextColor,
       upsellBorderColor,
@@ -10579,6 +10589,11 @@ export default function AppRules() {
                   onChange={setUpsellTextColor}
                 />
                 <ColorField
+                  label="Button Color"
+                  value={upsellButtonColor}
+                  onChange={setUpsellButtonColor}
+                />
+                <ColorField
                   label="Border Color"
                   value={upsellBorderColor}
                   onChange={setUpsellBorderColor}
@@ -10920,7 +10935,7 @@ export default function AppRules() {
                                   style={{
                                     padding: "8px 10px",
                                     borderRadius: 10,
-                                    background: "#111111",
+                                    background: upsellButtonColor,
                                     color: upsellTextColor,
                                     fontSize: 12,
                                     fontWeight: 600,
