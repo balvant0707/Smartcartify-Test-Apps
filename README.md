@@ -130,6 +130,13 @@ When you're ready to set up your app in production, you can follow [our deployme
 
 When you reach the step for [setting up environment variables](https://shopify.dev/docs/apps/deployment/web#set-env-vars), you also need to set the variable `NODE_ENV=production`.
 
+Note: Add `ENCRYPTION_KEY` to your environment variables for production:
+
+```bash
+# Generate a key with:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
 
 ## Gotchas / Troubleshooting
 

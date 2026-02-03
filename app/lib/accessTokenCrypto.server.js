@@ -23,7 +23,11 @@ const getSecretKey = () => {
   const direct =
     normalizeHex(process.env.ACCESS_TOKEN_ENCRYPTION_KEY_HEX) ||
     normalizeBase64(process.env.ACCESS_TOKEN_ENCRYPTION_KEY_BASE64) ||
-    normalizeBase64(process.env.ACCESS_TOKEN_ENCRYPTION_KEY);
+    normalizeBase64(process.env.ACCESS_TOKEN_ENCRYPTION_KEY) ||
+    normalizeHex(process.env.ENCRYPTION_KEY_HEX) ||
+    normalizeBase64(process.env.ENCRYPTION_KEY_BASE64) ||
+    normalizeHex(process.env.ENCRYPTION_KEY) ||
+    normalizeBase64(process.env.ENCRYPTION_KEY);
   if (direct) return direct;
 
   const fallbackSecret = process.env.SHOPIFY_API_SECRET || "";
