@@ -36,6 +36,12 @@ model shop {
   onboardedAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  firstName     String?   @db.VarChar(255)
+  lastName      String?   @db.VarChar(255)
+  email         String?   @db.VarChar(320)
+  domain        String?   @db.VarChar(255)
+  contactNumber String?   @db.VarChar(50)
+  appStatus     String    @default("active") @db.VarChar(20)
 
   @@map("shop")
 }
@@ -164,6 +170,10 @@ model StyleSettings {
   borderColor              String?
   buttonColor              String?
   checkoutButtonText       String?
+  announcementBarBackgroundColor String?
+  announcementBarTextColor       String?
+  buttonLabelColor               String?
+  iconColor                      String?
 
   @@map("stylesettings")
 }

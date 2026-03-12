@@ -53,12 +53,14 @@ const shopify = shopifyApp({
           accessToken: encryptedAccessToken ?? undefined,
           installed: true,
           uninstalledAt: null,
+          appStatus: "active",
         },
         create: {
           shop,
           accessToken: encryptedAccessToken,
           installed: true,
           onboardedAt: new Date(),
+          appStatus: "active",
         },
       });
 
@@ -74,6 +76,7 @@ const shopify = shopifyApp({
             shop {
               name
               email
+              phone
               primaryDomain { host }
               shopOwnerName
               countryCode
@@ -90,18 +93,38 @@ const shopify = shopifyApp({
         logger.warn("[email] Shopify GraphQL failed; using session fallback.", error);
       }
 
+      // Persist merchant contact info now that we have shopInfo
+      const ownerNameParts = (shopInfo.shopOwnerName || session.firstName || "").trim().split(/\s+/);
+      const resolvedFirstName = ownerNameParts[0] || null;
+      const resolvedLastName = ownerNameParts.slice(1).join(" ") || null;
+      const resolvedEmail = shopInfo.email || session.email || null;
+      const resolvedDomain = shopInfo.primaryDomain?.host || shop;
+      const resolvedPhone = shopInfo.phone || null;
+
+      await prisma.shop.update({
+        where: { shop },
+        data: {
+          firstName: resolvedFirstName,
+          lastName: resolvedLastName,
+          email: resolvedEmail,
+          domain: resolvedDomain,
+          contactNumber: resolvedPhone,
+          appStatus: "active",
+        },
+      }).catch((err) => logger.warn("[shop] contact fields update failed", err));
+
       const testRecipient = process.env.TEST_OWNER_EMAIL || "";
-      const toEmail = testRecipient || shopInfo.email || session.email;
+      const toEmail = testRecipient || resolvedEmail;
       if (!toEmail) {
         logger.warn("[email] Shop email missing; skipping install email.");
         return;
       }
 
       const resolvedShopName = shopInfo.name || shop;
-      const resolvedShopDomain = shopInfo.primaryDomain?.host || shop;
+      const resolvedShopDomain = resolvedDomain;
       const resolvedOwnerName =
         shopInfo.shopOwnerName || session.firstName || "";
-      const resolvedOwnerEmail = shopInfo.email || session.email || "";
+      const resolvedOwnerEmail = resolvedEmail || "";
       const installedAt = new Date().toISOString();
       const appVersion =
         process.env.APP_VERSION || process.env.npm_package_version || "N/A";

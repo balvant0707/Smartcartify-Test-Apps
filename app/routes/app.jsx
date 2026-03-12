@@ -30,12 +30,14 @@ export const loader = async ({ request }) => {
         accessToken: encryptedAccessToken ?? undefined,
         installed: true,
         uninstalledAt: null,
+        appStatus: "active",
         updatedAt: new Date(),
       },
       create: {
         shop: resolvedShop,
         accessToken: encryptedAccessToken ?? null,
         installed: true,
+        appStatus: "active",
         onboardedAt: new Date(),
       },
     });

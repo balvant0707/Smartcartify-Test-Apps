@@ -23,10 +23,10 @@ export const action = async ({ request }) => {
     if (existing) {
       await db.shop.update({
         where: { id: existing.id },
-        data: { installed: false, uninstalledAt: timestamp, accessToken: null },
+        data: { installed: false, uninstalledAt: timestamp, accessToken: null, appStatus: "inactive" },
       });
     } else {
-      await db.shop.create({ data: { shop, installed: false, uninstalledAt: timestamp, accessToken: null } });
+      await db.shop.create({ data: { shop, installed: false, uninstalledAt: timestamp, accessToken: null, appStatus: "inactive" } });
     }
 
     const ownerEmail =

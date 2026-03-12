@@ -86,27 +86,50 @@
   disableThemeCartDrawer();
 
   /* =========================================================
-   ICON MAP (DB value → emoji)
+   ICON MAP (DB value → SVG)
   ========================================================= */
   const ICONS = {
-    sparkles: "✨",
-    truck: "🚚",
-    tag: "🏷️",
-    gift: "🎁",
-    star: "⭐",
-    fire: "🔥",
-    check: "✔",
-    cart: "🛒",
-    shipping: "🚚",
-    discount: "🏷️",
-    free: "🎁",
-    bxgy: "🔥",
+    sparkles: `<i data-lucide="sparkles" aria-hidden="true"></i>`,
+    truck: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 5.25C4 4.83579 4.33579 4.5 4.75 4.5H11.7414C12.9692 4.5 14.0483 5.31394 14.3856 6.49452L14.8125 7.98862C14.837 8.07452 14.9055 8.1408 14.9922 8.16247L16.6744 8.58303C17.4535 8.77779 18 9.47776 18 10.2808V11.5C18 12.2108 17.5763 12.8226 16.9676 13.0966C16.9889 13.2279 17 13.3627 17 13.5C17 14.8807 15.8807 16 14.5 16C13.1193 16 12 14.8807 12 13.5C12 13.4156 12.0042 13.3322 12.0123 13.25H8.98766C8.99582 13.3322 9 13.4156 9 13.5C9 14.8807 7.88071 16 6.5 16C5.11929 16 4 14.8807 4 13.5C4 13.1444 4.07422 12.8062 4.20802 12.5H3.75C3.33579 12.5 3 12.1642 3 11.75C3 11.3358 3.33579 11 3.75 11H6.25C6.27988 11 6.30935 11.0017 6.33831 11.0051C6.39177 11.0017 6.44568 11 6.5 11C7.19935 11 7.83163 11.2872 8.28536 11.75H12.7146C13.1684 11.2872 13.8007 11 14.5 11C15.1982 11 15.8296 11.2863 16.2832 11.7478C16.4056 11.7316 16.5 11.6268 16.5 11.5V10.2808C16.5 10.1661 16.4219 10.0661 16.3106 10.0382L14.6284 9.61769C14.0217 9.466 13.542 9.00205 13.3702 8.4007L12.9433 6.9066C12.79 6.36997 12.2995 6 11.7414 6H4.75C4.33579 6 4 5.66421 4 5.25ZM6.5 14.5C7.05228 14.5 7.5 14.0523 7.5 13.5C7.5 12.9477 7.05228 12.5 6.5 12.5C5.94772 12.5 5.5 12.9477 5.5 13.5C5.5 14.0523 5.94772 14.5 6.5 14.5ZM14.5 14.5C15.0523 14.5 15.5 14.0523 15.5 13.5C15.5 12.9477 15.0523 12.5 14.5 12.5C13.9477 12.5 13.5 12.9477 13.5 13.5C13.5 14.0523 13.9477 14.5 14.5 14.5Z"></path><path d="M3.25 8C2.83579 8 2.5 8.33579 2.5 8.75C2.5 9.16421 2.83579 9.5 3.25 9.5H8.25C8.66421 9.5 9 9.16421 9 8.75C9 8.33579 8.66421 8 8.25 8H3.25Z"></path></svg>`,
+    tag: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path d="M12.7803 8.28033C13.0732 7.98744 13.0732 7.51256 12.7803 7.21967C12.4874 6.92678 12.0126 6.92678 11.7197 7.21967L7.21967 11.7197C6.92678 12.0126 6.92678 12.4874 7.21967 12.7803C7.51256 13.0732 7.98744 13.0732 8.28033 12.7803L12.7803 8.28033Z"></path><path d="M9 8C9 8.55228 8.55228 9 8 9C7.44772 9 7 8.55228 7 8C7 7.44772 7.44772 7 8 7C8.55228 7 9 7.44772 9 8Z"></path><path d="M12 13C12.5523 13 13 12.5523 13 12C13 11.4477 12.5523 11 12 11C11.4477 11 11 11.4477 11 12C11 12.5523 11.4477 13 12 13Z"></path><path fill-rule="evenodd" clip-rule="evenodd" d="M12.0943 3.51441C11.2723 1.72371 8.72775 1.72371 7.90568 3.51441C7.73011 3.89684 7.28948 4.07936 6.89491 3.93308C5.04741 3.24816 3.24816 5.04741 3.93308 6.89491C4.07936 7.28948 3.89684 7.73011 3.51441 7.90568C1.72371 8.72775 1.72371 11.2723 3.51441 12.0943C3.89684 12.2699 4.07936 12.7105 3.93308 13.1051C3.24816 14.9526 5.04741 16.7519 6.89491 16.0669C7.28948 15.9207 7.73011 16.1032 7.90568 16.4856C8.72775 18.2763 11.2723 18.2763 12.0943 16.4856C12.2699 16.1032 12.7105 15.9207 13.1051 16.0669C14.9526 16.7519 16.7519 14.9526 16.0669 13.1051C15.9207 12.7105 16.1032 12.2699 16.4856 12.0943C18.2763 11.2723 18.2763 8.72775 16.4856 7.90568C16.1032 7.73011 15.9207 7.28948 16.0669 6.89491C16.7519 5.04741 14.9526 3.24816 13.1051 3.93308C12.7105 4.07936 12.2699 3.89684 12.0943 3.51441ZM9.26889 4.14023C9.55587 3.51511 10.4441 3.51511 10.7311 4.14023C11.2341 5.23573 12.4963 5.75856 13.6265 5.33954C14.2715 5.10044 14.8996 5.72855 14.6605 6.3735C14.2415 7.50376 14.7643 8.76597 15.8598 9.26889C16.4849 9.55587 16.4849 10.4441 15.8598 10.7311C14.7643 11.2341 14.2415 12.4963 14.6605 13.6265C14.8996 14.2715 14.2715 14.8996 13.6265 14.6605C12.4963 14.2415 11.2341 14.7643 10.7311 15.8598C10.4441 16.4849 9.55587 16.4849 9.26889 15.8598C8.76597 14.7643 7.50376 14.2415 6.3735 14.6605C5.72855 14.8996 5.10044 14.2715 5.33954 13.6265C5.75856 12.4963 5.23573 11.2341 4.14023 10.7311C3.51511 10.4441 3.51511 9.55587 4.14023 9.26889C5.23573 8.76597 5.75856 7.50376 5.33954 6.3735C5.10044 5.72855 5.72855 5.10044 6.3735 5.33954C7.50376 5.75856 8.76597 5.23573 9.26889 4.14023Z"></path></svg>`,
+    gift: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 12"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H8V2.25C8 2.66421 7.66421 3 7.25 3C6.83579 3 6.5 2.66421 6.5 2.25V1.5H2.5C2.22386 1.5 2 1.72386 2 2V5.04268C2.2913 5.14564 2.5 5.42345 2.5 5.75C2.5 6.07655 2.2913 6.35436 2 6.45732V10C2 10.2761 2.22386 10.5 2.5 10.5H6.5V9.5C6.5 9.08579 6.83579 8.75 7.25 8.75C7.66421 8.75 8 9.08579 8 9.5V10.5H13.5C13.7761 10.5 14 10.2761 14 10V6.5H12.75C12.3358 6.5 12 6.16421 12 5.75C12 5.33579 12.3358 5 12.75 5H14V2C14 1.72386 13.7761 1.5 13.5 1.5ZM15.5 5.75V2C15.5 0.895431 14.6046 0 13.5 0H7.25H2.5C1.39543 0 0.5 0.895431 0.5 2V10C0.5 11.1046 1.39543 12 2.5 12H13.5C14.6046 12 15.5 11.1046 15.5 10V5.75ZM6.79746 3.99197C6.45366 3.23561 5.69951 2.75 4.86868 2.75C3.69632 2.75 2.75 3.70396 2.75 4.87184C2.75 6.04319 3.69915 7 4.875 7H5.73284C5.13766 7.50971 4.47708 7.92423 3.89394 8.00754C3.48389 8.06612 3.19896 8.44602 3.25754 8.85607C3.31612 9.26612 3.69602 9.55104 4.10607 9.49246C5.21669 9.3338 6.23422 8.57331 6.90944 7.9624C7.03044 7.85293 7.14433 7.74463 7.25 7.64032C7.35567 7.74463 7.46956 7.85293 7.59056 7.9624C8.26578 8.57331 9.28331 9.3338 10.3939 9.49246C10.804 9.55104 11.1839 9.26612 11.2425 8.85607C11.301 8.44602 11.0161 8.06612 10.6061 8.00754C10.0229 7.92423 9.36234 7.50971 8.76716 7H9.625C10.8009 7 11.75 6.04319 11.75 4.87184C11.75 3.70396 10.8037 2.75 9.63132 2.75C8.80049 2.75 8.04634 3.23561 7.70254 3.99197L7.25 4.98755L6.79746 3.99197ZM5.83524 5.5H4.875C4.53206 5.5 4.25 5.21926 4.25 4.87184C4.25 4.5279 4.52923 4.25 4.86868 4.25C5.1113 4.25 5.33152 4.3918 5.43191 4.61267L5.83524 5.5ZM9.625 5.5H8.66476L9.06809 4.61267C9.16848 4.3918 9.3887 4.25 9.63132 4.25C9.97077 4.25 10.25 4.5279 10.25 4.87184C10.25 5.21926 9.96794 5.5 9.625 5.5Z"></path></svg>`,
+    star: `<i data-lucide="star" aria-hidden="true"></i>`,
+    fire: `<i data-lucide="flame" aria-hidden="true"></i>`,
+    check: `<i data-lucide="check" aria-hidden="true"></i>`,
+    cart: `<i data-lucide="shopping-cart" aria-hidden="true"></i>`,
+    shipping: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 5.25C4 4.83579 4.33579 4.5 4.75 4.5H11.7414C12.9692 4.5 14.0483 5.31394 14.3856 6.49452L14.8125 7.98862C14.837 8.07452 14.9055 8.1408 14.9922 8.16247L16.6744 8.58303C17.4535 8.77779 18 9.47776 18 10.2808V11.5C18 12.2108 17.5763 12.8226 16.9676 13.0966C16.9889 13.2279 17 13.3627 17 13.5C17 14.8807 15.8807 16 14.5 16C13.1193 16 12 14.8807 12 13.5C12 13.4156 12.0042 13.3322 12.0123 13.25H8.98766C8.99582 13.3322 9 13.4156 9 13.5C9 14.8807 7.88071 16 6.5 16C5.11929 16 4 14.8807 4 13.5C4 13.1444 4.07422 12.8062 4.20802 12.5H3.75C3.33579 12.5 3 12.1642 3 11.75C3 11.3358 3.33579 11 3.75 11H6.25C6.27988 11 6.30935 11.0017 6.33831 11.0051C6.39177 11.0017 6.44568 11 6.5 11C7.19935 11 7.83163 11.2872 8.28536 11.75H12.7146C13.1684 11.2872 13.8007 11 14.5 11C15.1982 11 15.8296 11.2863 16.2832 11.7478C16.4056 11.7316 16.5 11.6268 16.5 11.5V10.2808C16.5 10.1661 16.4219 10.0661 16.3106 10.0382L14.6284 9.61769C14.0217 9.466 13.542 9.00205 13.3702 8.4007L12.9433 6.9066C12.79 6.36997 12.2995 6 11.7414 6H4.75C4.33579 6 4 5.66421 4 5.25ZM6.5 14.5C7.05228 14.5 7.5 14.0523 7.5 13.5C7.5 12.9477 7.05228 12.5 6.5 12.5C5.94772 12.5 5.5 12.9477 5.5 13.5C5.5 14.0523 5.94772 14.5 6.5 14.5ZM14.5 14.5C15.0523 14.5 15.5 14.0523 15.5 13.5C15.5 12.9477 15.0523 12.5 14.5 12.5C13.9477 12.5 13.5 12.9477 13.5 13.5C13.5 14.0523 13.9477 14.5 14.5 14.5Z"></path><path d="M3.25 8C2.83579 8 2.5 8.33579 2.5 8.75C2.5 9.16421 2.83579 9.5 3.25 9.5H8.25C8.66421 9.5 9 9.16421 9 8.75C9 8.33579 8.66421 8 8.25 8H3.25Z"></path></svg>`,
+    discount: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 12" ><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H8V2.25C8 2.66421 7.66421 3 7.25 3C6.83579 3 6.5 2.66421 6.5 2.25V1.5H2.5C2.22386 1.5 2 1.72386 2 2V5.04268C2.2913 5.14564 2.5 5.42345 2.5 5.75C2.5 6.07655 2.2913 6.35436 2 6.45732V10C2 10.2761 2.22386 10.5 2.5 10.5H6.5V9.5C6.5 9.08579 6.83579 8.75 7.25 8.75C7.66421 8.75 8 9.08579 8 9.5V10.5H13.5C13.7761 10.5 14 10.2761 14 10V6.5H12.75C12.3358 6.5 12 6.16421 12 5.75C12 5.33579 12.3358 5 12.75 5H14V2C14 1.72386 13.7761 1.5 13.5 1.5ZM15.5 5.75V2C15.5 0.895431 14.6046 0 13.5 0H7.25H2.5C1.39543 0 0.5 0.895431 0.5 2V10C0.5 11.1046 1.39543 12 2.5 12H13.5C14.6046 12 15.5 11.1046 15.5 10V5.75ZM6.79746 3.99197C6.45366 3.23561 5.69951 2.75 4.86868 2.75C3.69632 2.75 2.75 3.70396 2.75 4.87184C2.75 6.04319 3.69915 7 4.875 7H5.73284C5.13766 7.50971 4.47708 7.92423 3.89394 8.00754C3.48389 8.06612 3.19896 8.44602 3.25754 8.85607C3.31612 9.26612 3.69602 9.55104 4.10607 9.49246C5.21669 9.3338 6.23422 8.57331 6.90944 7.9624C7.03044 7.85293 7.14433 7.74463 7.25 7.64032C7.35567 7.74463 7.46956 7.85293 7.59056 7.9624C8.26578 8.57331 9.28331 9.3338 10.3939 9.49246C10.804 9.55104 11.1839 9.26612 11.2425 8.85607C11.301 8.44602 11.0161 8.06612 10.6061 8.00754C10.0229 7.92423 9.36234 7.50971 8.76716 7H9.625C10.8009 7 11.75 6.04319 11.75 4.87184C11.75 3.70396 10.8037 2.75 9.63132 2.75C8.80049 2.75 8.04634 3.23561 7.70254 3.99197L7.25 4.98755L6.79746 3.99197ZM5.83524 5.5H4.875C4.53206 5.5 4.25 5.21926 4.25 4.87184C4.25 4.5279 4.52923 4.25 4.86868 4.25C5.1113 4.25 5.33152 4.3918 5.43191 4.61267L5.83524 5.5ZM9.625 5.5H8.66476L9.06809 4.61267C9.16848 4.3918 9.3887 4.25 9.63132 4.25C9.97077 4.25 10.25 4.5279 10.25 4.87184C10.25 5.21926 9.96794 5.5 9.625 5.5Z"></path></svg>`,
+    free: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 12"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H8V2.25C8 2.66421 7.66421 3 7.25 3C6.83579 3 6.5 2.66421 6.5 2.25V1.5H2.5C2.22386 1.5 2 1.72386 2 2V5.04268C2.2913 5.14564 2.5 5.42345 2.5 5.75C2.5 6.07655 2.2913 6.35436 2 6.45732V10C2 10.2761 2.22386 10.5 2.5 10.5H6.5V9.5C6.5 9.08579 6.83579 8.75 7.25 8.75C7.66421 8.75 8 9.08579 8 9.5V10.5H13.5C13.7761 10.5 14 10.2761 14 10V6.5H12.75C12.3358 6.5 12 6.16421 12 5.75C12 5.33579 12.3358 5 12.75 5H14V2C14 1.72386 13.7761 1.5 13.5 1.5ZM15.5 5.75V2C15.5 0.895431 14.6046 0 13.5 0H7.25H2.5C1.39543 0 0.5 0.895431 0.5 2V10C0.5 11.1046 1.39543 12 2.5 12H13.5C14.6046 12 15.5 11.1046 15.5 10V5.75ZM6.79746 3.99197C6.45366 3.23561 5.69951 2.75 4.86868 2.75C3.69632 2.75 2.75 3.70396 2.75 4.87184C2.75 6.04319 3.69915 7 4.875 7H5.73284C5.13766 7.50971 4.47708 7.92423 3.89394 8.00754C3.48389 8.06612 3.19896 8.44602 3.25754 8.85607C3.31612 9.26612 3.69602 9.55104 4.10607 9.49246C5.21669 9.3338 6.23422 8.57331 6.90944 7.9624C7.03044 7.85293 7.14433 7.74463 7.25 7.64032C7.35567 7.74463 7.46956 7.85293 7.59056 7.9624C8.26578 8.57331 9.28331 9.3338 10.3939 9.49246C10.804 9.55104 11.1839 9.26612 11.2425 8.85607C11.301 8.44602 11.0161 8.06612 10.6061 8.00754C10.0229 7.92423 9.36234 7.50971 8.76716 7H9.625C10.8009 7 11.75 6.04319 11.75 4.87184C11.75 3.70396 10.8037 2.75 9.63132 2.75C8.80049 2.75 8.04634 3.23561 7.70254 3.99197L7.25 4.98755L6.79746 3.99197ZM5.83524 5.5H4.875C4.53206 5.5 4.25 5.21926 4.25 4.87184C4.25 4.5279 4.52923 4.25 4.86868 4.25C5.1113 4.25 5.33152 4.3918 5.43191 4.61267L5.83524 5.5ZM9.625 5.5H8.66476L9.06809 4.61267C9.16848 4.3918 9.3887 4.25 9.63132 4.25C9.97077 4.25 10.25 4.5279 10.25 4.87184C10.25 5.21926 9.96794 5.5 9.625 5.5Z"></path></svg>`,
+    bxgy: `<i data-lucide="shopping-bag" aria-hidden="true"></i>`,
   };
+  const ICON_SVG_SET = new Set(
+    Object.values(ICONS).filter(
+      (v) => typeof v === "string" && String(v).trim().toLowerCase().startsWith("<svg")
+    )
+  );
+  const ICON_HTML_SET = new Set(
+    Object.values(ICONS).filter(
+      (v) => typeof v === "string" && String(v).trim().toLowerCase().startsWith("<i")
+    )
+  );
+
+  const ensureLucide = () => {
+    if (window.lucide) return;
+    if (document.getElementById("sc-lucide-js")) return;
+    const script = document.createElement("script");
+    script.id = "sc-lucide-js";
+    script.defer = true;
+    script.src = "https://unpkg.com/lucide@latest/dist/umd/lucide.min.js";
+    script.crossOrigin = "anonymous";
+    document.head.appendChild(script);
+  };
+  ensureLucide();
 
   const STEP_SLOTS = ["step1", "step2", "step3", "step4"];
 
   let PROXY = null;
   let CART = null;
+  let LAST_CART_SIG = "";
   const CART_CACHE_TTL_MS = 1200;
   let cartCacheValue = null;
   let cartCacheTs = 0;
@@ -129,16 +152,23 @@
 
   // ✅ announcement bar cache
   let ANNOUNCE_MESSAGES = [];
+  const ANNOUNCE_EM_LABEL_START = "[[SC_EM_LABEL_START]]";
+  const ANNOUNCE_EM_VALUE_START = "[[SC_EM_VALUE_START]]";
+  const ANNOUNCE_EM_CODE_START = "[[SC_EM_CODE_START]]";
+  const ANNOUNCE_EM_END = "[[SC_EM_END]]";
 
   // Announcement sources
-  let CODE_DISCOUNT_RULES = []; // discountrule type=code (progressTextBefore/progressTextAfter)
+  let CODE_DISCOUNT_RULES = []; // discountrule with discountCode/discount_code/code field
   let BXGY_RULES = []; // discountrule type=bxgy OR has beforeOfferUnlockMessage/afterOfferUnlockMessage
   let BUYXGETY_RULES = []; // buyxgety rules list OR discountrule type=buyxgety if present
 
   let discountPopupShownForCode = null;
+  let DISCOUNT_PANEL_STYLE_ENABLED = false;
+  const MANUAL_DISCOUNT_CODE_KEY = "__SC_MANUAL_DISCOUNT_CODE__";
 
-  // ✅ NEW: Priming guard to stop popups on first load / refresh
   let __SC_PRIMED_POPUPS__ = false;
+  // Disable the free product reward popup when a free milestone completes.
+  const DISABLE_FREE_REWARD_POPUP = true;
 
   // ✅ NEW: Auto-add guard
   let __SC_AUTO_ADDING__ = false;
@@ -224,6 +254,16 @@
     if (/^var\(--.+\)$/i.test(v)) return true;
     if (/^url\(/i.test(v)) return true;
     return false;
+  };
+
+  const getFirstColorFromBackground = (val) => {
+    const v = trimToNull(val);
+    if (!v) return null;
+    if (isValidCssColor(v)) return v;
+    const m = String(v).match(
+      /(#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})|rgba?\([^)]+\)|hsla?\([^)]+\))/i
+    );
+    return m ? m[1] : null;
   };
 
   const isValidCssLen = (val) => {
@@ -344,6 +384,58 @@
     } catch {
       // Fallback for unsupported currencies
       return `${shopCurrency} ${Math.round(amount)}`;
+    }
+  };
+
+  const normalizeCurrencyCode = (currency = null) => {
+    const raw =
+      trimToNull(currency) ||
+      trimToNull(CART?.currency) ||
+      trimToNull(window.Shopify?.currency?.active) ||
+      "USD";
+    return String(raw).toUpperCase();
+  };
+
+  const getCartSignature = (cart) => {
+    const items = Array.isArray(cart?.items) ? cart.items : [];
+    const itemSig = items
+      .map((it) => [
+        it?.id || it?.variant_id || "",
+        Number(it?.quantity) || 0,
+        Number(it?.final_line_price) || 0,
+      ])
+      .join("|");
+    return [
+      Number(cart?.item_count) || 0,
+      Number(cart?.items_subtotal_price) || 0,
+      Number(cart?.total_discount) || 0,
+      itemSig,
+    ].join("::");
+  };
+
+  const stripCurrencySymbolIfCodePresent = (text, currency = null) => {
+    const out = String(text ?? "");
+    if (!out) return out;
+    const code = normalizeCurrencyCode(currency);
+    if (!new RegExp(`\\b${code}\\b`, "i").test(out)) return out;
+    return out
+      .replace(/([$€£¥₹₩₽₺₫₴₦฿₱₲₵₡])\s*(\d)/g, "$2")
+      .replace(/(\d)\s*([$€£¥₹₩₽₺₫₴₦฿₱₲₵₡])/g, "$1");
+  };
+
+  const formatMoneyWithCode = (cents, currency = null) => {
+    const code = normalizeCurrencyCode(currency);
+    const amount = (Number(cents) || 0) / 100;
+    const locale = window.Shopify?.locale || navigator.language || "en-US";
+    try {
+      const numberOnly = new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(amount);
+      return `${numberOnly} ${code}`;
+    } catch {
+      const fallback = String(Math.round(amount * 100) / 100);
+      return `${fallback} ${code}`;
     }
   };
 
@@ -493,6 +585,19 @@
     return out;
   };
 
+  const renderMilestoneIcon = (iconValue) => {
+    const icon = String(iconValue ?? "").trim();
+    if (!icon) {
+      const fallback = ICONS.sparkles;
+      if (ICON_HTML_SET.has(fallback)) return `<span class="sc-dot-html">${fallback}</span>`;
+      if (ICON_SVG_SET.has(fallback)) return `<span class="sc-dot-svg">${fallback}</span>`;
+      return `<span class="sc-dot-emoji">${safe(fallback)}</span>`;
+    }
+    if (ICON_SVG_SET.has(icon)) return `<span class="sc-dot-svg">${icon}</span>`;
+    if (ICON_HTML_SET.has(icon)) return `<span class="sc-dot-html">${icon}</span>`;
+    return `<span class="sc-dot-emoji">${safe(icon)}</span>`;
+  };
+
   const replaceProgressText = ({
     text,
     type,
@@ -501,14 +606,18 @@
     useRemainingForGoal,
   }) => {
     const goalRupees = getGoalRupees(type, rule);
-    const remainingRupees =
+    const goalCents =
+      goalRupees == null ? null : Math.max(0, Math.round(Number(goalRupees) * 100));
+    const remainingCents =
       goalRupees == null
-        ? ""
-        : String(Math.max(0, Math.round(goalRupees - (subtotalRupees || 0))));
+        ? null
+        : Math.max(0, Math.round((Number(goalRupees) - (subtotalRupees || 0)) * 100));
 
-    const goalToken = useRemainingForGoal
-      ? remainingRupees
-      : safe(goalRupees ?? "");
+    const goalText = goalCents == null ? "" : formatMoney(goalCents, CART?.currency);
+    const remainingText =
+      remainingCents == null ? "" : formatMoney(remainingCents, CART?.currency);
+
+    const goalToken = useRemainingForGoal ? remainingText : goalText;
 
     const discountValRaw =
       type === "discount"
@@ -531,7 +640,7 @@
     const xQty = safe(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? "");
     const yQty = safe(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? "");
 
-    return replaceTokens(text, {
+    const replaced = replaceTokens(text, {
       goal: goalToken,
       discount: discountValRaw,
       discount_value: discountValRaw,
@@ -540,6 +649,7 @@
       x: xQty,
       y: yQty,
     });
+    return stripCurrencySymbolIfCodePresent(replaced, CART?.currency);
   };
 
   const getProxyArray = (proxy, keys) => {
@@ -568,11 +678,11 @@
       showAsSlider: to01(raw.showAsSlider) === 1,
       autoplay: to01(raw.autoplay) === 1,
       recommendationMode: String(raw.recommendationMode || "auto").toLowerCase(),
-      sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "You may also like"),
-      buttonText: pickTextAny(raw, ["buttonText"], "add to cart"),
+      sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "Recommended Products"),
+      buttonText: pickTextAny(raw, ["buttonText"], "add"),
       buttonColor: pickColor(raw, ["buttonColor", "button"], "#111111"),
       backgroundColor: pickBackground(raw, ["backgroundColor", "background"], "#f8fafc"),
-      textColor: pickColor(raw, ["textColor", "text"], "#111827"),
+      textColor: pickColor(raw, ["textColor", "text"], "#e2e8f0"),
       borderColor: pickColor(raw, ["borderColor", "border"], "#e2e8f0"),
       arrowColor: pickColor(raw, ["arrowColor", "arrow"], "#111827"),
       selectedProductIds: parseIdArray(raw.selectedProductIds),
@@ -623,8 +733,56 @@
     const raw = String(value).trim();
     if (!raw) return null;
     if (/^\d+$/.test(raw)) return raw;
-    const m = raw.match(/\/(\d+)\s*$/);
-    return m ? m[1] : null;
+    const tryExtract = (str) => {
+      const m = String(str).match(/\/(\d+)\s*$/);
+      return m ? m[1] : null;
+    };
+    const direct = tryExtract(raw);
+    if (direct) return direct;
+    if (/%2F|%3A/i.test(raw)) {
+      try {
+        const decoded = decodeURIComponent(raw);
+        const hit = tryExtract(decoded);
+        if (hit) return hit;
+      } catch { }
+    }
+    try {
+      const decoded = atob(raw.replace(/-/g, "+").replace(/_/g, "/"));
+      const hit = tryExtract(decoded);
+      if (hit) return hit;
+    } catch { }
+    return null;
+  };
+
+  const isVariantAvailable = (variant, product = null) => {
+    if (variant) {
+      const direct =
+        variant.available ??
+        variant.available_for_sale ??
+        variant.availableForSale ??
+        variant.isAvailable;
+      if (direct === false) return false;
+      if (direct === true) return true;
+
+      const inv =
+        variant.inventory_quantity ??
+        variant.inventoryQuantity ??
+        variant.qtyAvailable ??
+        variant.quantityAvailable;
+      if (inv != null && Number.isFinite(Number(inv))) return Number(inv) > 0;
+    }
+
+    if (product) {
+      const pAvail =
+        product.available ??
+        product.available_for_sale ??
+        product.availableForSale ??
+        product.isAvailable;
+      if (pAvail === false) return false;
+      if (pAvail === true) return true;
+    }
+
+    return true;
   };
 
   const normalizeProxyVariants = (variants) =>
@@ -670,6 +828,29 @@
     return Math.round(n * 100);
   };
 
+  const normalizeCents = (value) => {
+    if (value == null) return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.max(0, Math.round(n)) : null;
+  };
+
+  const inferPriceIsCents = (value) => {
+    if (value == null) return false;
+    const raw = String(value).trim();
+    if (!raw) return false;
+    if (/[.,]/.test(raw)) return false;
+    const n = Number(raw);
+    return Number.isFinite(n) && Number.isInteger(n);
+  };
+
+  const priceToCentsFromItem = (value, item) => {
+    if (value == null) return null;
+    if (item?.priceIsCents) {
+      return normalizeCents(value);
+    }
+    return priceToCents(value);
+  };
+
   const buildUpsellItemsFromProxyProducts = (products, currency) => {
     const list = Array.isArray(products) ? products : [];
     return list.map((p) => {
@@ -680,29 +861,51 @@
         ? firstVariant.variantOptions
         : [];
       const optionIndex = pickOptionIndexFromVariantOptions(optionSeed);
+      const productOptions = Array.isArray(p?.options) ? p.options : [];
       const optionName = String(
-        optionSeed?.[optionIndex]?.name || optionSeed?.[0]?.name || "Option"
+        optionSeed?.[optionIndex]?.name ||
+          productOptions?.[optionIndex]?.name ||
+          optionSeed?.[0]?.name ||
+          productOptions?.[0]?.name ||
+          "Option"
       );
       const optionValue = optionSeed?.[optionIndex]?.value ?? "";
-      const optionValues = getOptionValuesFromVariants(variants, optionIndex);
-      const hasVariants = variants.length > 1;
+      const optionValuesFromVariants = getOptionValuesFromVariants(variants, optionIndex);
+      const optionValuesFromProduct =
+        Array.isArray(productOptions?.[optionIndex]?.values) &&
+        productOptions[optionIndex].values.length
+          ? productOptions[optionIndex].values
+          : [];
+      const optionValues =
+        optionValuesFromVariants.length > 0
+          ? optionValuesFromVariants
+          : optionValuesFromProduct;
+      const hasVariants = variants.length > 1 && !Boolean(p?.has_only_default_variant);
       const size = hasVariants
         ? {
             name: optionName || "Option",
             value: optionValue ? String(optionValue) : "",
           }
         : null;
+      const primaryVariantId =
+        p?.variantId ||
+        firstVariant?.id ||
+        firstVariant?.variantId ||
+        firstVariant?.admin_graphql_api_id ||
+        null;
+
       const priceRaw = p?.variantPrice ?? firstVariant?.price ?? null;
+      const priceIsCents = false;
       const priceCents = priceToCents(priceRaw);
       return {
         title: safe(p?.title || "Product"),
         price:
-          priceCents != null
-            ? formatMoney(priceCents, currency)
-            : formatMoney(2500, currency),
+          priceCents != null ? formatMoney(priceCents, currency) : formatMoney(2500, currency),
+        priceCents: priceCents != null ? priceCents : null,
+        priceIsCents,
         image: normalizeImage(p?.image) || "",
         size,
-        variantId: p?.variantId || firstVariant?.id || null,
+        variantId: primaryVariantId,
         hasVariants,
         variants,
         optionIndex,
@@ -780,6 +983,8 @@
       return {
         title: safe(it?.product_title || "Product"),
         price: formatMoney(unitCents, currency),
+        priceCents: Number.isFinite(unitCents) ? Math.max(0, Math.round(unitCents)) : null,
+        priceIsCents: true,
         image: getUpsellImageFromItem(it),
         size: hasVariants ? getPreferredVariantFromItem(it) : null,
         variantId: it?.variant_id || it?.id || null,
@@ -870,6 +1075,8 @@
           const variants = Array.isArray(p?.variants) ? p.variants : [];
           const firstVariant = variants[0] || null;
           const priceRaw = firstVariant?.price ?? null;
+          const priceIsCents = inferPriceIsCents(priceRaw);
+          const priceCents = priceIsCents ? normalizeCents(priceRaw) : priceToCents(priceRaw);
           const hasVariants =
             variants.length > 1 && !Boolean(p?.has_only_default_variant);
           const size = hasVariants
@@ -893,7 +1100,10 @@
                 );
           return {
             title: safe(p?.title || "Product"),
-            price: priceRaw != null ? formatMoney(Number(priceRaw) || 0, currency) : formatMoney(2500, currency),
+            price:
+              priceCents != null ? formatMoney(priceCents, currency) : formatMoney(2500, currency),
+            priceCents,
+            priceIsCents,
             image: getUpsellImageFromProduct(p),
             size,
             variantId: firstVariant?.id || null,
@@ -976,18 +1186,46 @@
               value: trimToNull(sizeRaw.value) || "",
             }
           : null;
-      const sizeLabel = trimToNull(item?.optionName) || (size ? size.name : "");
-      const sizeSelect = size ? size.value || size.name : "";
       const showSelect =
         !!item?.hasVariants &&
         Array.isArray(item?.optionValues) &&
         item.optionValues.length > 0;
-      const key = `upsell-${UPSELL_INDEX}-${idx}-${safe(item?.variantId || item?.title || "")}`;
-      upsellItemMap.set(key, item);
+      const sizeLabel = showSelect
+        ? trimToNull(item?.optionName) || (size ? size.name : "")
+        : "";
+      const sizeSelect = size ? size.value || size.name : "";
+      const rawKey = `upsell-${UPSELL_INDEX}-${idx}-${String(
+        item?.variantId || item?.title || ""
+      )}`;
+      const safeKey = safe(rawKey);
+      upsellItemMap.set(safeKey, item);
+      const controlsClass = showSelect ? "sc-upsell-controls" : "sc-upsell-controls no-variant";
+      const optIndex = Number(item?.optionIndex ?? 0);
+      const variants = Array.isArray(item?.variants) ? item.variants : [];
+      const pickedByOption = showSelect
+        ? variants.find(
+            (v) => String(v?.[`option${optIndex + 1}`]) === String(sizeSelect || "")
+          )
+        : null;
+      const picked =
+        pickedByOption ||
+        variants.find((v) => String(v?.id || "") === String(item?.variantId || "")) ||
+        variants[0] ||
+        null;
+      const available = isVariantAvailable(picked, item);
+      const addVariantId = available
+        ? safe(
+            picked?.id ||
+              picked?.variantId ||
+              picked?.admin_graphql_api_id ||
+              item?.variantId ||
+              ""
+          )
+        : "";
       const selectMarkup = showSelect
         ? `
           <div class="sc-upsell-select-wrap">
-            <select class="sc-upsell-select" data-upsell-select="${safe(key)}" data-upsell-opt-index="${item?.optionIndex ?? 0}">
+            <select class="sc-upsell-select" data-upsell-select="${safeKey}" data-upsell-opt-index="${item?.optionIndex ?? 0}">
               ${item.optionValues
                 .map((v) => {
                   const sv = safe(v);
@@ -1012,13 +1250,17 @@
                   <div class="sc-upsell-price">${safe(item.price)}</div>
                 </div>
                 ${sizeLabel ? `<div class="sc-upsell-sub">${safe(sizeLabel)}</div>` : ""}
-                <div class="sc-upsell-controls">
-                  ${selectMarkup || `<div></div>`}
-                  <button class="sc-upsell-btn" type="button" data-upsell-add="${safe(
-                    item.variantId || ""
-                  )}" data-upsell-key="${safe(key)}">
-                    + ${safe(settings.buttonText)}
-                  </button>
+                <div class="${controlsClass}">
+                  ${selectMarkup}
+                  <div class="sc-upsell-action">
+                    <button class="sc-upsell-btn" type="button" data-upsell-add="${addVariantId}" data-upsell-key="${safeKey}" ${available ? "" : "disabled hidden"} style="${available ? "" : "display:none"}">
+                      <span class="sc-upsell-btn-icon">+</span>
+                      <span class="sc-upsell-btn-text">${safe(settings.buttonText)}</span>
+                    </button>
+                    <button class="sc-upsell-btn sc-upsell-btn-oos" type="button" disabled ${
+                      available ? "hidden" : ""
+                    } style="${available ? "display:none" : ""}">Sold out</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1029,8 +1271,24 @@
     const arrows =
       settings.showAsSlider && total > 0
         ? `
-          <button class="sc-upsell-arrow left" type="button" data-upsell-prev aria-label="Previous">‹</button>
-          <button class="sc-upsell-arrow right" type="button" data-upsell-next aria-label="Next">›</button>
+          <button class="sc-upsell-arrow left" type="button" data-upsell-prev aria-label="Previous">
+            <svg width="14" height="14" viewBox="0 0 256 256" xml:space="preserve">
+              <defs>
+              </defs>
+              <g style="stroke: none; stroke-width: 0; stroke-dasharray: none; stroke-linecap: butt; stroke-linejoin: miter; stroke-miterlimit: 10; fill: none; fill-rule: nonzero; opacity: 1;" transform="translate(1.4065934065934016 1.4065934065934016) scale(2.81 2.81)">
+                <path d="M 65.75 90 c 0.896 0 1.792 -0.342 2.475 -1.025 c 1.367 -1.366 1.367 -3.583 0 -4.949 L 29.2 45 L 68.225 5.975 c 1.367 -1.367 1.367 -3.583 0 -4.95 c -1.367 -1.366 -3.583 -1.366 -4.95 0 l -41.5 41.5 c -1.367 1.366 -1.367 3.583 0 4.949 l 41.5 41.5 C 63.958 89.658 64.854 90 65.75 90 z" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-linejoin: miter; stroke-miterlimit: 10; fill-rule: nonzero; opacity: 1;" transform=" matrix(1 0 0 1 0 0) " stroke-linecap="round"></path>
+              </g>
+            </svg>
+          </button>
+          <button class="sc-upsell-arrow right" type="button" data-upsell-next aria-label="Next">
+            <svg width="14" height="14" viewBox="0 0 256 256" xml:space="preserve">
+            <defs>
+            </defs>
+            <g style="stroke: none; stroke-width: 0; stroke-dasharray: none; stroke-linecap: butt; stroke-linejoin: miter; stroke-miterlimit: 10; fill: none; fill-rule: nonzero; opacity: 1;" transform="translate(1.4065934065934016 1.4065934065934016) scale(2.81 2.81)">
+              <path d="M 24.25 90 c -0.896 0 -1.792 -0.342 -2.475 -1.025 c -1.367 -1.366 -1.367 -3.583 0 -4.949 L 60.8 45 L 21.775 5.975 c -1.367 -1.367 -1.367 -3.583 0 -4.95 c 1.367 -1.366 3.583 -1.366 4.95 0 l 41.5 41.5 c 1.367 1.366 1.367 3.583 0 4.949 l -41.5 41.5 C 26.042 89.658 25.146 90 24.25 90 z" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-linejoin: miter; stroke-miterlimit: 10; fill-rule: nonzero; opacity: 1;" transform=" matrix(1 0 0 1 0 0) " stroke-linecap="round"></path>
+            </g>
+          </svg>
+          </button>
         `
         : "";
 
@@ -1113,6 +1371,7 @@
             throw new Error(`Upsell add failed (${res.status}) ${errText}`.trim());
           }
           await refreshFromNetwork();
+          schedulePostCartSync();
         } catch (err) {
           console.error("[SmartCartify] upsell add failed:", err);
         } finally {
@@ -1134,12 +1393,29 @@
           variants.find((v) => String(v?.[`option${optIndex + 1}`]) === String(val)) ||
           variants[0] ||
           null;
-        const btn = select.closest(".sc-upsell-item")?.querySelector("[data-upsell-add]");
-        if (btn) btn.setAttribute("data-upsell-add", safe(picked?.id || ""));
+        const itemRoot = select.closest(".sc-upsell-item");
+        const btn = itemRoot?.querySelector("[data-upsell-add]");
+        const oos = itemRoot?.querySelector(".sc-upsell-btn-oos");
+        const isAvailable = isVariantAvailable(picked, item);
+        if (btn) {
+          const nextId =
+            picked?.id ||
+            picked?.variantId ||
+            picked?.admin_graphql_api_id ||
+            "";
+          btn.setAttribute("data-upsell-add", isAvailable ? safe(nextId) : "");
+          btn.disabled = !isAvailable;
+          btn.hidden = !isAvailable;
+          btn.style.display = isAvailable ? "" : "none";
+        }
+        if (oos) {
+          oos.hidden = isAvailable;
+          oos.style.display = isAvailable ? "none" : "";
+        }
         const priceEl = select.closest(".sc-upsell-item")?.querySelector(".sc-upsell-price");
         if (priceEl && picked?.price != null) {
-          const nextPrice = formatMoney(Number(picked.price) || 0, CART?.currency || "INR");
-          priceEl.textContent = nextPrice;
+          const nextCents = priceToCentsFromItem(picked.price, item);
+          if (nextCents != null) priceEl.textContent = formatMoney(nextCents, CART?.currency || "INR");
         }
       });
     });
@@ -1597,48 +1873,7 @@
   };
 
   const showCenterCelebratePopup = (title, subtitle, ms = 5000) => {
-    drawer.querySelector(".sc-celebrate-backdrop")?.remove();
-
-    const back = document.createElement("div");
-    back.className = "sc-celebrate-backdrop";
-    back.innerHTML = `
-      <div class="sc-celebrate-modal" role="status" aria-live="polite">
-        <div class="sc-celebrate-h">${safe(title)}</div>
-        <div class="sc-celebrate-p">${safe(subtitle)}</div>
-      </div>
-    `;
-
-    drawer.appendChild(back);
-    requestAnimationFrame(() => back.classList.add("open"));
-
-    const setConfettiOriginFromModal = () => {
-      const modal = back.querySelector(".sc-celebrate-modal");
-      if (!modal) return;
-      const hostRect = drawer.getBoundingClientRect();
-      const rect = modal.getBoundingClientRect();
-      if (!hostRect.width || !hostRect.height) return;
-      const x = ((rect.left + rect.width / 2 - hostRect.left) / hostRect.width) * 100;
-      const y = rect.top + rect.height / 2 - hostRect.top;
-      drawer.dataset.scConfettiX = String(x);
-      drawer.dataset.scConfettiY = String(y);
-    };
-
-    const close = () => {
-      back.classList.remove("open");
-      setTimeout(() => back.remove(), 220);
-      delete drawer.dataset.scConfettiX;
-      delete drawer.dataset.scConfettiY;
-    };
-
-    back.addEventListener("click", (e) => {
-      const t = e.target;
-      if (!(t instanceof Element)) return;
-      if (t.classList.contains("sc-celebrate-backdrop")) close();
-    });
-
-    if (celebrateTimer) clearTimeout(celebrateTimer);
-    celebrateTimer = setTimeout(close, ms);
-    requestAnimationFrame(setConfettiOriginFromModal);
+    return false;
   };
 
   /* =========================================================
@@ -1646,13 +1881,65 @@
   ========================================================= */
   const setProgressLoading = (isLoading) => {
     drawer.classList.toggle("sc-refreshing", !!isLoading);
+    syncItemsLoading(!!isLoading);
+  };
+
+  const syncItemsLoading = (isLoading) => {
+    const itemsWrap = drawer.querySelector(".sc-items-list");
+    if (!itemsWrap) return;
+    const hasItems = !!itemsWrap.querySelector(".sc-item");
+    drawer.classList.toggle("sc-loading-items", !!isLoading && !hasItems);
   };
 
   /* =========================================================
    ✅ ANNOUNCEMENT BAR
   ========================================================= */
+  const copyTextToClipboard = async (text) => {
+    if (!text) return false;
+    if (navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {}
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "readonly");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return !!ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const showCopyFeedback = (el) => {
+    if (!el) return;
+    const original = el.getAttribute("data-sc-orig") || el.textContent || "";
+    if (!el.getAttribute("data-sc-orig")) {
+      el.setAttribute("data-sc-orig", original);
+    }
+    el.textContent = "Copied";
+    el.classList.add("sc-announce-copied");
+    if (el.__scCopyTimer) clearTimeout(el.__scCopyTimer);
+    el.__scCopyTimer = setTimeout(() => {
+      const back = el.getAttribute("data-sc-orig") || original;
+      el.textContent = back;
+      el.classList.remove("sc-announce-copied");
+    }, 1200);
+  };
+
   const setAnnouncementMessages = (arr) => {
-    ANNOUNCE_MESSAGES = (arr || []).map((x) => trimToNull(x)).filter(Boolean);
+    ANNOUNCE_MESSAGES = (arr || [])
+      .map((x) => stripCurrencySymbolIfCodePresent(trimToNull(x), CART?.currency))
+      .map((x) => trimToNull(x))
+      .filter(Boolean);
 
     const bar = drawer.querySelector("[data-sc-announce]");
     if (!bar) return;
@@ -1665,19 +1952,23 @@
 
     bar.hidden = false;
 
-    if (ANNOUNCE_MESSAGES.length === 1) {
-      bar.innerHTML = `
-        <div class="sc-announce-static" role="status" aria-live="polite">
-          <span class="sc-announce-static-text">${safe(
-        ANNOUNCE_MESSAGES[0]
-      )}</span>
-        </div>
-      `;
-      return;
-    }
+    const baseMessages =
+      ANNOUNCE_MESSAGES.length === 1
+        ? new Array(4).fill(ANNOUNCE_MESSAGES[0])
+        : ANNOUNCE_MESSAGES;
+    const renderAnnouncementHtml = (m) =>
+      safe(m)
+        .split(ANNOUNCE_EM_CODE_START)
+        .join('<span class="sc-announce-em sc-announce-value sc-announce-code" data-sc-copy="1">')
+        .split(ANNOUNCE_EM_VALUE_START)
+        .join('<span class="sc-announce-em sc-announce-value">')
+        .split(ANNOUNCE_EM_LABEL_START)
+        .join('<span class="sc-announce-em sc-announce-label">')
+        .split(ANNOUNCE_EM_END)
+        .join("</span>");
 
-    const snippet = ANNOUNCE_MESSAGES
-      .map((m) => `<span class="info-text">${safe(m)}</span>`)
+    const snippet = baseMessages
+      .map((m) => `<span class="info-text">${renderAnnouncementHtml(m)}</span>`)
       .join("");
 
     bar.innerHTML = `
@@ -1687,6 +1978,18 @@
         </div>
       </div>
     `;
+
+    if (!bar.__scCopyBound) {
+      bar.__scCopyBound = true;
+      bar.addEventListener("click", async (e) => {
+        const target = e.target?.closest?.("[data-sc-copy]");
+        if (!target) return;
+        const text = trimToNull(target.textContent);
+        if (!text) return;
+        const ok = await copyTextToClipboard(text);
+        if (ok) showCopyFeedback(target);
+      });
+    }
 
     if (DEBUG_TABLES) {
       console.groupCollapsed("[SC] Announcement Messages");
@@ -1715,54 +2018,342 @@
     return inAttr || inCartCodes;
   };
 
-  // ✅ FIX-1: Announcement MUST show even if ONLY one source exists.
-  // ✅ ALSO: Should work even if milestones steps are empty.
+  const getAppliedDiscountCodes = () => {
+    const out = [];
+    const attrs = CART?.attributes || {};
+    const attrCode = trimToNull(attrs?.discount_code || attrs?.discountCode || "");
+    if (attrCode) out.push(attrCode);
+    const cartCodes = Array.isArray(CART?.discount_codes) ? CART.discount_codes : [];
+    cartCodes.forEach((d) => {
+      const code = trimToNull(d?.code || d);
+      if (code) out.push(code);
+    });
+    const seen = new Set();
+    return out.filter((c) => {
+      const key = String(c).trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
   const refreshAnnouncementFromRules = () => {
+    // Ensure rule caches are populated even if progress UI didn't render
+    buildSteps();
+
     const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / 100) || 0;
     const msgs = [];
 
-    // (A) discountrule type="code"
-    (CODE_DISCOUNT_RULES || []).forEach((r) => {
+    const escapeRegExp = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const wrapEmLabel = (v) => {
+      const t = trimToNull(v);
+      if (!t) return "";
+      return `${ANNOUNCE_EM_LABEL_START}${t}${ANNOUNCE_EM_END}`;
+    };
+
+    const wrapEmValue = (v) => {
+      const t = trimToNull(v);
+      if (!t) return "";
+      return `${ANNOUNCE_EM_VALUE_START}${t}${ANNOUNCE_EM_END}`;
+    };
+
+    const wrapEmCode = (v) => {
+      const t = trimToNull(v);
+      if (!t) return "";
+      return `${ANNOUNCE_EM_CODE_START}${t}${ANNOUNCE_EM_END}`;
+    };
+
+    const emphasizeLabels = (text) => {
+      let out = String(text ?? "");
+      const labels = [
+        "Discount Code",
+        "Discount Value",
+        "Buy X Get Y Discount",
+        "Buy X Get Y",
+      ];
+      labels.forEach((label) => {
+        const re = new RegExp(escapeRegExp(label), "gi");
+        out = out.replace(re, wrapEmLabel(label));
+      });
+      return out;
+    };
+
+    const emphasizeValues = (text, values = [], wrap) => {
+      let out = String(text ?? "");
+      values.forEach((v) => {
+        const t = trimToNull(v);
+        if (!t) return;
+        const re = new RegExp(escapeRegExp(t), "gi");
+        out = out.replace(re, (match) => {
+          const wrapped = wrap ? wrap(match) : match;
+          return ` ${wrapped} `;
+        });
+      });
+      out = out.replace(/\s{2,}/g, " ").trim();
+      return out;
+    };
+
+    const padToken = (text, token) => {
+      const t = trimToNull(token);
+      if (!t) return text;
+      const re = new RegExp(escapeRegExp(t), "gi");
+      let out = String(text ?? "");
+      out = out.replace(re, (match) => ` ${match} `);
+      return out.replace(/\s{2,}/g, " ").trim();
+    };
+
+    const normalizeOffText = (text) => {
+      let out = String(text ?? "");
+      out = out.replace(/\boff\s*off\b/gi, (m) => m.slice(0, 3));
+      out = out.replace(/\boffoff\b/gi, (m) => m.slice(0, 3));
+      return out;
+    };
+
+    const replaceTokensRaw = (text, map) => {
+      let out = String(text ?? "");
+      if (!out) return "";
+      Object.keys(map || {}).forEach((k) => {
+        const val = map[k] == null ? "" : String(map[k]);
+        const re = new RegExp(`{{\\s*${k}\\s*}}`, "gi");
+        out = out.replace(re, val);
+      });
+      return out;
+    };
+
+    const replaceProgressTextRaw = ({
+      text,
+      type,
+      rule,
+      subtotalRupees,
+      useRemainingForGoal,
+    }) => {
+      const goalRupees = getGoalRupees(type, rule);
+      const goalCents =
+        goalRupees == null ? null : Math.max(0, Math.round(Number(goalRupees) * 100));
+      const remainingCents =
+        goalRupees == null
+          ? null
+          : Math.max(0, Math.round((Number(goalRupees) - (subtotalRupees || 0)) * 100));
+
+      const goalText = goalCents == null ? "" : formatMoney(goalCents, CART?.currency);
+      const remainingText =
+        remainingCents == null ? "" : formatMoney(remainingCents, CART?.currency);
+
+      const goalToken = useRemainingForGoal ? remainingText : goalText;
+
+      const discountValRaw =
+        type === "discount"
+          ? String(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "")
+          : "";
+
+      const makeWithOff = (v) => {
+        const s = String(v ?? "").trim();
+        if (!s) return "";
+        if (/off\b/i.test(s)) return s;
+        return `${s} OFF`;
+      };
+
+      const discountValWithOff =
+        type === "discount" ? makeWithOff(discountValRaw) : "";
+      const discountCode = String(
+        rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? ""
+      );
+
+      const xQty = String(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? "");
+      const yQty = String(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? "");
+
+      return replaceTokensRaw(text, {
+        goal: goalToken,
+        discount: discountValRaw,
+        discount_value: discountValRaw,
+        discount_value_with_off: discountValWithOff,
+        discount_code: discountCode,
+        x: xQty,
+        y: yQty,
+      });
+    };
+
+    // (A) Code discount rules (before: progressTextBelow, after: progressTextAfter)
+    const appliedCodes = getAppliedDiscountCodes();
+
+    const codeRules = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
+    codeRules.forEach((r) => {
       if (!isRuleEnabled(r)) return;
+      const ruleCodeRaw = String(
+        r?.discountCode ?? r?.discount_code ?? r?.code ?? ""
+      ).trim();
+      if (!ruleCodeRaw) return;
+      const ruleCode = ruleCodeRaw.toLowerCase();
+      const ruleApplied = appliedCodes.some(
+        (c) => String(c).trim().toLowerCase() === ruleCode
+      );
 
-      const code = trimToNull(r?.discountCode ?? r?.discount_code ?? r?.code ?? "");
-      const applied = code ? isDiscountAppliedInCart(code) : false;
-      const ruleType = trimToNull(r?.type ?? r?.ruleType ?? r?.rule_type ?? "").toLowerCase();
-      const isCodeRule = ruleType === "code";
+      const minPurchase = Number(r?.minPurchase ?? r?.min_purchase);
+      const hasMin = Number.isFinite(minPurchase) && minPurchase > 0;
+      const complete = !hasMin || subtotalRupees >= minPurchase;
 
-      const raw = applied ? getProgressAfter(r) : getProgressBefore(r);
-      const t = replaceProgressText({
-        text: raw,
+      const rawBelow = trimToNull(getProgressBelow(r));
+      const isGenericDiscount =
+        !!rawBelow && /^discount!?$/i.test(String(rawBelow).trim());
+      const rawBefore =
+        rawBelow && !isGenericDiscount
+          ? rawBelow
+          : trimToNull(getProgressBefore(r));
+      const rawAfter = trimToNull(getProgressAfter(r));
+      const fallbackBefore =
+        "Use code {{discount_code}} to get {{discount_value_with_off}}";
+      const fallbackAfter =
+        "Discount Code {{discount_code}} applied • Discount {{discount_value_with_off}}";
+
+      const useAfter = ruleApplied && complete;
+      const msgBaseRaw = replaceProgressTextRaw({
+        text: useAfter ? rawAfter || fallbackAfter : rawBefore || fallbackBefore,
         type: "discount",
         rule: r,
         subtotalRupees,
-        useRemainingForGoal: !applied && !isCodeRule,
+        useRemainingForGoal: !useAfter && hasMin && !complete,
       });
+      let msgBase = normalizeOffText(msgBaseRaw);
 
-      if (trimToNull(t)) msgs.push(t);
+      const discountValRaw = String(
+        r?.value ?? r?.discountValue ?? r?.discount_value ?? ""
+      ).trim();
+      const discountValWithOff =
+        discountValRaw && /off\b/i.test(discountValRaw)
+          ? discountValRaw
+          : discountValRaw
+          ? `${discountValRaw} OFF`
+          : "";
+      const discountValueForEm = discountValWithOff || discountValRaw;
+      const discountCode = ruleCodeRaw;
+
+      const hasCodeInMsg =
+        !!discountCode &&
+        new RegExp(escapeRegExp(discountCode), "i").test(msgBase);
+      const hasValueInMsg =
+        !!discountValueForEm &&
+        new RegExp(escapeRegExp(discountValueForEm), "i").test(msgBase);
+      if (discountCode && !hasCodeInMsg) {
+        msgBase = `${msgBase} Discount Code ${discountCode}`;
+      }
+      if (discountValueForEm && !hasValueInMsg) {
+        msgBase = `${msgBase} Discount Value ${discountValueForEm}`;
+      }
+      msgBase = msgBase.replace(/\s{2,}/g, " ").trim();
+
+      let msg = emphasizeValues(
+        msgBase,
+        [discountCode],
+        (v) => wrapEmCode(v)
+      );
+      msg = emphasizeValues(msg, [discountValueForEm], (v) => wrapEmValue(v));
+      msg = padToken(msg, discountCode);
+      msg = padToken(msg, discountValueForEm);
+      msg = emphasizeLabels(msg);
+      if (trimToNull(msg)) msgs.push(msg);
     });
 
     // (B) BXGY (discountrule)
     const bx = getBxgyStatus();
-    if (bx && trimToNull(bx.currentMsg)) msgs.push(bx.currentMsg);
+    if (bx?.rule) {
+      const r = bx.rule;
+      const minPurchase = Number(r?.minPurchase ?? r?.min_purchase);
+      const xQty = Number(r?.xQty ?? r?.x_qty ?? r?.x ?? r?.buyQty ?? r?.buy_qty ?? r?.buy);
+      const yQty = Number(r?.yQty ?? r?.y_qty ?? r?.y ?? r?.getQty ?? r?.get_qty ?? r?.get);
+      const hasMin = Number.isFinite(minPurchase) && minPurchase > 0;
+      const hasX = Number.isFinite(xQty) && xQty > 0;
+      const cartQty = getCartTotalQty();
+      const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - (cartQty || 0));
+
+      const beforeRaw =
+        r?.beforeOfferUnlockMessage ??
+        r?.beforeMessage ??
+        r?.before_message ??
+        "";
+      const afterRaw =
+        r?.afterOfferUnlockMessage ?? r?.afterMessage ?? r?.after_message ?? "";
+      const fallbackBefore = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
+      const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
+
+      const beforeMsg = replaceTokensRaw(beforeRaw || fallbackBefore, {
+        x: hasX ? remainingX : Number.isFinite(xQty) ? xQty : "",
+        y: Number.isFinite(yQty) ? yQty : "",
+        goal: "",
+      });
+      const afterMsg = replaceTokensRaw(afterRaw || fallbackAfter, {
+        x: Number.isFinite(xQty) ? xQty : "",
+        y: Number.isFinite(yQty) ? yQty : "",
+        goal: "",
+      });
+
+      const msgBase = replaceProgressTextRaw({
+        text: afterMsg,
+        type: "bxgy",
+        rule: r,
+        subtotalRupees,
+        useRemainingForGoal: false,
+      });
+
+      const values = [xQty, yQty];
+      let msg = emphasizeValues(msgBase, values, (v) => wrapEmValue(v));
+      values.forEach((v) => {
+        msg = padToken(msg, v);
+      });
+      msg = emphasizeLabels(msg);
+      if (trimToNull(msg)) msgs.push(msg);
+    }
 
     // (C) BuyXGetY (bxgyrule)
     const buyStatuses = getBuyXGetYStatuses();
     buyStatuses.forEach((st) => {
-      if (trimToNull(st.currentMsg)) msgs.push(st.currentMsg);
+      const r = st?.rule;
+      if (!r) return;
+      if (!st.complete) return;
+      const minPurchase = Number(r?.minPurchase ?? r?.min_purchase);
+      const hasMin = Number.isFinite(minPurchase) && minPurchase > 0;
+      const xQty = Number(st?.xQty ?? r?.xQty ?? r?.x_qty ?? r?.x);
+      const yQty = Number(st?.yQty ?? r?.yQty ?? r?.y_qty ?? r?.y);
+      const eligibleQty = Number(st?.eligibleQty ?? 0);
+      const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - eligibleQty);
+
+      const beforeRaw =
+        r?.beforeOfferUnlockMessage ??
+        r?.beforeMessage ??
+        r?.before_message ??
+        "";
+      const afterRaw =
+        r?.afterOfferUnlockMessage ?? r?.afterMessage ?? r?.after_message ?? "";
+      const fallbackBefore = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
+      const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
+
+      const beforeMsg = replaceTokensRaw(beforeRaw || fallbackBefore, {
+        x: Number.isFinite(xQty) ? remainingX : "",
+        y: Number.isFinite(yQty) ? yQty : "",
+        goal: "",
+      });
+      const afterMsg = replaceTokensRaw(afterRaw || fallbackAfter, {
+        x: Number.isFinite(xQty) ? xQty : "",
+        y: Number.isFinite(yQty) ? yQty : "",
+        goal: "",
+      });
+
+      const msgBase = replaceProgressTextRaw({
+        text: afterMsg,
+        type: "bxgy",
+        rule: r,
+        subtotalRupees,
+        useRemainingForGoal: false,
+      });
+
+      const values = [xQty, yQty];
+      let msg = emphasizeValues(msgBase, values, (v) => wrapEmValue(v));
+      values.forEach((v) => {
+        msg = padToken(msg, v);
+      });
+      msg = emphasizeLabels(msg);
+      if (trimToNull(msg)) msgs.push(msg);
     });
-
-    // (D) fallback from proxy (if any)
-    const proxyMsgs =
-      (Array.isArray(PROXY?.announcementMessages) ? PROXY.announcementMessages : null) ||
-      (Array.isArray(PROXY?.announcementBarMessages) ? PROXY.announcementBarMessages : null) ||
-      (Array.isArray(PROXY?.announcementBar?.messages) ? PROXY.announcementBar.messages : null) ||
-      [];
-
-    (proxyMsgs || [])
-      .map((x) => trimToNull(x))
-      .filter(Boolean)
-      .forEach((m) => msgs.push(m));
 
     // de-dup
     const unique = [];
@@ -1775,6 +2366,60 @@
       unique.push(m);
     }
 
+    if (!unique.length) {
+      const firstCodeRule = (CODE_DISCOUNT_RULES || []).find(
+        (r) =>
+          isRuleEnabled(r) &&
+          trimToNull(r?.discountCode ?? r?.discount_code ?? r?.code ?? "")
+      );
+      if (firstCodeRule) {
+        const code = trimToNull(
+          firstCodeRule?.discountCode ?? firstCodeRule?.discount_code ?? firstCodeRule?.code
+        );
+        const valRaw = trimToNull(
+          firstCodeRule?.value ??
+            firstCodeRule?.discountValue ??
+            firstCodeRule?.discount_value ??
+            ""
+        );
+        const valWithOff = valRaw
+          ? /off\b/i.test(valRaw)
+            ? valRaw
+            : `${valRaw} OFF`
+          : "";
+        const fallback = code
+          ? `Discount Code ${code}${valWithOff ? ` • ${valWithOff}` : ""}`
+          : "Discount Code available";
+        unique.push(fallback);
+      } else {
+        const firstBuyRule =
+          (BUYXGETY_RULES || []).find((r) => isRuleEnabled(r)) ||
+          (BXGY_RULES || []).find((r) => isRuleEnabled(r));
+        if (firstBuyRule) {
+          const x = trimToNull(
+            firstBuyRule?.xQty ??
+              firstBuyRule?.x_qty ??
+              firstBuyRule?.x ??
+              firstBuyRule?.buyQty ??
+              firstBuyRule?.buy_qty ??
+              firstBuyRule?.buy ??
+              ""
+          );
+          const y = trimToNull(
+            firstBuyRule?.yQty ??
+              firstBuyRule?.y_qty ??
+              firstBuyRule?.y ??
+              firstBuyRule?.getQty ??
+              firstBuyRule?.get_qty ??
+              firstBuyRule?.get ??
+              ""
+          );
+          const fallback = x && y ? `Buy X Get Y Discount: Buy ${x} get ${y}` : "Buy X Get Y Discount";
+          unique.push(fallback);
+        }
+      }
+    }
+
     setAnnouncementMessages(unique);
   };
 
@@ -1782,11 +2427,15 @@
     trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
 
   const findAppliedDiscountCodeRule = () => {
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    if (!manualCode) return null;
+    const manualLower = manualCode.toLowerCase();
     const list = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
     for (const rule of list) {
       if (!isRuleEnabled(rule)) continue;
       const code = getDiscountRuleCode(rule);
       if (!code) continue;
+      if (String(code).trim().toLowerCase() !== manualLower) continue;
       if (isDiscountAppliedInCart(code)) return { rule, code };
     }
     return null;
@@ -1799,6 +2448,15 @@
         clearPopupShown("discount", discountPopupShownForCode);
       }
       discountPopupShownForCode = null;
+      return false;
+    }
+
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    if (!manualCode) return false;
+    if (
+      String(manualCode).trim().toLowerCase() !==
+      String(applied.code).trim().toLowerCase()
+    ) {
       return false;
     }
 
@@ -1819,6 +2477,7 @@
     });
 
     openDrawer();
+    firePaperEffect(2800);
     showCenterCelebratePopup("Discount Applied ✅", txt || `Discount applied: ${applied.code}`, 5000);
     return true;
   };
@@ -1830,13 +2489,9 @@
     if (document.getElementById("smartcartify-drawer-v27-style")) return;
     const s = document.createElement("style");
     s.id = "smartcartify-drawer-v27-style";
-    s.textContent = `
-a:empty, ul:empty, dl:empty, div:empty, section:empty, article:empty,
-p:empty, h1:empty, h2:empty, h3:empty, h4:empty, h5:empty, h6:empty{display:block !important;}
-.sc-overlay, .sc-drawer, .sc-progress, .sc-milestone, .sc-track, .sc-fill, .sc-dots{display:block !important;}
+    s.textContent = `.sc-overlay, .sc-drawer, .sc-progress, .sc-milestone, .sc-track, .sc-fill, .sc-dots{display:block !important;}
 
 :root{
-  --sc-font: Inter,system-ui,sans-serif;
   --sc-base-font-size: 16px;
   --sc-heading-scale: 1.2;
   --sc-heading-font-size: calc(var(--sc-base-font-size) * var(--sc-heading-scale));
@@ -1845,25 +2500,25 @@ p:empty, h1:empty, h2:empty, h3:empty, h4:empty, h5:empty, h6:empty{display:bloc
   --sc-overlay-bg: rgba(0,0,0,.45);
 
   --sc-bg: transparent;
-  --sc-text: #ffffff;
+  --sc-text: #000000;
 
   --sc-border: rgba(229,231,235,1);
   --sc-muted: rgba(107,114,128,1);
 
   --sc-drawer-width: min(480px,92vw);
-  --sc-drawer-bg: transparent;
-  --sc-drawer-text-color: #111827;
-  --sc-drawer-header-color: #ffffff;
+  --sc-drawer-bg: #ffffff;
+  --sc-drawer-text-color: #000000;
+  --sc-drawer-header-color: #000000;
 
-  --sc-top-bg-color: transparent;
+  --sc-top-bg-color: #ffffff;
   --sc-top-bg-image: none;
   --sc-top-bg-color-effective: var(--sc-top-bg-color);
-  --sc-top-bg-image-effective: var(--sc-top-bg-image);
+  --sc-top-bg-image-effective: none;
 
   --sc-progress-bg: var(--sc-top-bg-color-effective);
   --sc-progress-text: var(--sc-text);
 
-  --sc-progress: #57c011;
+  --sc-progress: #000000;
   --sc-free-tag-color: var(--sc-progress);
   --sc-free-tag-font-size: var(--sc-small-font-size);
   --sc-stepcount:4;
@@ -1892,18 +2547,21 @@ p:empty, h1:empty, h2:empty, h3:empty, h4:empty, h5:empty, h6:empty{display:bloc
   --sc-input-text: #111827;
   --sc-input-placeholder: rgba(156,163,175,1);
 
-  --sc-apply-bg: rgba(255,255,255,1);
-  --sc-apply-text: #111827;
+  --sc-apply-bg: #000000;
+  --sc-apply-text: #ffffff;
   --sc-apply-border: rgba(17,24,39,.25);
 
   --sc-subtotal-bg: rgba(255,255,255,1);
   --sc-subtotal-text: #111827;
   --sc-subtotal-label: rgba(107,114,128,1);
 
-  --sc-checkout-bg: rgba(243,199,122,1);
-  --sc-checkout-text: #111827;
+  --sc-checkout-bg: #000000;
+  --sc-checkout-text: #ffffff;
+  --sc-announce-bg: var(--sc-checkout-bg);
+  --sc-announce-text: #ffffff;
   --sc-badge-bg: rgba(17,24,39,.1);
   --sc-badge-text: #111827;
+  --sc-icon-color: var(--sc-drawer-header-color);
 
   --sc-freegift-bg:var(--sc-drawer-bg);
   --sc-freegift-border: rgba(15,23,42,.08);
@@ -1922,7 +2580,8 @@ p:empty, h1:empty, h2:empty, h3:empty, h4:empty, h5:empty, h6:empty{display:bloc
 
   --sc-close-bg: transparent;
   --sc-close-border: var(--sc-border);
-  --sc-close-text: var(--sc-drawer-text-color);
+  --sc-close-text: #ffffff;
+  --sc-close-icon-color: #ffffff;
 }
 
 .sc-overlay{
@@ -1933,7 +2592,10 @@ p:empty, h1:empty, h2:empty, h3:empty, h4:empty, h5:empty, h6:empty{display:bloc
   pointer-events:none !important;
 }
 .sc-overlay.open{opacity:1;visibility:visible;pointer-events:auto !important}
-
+.sc-close svg path {
+    fill: var(--sc-icon-color) !important;
+    color: var(--sc-icon-color);
+}
 .sc-drawer{
   position:fixed;top:0;right:0;height:100%;
   width:var(--sc-drawer-width);
@@ -1947,13 +2609,18 @@ p:empty, h1:empty, h2:empty, h3:empty, h4:empty, h5:empty, h6:empty{display:bloc
   pointer-events:none !important;
   display:flex !important;
   flex-direction:column;
-  font-family:var(--sc-font);
+  font-family:system;
   font-size:var(--sc-base-font-size);
   color:var(--sc-drawer-text-color);
 }
 .sc-drawer.open{transform:translateX(0);pointer-events:auto !important}
-.sc-drawer *{box-sizing:border-box;pointer-events:auto !important}
+.sc-drawer *{box-sizing:border-box;pointer-events:auto !important;}
+  .sc-close svg {
+    fill: var(--sc-close-icon-color) !important;
+    color:var(--sc-close-icon-color);
+}
 
+    
 body.sc-cartify-open header,
 body.sc-cartify-open header-component,
 body.sc-cartify-open .shopify-section-group-header-group{
@@ -1977,15 +2644,46 @@ body.sc-cartify-open .shopify-section-group-header-group{
   background-repeat: no-repeat;
   backdrop-filter: blur(6px);
 }
+.sc-title-wrap{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.sc-title-icon{
+  width:30px;
+  height:30px;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  color:var(--sc-icon-color);
+  background:rgba(255,255,255,.12);
+  flex:0 0 auto;
+}
+.sc-title-icon svg{
+  width:18px;
+  height:18px;
+  display:block;
+  color:var(--sc-icon-color);
+}
 .sc-title{
   font-size:var(--sc-heading-font-size);
   font-weight:700;
   margin:0;
   color:var(--sc-drawer-header-color);
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  min-width:0;
+}
+.sc-title-count{
+  font-size:var(--sc-base-font-size);
+  font-weight:600;
+  opacity:.9;
 }
 .sc-close{
   width:36px;height:36px;border-radius:10px;
-  border:1px solid var(--sc-close-border);
+  border:unset;
   background:var(--sc-close-bg);
   cursor:pointer;font-size:var(--sc-button-font-size);line-height:1;
   color:var(--sc-close-text);
@@ -1993,13 +2691,11 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 /* Announcement */
 .sc-announce{
-  background-color: var(--sc-top-bg-color-effective);
-  background-image: var(--sc-top-bg-image-effective);
+  background: var(--sc-announce-bg);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   width:100%;
-  border-top: 1px solid var(--sc-item-border);
   padding: 0 15px;
 }
 .sc-announce-static{
@@ -2014,13 +2710,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   text-align:center;
   font-size:var(--sc-small-font-size);
   font-weight:700;
-  color: var(--sc-text);
+  color: var(--sc-announce-text);
 }
 .marquee-text{
   box-sizing:border-box;
   align-items:center;
   overflow:hidden;
-  background: var(--sc-top-bg-color-effective);
+  background:var(--sc-announce-bg);
 }
 .marquee-text .top-info-bar{
   font-size:var(--sc-small-font-size);
@@ -2036,10 +2732,21 @@ body.sc-cartify-open .shopify-section-group-header-group{
   align-items:center;
   justify-content:center;
   transition: all .2s ease;
-  color:var(--sc-drawer-text-color);
+  color:var(--sc-announce-text);
   font-size:var(--sc-base-font-size);
 }
-.marquee-text .top-info-bar .info-text a{color: var(--sc-text);text-decoration:none;}
+.marquee-text .top-info-bar .info-text .sc-announce-em{
+  font-weight:700;
+  font-size:calc(var(--sc-base-font-size) + 1px);
+}
+.marquee-text .top-info-bar .info-text .sc-announce-code{
+  cursor:pointer;
+  text-decoration:underline;
+}
+.marquee-text .top-info-bar .info-text .sc-announce-copied{
+  opacity:0.9;
+}
+.marquee-text .top-info-bar .info-text a{color: var(--sc-announce-text);text-decoration:none;}
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translate(-50%); } }
 
 /* Progress */
@@ -2056,7 +2763,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   min-height:22px;
   padding:0 12px;
   color: var(--sc-progress-text);
-  text-shadow: 0 1px 2px rgba(0,0,0,.35);
 }
 
 .sc-progress-loading{
@@ -2070,16 +2776,21 @@ body.sc-cartify-open .shopify-section-group-header-group{
   background:rgba(255,255,255,.75);animation:scLine .9s linear infinite;
 }
 @keyframes scLine{0%{left:-40%}100%{left:110%}}
+@keyframes scSpin{to{transform:rotate(360deg)}}
 
 .sc-milestone{width:var(--sc-milestone-width);margin:0 auto}
 .sc-track{position:relative;height:calc(var(--sc-dot) + 28px);}
 .sc-track::before{
-  content:"";position:absolute;left:0;right:0;
-  top:calc(var(--sc-dot) / 2);
-  height:var(--sc-track-h);
-  transform:translateY(-50%);
-  background:rgba(255,255,255,.25);
-  border-radius:999px;
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--sc-dot) / 2);
+    height: var(--sc-track-h);
+    transform: translateY(-50%);
+    background: var(--sc-progress);
+    border-radius: 999px;
+    opacity: .5;
 }
 .sc-fill{
   position:absolute;left:0;
@@ -2104,26 +2815,67 @@ body.sc-cartify-open .shopify-section-group-header-group{
   min-width:44px;
 }
 .sc-dot-wrap.last{transform:translateX(-70%);}
-
+.sc-dot-html svg{
+    height:16px !important;
+    width:18px !important;
+}
 .sc-dot-bubble{
-  width:var(--sc-dot);
-  height:var(--sc-dot);
+  width:30px;
+  height:30px;
   border-radius:999px;
-  background:#cbd5e1;
+  background:#ffffff;
   color:#111827;
   display:flex;
   align-items:center;
   justify-content:center;
   font-size:var(--sc-base-font-size);
-  border:3px solid rgba(0,0,0,.0);
+  border: 1px solid var(--sc-progress);
   transform:translateY(-50%);
 }
-.sc-dot-wrap.done .sc-dot-bubble{background:var(--sc-progress);color:#fff}
+.sc-dot-bubble .sc-dot-svg{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  line-height:0;
+}
+.sc-dot-bubble .sc-dot-svg svg{
+  width:18px;
+  height:18px;
+  display:block;
+  fill: var(--sc-progress);
+}
+ .sc-upsell-arrow svg g {
+    fill: var(--sc-icon-color) !important;
+}
+.sc-dot-bubble .sc-dot-html svg{
+  width:18px;
+  height:18px;
+  display:block;
+  fill: var(--sc-progress);
+}
+.sc-dot-bubble .sc-dot-html{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  line-height:0;
+}
+.sc-dot-bubble .sc-dot-html i{
+  font-size:16px;
+  line-height:1;
+  display:block;
+}
+.sc-dot-bubble .sc-dot-emoji{
+  line-height:1;
+}
+.sc-dot-wrap.done .sc-dot-bubble{background:var(--sc-progress);color:#111827}
+.sc-dot-wrap.done .sc-dot-bubble svg{
+  fill:#ffffff;
+}
 .sc-dot-wrap.active .sc-dot-bubble{background:#fff;color:#111827}
 
 .sc-dot-text{
   font-size:var(--sc-small-font-size);
-  color:#fff;
+  color:var(--sc-progress-text);
   text-align:center;
   line-height:1.1;
   max-width:92px;
@@ -2135,19 +2887,73 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-legends{display:none !important;}
 
 .sc-items{
+  position:relative;
   flex:1;
-  overflow:auto;
+  overflow:hidden;
   padding:0;
   backdrop-filter:blur(6px);
-  color:var(--sc-drawer-text-color);
-  background: transparent;
+  color:#000000;
+  background: #ffffff;
+  margin: 10px;
+  padding: 10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  scrollbar-width:none; /* Firefox */
+  -ms-overflow-style:none; /* IE/Edge legacy */
+  border:1px solid var(--sc-border);
+}
+
+.sc-items-list::-webkit-scrollbar{width:0;height:0;display:none;} /* Chrome/Safari */
+.sc-items-footer{
+  // display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:auto;
+}
+.sc-items-footer:empty{display:none !important;}
+.sc-items-loading{
+  position:absolute;
+  inset:0;
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  background:rgba(255,255,255,.88);
+  z-index:2;
+}
+.sc-loading-items .sc-items-loading{
+  display:flex;
+}
+.sc-items-spinner{
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  border:3px solid #e5e7eb;
+  border-top-color:var(--sc-progress);
+  animation:scSpin .8s linear infinite;
+}
+.sc-items-loading-text{
+  font-size:var(--sc-small-font-size);
+  color:#111827;
+  font-weight:600;
+}
+.sc-drawer.sc-empty-state .sc-announce,
+.sc-drawer.sc-empty-state .sc-progress,
+.sc-drawer.sc-empty-state .sc-items-footer,
+.sc-drawer.sc-empty-state .sc-footer{
+  display:none !important;
 }
 .sc-empty{
   margin:16px;padding:18px;
   border:1px dashed var(--sc-border);
   border-radius:var(--sc-radius);
   font-size: var(--sc-small-font-size);
-  color: var(--sc-drawer-text-color);
+  color: #000000;
   text-align:center;
 }
 .sc-empty svg{
@@ -2161,78 +2967,136 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 
 .sc-item{
-  display:flex;align-items:center;gap:12px;
+  position:relative;
+  display:grid;
+  grid-template-columns:52px minmax(0, 1fr) auto;
+  align-items:flex-start;
+  gap:12px;
   padding:14px 16px;
-  border:1px solid var(--sc-item-border);
-  margin:0;
+  border:0;
+  border-bottom:1px solid var(--sc-item-border);
   background: var(--sc-item-bg);
-  border-radius: 10px;
-  margin: 5px;
+  border-radius:0;
+}
+.sc-item:last-child{
+  border-bottom:none;
 }
 .sc-img{
-  width:52px;height:52px;border-radius:12px;
+  width:52px;height:52px;
   overflow:hidden;background:var(--sc-image-bg);
   flex:0 0 auto;
 }
 .sc-img img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
-.sc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;}
+.sc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding-right:18px;}
 .sc-name{
-  margin:0;font-size:var(--sc-base-font-size);font-weight:800;
-  color:var(--sc-drawer-text-color);
+  margin:0;
+  font-size:var(--sc-base-font-size);
+  font-weight:800;
+  color:#000000;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .sc-name a{color:inherit;text-decoration:none;}
 .sc-name a:hover{text-decoration:underline;}
-
-.sc-qty{display:inline-flex;align-items:center;gap:8px;}
-.sc-qty button{
-  width:34px;height:34px;border-radius:10px;
-  border:1px solid var(--sc-qty-btn-border);
-  background:var(--sc-qty-btn-bg);
-  cursor:pointer;font-size:var(--sc-button-font-size);line-height:1;
-  color:var(--sc-qty-btn-text);
+.sc-meta{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
 }
-.sc-qty input{
-  width:44px;height:34px;border-radius:10px;
-  border:1px solid var(--sc-qty-input-border);
+.sc-meta-line{
+  margin:0;
+  font-size:var(--sc-small-font-size);
+  color:#000000;
+  line-height:1.3;
+}
+.sc-progress-loading {
+    display: none !important;
+}
+.sc-qty{
+  display:inline-flex;
+  align-items:center;
+  overflow:hidden;
   background:var(--sc-qty-input-bg);
-  text-align:center;outline:none;font-weight:700;
-  color:var(--sc-qty-input-text);
 }
-.sc-pricebox{flex:0 0 auto;display:flex;align-items:flex-end;gap:8px;margin-left:6px;white-space:nowrap;}
-.sc-compare{font-size:var(--sc-small-font-size);color:#9ca3af;text-decoration:line-through;font-weight:700;display:none;}
-.sc-price{font-size:var(--sc-base-font-size);font-weight:900;color:var(--sc-drawer-text-color);}
-.sc-price.sc-price-free{color:var(--sc-drawer-text-color);}
+.sc-qty button{
+  width:34px;
+  height:30px;
+  border:1px solid #ddd;
+  background:var(--sc-qty-btn-bg);
+  cursor:pointer;
+  font-size:var(--sc-button-font-size);
+  line-height:1;
+  color:#000000;
+}
+.sc-qty button:hover{filter:brightness(0.96);}
+.sc-qty button:active{transform:scale(0.98);}
+.sc-qty input{
+  width:44px;
+  height:30px;
+  border:1px solid #ddd;
+  background:var(--sc-qty-input-bg);
+  text-align:center;
+  outline:none;
+  color:#000000;
+  border-left: 0;
+  border-right: 0;
+}
+}
+.sc-qty input[type="number"]{
+  appearance:textfield;
+  -moz-appearance:textfield;
+}
+.sc-qty input[type="number"]::-webkit-outer-spin-button,
+.sc-qty input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance:none;
+  margin:0;
+}
+.sc-pricebox{
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:4px;
+  margin-left:6px;
+  white-space:nowrap;
+  padding-top:28px;
+}
+.sc-compare{font-size:var(--sc-small-font-size);color:#9ca3af;text-decoration:line-through;font-weight:700;}
+.sc-price{font-size:var(--sc-base-font-size);font-weight:900;color:#000000;}
+.sc-price.sc-price-free{
+  color:#000000;}
 .sc-free-tag{
   display:inline-block;
   margin-left:6px;
   font-size:var(--sc-free-tag-font-size);
-  color:var(--sc-free-tag-color);
+  color:#000000;
+}
+.sc-free-tag-under{
+  margin-left:0;
+  margin-top:4px;
 }
 
 .sc-upsell{
-  padding: 0 10px 6px;
+  padding: 0px 12px;
+  order:2;
 }
 .sc-upsell-card{
-  border-radius: 10px;
-  border: 1px solid var(--sc-border);
-  background: var(--sc-upsell-bg, #f8fafc);
-  padding: 6px;
+  padding: 6px 4px;
 }
 .sc-upsell-title{
-  font-size: var(--sc-base-font-size);
+  font-size: 16px;
   font-weight: 700;
   text-align: center;
-  margin: 3px 0 6px;
+  margin: 4px 0 8px;
+  letter-spacing: 0.2px;
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
 }
 .sc-upsell-inner{
-  border-radius: 8px;
-  border: 1px solid var(--sc-border);
-  background: var(--sc-upsell-bg, #f8fafc);
-  padding: 6px 14px;
+  background: var(--sc-upsell-bg, #ffffff);
+  padding: 12px;
   position: relative;
   overflow: visible;
+  width: 100%;
+  margin: 0 auto;
 }
 .sc-upsell-viewport{
   overflow: hidden;
@@ -2240,7 +3104,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-upsell-track{
   display: flex;
   width: 100%;
-  transition: transform 700ms ease;
+  transition: transform 450ms ease;
   gap: 0;
 }
 .sc-upsell-item + .sc-upsell-item{
@@ -2252,26 +3116,25 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-upsell-row{
   display: grid;
-  grid-template-columns: 80px 1fr auto;
-  gap: 20px;
+  grid-template-columns: 72px 1fr auto;
+  gap: 14px;
   align-items: center;
 }
 .sc-upsell-info{
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 .sc-upsell-top{
   display: flex;
   gap: 10px;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
 }
 .sc-upsell-img{
-  width: 70px;
-  height: 70px;
-  border-radius: 8px;
-  background: #eef2f7;
+  width: 64px;
+  height: 64px;
+  background: #f1f5f9;
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -2282,7 +3145,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   object-fit: cover;
 }
 .sc-upsell-name{
-  font-weight: 600;
+  font-weight: 700;
   font-size: var(--sc-base-font-size);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   overflow: hidden;
@@ -2290,21 +3153,28 @@ body.sc-cartify-open .shopify-section-group-header-group{
   white-space: nowrap;
 }
 .sc-upsell-sub{
-  font-size: var(--sc-small-font-size);
+  font-size: 12px;
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
-  opacity: 0.75;
+  opacity: 0.8;
+  display: block;
+  text-transform: capitalize;
   display: none;
 }
 .sc-upsell-price{
-  font-weight: 600;
+  font-weight: 700;
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   white-space: nowrap;
 }
 .sc-upsell-controls{
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-top: 6px;
+  gap: 10px;
+}
+.sc-upsell-controls.no-variant{
+  grid-template-columns: auto;
+  justify-content: start;
 }
 .sc-upsell-select-wrap{
   position: relative;
@@ -2312,12 +3182,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-upsell-select{
   width: 100%;
   border: 1px solid var(--sc-border);
-  border-radius: 10px;
   padding: 6px 28px 6px 10px;
   font-size: var(--sc-small-font-size);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   background: #ffffff;
-  min-height: 30px;
+  min-height: 32px;
+  min-width: 120px;
   appearance: none;
 }
 .sc-upsell-select:focus{
@@ -2332,51 +3202,71 @@ body.sc-cartify-open .shopify-section-group-header-group{
   transform: translateY(-50%);
   color: var(--sc-upsell-arrow, #111827);
   pointer-events: none;
-  font-size: 12px;
+  font-size: 8px;
 }
 .sc-upsell-btn{
-  border-radius: 10px;
   background: var(--sc-upsell-button-bg, #111111);
   border: 1px solid var(--sc-border, #e2e8f0);
-  color: #ffffff;
-  padding: 4px 8px;
+  color: var(--sc-upsell-text, #ffffff);
+  padding: 6px 10px;
   font-size: 12px;
-  min-height: 30px;
+  min-height: 32px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
 }
+.sc-upsell-btn-icon{
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+}
+.sc-upsell-btn-oos{
+  border:1px solid #9ca3af;
+  background:#f3f4f6;
+  color:#6b7280;
+  font-weight:700;
+  text-transform:uppercase;
+}
+.sc-upsell-btn-oos[hidden]{display:none !important;}
 .sc-upsell-arrow{
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
-  border: 1px solid var(--sc-border);
+  border: unset;
   display: grid;
   place-items: center;
-  background: #ffffff;
   color: var(--sc-upsell-arrow, #111827);
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1;
+  box-shadow: unset;
   cursor: pointer;
   z-index: 2;
+  background:unset;
 }
-.sc-upsell-arrow.left{left: 6px;}
-.sc-upsell-arrow.right{right: 6px;}
+.sc-upsell-arrow:hover{
+  transform: translateY(-50%) scale(1.04);
+}
+.sc-upsell-arrow.left{left: -28px;}
+.sc-upsell-arrow.right{right: -28px;}
 
 /* remove icon */
 .sc-remove-x{
-  flex:0 0 auto;
+  position:absolute;
+  top:8px;
+  right:8px;
   width:34px;height:34px;
   border:none;background:transparent;
   cursor:pointer;
   font-size:var(--sc-button-font-size);
   line-height:1;
   display:flex;align-items:center;justify-content:center;
-  color: var(--sc-drawer-text-color);
+  color: #000000;
 }
 .sc-remove-x svg{
   width:16px;height:16px;
@@ -2390,31 +3280,119 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 /* Footer */
 .sc-footer{
-  border-top:1px solid var(--sc-border);
-  padding:12px;
+  padding:8px 12px 5px;
   display:flex;
   flex-direction:column;
   gap:10px;
   backdrop-filter:blur(6px);
   color:var(--sc-drawer-text-color);
   background: var(--sc-footer-bg);
+  position:sticky;
+  bottom:0;
+  z-index:8;
 }
-.sc-discount{display:flex;gap:10px;align-items:center;}
+.sc-footer .sc-footer-milestones{
+  margin:0 12px;
+}
+.sc-discount{display:none !important;gap:10px;align-items:center;margin-bottom: 5px;order:4;flex-wrap:wrap;padding: 0 15px;}
+.sc-refreshing .sc-discount,
+.sc-loading-items .sc-discount{display:none !important;}
 .sc-discount input{
-  flex:1;height:44px;border-radius:var(--sc-btn-radius);
-  border:1px solid var(--sc-input-border);
-  background:var(--sc-input-bg);
-  padding:0 14px;font-size:var(--sc-base-font-size);color:var(--sc-input-text);
+  flex:1;height:44px;
+  border: 1px solid #000000;
+  background:transparent;
+  padding:0 14px;font-size:var(--sc-base-font-size);
+  color:#000000;
+  box-shadow: unset !important;
+    outline: unset !important;
+    outline-offset: unset !important
 }
-.sc-discount input::placeholder{color:var(--sc-input-placeholder);}
+.sc-discount input::placeholder{color:#000000;}
 
 .sc-discount button{
-  min-width:110px;height:44px;border-radius:var(--sc-btn-radius);
+  min-width:110px;
+  height:44px;
   border:1px solid var(--sc-apply-border);
-  background:var(--sc-apply-bg);
-  color:var(--sc-apply-text);
-  font-weight:800;
+  background: var(--sc-checkout-bg);
+  color: var(--sc-checkout-text);
   cursor:pointer;
+  // border-radius: var(--sc-btn-radius);
+}
+.sc-discount-msg{
+  width:100%;
+  margin-top:4px;
+  font-size:var(--sc-small-font-size);
+  color:#b91c1c;
+  text-align:center;
+}
+.sc-discount-msg[hidden]{display:none !important;}
+
+
+.sc-footer-milestones:empty{display:none;}
+.sc-footer-milestones[hidden]{display:none !important;}
+.sc-foot-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+}
+
+.sc-foot-name{
+  margin:0;
+  font-size:var(--sc-base-font-size);
+  font-weight:700;
+  color:var(--sc-drawer-text-color);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.sc-foot-tag{
+  font-size:var(--sc-small-font-size);
+  border-radius:999px;
+  color:var(--sc-drawer-text-color);;
+  white-space:nowrap;
+}
+
+@media (max-width: 640px){
+  .sc-drawer{
+    width:100vw;
+  }
+  .sc-items{
+    margin:8px;
+    padding:8px;
+  }
+  .sc-footer{
+    padding:8px;
+  }
+  .sc-footer .sc-footer-milestones{
+    margin:0 8px;
+  }
+  .sc-foot-row{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+  .sc-foot-tag{
+    justify-self:end;
+  }
+  .sc-foot-amt{
+    justify-self:end;
+  }
+  .sc-discount{
+    padding:0 8px;
+  }
+}
+.sc-foot-amt{
+  font-size:var(--sc-base-font-size);
+  font-weight:800;
+  color:var(--sc-drawer-text-color);
+  white-space:nowrap;
+}
+.sc-foot-total{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  font-size:var(--sc-base-font-size);
+  color:var(--sc-drawer-text-color);
 }
 
 .sc-footer-row{display:flex;gap:10px;align-items:stretch;}
@@ -2439,18 +3417,21 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 
 .sc-checkout{
-  flex:1;border:none;border-radius:var(--sc-btn-radius);
+  flex:1;border:none;
   background:var(--sc-checkout-bg);
-  color:var(--sc-progress-text);
+  color:var(--sc-checkout-text);
   font-size:var(--sc-heading-font-size);
   cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   position:relative;min-height:56px;
+  font-weight:700;
 }
 .sc-badge{
   position:absolute;right:10px;top:50%;transform:translateY(-50%);
   background:var(--sc-badge-bg);
-  color:var(--sc-progress-text);
+  color:var(--sc-badge-text);
   border-radius:var(--sc-chip-radius);
   min-width:28px;height:28px;padding:0 10px;
   display:inline-flex;align-items:center;justify-content:center;
@@ -2617,6 +3598,27 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-celebrate-h{font-weight:900;color:var(--sc-progress-text);font-size:var(--sc-heading-font-size);line-height:1.2;}
 .sc-celebrate-p{margin-top:6px;color:var(--sc-drawer-text-color);font-size:var(--sc-base-font-size);line-height:1.35;}
+[data-smart-cartify-open]{
+  position:relative;
+}
+.sc-open-count{
+  position:absolute;
+  top: 0;
+  right: 0;
+  min-width: 20px;
+  height: 22px !important;
+  border-radius:999px;
+  padding:0 5px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  font-weight:700;
+  background:#000000;
+  color:#ffffff;
+  border:1px solid rgba(255,255,255,.75);
+  line-height:1;
+}
     `;
     document.head.appendChild(s);
   };
@@ -2625,9 +3627,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
   // ✅ Announcement bar between header and progress
   drawer.innerHTML = `
     <div class="sc-header">
-      <h3 class="sc-title">Your Cart</h3>
+      <div class="sc-title-wrap">
+        <span class="sc-title-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 6h15l-1.1 6.2a2 2 0 0 1-2 1.7H9.2A2 2 0 0 1 7.2 12L6 6Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M6 6H4M9 18a1 1 0 1 0 0 .01M18 18a1 1 0 1 0 0 .01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <h3 class="sc-title">Your Cart <span class="sc-title-count" data-cart-title-count>(0)</span></h3>
+      </div>
       <button class="sc-close" data-close type="button" aria-label="Close">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="#fff" stroke="#ffffff">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="#fff">
           <path fill-rule="fff" clip-rule="evenodd" d="M5.29289 5.29289C5.68342 4.90237 6.31658 4.90237 6.70711 5.29289L12 10.5858L17.2929 5.29289C17.6834 4.90237 18.3166 4.90237 18.7071 5.29289C19.0976 5.68342 19.0976 6.31658 18.7071 6.70711L13.4142 12L18.7071 17.2929C19.0976 17.6834 19.0976 18.3166 18.7071 18.7071C18.3166 19.0976 17.6834 19.0976 17.2929 18.7071L12 13.4142L6.70711 18.7071C6.31658 19.0976 5.68342 19.0976 5.29289 18.7071C4.90237 18.3166 4.90237 17.6834 5.29289 17.2929L10.5858 12L5.29289 6.70711C4.90237 6.31658 4.90237 5.68342 5.29289 5.29289Z" fill="#0F1729"/>
         </svg>
       </button>
@@ -2650,20 +3660,34 @@ body.sc-cartify-open .shopify-section-group-header-group{
     </div>
 
     <div class="sc-items">
-      <div class="sc-empty">Loading cart…</div>
-      <div class="sc-upsell" hidden></div>
+      <div class="sc-items-list">
+        <div class="sc-empty">Loading cart…</div>
+      </div>
+      <div class="sc-items-loading" aria-hidden="true">
+        <div class="sc-items-spinner"></div>
+        <div class="sc-items-loading-text">Loading cart…</div>
+      </div>
+      <div class="sc-items-footer">
+        <div class="sc-upsell" hidden></div>
+        <div class="sc-discount" data-discount-panel hidden>
+          <input
+            type="text"
+            data-discount-input
+            placeholder="Enter discount code"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button type="button" data-discount-apply>Apply</button>
+          <div class="sc-discount-msg" data-discount-msg hidden></div>
+        </div>
+      </div>
     </div>
 
     <div class="sc-footer">
+      <div class="sc-footer-milestones" data-footer-milestones hidden></div>
       <div class="sc-footer-row">
-        <div class="sc-subtotal-box">
-          <div class="sc-sub-label">Total</div>
-          <div class="sc-sub-value" data-subtotal>₹0</div>
-        </div>
-
         <button class="sc-checkout" data-checkout type="button">
           <span class="sc-checkout-label">Checkout</span>
-          <span class="sc-badge" data-count>0</span>
         </button>
       </div>
     </div>
@@ -2674,11 +3698,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   document.body.appendChild(drawer);
 
   function openDrawer() {
+    if (drawer.classList.contains("open")) return;
     overlay.classList.add("open");
     drawer.classList.add("open");
     overlay.setAttribute("aria-hidden", "false");
     document.documentElement.style.overflow = "hidden";
     document.body.classList.add("sc-cartify-open");
+    syncItemsLoading(drawer.classList.contains("sc-refreshing"));
     stopOpenButtonObserver();
   }
 
@@ -2709,6 +3735,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   const drawerDiscountPanel = drawer.querySelector("[data-discount-panel]");
   const discountInput = drawer.querySelector("[data-discount-input]");
   const discountButton = drawer.querySelector("[data-discount-apply]");
+  const discountMsg = drawer.querySelector("[data-discount-msg]");
 
   overlay.addEventListener("click", closeDrawer);
   $("[data-close]")?.addEventListener("click", closeDrawer);
@@ -2773,24 +3800,27 @@ body.sc-cartify-open .shopify-section-group-header-group{
     r.setProperty("--sc-small-font-size", `${smallFontSize}px`);
 
     const defaults = {
-      baseBg:
-        "linear-gradient(180deg, rgba(17,24,39,1) 0%, rgba(17,24,39,.92) 35%, rgba(255,255,255,1) 100%)",
-      topText: "#ffffff",
-      headerText: "#ffffff",
+      baseBg:"#ffffff",
+      topText: "#000000",
+      headerText: "#000000",
       drawerText: "#111827",
       border: "#e5e7eb",
       muted: "#6b7280",
-      progress: "#57c011",
-      checkoutBg: "#f3c77a",
-      checkoutText: "#111827",
-
-      footerBg: "var(--sc-drawer-bg)",
-      applyBtnBg: "#ffffff",
-      applyBtnText: "#111827",
+      progress: "#000000",
+      checkoutBg: "#000000",
+      checkoutText: "#ffffff",
+      announcementBarBackgroundColor: "#000000",
+      announcementBarTextColor: "#ffffff",
+      buttonLabelColor: "#ffffff",
+      iconColor: "#000000",
+      footerBg: "#ffffff",
+      applyBtnBg: "#000000",
+      applyBtnText: "#ffffff",
       applyBtnBorder: "rgba(17,24,39,.25)",
       subtotalBg: "#ffffff",
-      subtotalText: "#111827",
-      subtotalLabel: "#6b7280",
+      subtotalText: "#ffffff",
+      subtotalLabel: "#000000",
+      discountCodeApply: 0,
     };
 
     const mode = String(
@@ -2858,7 +3888,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
     const drawerWidth = normalizeLen(
       pick(style, ["cartDrawerWidth", "drawerWidth", "width"], null),
-      "min(450px,92vw)"
+      "min(470px,92vw)"
     );
     const milestoneWidth = pick(
       style,
@@ -2869,18 +3899,18 @@ body.sc-cartify-open .shopify-section-group-header-group{
     const dotSize = normalizeLen(pick(style, ["dotSize", "milestoneDot", "dot"], null), "28px");
     const trackH = normalizeLen(pick(style, ["trackHeight", "milestoneTrackHeight"], null), "8px");
 
-    const radius = pickNum(style, ["radius", "drawerRadius", "borderRadius"], 14);
+    const radius = pickNum(style, ["radius", "drawerRadius", "borderRadius"]);
     const btnRadius = pickNum(style, ["buttonRadius", "btnRadius"], 12);
 
     const overlayBg = pick(style, ["overlayBg", "overlay", "overlayBackground"], "rgba(0,0,0,.45)");
 
     const qtyBtnBg = pickColor(style, ["qtyBtnBg", "qtyButtonBg"], "#fff");
     const qtyBtnBorder = pickColor(style, ["qtyBtnBorder", "qtyButtonBorder"], borderColor);
-    const qtyBtnText = pickColor(style, ["qtyBtnText", "qtyButtonText"], "#111827");
+    const qtyBtnText = pickColor(style, ["qtyBtnText", "qtyButtonText"], drawerTextColor);
 
     const qtyInputBg = pickColor(style, ["qtyInputBg", "qtyFieldBg"], "#fff");
     const qtyInputBorder = pickColor(style, ["qtyInputBorder", "qtyFieldBorder"], borderColor);
-    const qtyInputText = pickColor(style, ["qtyInputText", "qtyFieldText"], "#111827");
+    const qtyInputText = pickColor(style, ["qtyInputText", "qtyFieldText"], drawerTextColor);
 
     const inputBg = pickColor(style, ["inputBg", "fieldBg", "discountInputBg"], "#fff");
     const inputBorder = pickColor(style, ["inputBorder", "fieldBorder", "discountInputBorder"], borderColor);
@@ -2892,14 +3922,45 @@ body.sc-cartify-open .shopify-section-group-header-group{
       ["buttonColor", "checkoutBg", "checkoutBackground", "buttonBg"],
       defaults.checkoutBg
     );
-    const checkoutText = pickColor(style, ["checkoutText", "checkoutTextColor", "buttonText"], defaults.checkoutText);
+    const checkoutText = pickColor(
+      style,
+      ["buttonLabelColor", "checkoutLabelColor", "checkoutText", "checkoutTextColor", "buttonText"],
+      defaults.buttonLabelColor
+    );
+
+    const announceBg = pickBackground(
+      style,
+      [
+        "announcementBarBackgroundColor",
+        "announcementBarBackground",
+        "announcementBarBg",
+        "announcementBackground",
+        "announceBg",
+      ],
+      defaults.announcementBarBackgroundColor
+    );
+    const announceText = pickColor(
+      style,
+      [
+        "announcementBarTextColor",
+        "announcementBarText",
+        "announcementTextColor",
+        "announcementText",
+      ],
+      defaults.announcementBarTextColor
+    );
+    const iconColor = pickColor(
+      style,
+      ["iconColor", "drawerIconColor", "cartIconColor", "headerIconColor"],
+      defaults.iconColor
+    );
 
     const badgeBg = pick(style, ["badgeBg", "countBadgeBg"], "rgba(17,24,39,.1)");
     const badgeText = pickColor(style, ["badgeText", "countBadgeText"], checkoutText);
 
     const closeBg = pick(style, ["closeBg", "closeButtonBg"], "transparent");
     const closeBorder = pickColor(style, ["closeBorder", "closeButtonBorder"], borderColor);
-    const closeText = pickColor(style, ["closeText", "closeButtonText"], drawerTextColor);
+    const closeText = pickColor(style, ["closeText", "closeButtonText"], "#ffffff");
 
     const footerBg = pickBackground(
       style,
@@ -2933,17 +3994,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
     const celebrateBadgeBg = pickBackground(
       style,
       ["celebrateBadgeBg", "popupBadgeBg", "congratsBadgeBg", "rewardPopupBadgeBg"],
-      "rgba(87,192,17,.14)"
+      "rgba(247, 249, 245, 0.91)"
     );
     const celebrateTitleColor = pickColor(
       style,
       ["celebrateTitleColor", "popupTitleColor", "congratsTitleColor", "rewardPopupTitleColor"],
-      "#111827"
+      "#000000"
     );
     const celebrateTextColor = pickColor(
       style,
       ["celebrateTextColor", "popupTextColor", "congratsTextColor", "rewardPopupTextColor"],
-      "#6b7280"
+      "#000000"
     );
     const celebrateTitleSize = normalizeLen(
       pick(style, ["celebrateTitleSize", "popupTitleSize", "congratsTitleSize"], null),
@@ -2994,12 +4055,16 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
     r.setProperty("--sc-checkout-bg", checkoutBg);
     r.setProperty("--sc-checkout-text", checkoutText);
+    r.setProperty("--sc-announce-bg", String(announceBg));
+    r.setProperty("--sc-announce-text", announceText);
+    r.setProperty("--sc-icon-color", iconColor);
     r.setProperty("--sc-badge-bg", String(badgeBg));
     r.setProperty("--sc-badge-text", badgeText);
 
     r.setProperty("--sc-close-bg", String(closeBg));
     r.setProperty("--sc-close-border", closeBorder);
     r.setProperty("--sc-close-text", closeText);
+    r.setProperty("--sc-close-icon-color", closeText);
 
     r.setProperty("--sc-footer-bg", String(footerBg));
     r.setProperty("--sc-apply-bg", applyBtnBg);
@@ -3042,53 +4107,267 @@ body.sc-cartify-open .shopify-section-group-header-group{
       r.setProperty("--sc-top-bg-color-effective", "transparent");
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
-      const drawerBg = pickBackground(style, ["drawerBg", "cartDrawerBodyBg", "bodyBg"], null);
-      r.setProperty("--sc-drawer-bg", drawerBg || (imgUrl ? imgUrl : "transparent"));
+      r.setProperty("--sc-drawer-bg", baseBg || (imgUrl ? imgUrl : "transparent"));
+    } else if (mode === "gradient") {
+      const gradientBg = /gradient\(/i.test(String(baseBg))
+        ? String(baseBg)
+        : `linear-gradient(180deg, ${String(baseBg)} 0%, ${String(baseBg)} 100%)`;
+
+      r.setProperty("--sc-top-bg-color", "transparent");
+      r.setProperty("--sc-top-bg-image", gradientBg);
+      r.setProperty("--sc-top-bg-color-effective", "transparent");
+      r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
+
+      r.setProperty("--sc-drawer-bg", gradientBg);
     } else {
-      const isGradient =
-        mode === "gradient" ? true : /gradient\(/i.test(String(baseBg));
+      const solidBg =
+        pickColor(style, ["cartDrawerBackground", "cartDrawerBg", "drawerTopBg", "topBg", "baseBg", "bg"], null) ||
+        getFirstColorFromBackground(baseBg) ||
+        "#111827";
 
-      if (isGradient) {
-        r.setProperty("--sc-top-bg-color", "transparent");
-        r.setProperty("--sc-top-bg-image", String(baseBg));
-        r.setProperty("--sc-top-bg-color-effective", "transparent");
-        r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
-      } else {
-        r.setProperty("--sc-top-bg-color", String(baseBg));
-        r.setProperty("--sc-top-bg-image", "none");
-        r.setProperty("--sc-top-bg-color-effective", "var(--sc-top-bg-color)");
-        r.setProperty("--sc-top-bg-image-effective", "none");
-      }
+      r.setProperty("--sc-top-bg-color", String(solidBg));
+      r.setProperty("--sc-top-bg-image", "none");
+      r.setProperty("--sc-top-bg-color-effective", "var(--sc-top-bg-color)");
+      r.setProperty("--sc-top-bg-image-effective", "none");
 
-      const drawerBg = pickBackground(style, ["drawerBg", "cartDrawerBodyBg", "bodyBg"], null);
-      r.setProperty(
-        "--sc-drawer-bg",
-        drawerBg ||
-        (isGradient
-          ? String(baseBg)
-          : `linear-gradient(180deg, ${String(baseBg)} 0%, #e4e3e3ff 85%)`)
-      );
+      r.setProperty("--sc-drawer-bg", String(solidBg));
+    }
+
+    DISCOUNT_PANEL_STYLE_ENABLED =
+      to01(pick(style, ["discountCodeApply"], defaults.discountCodeApply)) === 1;
+  };
+
+  const setDiscountMessage = (msg) => {
+    if (!discountMsg) return;
+    const text = trimToNull(msg);
+    if (!text) {
+      discountMsg.textContent = "";
+      discountMsg.hidden = true;
+      return;
+    }
+    discountMsg.textContent = text;
+    discountMsg.hidden = false;
+  };
+
+  const getCartSubtotalCents = () => {
+    const raw = Number(CART?.items_subtotal_price);
+    if (Number.isFinite(raw)) return Math.max(0, raw);
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    return items.reduce(
+      (sum, it) => sum + Math.max(0, Number(it?.final_line_price) || 0),
+      0
+    );
+  };
+
+  const findCodeDiscountRuleByCode = (code) => {
+    const needle = String(code || "").trim().toLowerCase();
+    if (!needle) return null;
+    const list = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
+    return (
+      list.find((r) => {
+        const c = String(r?.discountCode ?? r?.discount_code ?? r?.code ?? "")
+          .trim()
+          .toLowerCase();
+        return c && c === needle;
+      }) || null
+    );
+  };
+
+  const getAppliedDiscountRules = () => {
+    const list = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
+    const applied = [];
+    list.forEach((rule) => {
+      if (!isRuleEnabled(rule)) return;
+      const code = getDiscountRuleCode(rule);
+      if (!code) return;
+      if (isDiscountAppliedInCart(code)) applied.push({ rule, code });
+    });
+    return applied;
+  };
+
+  let DISCOUNT_REMOVE_IN_FLIGHT = false;
+  let LAST_AUTO_REMOVED_CODE = null;
+  let LAST_AUTO_REMOVED_AT = 0;
+
+  const clearDiscountCode = async (code) => {
+    const attempts = [
+      "/discount/clear?redirect=/cart",
+      "/discount/clear",
+    ];
+    for (const url of attempts) {
+      try {
+        const res = await fetch(url, { credentials: "same-origin", redirect: "follow" });
+        if (res && res.ok) return true;
+      } catch {}
+    }
+    try {
+      const attrs = CART?.attributes || {};
+      const target = String(code || "").toLowerCase();
+      const attributes = {};
+      Object.entries(attrs).forEach(([k, v]) => {
+        if (!k) return;
+        if (String(v || "").toLowerCase() === target) {
+          attributes[k] = "";
+        }
+      });
+      attributes.discount_code = "";
+      attributes.discountCode = "";
+      const r = await fetch("/cart/update.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ attributes }),
+      });
+      if (r && r.ok) return true;
+    } catch {}
+    return false;
+  };
+
+  let DISCOUNT_MANUAL_ENFORCE_IN_FLIGHT = false;
+  let LAST_MANUAL_REMOVED_CODE = null;
+  let LAST_MANUAL_REMOVED_AT = 0;
+
+  const maybeRemoveUnapprovedDiscountCodes = async () => {
+    if (DISCOUNT_MANUAL_ENFORCE_IN_FLIGHT) return;
+
+    const appliedCodes = getAppliedDiscountCodes();
+    if (!appliedCodes.length) {
+      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+      return;
+    }
+
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const manualLower = manualCode ? manualCode.toLowerCase() : null;
+    const hasManual =
+      !!manualLower &&
+      appliedCodes.some((c) => String(c).trim().toLowerCase() === manualLower);
+
+    if (hasManual) return;
+
+    const firstCode = appliedCodes[0];
+    if (
+      LAST_MANUAL_REMOVED_CODE &&
+      String(LAST_MANUAL_REMOVED_CODE).toLowerCase() === String(firstCode).toLowerCase() &&
+      Date.now() - LAST_MANUAL_REMOVED_AT < 5000
+    ) {
+      return;
+    }
+
+    DISCOUNT_MANUAL_ENFORCE_IN_FLIGHT = true;
+    try {
+      await clearDiscountCode(firstCode);
+      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+      await refreshFromNetwork();
+      setDiscountMessage("");
+      LAST_MANUAL_REMOVED_CODE = firstCode;
+      LAST_MANUAL_REMOVED_AT = Date.now();
+    } catch (err) {
+      console.error("[SmartCartify] manual discount enforcement failed:", err);
+    } finally {
+      DISCOUNT_MANUAL_ENFORCE_IN_FLIGHT = false;
     }
   };
 
-  const updateDiscountPanelVisibility = (enabled) => {
-    if (!drawerDiscountPanel) return;
-    drawerDiscountPanel.hidden = !enabled;
-    if (!enabled && discountInput) discountInput.value = "";
+  const maybeRemoveInvalidDiscountCodes = async () => {
+    if (DISCOUNT_REMOVE_IN_FLIGHT) return;
+    const appliedRules = getAppliedDiscountRules();
+    if (!appliedRules.length) return;
+    const subtotalCents = getCartSubtotalCents();
+    const currency = CART?.currency || "INR";
+
+    for (const { rule, code } of appliedRules) {
+      const minPurchase = Number(rule?.minPurchase ?? rule?.min_purchase);
+      const minCents =
+        Number.isFinite(minPurchase) && minPurchase > 0
+          ? Math.round(minPurchase * 100)
+          : null;
+      const meta = getDiscountRuleMeta(rule, subtotalCents);
+      const discountCents = meta ? meta.capped : null;
+      const minPurchaseFail = minCents != null && subtotalCents < minCents;
+      const discountAmountFail =
+        meta && !meta.isPercent && Number.isFinite(meta.cents) && meta.cents > subtotalCents;
+      if (!minPurchaseFail && !discountAmountFail) continue;
+
+      if (
+        LAST_AUTO_REMOVED_CODE &&
+        String(LAST_AUTO_REMOVED_CODE).toLowerCase() === String(code).toLowerCase() &&
+        Date.now() - LAST_AUTO_REMOVED_AT < 5000
+      ) {
+        return;
+      }
+
+      const requiredCents = minPurchaseFail
+        ? minCents
+        : discountAmountFail
+        ? meta?.cents ?? null
+        : null;
+      // Auto-removal should not show a transient warning on open.
+
+      DISCOUNT_REMOVE_IN_FLIGHT = true;
+      try {
+        await clearDiscountCode(code);
+        await refreshFromNetwork();
+        setDiscountMessage("");
+        LAST_AUTO_REMOVED_CODE = code;
+        LAST_AUTO_REMOVED_AT = Date.now();
+      } catch (err) {
+        console.error("[SmartCartify] auto remove discount failed:", err);
+      } finally {
+        DISCOUNT_REMOVE_IN_FLIGHT = false;
+      }
+      return;
+    }
   };
 
-  const applyDiscountCode = () => {
+  const updateDiscountPanelVisibility = (opts = {}) => {
+    if (!drawerDiscountPanel) return;
+    const isEmpty =
+      typeof opts.isEmpty === "boolean"
+        ? opts.isEmpty
+        : !Array.isArray(CART?.items) || CART.items.length === 0;
+    const enabled = DISCOUNT_PANEL_STYLE_ENABLED && !isEmpty;
+    drawerDiscountPanel.hidden = !enabled;
+    if (!enabled && discountInput) discountInput.value = "";
+    if (!enabled) setDiscountMessage("");
+  };
+
+  const applyDiscountCode = async () => {
     if (!discountInput || !drawerDiscountPanel || drawerDiscountPanel.hidden) return;
     const code = trimToNull(discountInput.value);
     if (!code) return;
 
-    try {
-      sessionStorage.setItem("__SC_LAST_APPLIED_CODE__", code);
-    } catch { }
+    setDiscountMessage("");
 
-    const currentPath = `${window.location.pathname}${window.location.search}` || "/";
-    const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent(currentPath)}`;
-    window.location.href = target;
+    const rule = findCodeDiscountRuleByCode(code);
+    const minPurchase = Number(rule?.minPurchase ?? rule?.min_purchase);
+    if (Number.isFinite(minPurchase) && minPurchase > 0) {
+      const subtotalCents = getCartSubtotalCents();
+      const subtotalRupees = subtotalCents / 100;
+      if (subtotalRupees < minPurchase) {
+        const minCents = Math.round(minPurchase * 100);
+        const remainingCents = Math.max(0, Math.round((minPurchase - subtotalRupees) * 100));
+        const minText = formatMoney(minCents, CART?.currency || "INR");
+        const remainingText = formatMoney(remainingCents, CART?.currency || "INR");
+        setDiscountMessage(`No. Minimum purchase is ${minText}. Add ${remainingText} more.`);
+        return;
+      }
+    }
+
+    const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart")}`;
+    if (discountButton) discountButton.disabled = true;
+    setProgressLoading(true);
+    try {
+      await fetch(target, { credentials: "same-origin", redirect: "follow" });
+      scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
+      scStore.set("__SC_LAST_APPLIED_CODE__", code);
+      await refreshFromNetwork();
+      renderAllFromCache();
+    } catch (err) {
+      console.error("[SmartCartify] discount apply failed:", err);
+    } finally {
+      setProgressLoading(false);
+      if (discountButton) discountButton.disabled = false;
+    }
   };
 
   const applyStyleSettings = (s) => {
@@ -3097,11 +4376,14 @@ body.sc-cartify-open .shopify-section-group-header-group{
     if (s?.milestoneWidth) r.setProperty("--sc-milestone-width", String(s.milestoneWidth));
 
     applyCartDrawerStyleSettings(s || {});
-    updateDiscountPanelVisibility(to01(s?.discountCodeApply) === 1);
+    updateDiscountPanelVisibility();
   };
 
   if (discountButton) discountButton.addEventListener("click", applyDiscountCode);
   if (discountInput) {
+    discountInput.addEventListener("input", () => {
+      setDiscountMessage("");
+    });
     discountInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -3111,8 +4393,20 @@ body.sc-cartify-open .shopify-section-group-header-group{
   }
 
   const renderFallback = (msg) => {
-    const items = $(".sc-items");
+    const items = $(".sc-items-list");
     if (items) items.innerHTML = `<div class="sc-empty">${safe(msg || "Loading…")}</div>`;
+    const footerMilestones = drawer.querySelector("[data-footer-milestones]");
+    if (footerMilestones) {
+      footerMilestones.hidden = true;
+      footerMilestones.innerHTML = "";
+    }
+
+    const upsell = drawer.querySelector(".sc-upsell");
+    if (upsell) {
+      upsell.hidden = true;
+      upsell.innerHTML = "";
+    }
+    clearUpsellTimer();
 
     const label = $(".sc-label");
     if (label) label.textContent = safe(msg || "Milestones unavailable");
@@ -3270,40 +4564,408 @@ body.sc-cartify-open .shopify-section-group-header-group{
     return steps;
   };
 
+  const getLineItemMetaLines = (item) => {
+    const lines = [];
+
+    const selectedOptions = Array.isArray(item?.selected_options)
+      ? item.selected_options
+      : [];
+    selectedOptions.forEach((opt) => {
+      const name = trimToNull(opt?.name);
+      const value = trimToNull(opt?.value);
+      if (!name || !value) return;
+      if (value.toLowerCase() === "default title") return;
+      lines.push(`${name}: ${value}`);
+    });
+
+    const optionsWithValues = Array.isArray(item?.options_with_values)
+      ? item.options_with_values
+      : [];
+    optionsWithValues.forEach((opt) => {
+      const name = trimToNull(opt?.name);
+      const value = trimToNull(opt?.value);
+      if (!name || !value) return;
+      if (value.toLowerCase() === "default title") return;
+      lines.push(`${name}: ${value}`);
+    });
+
+    if (!lines.length) {
+      const variantOptions = Array.isArray(item?.variant_options)
+        ? item.variant_options
+        : [];
+      const productOptions = Array.isArray(item?.product_options)
+        ? item.product_options
+        : [];
+      variantOptions.forEach((val, idx) => {
+        const value = trimToNull(val);
+        if (!value || value.toLowerCase() === "default title") return;
+        const name = trimToNull(productOptions[idx]) || `Option ${idx + 1}`;
+        lines.push(`${name}: ${value}`);
+      });
+    }
+
+    if (!lines.length) {
+      const variantTitle = trimToNull(item?.variant_title);
+      if (variantTitle && variantTitle.toLowerCase() !== "default title") {
+        variantTitle
+          .split("/")
+          .map((x) => trimToNull(x))
+          .filter(Boolean)
+          .forEach((x, idx) => {
+            lines.push(`Option ${idx + 1}: ${String(x)}`);
+          });
+      }
+    }
+
+    const sellingPlan =
+      trimToNull(item?.selling_plan_allocation?.selling_plan?.name) ||
+      trimToNull(item?.selling_plan_allocation?.name);
+    if (sellingPlan) lines.push(sellingPlan);
+
+    const props = item?.properties || {};
+    Object.entries(props).forEach(([key, value]) => {
+      const k = trimToNull(key);
+      const v = trimToNull(value);
+      if (!k || !v) return;
+      if (k.startsWith("_")) return;
+      lines.push(`${k}: ${v}`);
+    });
+
+    const out = [];
+    const seen = new Set();
+    lines.forEach((line) => {
+      const t = trimToNull(line);
+      if (!t) return;
+      const key = t.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(t);
+    });
+
+    return out.slice(0, 3);
+  };
+
+  const getFooterMilestoneTag = (type, rule) => {
+    if (type === "shipping") return "FREE SHIPPING";
+    if (type === "free") return "FREE PRODUCT";
+    if (type === "discount") {
+      const value = trimToNull(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "");
+      if (!value) return "ORDER OFF";
+      return /off\b/i.test(value) ? String(value).toUpperCase() : `${value} OFF`;
+    }
+    if (type === "code") {
+      const code = trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
+      return code ? `CODE ${code}` : "CODE DISCOUNT";
+    }
+    if (type === "bxgy" || type === "buyxgety") {
+      const x = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy);
+      const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
+      if (Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0) return `BUY ${x} GET ${y}`;
+      return "BUY X GET Y";
+    }
+    return "UNLOCKED";
+  };
+
+  const getDiscountTagLabel = (rule, kind) => {
+    const rawVal = trimToNull(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "");
+    const typeHint = String(
+      rule?.valueType ??
+      rule?.discountType ??
+      rule?.discount_type ??
+      rule?.amountType ??
+      rule?.rewardType ??
+      rule?.reward_type ??
+      ""
+    )
+      .trim()
+      .toLowerCase();
+    const num = Number(String(rawVal).replace(/[^0-9.]/g, ""));
+    const isPercent =
+      /%|percent|percentage|rate/.test(String(rawVal).toLowerCase()) ||
+      /percent|percentage|rate/.test(typeHint) ||
+      (!/fixed|flat|amount/.test(typeHint) && Number.isFinite(num) && num > 0 && num <= 100);
+    const percentText =
+      Number.isFinite(num) && num > 0 && isPercent ? `${num}% off` : "";
+    const code = trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
+    if (kind === "code") {
+      if (code) return `${code}${percentText ? ` (${percentText})` : ""}`;
+      return (
+        trimToNull(rule?.codeCampaignName) ||
+        (percentText ? `Code (${percentText})` : "Discount code")
+      );
+    }
+
+    const campaign =
+      trimToNull(rule?.campaignName) || trimToNull(rule?.cartStepName);
+    if (campaign) return percentText ? `${campaign} (${percentText})` : campaign;
+
+    if (rawVal) return /off\b/i.test(rawVal) ? `Auto ${rawVal}` : `Auto ${rawVal} off`;
+
+    return percentText ? `Auto ${percentText}` : "Automatic discount";
+  };
+
+  const getDiscountRuleMeta = (rule, subtotalCents) => {
+    const raw = trimToNull(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "");
+    if (!raw) return null;
+
+    const cleaned = String(raw).replace(/[^0-9.]/g, "");
+    const num = Number(cleaned);
+    if (!Number.isFinite(num) || num <= 0) return null;
+
+    const typeHint = String(
+      rule?.discountType ?? rule?.valueType ?? rule?.amountType ?? rule?.discount_type ?? ""
+    )
+      .trim()
+      .toLowerCase();
+    const hasPercentToken =
+      /%|percent|percentage/.test(String(raw).toLowerCase()) ||
+      /percent|percentage|rate/.test(typeHint);
+    const hasFixedToken = /fixed|flat|amount/.test(typeHint);
+    const isPercent = hasPercentToken || (!hasFixedToken && num <= 100);
+
+    const base = Math.max(0, Number(subtotalCents) || 0);
+    const cents = isPercent ? Math.round((base * num) / 100) : Math.round(num * 100);
+    const capped = Math.max(0, Math.min(cents, base));
+    return { isPercent, cents: Math.max(0, cents), capped };
+  };
+
+  const parseDiscountRuleCents = (rule, subtotalCents) => {
+    const meta = getDiscountRuleMeta(rule, subtotalCents);
+    return meta ? meta.capped : null;
+  };
+
+  const resolveCodeDiscountCents = (rule, subtotalCents) => {
+    const fromRule = parseDiscountRuleCents(rule, subtotalCents);
+    if (Number.isFinite(fromRule) && fromRule > 0) return fromRule;
+
+    const code = trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
+    const list = Array.isArray(CART?.discount_codes) ? CART.discount_codes : [];
+    const hit = list.find(
+      (d) =>
+        String(d?.code || d || "")
+          .trim()
+          .toLowerCase() === String(code || "").toLowerCase()
+    );
+    const n = Number(hit?.amount);
+    if (Number.isFinite(n) && n > 0) {
+      return Math.min(Math.round(n * 100), Math.max(0, Number(subtotalCents) || 0));
+    }
+    return null;
+  };
+
+  const renderFooterMilestones = ({ steps, subtotalCents, currency }) => {
+    const host = drawer.querySelector("[data-footer-milestones]");
+    if (!host) return;
+
+    const rows = [];
+
+    const autoDiscountCents = (Array.isArray(steps) ? steps : [])
+      .filter(
+        (step) =>
+          String(step?.type || "").toLowerCase() === "discount" &&
+          Number.isFinite(step?.unlockCents) &&
+          subtotalCents >= Number(step.unlockCents)
+      )
+      .reduce((sum, step) => {
+        const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
+        if (!Number.isFinite(discountCents) || discountCents <= 0) return sum;
+        return sum + discountCents;
+      }, 0);
+
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const manualLower = manualCode ? manualCode.toLowerCase() : null;
+    const hasManualAppliedCode =
+      !!manualLower &&
+      getAppliedDiscountCodes().some(
+        (c) => String(c).trim().toLowerCase() === manualLower
+      );
+
+    const appliedCode = findAppliedDiscountCodeRule();
+    if (appliedCode?.rule) {
+      const minPurchase = Number(
+        appliedCode.rule?.minPurchase ?? appliedCode.rule?.min_purchase
+      );
+      const minCents =
+        Number.isFinite(minPurchase) && minPurchase > 0
+          ? Math.round(minPurchase * 100)
+          : null;
+      const meta = getDiscountRuleMeta(appliedCode.rule, subtotalCents);
+      const minPurchaseFail = minCents != null && subtotalCents < minCents;
+      const discountAmountFail =
+        meta && !meta.isPercent && Number.isFinite(meta.cents) && meta.cents > subtotalCents;
+      if (!minPurchaseFail && !discountAmountFail) {
+        const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
+        rows.push({
+          key: `code:${getRuleKey(appliedCode.rule, "code")}`,
+          label: "Discounts",
+          tag: getDiscountTagLabel(appliedCode.rule, "code"),
+          amount:
+            Number.isFinite(codeDiscountCents) && codeDiscountCents > 0
+              ? `- ${formatMoney(codeDiscountCents, currency)}`
+              : "Applied",
+        });
+      }
+    }
+
+    const uniqueRows = [];
+    const seen = new Set();
+    rows.forEach((row) => {
+      const key = trimToNull(row?.key);
+      const tag = trimToNull(row?.tag);
+      if (!key || !tag || seen.has(key)) return;
+      seen.add(key);
+      uniqueRows.push({ ...row, tag });
+    });
+
+    const totalDiscountCents = hasManualAppliedCode
+      ? Math.max(
+          0,
+          Number(CART?.total_discount || 0) - Number(autoDiscountCents || 0)
+        )
+      : 0;
+
+    if (!uniqueRows.length && totalDiscountCents <= 0) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+
+    const rowsHtml = uniqueRows
+      .map(
+        (row) => `
+          <div class="sc-foot-row">
+            <p class="sc-foot-name">${safe(row.label || "")}</p>
+            <span class="sc-foot-tag">${safe(row.tag || "UNLOCKED")}</span>
+            <span class="sc-foot-amt">${safe(row.amount || "Unlocked")}</span>
+          </div>
+        `
+      )
+      .join("");
+
+    const totalHtml =
+      totalDiscountCents > 0
+        ? `
+          <div class="sc-foot-total">
+            <strong>Total discount</strong>
+            <strong>- ${safe(formatMoney(totalDiscountCents, currency))}</strong>
+          </div>
+        `
+        : "";
+
+    host.hidden = false;
+    host.innerHTML = `${rowsHtml}${totalHtml}`;
+  };
+
+  function syncOpenButtonBadge(countRaw) {
+    const count = Math.max(0, Number(countRaw) || 0);
+    document.querySelectorAll("[data-smart-cartify-open]").forEach((btn) => {
+      if (!(btn instanceof HTMLElement)) return;
+      let badge = btn.querySelector(".sc-open-count");
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "sc-open-count";
+        btn.appendChild(badge);
+      }
+      badge.textContent = String(count);
+      badge.hidden = count <= 0;
+      btn.setAttribute("aria-label", count > 0 ? `Cart (${count})` : "Cart");
+    });
+  }
+
   /* =========================================================
    ✅ RENDER CART (unchanged, BuyXGetY item will now appear due to auto-add)
   ========================================================= */
   function renderCart() {
-    const itemsWrap = $(".sc-items");
+    const itemsWrap = $(".sc-items-list");
     if (!itemsWrap) return;
 
     const items = Array.isArray(CART?.items) ? CART.items : [];
+    const stepsForFooter = buildSteps();
     console.log("[SmartCartify] cart items:", items);
     const currency = CART?.currency || "INR";
+    const checkoutLabelBase =
+      trimToNull(PROXY?.styleSettings?.checkoutButtonText) || "Checkout";
 
     const subtotalEl = $("[data-subtotal]");
-    const subtotalCents = items.reduce((sum, it) => {
+    const computedSubtotalCents = items.reduce((sum, it) => {
       const lineAmount = Number(it?.final_line_price) || 0;
       return sum + Math.max(0, lineAmount);
     }, 0);
+    const baseSubtotalCents = Number.isFinite(Number(CART?.items_subtotal_price))
+      ? Math.max(0, Number(CART.items_subtotal_price))
+      : computedSubtotalCents;
+    const rewardLineCents = items.reduce((sum, it) => {
+      const props = it?.properties || {};
+      const isFreeGift =
+        String(props?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
+      const isBxgyGift =
+        String(props?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
+      if (!isFreeGift && !isBxgyGift) return sum;
+      const lineAmount = Number(it?.final_line_price) || 0;
+      return sum + Math.max(0, lineAmount);
+    }, 0);
+    const subtotalCents = Math.max(0, baseSubtotalCents - rewardLineCents);
     if (subtotalEl) subtotalEl.textContent = formatMoney(subtotalCents, currency);
+    const appliedCodes = getAppliedDiscountCodes();
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const manualLower = manualCode ? manualCode.toLowerCase() : null;
+    const hasManualAppliedCode =
+      !!manualLower &&
+      appliedCodes.some((c) => String(c).trim().toLowerCase() === manualLower);
 
+    const totalDiscountCentsRaw = Math.max(0, Number(CART?.total_discount || 0));
+    const totalDiscountCents =
+      appliedCodes.length === 0
+        ? totalDiscountCentsRaw
+        : hasManualAppliedCode
+        ? totalDiscountCentsRaw
+        : 0;
+    const checkoutPayableCents = Math.max(0, subtotalCents - totalDiscountCents);
+    const checkoutLabelEl = drawer.querySelector(".sc-checkout-label");
+    if (checkoutLabelEl) {
+      checkoutLabelEl.textContent = `${checkoutLabelBase} - ${formatMoney(
+        checkoutPayableCents,
+        currency
+      )}`;
+    }
+
+    const itemCount = Math.max(0, Number(CART?.item_count || 0));
     const countEl = $("[data-count]");
-    if (countEl) countEl.textContent = String(CART?.item_count || 0);
+    if (countEl) countEl.textContent = String(itemCount);
+    const titleCountEl = drawer.querySelector("[data-cart-title-count]");
+    if (titleCountEl) titleCountEl.textContent = `(${itemCount})`;
+    syncOpenButtonBadge(itemCount);
+    renderFooterMilestones({
+      steps: stepsForFooter,
+      subtotalCents,
+      currency,
+    });
 
-    if (!items.length) {
+    const checkoutButton = drawer.querySelector("[data-checkout]");
+    const announceEl = drawer.querySelector("[data-sc-announce]");
+    const progressEl = drawer.querySelector(".sc-progress");
+    const itemsFooter = drawer.querySelector(".sc-items-footer");
+    const footerEl = drawer.querySelector(".sc-footer");
+    const isEmpty = !items.length;
+    updateDiscountPanelVisibility({ isEmpty });
+    if (checkoutButton) checkoutButton.hidden = isEmpty;
+    if (announceEl) announceEl.hidden = isEmpty;
+    if (progressEl) progressEl.hidden = isEmpty;
+    if (itemsFooter) itemsFooter.hidden = isEmpty;
+    if (footerEl) footerEl.hidden = isEmpty;
+    drawer.classList.toggle("sc-empty-state", isEmpty);
+
+    if (isEmpty) {
       itemsWrap.innerHTML = `<div class="sc-empty">
         <svg viewBox="0 0 255 255" fill="rgb(230,230,235)" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <path fill-rule="evenodd" clip-rule="evenodd" d="M13.6359 0C6.10501 0 0 6.10663 0 13.6395C0 21.1724 6.10501 27.2791 13.6359 27.2791H20.7503C28.3315 27.2791 34.7667 32.1872 37.0532 39H37.0444V148.047C37.0444 161.802 48.1927 172.953 61.9448 172.953H208.092C220.391 172.953 231.168 164.72 234.404 152.851L253.6 88.4363C260.387 63.5385 241.649 39 215.849 39H64.8815C62.1832 17.02 43.4539 0 20.7503 0H13.6359ZM116.139 227.5C116.139 242.688 103.588 255 88.1056 255C72.6231 255 60.072 242.688 60.072 227.5C60.072 212.312 72.6231 200 88.1056 200C103.588 200 116.139 212.312 116.139 227.5ZM186.724 255C201.93 255 214.257 242.688 214.257 227.5C214.257 212.312 201.93 200 186.724 200C171.518 200 159.191 212.312 159.191 227.5C159.191 242.688 171.518 255 186.724 255Z"></path>
         </svg>
         <div class="sc-empty-text">No items in the cart</div>
-      </div>
-      <div class="sc-upsell" hidden></div>`;
-      renderUpsellSection();
+      </div>`;
+      syncItemsLoading(drawer.classList.contains("sc-refreshing"));
       return;
     }
 
-    const existingUpsell = itemsWrap.querySelector(".sc-upsell");
     itemsWrap.innerHTML = items
       .map((it, idx) => {
         const line = idx + 1;
@@ -3317,17 +4979,39 @@ body.sc-cartify-open .shopify-section-group-header-group{
         const isBxgyGift = String(props?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
         const isReward = isFreeGift || isBxgyGift;
 
-        const compareUnit = Number(it.compare_at_price) || Number(it.original_price) || Number(it.price) || 0;
+        const unitPrice = Number(it.price) || 0;
+        const compareUnit = Number(it.compare_at_price) || 0;
         const compareLine = Math.max(0, compareUnit * qty);
-        const hasCompare = compareLine > 0 && !isReward;
+        const hasCompare = compareUnit > 0 && compareUnit > unitPrice && !isReward;
 
-        const displayPrice = isBxgyGift ? 0 : Math.max(0, finalLine);
+        const showPrice = !isReward;
+        const displayPrice = Math.max(
+          0,
+          Number(it.final_line_price) ||
+            Number(it.line_price) ||
+            (unitPrice * qty) ||
+            finalLine
+        );
         const priceText = formatMoney(displayPrice, currency);
         const priceClass = `sc-price${displayPrice === 0 ? " sc-price-free" : ""}`;
-        const freeTag = isReward ? `<span class="sc-free-tag">${isFreeGift ? "" : "Offer product"}</span>` : "";
+        const showFreeTag = isReward;
+        const freeTagText = isReward
+          ? isFreeGift
+            ? "Free product"
+            : "Offer product"
+          : "Free";
+        const freeTag = showFreeTag
+          ? `<span class="sc-free-tag sc-free-tag-under">${safe(freeTagText)}</span>`
+          : "";
 
         const productUrl = trimToNull(it.url) || null;
         const nameHtml = productUrl ? `<a href="${safe(productUrl)}">${safe(it.product_title)}</a>` : `${safe(it.product_title)}`;
+        const metaLines = getLineItemMetaLines(it);
+        const metaHtml = metaLines.length
+          ? `<div class="sc-meta">${metaLines
+              .map((line) => `<p class="sc-meta-line">${safe(line)}</p>`)
+              .join("")}</div>`
+          : "";
 
         return `
           <div class="sc-item" data-line="${line}">
@@ -3335,40 +5019,36 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
             <div class="sc-mid">
               <p class="sc-name" title="${safe(it.product_title)}">${nameHtml}</p>
+              ${metaHtml}
+              ${freeTag}
 
-              <div class="sc-qty">
-                <button type="button" data-qty="dec" aria-label="Decrease">−</button>
+              ${isReward
+                ? ""
+                : `<div class="sc-qty">
+                <button type="button" data-qty="dec" aria-label="Decrease">-</button>
                 <input type="number" min="0" inputmode="numeric" value="${qty}" data-qty="input" />
                 <button type="button" data-qty="inc" aria-label="Increase">+</button>
-              </div>
+              </div>`}
             </div>
 
             <div class="sc-pricebox">
-              ${hasCompare ? `<span class="sc-compare">${formatMoney(compareLine, currency)}</span>` : ``}
-              <span class="${priceClass}">${priceText}</span>
-              ${freeTag}
+              ${
+                hasCompare && showPrice
+                  ? `<span class="sc-compare">${formatMoney(compareLine, currency)}</span>`
+                  : ``
+              }
+              ${showPrice ? `<span class="${priceClass}">${priceText}</span>` : ``}
             </div>
 
             <button type="button" class="sc-remove-x" data-remove="1" aria-label="Remove">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                  d="M5.29289 5.29289C5.68342 4.90237 6.31658 4.90237 6.70711 5.29289L12 10.5858L17.2929 5.29289C17.6834 4.90237 18.3166 4.90237 18.7071 5.29289C19.0976 5.68342 19.0976 6.31658 18.7071 6.70711L13.4142 12L18.7071 17.2929C19.0976 17.6834 19.0976 18.3166 18.7071 18.7071C18.3166 19.0976 17.6834 19.0976 17.2929 18.7071L12 13.4142L6.70711 18.7071C6.31658 19.0976 5.68342 19.0976 5.29289 18.7071C4.90237 18.3166 4.90237 17.68342 5.29289 17.2929L10.5858 12L5.29289 6.70711C4.90237 6.31658 4.90237 5.29289 5.29289 5.29289Z"/>
-              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M11.5 8.25C11.9142 8.25 12.25 8.58579 12.25 9V13.25C12.25 13.6642 11.9142 14 11.5 14C11.0858 14 10.75 13.6642 10.75 13.25V9C10.75 8.58579 11.0858 8.25 11.5 8.25Z"></path><path d="M9.25 9C9.25 8.58579 8.91421 8.25 8.5 8.25C8.08579 8.25 7.75 8.58579 7.75 9V13.25C7.75 13.6642 8.08579 14 8.5 14C8.91421 14 9.25 13.6642 9.25 13.25V9Z"></path><path fill-rule="evenodd" clip-rule="evenodd" d="M7.24994 5.25C7.24994 3.73122 8.48116 2.5 9.99994 2.5C11.5187 2.5 12.7499 3.73122 12.7499 5.25H15.75C16.1642 5.25 16.5 5.58579 16.5 6C16.5 6.41421 16.1642 6.75 15.75 6.75H14.9999L14.9998 12.2001C14.9998 13.8802 14.9997 14.7203 14.6728 15.362C14.3851 15.9265 13.9262 16.3854 13.3617 16.673C12.72 17 11.8799 17 10.1997 17H9.79999C8.11978 17 7.27968 17 6.63793 16.673C6.07343 16.3854 5.61448 15.9264 5.32687 15.3619C4.99989 14.7202 4.9999 13.8801 4.99994 12.1999L5.00005 6.75H4.25C3.83579 6.75 3.5 6.41421 3.5 6C3.5 5.58579 3.83579 5.25 4.25 5.25H7.24994ZM8.74994 5.25C8.74994 4.55964 9.30958 4 9.99994 4C10.6903 4 11.2499 4.55964 11.2499 5.25H8.74994ZM6.50007 6.75H13.4999L13.4998 12.2001C13.4998 13.0649 13.4986 13.6233 13.4639 14.0483C13.4305 14.4558 13.374 14.6068 13.3362 14.681C13.1924 14.9632 12.963 15.1927 12.6807 15.3365C12.6065 15.3743 12.4555 15.4308 12.048 15.4641C11.623 15.4988 11.0646 15.5 10.1997 15.5H9.79999C8.93513 15.5 8.37671 15.4988 7.95169 15.4641C7.54418 15.4308 7.3931 15.3743 7.31893 15.3365C7.03668 15.1927 6.80721 14.9632 6.6634 14.681C6.62561 14.6068 6.56909 14.4557 6.53581 14.0482C6.50109 13.6232 6.49994 13.0648 6.49995 12.1999L6.50007 6.75Z"></path></svg>
             </button>
           </div>
         `;
       })
       .join("");
 
-    if (existingUpsell) {
-      itemsWrap.appendChild(existingUpsell);
-    } else {
-      const upsell = document.createElement("div");
-      upsell.className = "sc-upsell";
-      upsell.hidden = true;
-      itemsWrap.appendChild(upsell);
-    }
-
+    syncItemsLoading(drawer.classList.contains("sc-refreshing"));
     renderUpsellSection();
   }
 
@@ -3379,7 +5059,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   let rewardPopupTimer = null;
 
   const addRewardToCart = async ({ kind, rule, ruleKey, slot, variant, qty, markAutoAdded }) => {
-    const legacyId = getVariantLegacyId(variant);
+    const variantToAdd = await resolveRewardVariantForAdd(rule, variant);
+    const legacyId = getVariantLegacyId(variantToAdd);
     if (!legacyId) return false;
 
     const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
@@ -3395,14 +5076,14 @@ body.sc-cartify-open .shopify-section-group-header-group{
       if (kind === "free") {
         body.set(`properties[${FREE_GIFT_PROPERTY}]`, "true");
         if (slot) body.set(`properties[${FREE_GIFT_RULE_PROPERTY}]`, String(slot));
-        if (variant?.id) body.set(`properties[${FREE_GIFT_VARIANT_PROPERTY}]`, String(variant.id));
+        if (variantToAdd?.id) body.set(`properties[${FREE_GIFT_VARIANT_PROPERTY}]`, String(variantToAdd.id));
         const freeRuleKey = getRuleKey(rule, "free");
         if (freeRuleKey) body.set(`properties[${FREE_GIFT_RULE_KEY_PROPERTY}]`, freeRuleKey);
       } else {
         body.set(`properties[${BXGY_GIFT_PROPERTY}]`, "true");
         body.set(`properties[${BXGY_GIFT_KIND_PROPERTY}]`, String(kind || "bxgy"));
         if (ruleKey) body.set(`properties[${BXGY_GIFT_RULE_PROPERTY}]`, String(ruleKey));
-        if (variant?.id) body.set(`properties[${BXGY_GIFT_VARIANT_PROPERTY}]`, String(variant.id));
+        if (variantToAdd?.id) body.set(`properties[${BXGY_GIFT_VARIANT_PROPERTY}]`, String(variantToAdd.id));
       }
 
       const res = await fetch("/cart/add.js", {
@@ -3418,6 +5099,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
       invalidateCartCache();
       await refreshFromNetwork();
+      schedulePostCartSync();
       return true;
     } catch (err) {
       console.error("[SmartCartify] reward add failed:", err);
@@ -3447,13 +5129,112 @@ body.sc-cartify-open .shopify-section-group-header-group{
     return match ? match[1] : null;
   };
 
+  const normalizeProductNumericId = (rawId) => {
+    const raw = trimToNull(rawId);
+    if (!raw) return null;
+    if (/^\d+$/.test(raw)) return raw;
+    if (/^gid:\/\/shopify\/Product\/\d+$/i.test(raw)) return gidToId(raw);
+    return null;
+  };
+
+  const normalizeVariantGid = (rawId) => {
+    const raw = trimToNull(rawId);
+    if (!raw) return null;
+    if (/^gid:\/\/shopify\/ProductVariant\/\d+$/i.test(raw)) return raw;
+    if (/^\d+$/.test(raw)) return `gid://shopify/ProductVariant/${raw}`;
+    return null;
+  };
+
+  const rewardVariantByProductCache = new Map();
+  const resolveVariantFromProductId = async (rawProductId) => {
+    const productId = normalizeProductNumericId(rawProductId);
+    if (!productId) return null;
+
+    if (rewardVariantByProductCache.has(productId)) {
+      return rewardVariantByProductCache.get(productId);
+    }
+
+    try {
+      const res = await fetch(
+        `/products.json?ids=${encodeURIComponent(productId)}&limit=1`,
+        { headers: { Accept: "application/json" }, credentials: "same-origin" }
+      );
+      if (!res.ok) {
+        rewardVariantByProductCache.set(productId, null);
+        return null;
+      }
+
+      const payload = await res.json();
+      const product = Array.isArray(payload?.products) ? payload.products[0] : null;
+      const variants = Array.isArray(product?.variants) ? product.variants : [];
+      const firstVariant = variants[0] || null;
+      const legacyId = trimToNull(firstVariant?.id);
+      if (!legacyId) {
+        rewardVariantByProductCache.set(productId, null);
+        return null;
+      }
+
+      const imageUrl =
+        trimToNull(firstVariant?.featured_image?.src) ||
+        trimToNull(product?.image?.src) ||
+        "";
+
+      const resolved = {
+        id: `gid://shopify/ProductVariant/${legacyId}`,
+        legacyResourceId: String(legacyId),
+        productId,
+        image: imageUrl,
+        title: trimToNull(firstVariant?.title) || "",
+        product: {
+          title: trimToNull(product?.title) || "",
+          image: imageUrl,
+        },
+      };
+
+      rewardVariantByProductCache.set(productId, resolved);
+      return resolved;
+    } catch (err) {
+      console.error("[SmartCartify] product->variant resolve failed:", err);
+      rewardVariantByProductCache.set(productId, null);
+      return null;
+    }
+  };
+
+  const resolveRewardVariantForAdd = async (rule, variant) => {
+    if (getVariantLegacyId(variant)) return variant;
+    const productIdCandidate =
+      trimToNull(variant?.productId) ||
+      trimToNull(rule?.bonusProductId) ||
+      trimToNull(rule?.bonus) ||
+      null;
+    if (!productIdCandidate) return variant;
+    const resolved = await resolveVariantFromProductId(productIdCandidate);
+    return resolved || variant;
+  };
+
   const getRewardVariantFromRule = (kind, rule) => {
+    const fromBonusId = () => {
+      const raw = trimToNull(rule?.bonusProductId ?? rule?.bonus ?? null);
+      if (!raw) return null;
+      const variantGid = normalizeVariantGid(raw);
+      if (variantGid) {
+        return {
+          id: variantGid,
+          legacyResourceId: gidToId(variantGid),
+          productId: normalizeProductNumericId(raw),
+        };
+      }
+      const productId = normalizeProductNumericId(raw);
+      return productId ? { productId } : null;
+    };
+
     if (kind === "free") {
       return (
         rule?.bonusProductVariant ||
         rule?.freeProductVariant ||
         rule?.giftProductVariant ||
         rule?.rewardVariant ||
+        fromBonusId() ||
         null
       );
     }
@@ -3467,6 +5248,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
       rule?.variant ||
       rule?.productVariant ||
       rule?.freeVariant ||
+      fromBonusId() ||
       null
     );
   };
@@ -3603,8 +5385,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
     const variant = getRewardVariantFromRule(kind, rule);
     if (!variant) return false;
 
-    const legacyId = getVariantLegacyId(variant);
-    if (!legacyId) return false;
+    const canResolveByProductId =
+      !!normalizeProductNumericId(
+        trimToNull(variant?.productId) ||
+        trimToNull(rule?.bonusProductId) ||
+        trimToNull(rule?.bonus)
+      );
+    if (!getVariantLegacyId(variant) && !canResolveByProductId) return false;
 
     const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
 
@@ -4072,7 +5859,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     let labelText = trimToNull(nextPending?.progressTextBefore) || "";
     if (!labelText) {
       const allDone = !nextPending && doneCount >= numericThresholds.length;
-      labelText = allDone ? "All milestones unlocked 🎉" : "Milestones in progress";
+      labelText = allDone ? "🎉 Congrats! All rewards are unlocked!" : "Milestones in progress";
     }
     label.textContent = labelText || "Milestones in progress";
 
@@ -4149,6 +5936,24 @@ body.sc-cartify-open .shopify-section-group-header-group{
       if (!anyBuyCompletedNow) drawer.__sc_buy_completed_before = false;
     }
 
+    if (isDrawerOpen) {
+      const freeStepToAutoAdd = doneSteps.find((ss) => {
+        if (ss?.type !== "free") return false;
+        const slot = trimToNull(ss?.slot);
+        const ruleKey = getRuleKey(ss?.rule, "free");
+        return !cartHasRewardForKey("free", slot || ruleKey);
+      });
+
+      if (freeStepToAutoAdd?.rule) {
+        void autoAddRewardIfNeeded({
+          kind: "free",
+          rule: freeStepToAutoAdd.rule,
+          ruleKey: getRuleKey(freeStepToAutoAdd.rule, "free"),
+          slot: trimToNull(freeStepToAutoAdd.slot),
+        });
+      }
+    }
+
     const stepCompletedNow = !priming && doneCount > LAST_DONE;
     if (stepCompletedNow && !rewardPopupShown) {
       const newlyUnlocked = doneSteps[doneCount - 1];
@@ -4169,7 +5974,21 @@ body.sc-cartify-open .shopify-section-group-header-group{
       if (newlyUnlocked?.type === "free") {
         // avoid repeat after refresh by shown flag
         const slot = newlyUnlocked.slot;
-        if (!slot || canShowPopupFor("free", slot)) {
+        if (DISABLE_FREE_REWARD_POPUP) {
+          const ruleKey = getRuleKey(newlyUnlocked?.rule, "free");
+          const guardKey = slot || ruleKey;
+          if (guardKey) markPopupShown("free", guardKey);
+          if (newlyUnlocked?.rule) {
+            void autoAddRewardIfNeeded({
+              kind: "free",
+              rule: newlyUnlocked.rule,
+              ruleKey,
+              slot: trimToNull(slot),
+            });
+          }
+          firePaperEffect(2800);
+          popupShown = true;
+        } else if (!slot || canShowPopupFor("free", slot)) {
           popupShown = openRewardPopupFor({
             kind: "free",
             rule: newlyUnlocked.rule,
@@ -4207,20 +6026,23 @@ body.sc-cartify-open .shopify-section-group-header-group{
         const isDone = typeof ss.unlockCents === "number" ? subtotal >= ss.unlockCents : false;
         const isActive = !isDone && nextPending?.slot === ss.slot;
         const cls = isDone ? "done" : isActive ? "active" : "";
-        const icon = isDone ? ICONS.check : ss.icon;
+        const icon = ss.icon;
 
         const belowText = trimToNull(ss.progressTextBelow) || trimToNull(ss.title);
 
         return `
           <div class="sc-dot-wrap ${cls} ${isLast ? "last" : ""}"
-               style="left:${leftPct}%"
-               title="${safe(ss.title)}">
-            <div class="sc-dot-bubble">${safe(icon)}</div>
+               style="left:${leftPct}%">
+            <div class="sc-dot-bubble">${renderMilestoneIcon(icon)}</div>
             <div class="sc-dot-text">${safe(belowText)}</div>
           </div>
         `;
       })
       .join("");
+
+    if (window.lucide?.createIcons) {
+      window.lucide.createIcons();
+    }
 
     legends.innerHTML = "";
 
@@ -4242,12 +6064,16 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
   const renderAllFromCache = () => {
     if (!PROXY || !CART) return;
+    setDiscountMessage("");
     applyStyleSettings(PROXY?.styleSettings);
     renderCart();
     renderUpsellSection();
     renderProgress();
     refreshAnnouncementFromRules();
     maybeShowAppliedDiscountCodePopup();
+    void maybeRemoveInvalidDiscountCodes();
+    void maybeRemoveUnapprovedDiscountCodes();
+    LAST_CART_SIG = getCartSignature(CART);
   };
 
   /* =========================================================
@@ -4270,6 +6096,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
         proxyRes.status === "fulfilled"
           ? proxyRes.value
           : { ok: true, _proxyError: proxyRes.reason };
+
+      console.groupCollapsed("[SmartCartify] Proxy payload");
+      console.log(PROXY);
+      console.groupEnd();
 
       if (proxyRes.status !== "fulfilled") {
         console.warn(
@@ -4317,6 +6147,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
           })
           : `Discount applied: ${pendingDiscountCode}`;
 
+        firePaperEffect(2800);
         showCenterCelebratePopup("Discount Applied ✅", txt, 5000);
       }
     } catch (e) {
@@ -4354,6 +6185,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
       openDrawer();
       await refreshFromNetwork();
       renderAllFromCache();
+      schedulePostCartSync();
     } catch (e) {
       console.error("[SmartCartify] auto open failed:", e);
     }
@@ -4436,16 +6268,24 @@ body.sc-cartify-open .shopify-section-group-header-group{
     passiveRefreshTimer = setTimeout(async () => {
       passiveRefreshTimer = null;
       try {
-        setProgressLoading(true);
         CART = await fetchCart({ force: true });
         await enforceRewardValidity();
-        if (drawer.classList.contains("open")) renderAllFromCache();
+        if (drawer.classList.contains("open")) {
+          const nextSig = getCartSignature(CART);
+          if (nextSig !== LAST_CART_SIG) renderAllFromCache();
+        }
       } catch (err) {
         console.error("[SmartCartify] passive cart refresh failed:", err);
-      } finally {
-        if (drawer.classList.contains("open")) setProgressLoading(false);
       }
     }, Math.max(40, Number(delay) || 120));
+  };
+
+  const schedulePostCartSync = () => {
+    if (!drawer.classList.contains("open")) return;
+    schedulePassiveRefresh(120);
+    setTimeout(() => {
+      schedulePassiveRefresh(850);
+    }, 850);
   };
 
   /* =========================================================
@@ -4586,6 +6426,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
       bindQueued = false;
       ensureOpenButton();
       bindOpenButtons();
+      syncOpenButtonBadge(Number(CART?.item_count || 0));
     });
   }
 

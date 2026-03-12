@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "b55a28208623440fd6a8987892e4aec3"
-name = "SmartCartify"
+name = "CartLift: Cart Drawer & Upsell"
 application_url = "https://cartmilestone.smartreminder.in/"
 embedded = true
 
@@ -29,7 +29,7 @@ api_version = "2025-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_discounts,read_products,read_shipping,read_themes,write_discounts,write_price_rules,write_products,write_shipping,write_themes"
+scopes = "read_discounts,write_discounts,read_products,write_products,read_shipping,write_shipping,read_themes,write_themes,read_orders,write_orders"
 
 [auth]
 redirect_urls = [
@@ -45,3 +45,4 @@ url = "https://cartmilestone.smartreminder.in/proxy/smart"
 
 [pos]
 embedded = true
+

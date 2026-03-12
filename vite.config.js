@@ -46,7 +46,7 @@ export default defineConfig({
   },
 
   optimizeDeps: {
-    include: ["@shopify/app-bridge-react"],
+    
   },
 
   // Prevent duplicate contexts causing Polaris i18n errors

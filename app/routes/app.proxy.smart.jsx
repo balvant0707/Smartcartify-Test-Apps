@@ -122,15 +122,29 @@ const mapAdminProducts = (products = []) =>
   products.map((p) => {
     const image = p?.image?.src || (p?.images?.[0]?.src ?? null);
     const firstVariant = Array.isArray(p?.variants) ? p.variants[0] : null;
+    const options = Array.isArray(p?.options)
+      ? p.options.map((opt) => ({
+          name: opt?.name ?? "",
+          values: Array.isArray(opt?.values) ? opt.values : [],
+        }))
+      : [];
     return {
       id: p?.id ?? null,
       title: p?.title ?? "",
       image: image || null,
+      options,
+      has_only_default_variant: Boolean(p?.has_only_default_variant),
       variants: Array.isArray(p?.variants)
         ? p.variants.map((v) => ({
             id: v?.id ?? null,
+            admin_graphql_api_id: v?.admin_graphql_api_id ?? null,
             price: v?.price ?? null,
             title: v?.title ?? null,
+            option1: v?.option1 ?? null,
+            option2: v?.option2 ?? null,
+            option3: v?.option3 ?? null,
+            available: v?.available ?? null,
+            inventory_quantity: v?.inventory_quantity ?? null,
             variantOptions: buildVariantOptions(p, v),
           }))
         : [],
@@ -143,7 +157,7 @@ const mapAdminProducts = (products = []) =>
 const fetchBestSellingProducts = async (shopDomain, accessToken) => {
   if (!shopDomain || !accessToken) return [];
   try {
-    const endpoint = `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/products.json?limit=5&order=best-selling`;
+    const endpoint = `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/products.json?limit=10`;
     const res = await fetch(endpoint, {
       headers: {
         "Content-Type": "application/json",
@@ -232,7 +246,7 @@ const fetchCollectionsByIds = async (shopDomain, accessToken, ids = []) => {
 const fetchProductsForCollection = async (shopDomain, accessToken, collectionId) => {
   if (!shopDomain || !accessToken || !collectionId) return [];
   try {
-    const endpoint = `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/collections/${collectionId}/products.json?limit=5`;
+    const endpoint = `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/collections/${collectionId}/products.json?limit=250`;
     const res = await fetch(endpoint, {
       headers: {
         "Content-Type": "application/json",

@@ -127,50 +127,87 @@ const json = (data, init = {}) =>
     },
   });
 
-const gqlRequest = async (
-  session,
-  query,
-  variables = {},
-  authToken,
-  shopDomainOverride
-) => {
+// const gqlRequest = async (
+//   session,
+//   query,
+//   variables = {},
+//   authToken,
+//   shopDomainOverride
+// ) => {
+//   if (!GRAPHQL_ENDPOINT) {
+//     throw new Error(
+//       "Missing RULES_API_ENDPOINT/GRAPHQL_ENDPOINT for rules GraphQL calls"
+//     );
+//   }
+
+//   const token = authToken || GRAPHQL_TOKEN;
+//   const shopDomain = shopDomainOverride || session?.shop;
+//   const headers = {
+//     "Content-Type": "application/json",
+//   };
+
+//   if (token) {
+//     headers.Authorization = `Bearer ${token}`;
+//     headers["X-Shopify-Access-Token"] = token;
+//   }
+
+//   if (shopDomain) headers["X-Shopify-Shop-Domain"] = shopDomain;
+//   const res = await fetch(GRAPHQL_ENDPOINT, {
+//     method: "POST",
+//     headers,
+//     body: JSON.stringify({ query, variables }),
+//   });
+
+//   if (!res.ok) {
+//     const text = await res.text();
+//     throw new Error(
+//       `GraphQL request failed (${res.status}): ${text || res.statusText}`
+//     );
+//   }
+
+//   const payload = await res.json();
+//   if (payload.errors?.length) {
+//     throw new Error(payload.errors[0]?.message || "GraphQL error");
+//   }
+//   return payload.data || {};
+// };
+
+const gqlRequest = async (session, query, variables = {}, authToken, shopDomainOverride) => {
   if (!GRAPHQL_ENDPOINT) {
-    throw new Error(
-      "Missing RULES_API_ENDPOINT/GRAPHQL_ENDPOINT for rules GraphQL calls"
-    );
+    throw new Error("Missing RULES_API_ENDPOINT/GRAPHQL_ENDPOINT for rules GraphQL calls");
   }
 
   const token = authToken || GRAPHQL_TOKEN;
-  const shopDomain = shopDomainOverride || session?.shop;
-  const headers = {
-    "Content-Type": "application/json",
-  };
+  if (!token) throw new Error("Missing GraphQL token");
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-    headers["X-Shopify-Access-Token"] = token;
-  }
-
-  if (shopDomain) headers["X-Shopify-Shop-Domain"] = shopDomain;
   const res = await fetch(GRAPHQL_ENDPOINT, {
     method: "POST",
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": token,
+    },
     body: JSON.stringify({ query, variables }),
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(
-      `GraphQL request failed (${res.status}): ${text || res.statusText}`
-    );
+  const text = await res.text();
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    throw new Error(`Non-JSON response (${res.status}): ${text?.slice(0, 300)}`);
   }
 
-  const payload = await res.json();
+  if (!res.ok) {
+    throw new Error(`GraphQL request failed (${res.status}): ${payload?.errors?.[0]?.message || text}`);
+  }
+
   if (payload.errors?.length) {
     throw new Error(payload.errors[0]?.message || "GraphQL error");
   }
+
   return payload.data || {};
 };
+
 
 // Use formatCurrency for all currency display - supports shop currency
 const fmtINRPlain = (n, currency = "USD") => formatCurrency(n, currency);
@@ -493,13 +530,31 @@ const buildThemeFromStyles = (styles) => {
     ),
     cartDrawerTextColor: String(s.cartDrawerTextColor || "#111827"),
     cartDrawerHeaderColor: String(s.cartDrawerHeaderColor || "#111827"),
-    discountCodeApply: Boolean(Number(s.discountCodeApply ?? 1)),
+    discountCodeApply: Boolean(Number(s.discountCodeApply ?? 0)),
     cartDrawerImage: s.cartDrawerImage ? String(s.cartDrawerImage) : "",
     cartDrawerBackgroundMode: String(
       s.cartDrawerBackgroundMode || DEFAULT_STYLE_SETTINGS.cartDrawerBackgroundMode
     ).toLowerCase(),
     checkoutButtonText: String(
       (s.checkoutButtonText || "").trim() || "Checkout"
+    ),
+    announcementBarBackgroundColor: String(
+      s.announcementBarBackgroundColor ||
+      DEFAULT_STYLE_SETTINGS.announcementBarBackgroundColor ||
+      s.buttonColor ||
+      "#111827"
+    ),
+    announcementBarTextColor: String(
+      s.announcementBarTextColor ||
+      DEFAULT_STYLE_SETTINGS.announcementBarTextColor ||
+      s.cartDrawerTextColor ||
+      "#ffffff"
+    ),
+    buttonLabelColor: String(
+      s.buttonLabelColor || DEFAULT_STYLE_SETTINGS.buttonLabelColor || "#ffffff"
+    ),
+    iconColor: String(
+      s.iconColor || DEFAULT_STYLE_SETTINGS.iconColor || s.textColor || "#000000"
     ),
   };
 };
@@ -539,9 +594,11 @@ const composeRulesResponse = ({
   planId,
   planSelected,
   upsellSettings,
+  currencyCode,
 }) => ({
   ...payload,
   shop,
+  currencyCode: String(currencyCode || "USD").toUpperCase(),
   minAmountRule: seedMinAmountRule(minAmountRule),
   planId: planId || "free",
   planSelected: Boolean(planSelected),
@@ -566,7 +623,6 @@ const LOAD_RULES_QUERY = `
       iconChoice
       shopifyRateId
       shopifyMethodDefinitionId
-
     }
 
     discountRules(shop: $shop) {
@@ -637,6 +693,10 @@ const LOAD_RULES_QUERY = `
       cartDrawerBackgroundMode
       cartDrawerImage
       checkoutButtonText
+      announcementBarBackgroundColor
+      announcementBarTextColor
+      buttonLabelColor
+      iconColor
     }
   }
 `;
@@ -770,7 +830,7 @@ const createDefaultShippingRule = () => ({
   progressTextBefore: DEFAULT_STYLE_SETTINGS.progressTextBefore,
   progressTextAfter: DEFAULT_STYLE_SETTINGS.progressTextAfter,
   progressTextBelow: DEFAULT_STYLE_SETTINGS.progressTextBelow,
-  campaignName: "",
+  campaignName: "Free Shipping",
   cartStepName: "",
 });
 
@@ -798,7 +858,8 @@ const createDefaultDiscountRule = (overrides = {}) => {
     progressTextBelow:
       overrides.progressTextBelow ?? contentDefaults.progressTextBelow,
     campaignName: "Automatic Discount",
-    codeCampaignName: "",
+    codeCampaignName:
+      normalizedType === "code" ? "Code Discount" : "",
     cartStepName: "",
     ...overrides,
   };
@@ -886,26 +947,31 @@ const CONTENT_SETTINGS_ICON = () => (
   </svg>
 );
 
-const DEFAULT_DISCOUNT_CODE = "Samrt123";
+const DEFAULT_DISCOUNT_CODE = "Smart123";
 
 const DEFAULT_STYLE_SETTINGS = {
   font: "inter",
   base: "12",
   headingScale: "1.25",
-  radius: "12",
-  textColor: "#ffffff",
-  bg: "#74590f",
+  radius: "0",
+  textColor: "#000000",
+  bg: "#ffffff",
   progress: "#000000",
-  buttonColor: "#74590f",
+  buttonColor: "#000000",
   borderColor: "#E1E5ED",
-  cartDrawerBackground: "linear-gradient(180deg, #74590f 0%, #2d1f06 100%)",
-  cartDrawerTextColor: "#ffffff",
-  cartDrawerHeaderColor: "#ffffff",
+  cartDrawerBackground: "linear-gradient(180deg, #ffffff 0%, #fffffff 100%)",
+  cartDrawerTextColor: "#000000",
+  cartDrawerHeaderColor: "#000000",
   discountCodeApply: false,
-  cartDrawerBackgroundMode: "gradient",
+  cartDrawerBackgroundMode: "color",
   cartDrawerImage: "",
+  progressTextBefore: "Add {{goal}} more to get Free Shipping with this order",
   progressTextAfter: "🎉 Congratulations! You have unlocked Free Shipping!",
   checkoutButtonText: "Checkout",
+  announcementBarBackgroundColor: "#000000",
+  announcementBarTextColor: "#ffffff",
+  buttonLabelColor: "#ffffff",
+  iconColor: "#000000",
 };
 
 const DEFAULT_UPSELL_SETTINGS = {
@@ -915,7 +981,7 @@ const DEFAULT_UPSELL_SETTINGS = {
   recommendationMode: "auto",
   sectionTitle: "You may also like",
   buttonText: "Add to cart",
-  buttonColor: "#111111",
+  buttonColor: "#ffffff",
   backgroundColor: "#F8FAFC",
   textColor: "#0F172A",
   borderColor: "#E2E8F0",
@@ -933,7 +999,7 @@ const DEFAULT_PROGRESS_TEXT = {
 const DEFAULT_AUTO_DISCOUNT_CONTENT_TEXT = {
   progressTextBefore: "Add {{goal}} more to unlock {{discount_value_with_off}} Discount!",
   progressTextAfter: "🎉 Congratulations! {{discount_value}} off Discount!",
-  progressTextBelow: "Discount!",
+  progressTextBelow: "{{discount_value}} off Discount!",
 };
 
 const DEFAULT_CODE_DISCOUNT_CONTENT_TEXT = {
@@ -1010,6 +1076,31 @@ const DISCOUNT_SLIDE_ANIMATION = `
   }
 `;
 
+const ANNOUNCEMENT_MARQUEE_ANIMATION = `
+  @keyframes previewMarqueeSlide {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .preview-marquee {
+    overflow: hidden;
+  }
+  .preview-marquee-track {
+    display: flex;
+    width: 200%;
+    animation: previewMarqueeSlide 18s linear infinite;
+  }
+  .preview-marquee-track:hover {
+    animation-play-state: paused;
+  }
+  .preview-marquee-item {
+    padding: 8px 26px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 600;
+  }
+`;
+
 const UPSELL_CAROUSEL_ANIMATION = `
   @keyframes upsellCarouselSlide {
     0%, 45% { transform: translateX(0); }
@@ -1046,6 +1137,43 @@ const parseJsonArray = (value) => {
   }
 };
 
+const parseAppliesToValue = (value) => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return {
+      products: normalizeIds(value.products),
+      collections: normalizeIds(value.collections),
+    };
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return {
+          products: normalizeIds(parsed.products),
+          collections: normalizeIds(parsed.collections),
+        };
+      }
+    } catch {
+      // ignore invalid JSON and fall back to empty lists
+    }
+  }
+
+  return { products: [], collections: [] };
+};
+
+const normalizeBxgyAppliesTo = (rule = {}) => {
+  const parsed = parseAppliesToValue(rule.appliesTo);
+  const fallbackProducts = parseJsonArray(rule.appliesProductIds);
+  const fallbackCollections = parseJsonArray(rule.appliesCollectionIds);
+  return {
+    products: parsed.products.length ? parsed.products : fallbackProducts,
+    collections: parsed.collections.length
+      ? parsed.collections
+      : fallbackCollections,
+  };
+};
+
 const normalizeShippingRuleForKey = (rule = {}) => ({
   enabled: Boolean(rule.enabled),
   rewardType: rule.rewardType || "free",
@@ -1074,11 +1202,9 @@ const normalizeDiscountRuleForKey = (rule = {}) => ({
   iconChoice: rule.iconChoice || "tag",
   shopifyDiscountCodeId: rule.shopifyDiscountCodeId || null,
   scope: rule.scope || "all",
-  appliesTo: {
-    products: normalizeIds(rule.appliesTo?.products),
-    collections: normalizeIds(rule.appliesTo?.collections),
-  },
+  appliesTo: parseAppliesToValue(rule.appliesTo),
   discountCode: rule.discountCode || "",
+  codeCampaignName: rule.codeCampaignName || "",
   progressTextBefore: rule.progressTextBefore ?? "",
   progressTextAfter: rule.progressTextAfter ?? "",
   progressTextBelow: rule.progressTextBelow ?? "",
@@ -1123,14 +1249,7 @@ const normalizeBxgyRuleForKey = (rule = {}) => ({
   xQty: rule.xQty ?? "1",
   yQty: rule.yQty ?? "1",
   scope: rule.appliesStore ? "store" : rule.scope || "product",
-  appliesTo: {
-    products: normalizeIds(
-      rule.appliesTo?.products ?? rule.appliesProductIds ?? []
-    ),
-    collections: normalizeIds(
-      rule.appliesTo?.collections ?? rule.appliesCollectionIds ?? []
-    ),
-  },
+  appliesTo: normalizeBxgyAppliesTo(rule),
 
   giftType: rule.giftType || "same",
   giftSku: rule.giftSku ?? "",
@@ -1188,7 +1307,7 @@ const buildRulesPayload = (data = {}) => {
           rule.progressTextAfter ?? DEFAULT_STYLE_SETTINGS.progressTextAfter,
         progressTextBelow:
           rule.progressTextBelow ?? DEFAULT_STYLE_SETTINGS.progressTextBelow,
-        campaignName: rule.campaignName || "",
+        campaignName: rule.campaignName || "Free Shipping",
         cartStepName: rule.cartStepName || "",
         shopifyRateId: normalizeShopifyRateId(rule.shopifyRateId),
         shopifyMethodDefinitionId: normalizeShopifyRateId(
@@ -1217,12 +1336,7 @@ const buildRulesPayload = (data = {}) => {
           minPurchase: rule.minPurchase ?? "",
           iconChoice: rule.iconChoice || "tag",
           scope: rule.scope || "all",
-          appliesTo: rule.appliesTo
-            ? {
-              products: rule.appliesTo.products ?? [],
-              collections: rule.appliesTo.collections ?? [],
-            }
-            : { products: [], collections: [] },
+          appliesTo: parseAppliesToValue(rule.appliesTo),
           shopifyDiscountCodeId: rule.shopifyDiscountCodeId || null,
           codeDiscountId: rule.codeDiscountId ?? null,
           discountCode: rule.discountCode || "",
@@ -1232,9 +1346,13 @@ const buildRulesPayload = (data = {}) => {
           progressTextAfter:
             rule.progressTextAfter ?? discountDefaults.progressTextAfter,
           progressTextBelow:
-            rule.progressTextBelow ?? discountDefaults.progressTextBelow,
+            String(rule.progressTextBelow ?? "").trim() ||
+            discountDefaults.progressTextBelow,
           campaignName: rule.campaignName || "Discount Rule",
-          codeCampaignName: rule.codeCampaignName || "",
+          codeCampaignName:
+            normalizedType === "code"
+              ? rule.codeCampaignName || "Code Discount"
+              : rule.codeCampaignName || "",
           cartStepName: rule.cartStepName || "",
           id: rule.id ?? null,
         };
@@ -1277,47 +1395,41 @@ const buildRulesPayload = (data = {}) => {
 
   const bxgyRules = dedupeRules(
     bxgyRows.length > 0
-      ? bxgyRows.map((rule) => ({
-        id: rule.id,
-        enabled: Boolean(rule.enabled),
-        xQty: rule.xQty ?? "1",
-        yQty: rule.yQty ?? "1",
-        scope: rule.appliesStore ? "store" : rule.scope || "product",
-        appliesTo: rule.appliesTo
-          ? {
-            products: rule.appliesTo.products ?? [],
-            collections: rule.appliesTo.collections ?? [],
-          }
-          : {
-            products: rule.appliesProductIds ?? [],
-            collections: rule.appliesCollectionIds ?? [],
-          },
-
-        giftType: rule.giftType || "same",
-        giftSku: rule.giftSku ?? "",
-        maxGifts: rule.maxGifts ?? "",
-        allowStacking: Boolean(rule.allowStacking),
-        iconChoice: rule.iconChoice || "sparkles",
-        beforeOfferUnlockMessage:
-          rule.beforeOfferUnlockMessage ??
-          DEFAULT_BXGY_CONTENT_TEXT.beforeOfferUnlockMessage,
-        afterOfferUnlockMessage:
-          rule.afterOfferUnlockMessage ??
-          DEFAULT_BXGY_CONTENT_TEXT.afterOfferUnlockMessage,
-        campaignName: rule.campaignName || "",
-        buyxgetyId: rule.buyxgetyId || null,
-        icon: null,
-      }))
+      ? bxgyRows.map((rule) => {
+        const appliesTo = normalizeBxgyAppliesTo(rule);
+        return {
+          id: rule.id,
+          enabled: Boolean(rule.enabled),
+          xQty: rule.xQty ?? "1",
+          yQty: rule.yQty ?? "1",
+          scope: rule.appliesStore ? "store" : rule.scope || "product",
+          appliesTo,
+          giftType: rule.giftType || "same",
+          giftSku: rule.giftSku ?? "",
+          maxGifts: rule.maxGifts ?? "",
+          allowStacking: Boolean(rule.allowStacking),
+          iconChoice: rule.iconChoice || "sparkles",
+          beforeOfferUnlockMessage:
+            rule.beforeOfferUnlockMessage ??
+            DEFAULT_BXGY_CONTENT_TEXT.beforeOfferUnlockMessage,
+          afterOfferUnlockMessage:
+            rule.afterOfferUnlockMessage ??
+            DEFAULT_BXGY_CONTENT_TEXT.afterOfferUnlockMessage,
+          campaignName: rule.campaignName || "",
+          buyxgetyId: rule.buyxgetyId || null,
+          icon: null,
+        };
+      })
       : [createDefaultBxgyRule()],
     normalizeBxgyRuleForKey
   );
 
   const style = styleRow
     ? {
-      font: styleRow.font || "inter",
+      font: styleRow.font,
       base: styleRow.base || "16",
       headingScale: styleRow.headingScale || "1.25",
-      radius: styleRow.radius || "12",
+      radius: styleRow.radius,
       textColor: styleRow.textColor || "#111111",
       bg: styleRow.bg || "#FFFFFF",
       progress: styleRow.progress || "#1B84F1",
@@ -1333,6 +1445,14 @@ const buildRulesPayload = (data = {}) => {
       discountCodeApply: Boolean(styleRow.discountCodeApply),
       checkoutButtonText:
         styleRow.checkoutButtonText || DEFAULT_STYLE_SETTINGS.checkoutButtonText,
+      announcementBarBackgroundColor:
+        styleRow.announcementBarBackgroundColor ||
+        DEFAULT_STYLE_SETTINGS.announcementBarBackgroundColor,
+      announcementBarTextColor:
+        styleRow.announcementBarTextColor || DEFAULT_STYLE_SETTINGS.announcementBarTextColor,
+      buttonLabelColor:
+        styleRow.buttonLabelColor || DEFAULT_STYLE_SETTINGS.buttonLabelColor,
+      iconColor: styleRow.iconColor || DEFAULT_STYLE_SETTINGS.iconColor,
     }
     : DEFAULT_STYLE_SETTINGS;
 
@@ -1571,54 +1691,28 @@ const ICON_EMOJI = {
 };
 
 export const loader = async ({ request }) => {
-  const { session, admin } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const sessionShop = session.shop;
-  const shopRow = await prisma.shop.findFirst({
-    ...(sessionShop ? { where: { shop: sessionShop } } : {}),
-    orderBy: { id: "desc" },
-  });
-
-  const shop = shopRow?.shop || sessionShop || null;
-  const dbAccessToken = decryptAccessToken(shopRow?.accessToken);
-  const sessionAccessToken = session?.accessToken ? String(session.accessToken) : null;
-  const shopAccessToken = dbAccessToken || sessionAccessToken || null;
-
-  if (!shopRow && shop && sessionAccessToken) {
-    try {
-      await prisma.shop.upsert({
-        where: { shop },
-        update: {
-          accessToken: encryptAccessToken(sessionAccessToken),
-          installed: true,
-          uninstalledAt: null,
-        },
-        create: {
-          shop,
-          accessToken: encryptAccessToken(sessionAccessToken),
-          installed: true,
-          onboardedAt: new Date(),
-        },
-      });
-    } catch { }
-  } else if (shopRow?.id && !dbAccessToken && sessionAccessToken) {
-    try {
-      await prisma.shop.update({
-        where: { id: shopRow.id },
-        data: {
-          accessToken: encryptAccessToken(sessionAccessToken),
-          installed: true,
-          uninstalledAt: null,
-        },
-      });
-    } catch { }
-  }
+  const shop = sessionShop || null;
+  const sessionAccessToken = session?.accessToken
+    ? String(session.accessToken)
+    : null;
+  const { shopDomain, shopAccessToken } = await resolveShopAdminAccess(
+    shop,
+    sessionAccessToken
+  );
 
   if (!shop || !shopAccessToken) {
     return json(
-      { error: "Shop record missing access token" },
-      { status: 400 }
+      {
+        error:
+          "Missing Shopify Admin access token for this shop. Reinstall app once.",
+      },
+      { status: 401 }
     );
   }
+
+  const currencyCode = await fetchShopCurrency(shopDomain, shopAccessToken);
 
   const planRecord = await prisma.planSubscription.findUnique({
     where: { shop },
@@ -1626,7 +1720,6 @@ export const loader = async ({ request }) => {
   const planId = planRecord?.planId ?? "free";
   const planSelected = Boolean(planRecord);
 
-  const shopDomain = shopRow?.shop || shop;
   let payload = null;
 
   if (GRAPHQL_ENDPOINT) {
@@ -1751,6 +1844,7 @@ export const loader = async ({ request }) => {
             planId,
             planSelected,
             upsellSettings: DEFAULT_UPSELL_SETTINGS,
+            currencyCode,
           }),
         },
         { status: 200 }
@@ -1802,6 +1896,7 @@ export const loader = async ({ request }) => {
       planId,
       planSelected,
       upsellSettings,
+      currencyCode,
     })
   );
 };
@@ -1877,53 +1972,23 @@ export const action = async ({ request }) => {
   let shopifySyncError = "";
 
   try {
-    const shopRow = await prisma.shop.findFirst({
-      where: { shop },
-      orderBy: { id: "desc" },
-    });
-
-    const dbAccessToken = decryptAccessToken(shopRow?.accessToken);
-    const sessionAccessToken = session?.accessToken ? String(session.accessToken) : null;
-    const shopAccessToken = dbAccessToken || sessionAccessToken || null;
-
-    if (!shopRow && shop && sessionAccessToken) {
-      try {
-        await prisma.shop.upsert({
-          where: { shop },
-          update: {
-            accessToken: encryptAccessToken(sessionAccessToken),
-            installed: true,
-            uninstalledAt: null,
-          },
-          create: {
-            shop,
-            accessToken: encryptAccessToken(sessionAccessToken),
-            installed: true,
-            onboardedAt: new Date(),
-          },
-        });
-      } catch { }
-    } else if (shopRow?.id && !dbAccessToken && sessionAccessToken) {
-      try {
-        await prisma.shop.update({
-          where: { id: shopRow.id },
-          data: {
-            accessToken: encryptAccessToken(sessionAccessToken),
-            installed: true,
-            uninstalledAt: null,
-          },
-        });
-      } catch { }
-    }
+    const sessionAccessToken = session?.accessToken
+      ? String(session.accessToken)
+      : null;
+    const { shopDomain, shopAccessToken } = await resolveShopAdminAccess(
+      shop,
+      sessionAccessToken
+    );
 
     if (!shopAccessToken) {
       return json(
-        { error: "Missing Shopify Admin access token in database" },
+        {
+          error:
+            "Missing Shopify Admin access token for this shop. Reinstall app once.",
+        },
         { status: 401 }
       );
     }
-
-    const shopDomain = shopRow?.shop || shop;
     let freeGiftAllProductsCollectionId = null;
 
     if (shopAccessToken && shopDomain) {
@@ -2716,33 +2781,38 @@ export const action = async ({ request }) => {
           index
         );
 
-        const normalizedRules = mergedRules.map((rule) => ({
-          enabled: Boolean(rule.enabled),
-          type: rule.type || "automatic",
-          condition:
-            rule.condition || (rule.type === "code" ? "code" : "all_payments"),
-          rewardType: rule.rewardType || "percent",
-          valueType: rule.valueType || "percent",
-          value: rule.value ?? null,
-          minPurchase: rule.minPurchase ?? null,
-          iconChoice: rule.iconChoice || "tag",
-          discountCode: rule.discountCode || "",
-          scope: rule.scope || "all",
-          shopifyDiscountCodeId: rule.shopifyDiscountCodeId || null,
-          codeDiscountId: rule.codeDiscountId ?? null,
-          appliesTo: rule.appliesTo
-            ? {
-              products: rule.appliesTo.products ?? [],
-              collections: rule.appliesTo.collections ?? [],
-            }
-            : { products: [], collections: [] },
-          progressTextBefore: rule.progressTextBefore,
-          progressTextAfter: rule.progressTextAfter,
-          progressTextBelow: rule.progressTextBelow,
-          campaignName: rule.campaignName,
-          codeCampaignName: rule.codeCampaignName,
-          cartStepName: rule.cartStepName,
-        }));
+        const normalizedRules = mergedRules.map((rule) => {
+          const normalizedType = rule.type || "automatic";
+          const discountDefaults = getDiscountContentDefaults(normalizedType);
+          return {
+            enabled: Boolean(rule.enabled),
+            type: normalizedType,
+            condition:
+              rule.condition ||
+              (normalizedType === "code" ? "code" : "all_payments"),
+            rewardType: rule.rewardType || "percent",
+            valueType: rule.valueType || "percent",
+            value: rule.value ?? null,
+            minPurchase: rule.minPurchase ?? null,
+            iconChoice: rule.iconChoice || "tag",
+            discountCode: rule.discountCode || "Smart123",
+            scope: rule.scope || "all",
+            shopifyDiscountCodeId: rule.shopifyDiscountCodeId || null,
+            codeDiscountId: rule.codeDiscountId ?? null,
+            appliesTo: parseAppliesToValue(rule.appliesTo),
+            progressTextBefore: rule.progressTextBefore,
+            progressTextAfter: rule.progressTextAfter,
+            progressTextBelow:
+              String(rule.progressTextBelow ?? "").trim() ||
+              discountDefaults.progressTextBelow,
+            campaignName: rule.campaignName,
+            codeCampaignName:
+              normalizedType === "code"
+                ? String(rule.codeCampaignName ?? "").trim() || "Code Discount"
+                : rule.codeCampaignName,
+            cartStepName: rule.cartStepName,
+          };
+        });
 
         const discountRulesToPersist = normalizedRules.map((rule) => ({
           enabled: rule.enabled,
@@ -2756,17 +2826,17 @@ export const action = async ({ request }) => {
           iconChoice: rule.iconChoice || "tag",
           discountCode: rule.discountCode || "",
           scope: rule.scope || "all",
-          appliesTo:
-            rule.appliesTo && rule.appliesTo.products
-              ? rule.appliesTo
-              : { products: [], collections: [] },
+          appliesTo: JSON.stringify(parseAppliesToValue(rule.appliesTo)),
           shopifyDiscountCodeId: rule.shopifyDiscountCodeId || null,
           codeDiscountId: rule.codeDiscountId ?? null,
           progressTextBefore: rule.progressTextBefore ?? null,
           progressTextAfter: rule.progressTextAfter ?? null,
           progressTextBelow: rule.progressTextBelow ?? null,
           campaignName: rule.campaignName ?? null,
-          codeCampaignName: rule.codeCampaignName ?? null,
+          codeCampaignName:
+            rule.type === "code"
+              ? String(rule.codeCampaignName ?? "").trim() || "Code Discount"
+              : rule.codeCampaignName ?? null,
           cartStepName: rule.cartStepName ?? null,
         }));
 
@@ -3043,6 +3113,7 @@ export const action = async ({ request }) => {
           const existingMatch = incomingId ? existingBxgyById.get(incomingId) : null;
           const fallbackExisting = existingBxgyRows[ruleIndex] || existingMatch || null;
           const buyxgetyId = rule.buyxgetyId ?? existingMatch?.buyxgetyId ?? fallbackExisting?.buyxgetyId ?? null;
+          const appliesTo = normalizeBxgyAppliesTo(rule);
           return {
             ...rule,
             id: existingMatch?.id ?? fallbackExisting?.id ?? null,
@@ -3050,12 +3121,7 @@ export const action = async ({ request }) => {
             xQty: rule.xQty ?? "1",
             yQty: rule.yQty ?? "1",
             scope: rule.scope || "product",
-            appliesTo: rule.appliesTo
-              ? {
-                products: rule.appliesTo.products ?? [],
-                collections: rule.appliesTo.collections ?? [],
-              }
-              : { products: [], collections: [] },
+            appliesTo,
 
             giftType: rule.giftType || "same",
             giftSku: rule.giftSku ?? null,
@@ -3131,15 +3197,16 @@ export const action = async ({ request }) => {
             ruleIndex < normalizedRules.length;
             ruleIndex += 1) {
             const rule = normalizedRules[ruleIndex];
+            const appliesTo = normalizeBxgyAppliesTo(rule);
 
             const rowData = {
               shop,
               xQty: rule.xQty ?? "1",
               yQty: rule.yQty ?? "1",
               scope: rule.scope || "product",
-              appliesTo: rule.appliesTo ? rule.appliesTo : null,
-              appliesProductIds: rule.appliesTo ? rule.appliesTo.products ?? [] : [],
-              appliesCollectionIds: rule.appliesTo ? rule.appliesTo.collections ?? [] : [],
+              appliesTo: JSON.stringify(appliesTo),
+              appliesProductIds: JSON.stringify(appliesTo.products),
+              appliesCollectionIds: JSON.stringify(appliesTo.collections),
               appliesStore: rule.scope === "store",
               giftType: rule.giftType || "same",
               giftSku: rule.giftSku ?? null,
@@ -3319,6 +3386,10 @@ export const action = async ({ request }) => {
           progress: data.progress || "#1B84F1",
           buttonColor: buttonColorValue,
           borderColor: borderColorValue,
+          announcementBarBackgroundColor: parseText(data.announcementBarBackgroundColor),
+          announcementBarTextColor: parseText(data.announcementBarTextColor),
+          buttonLabelColor: parseText(data.buttonLabelColor),
+          iconColor: parseText(data.iconColor),
           cartDrawerBackground: parseText(data.cartDrawerBackground),
           cartDrawerTextColor: parseText(data.cartDrawerTextColor),
           cartDrawerHeaderColor: parseText(data.cartDrawerHeaderColor),
@@ -3331,20 +3402,18 @@ export const action = async ({ request }) => {
         };
 
         const persistStyle = async () => {
-          const existing = await prisma.styleSettings.findFirst({
+          const updateResult = await prisma.styleSettings.updateMany({
             where: { shop },
-            orderBy: { id: "desc" },
+            data: settings,
           });
-          if (existing) {
-            await prisma.styleSettings.update({
-              where: { id: existing.id },
-              data: settings,
-            });
-          } else {
+          if (updateResult.count === 0) {
             await prisma.styleSettings.create({ data: { shop, ...settings } });
           }
+          return updateResult.count;
         };
 
+        let savedViaGraphql = false;
+        let dbUpdatedCount = null;
         try {
           if (!GRAPHQL_ENDPOINT) {
             throw new Error("No GraphQL endpoint configured");
@@ -3353,6 +3422,10 @@ export const action = async ({ request }) => {
           const graphqlSettings = { ...settings };
           delete graphqlSettings.buttonColor;
           delete graphqlSettings.borderColor;
+          delete graphqlSettings.announcementBarBackgroundColor;
+          delete graphqlSettings.announcementBarTextColor;
+          delete graphqlSettings.buttonLabelColor;
+          delete graphqlSettings.iconColor;
 
           await gqlRequest(
             session,
@@ -3361,6 +3434,7 @@ export const action = async ({ request }) => {
             shopAccessToken,
             shopDomain
           );
+          savedViaGraphql = true;
         } catch (err) {
           if (GRAPHQL_ENDPOINT) {
             logger.warn(
@@ -3368,10 +3442,21 @@ export const action = async ({ request }) => {
               err
             );
           }
-          await persistStyle();
+        }
+
+        try {
+          dbUpdatedCount = await persistStyle();
+        } catch (persistErr) {
+          logger.warn("Failed to persist style settings to Prisma", persistErr);
+          if (savedViaGraphql) {
+            shopifySyncError =
+              "Style settings saved remotely, but local DB update failed. Run Prisma migrations.";
+          } else {
+            throw persistErr;
+          }
         }
         responseMessage = "Style settings saved successfully.";
-        payloadForLog = settings;
+        payloadForLog = { ...settings, dbUpdatedCount };
         break;
       }
       default:
@@ -3463,40 +3548,114 @@ const discountSummary = (r) => {
   return `Summary: Automatic -> ${formattedValue || fallbackValue} (${min})`;
 };
 
+// const adminGraphql = async (shopDomain, accessToken, query, variables = {}) => {
+//   if (!shopDomain) throw new Error("Missing shop domain for Admin API");
+//   if (!accessToken) throw new Error("Missing access token for Admin API");
+//   const endpoint = `https://${shopDomain.replace(
+//     /^https?:\/\//,
+//     ""
+//   )}/admin/api/${ADMIN_API_VERSION}/graphql.json`;
+
+//   logger.log("[ADMIN GQL] request", {
+//     endpoint,
+//     variables,
+//     snippet: query.slice(0, 80),
+//   });
+
+//   const res = await fetch(endpoint, {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json",
+//       "X-Shopify-Access-Token": accessToken,
+//     },
+//     body: JSON.stringify({ query, variables }),
+//   });
+
+//   const json = await res.json();
+
+//   if (json?.errors?.length) {
+//     throw new Error(json.errors.map((e) => e.message).join("; "));
+//   }
+
+//   if (!json?.data) {
+//     throw new Error("Admin GraphQL returned no data");
+//   }
+
+//   const topLevelUserErrors = Object.values(json.data || {}).flatMap((entry) =>
+//     Array.isArray(entry?.userErrors) ? entry.userErrors : []
+//   );
+
+//   if (topLevelUserErrors.length) {
+//     throw new Error(topLevelUserErrors.map((e) => e.message).join("; "));
+//   }
+
+//   if (!res.ok) {
+//     const msg = json?.errors?.[0]?.message || res.statusText;
+
+//     throw new Error(`Admin GraphQL ${res.status}: ${msg}`);
+//   }
+
+//   const userErrors =
+//     json?.data?.discountCodeBasicCreate?.userErrors ||
+//     json?.data?.discountAutomaticBasicCreate?.userErrors ||
+//     json?.data?.discountCodeFreeShippingCreate?.userErrors ||
+//     json?.data?.discountAutomaticFreeShippingCreate?.userErrors ||
+//     [];
+
+//   if (userErrors.length) {
+//     throw new Error(userErrors.map((e) => e.message).join("; "));
+//   }
+//   logger.log("[ADMIN GQL] success", json?.data);
+//   return json.data;
+// };
+
 const adminGraphql = async (shopDomain, accessToken, query, variables = {}) => {
   if (!shopDomain) throw new Error("Missing shop domain for Admin API");
   if (!accessToken) throw new Error("Missing access token for Admin API");
-  const endpoint = `https://${shopDomain.replace(
-    /^https?:\/\//,
-    ""
-  )}/admin/api/${ADMIN_API_VERSION}/graphql.json`;
 
-  logger.log("[ADMIN GQL] request", {
-    endpoint,
-    variables,
-    snippet: query.slice(0, 80),
-  });
+  const endpoint = `https://${shopDomain.replace(/^https?:\/\//,"")}/admin/api/${ADMIN_API_VERSION}/graphql.json`;
 
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Accept: "application/json",
       "X-Shopify-Access-Token": accessToken,
     },
     body: JSON.stringify({ query, variables }),
   });
 
-  const json = await res.json();
+  const rawText = await res.text();
+  let payload = {};
 
-  if (json?.errors?.length) {
-    throw new Error(json.errors.map((e) => e.message).join("; "));
+  try {
+    payload = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    const clean = sanitizeHtmlErrorText(rawText);
+    throw new Error(
+      clean ||
+        `Admin GraphQL returned non-JSON response (status ${res.status}).`
+    );
   }
 
-  if (!json?.data) {
+  if (!res.ok) {
+    const msg =
+      payload?.errors?.map((e) => e.message).join("; ") ||
+      payload?.message ||
+      payload?.error ||
+      res.statusText;
+    throw new Error(`Admin GraphQL ${res.status}: ${msg}`);
+  }
+
+  if (Array.isArray(payload?.errors) && payload.errors.length) {
+    throw new Error(payload.errors.map((e) => e.message).join("; "));
+  }
+
+  if (!payload?.data) {
     throw new Error("Admin GraphQL returned no data");
   }
 
-  const topLevelUserErrors = Object.values(json.data || {}).flatMap((entry) =>
+  const topLevelUserErrors = Object.values(payload.data || {}).flatMap((entry) =>
     Array.isArray(entry?.userErrors) ? entry.userErrors : []
   );
 
@@ -3504,25 +3663,71 @@ const adminGraphql = async (shopDomain, accessToken, query, variables = {}) => {
     throw new Error(topLevelUserErrors.map((e) => e.message).join("; "));
   }
 
-  if (!res.ok) {
-    const msg = json?.errors?.[0]?.message || res.statusText;
-
-    throw new Error(`Admin GraphQL ${res.status}: ${msg}`);
-  }
-
-  const userErrors =
-    json?.data?.discountCodeBasicCreate?.userErrors ||
-    json?.data?.discountAutomaticBasicCreate?.userErrors ||
-    json?.data?.discountCodeFreeShippingCreate?.userErrors ||
-    json?.data?.discountAutomaticFreeShippingCreate?.userErrors ||
-    [];
-
-  if (userErrors.length) {
-    throw new Error(userErrors.map((e) => e.message).join("; "));
-  }
-  logger.log("[ADMIN GQL] success", json?.data);
-  return json.data;
+  return payload.data;
 };
+
+const getOfflineSessionAccessToken = async (shop) => {
+  if (!shop) return null;
+  try {
+    const row = await prisma.session.findUnique({
+      where: { id: `offline_${shop}` },
+      select: { accessToken: true },
+    });
+    const token = String(row?.accessToken || "").trim();
+    return token || null;
+  } catch (err) {
+    logger.warn("[AUTH] Offline session token lookup failed", err);
+    return null;
+  }
+};
+
+const resolveShopAdminAccess = async (shop, sessionAccessToken) => {
+  if (!shop) {
+    return { shopRow: null, shopDomain: null, shopAccessToken: null };
+  }
+
+  const shopRow = await prisma.shop.findFirst({
+    where: { shop },
+    orderBy: { id: "desc" },
+  });
+
+  const dbAccessToken = decryptAccessToken(shopRow?.accessToken);
+  const offlineAccessToken = await getOfflineSessionAccessToken(shop);
+
+  const shopAccessToken =
+    dbAccessToken ||
+    offlineAccessToken ||
+    (sessionAccessToken ? String(sessionAccessToken).trim() : null) ||
+    null;
+
+  if (shopAccessToken && (!dbAccessToken || !shopRow?.accessToken)) {
+    try {
+      await prisma.shop.upsert({
+        where: { shop },
+        update: {
+          accessToken: encryptAccessToken(shopAccessToken),
+          installed: true,
+          uninstalledAt: null,
+        },
+        create: {
+          shop,
+          accessToken: encryptAccessToken(shopAccessToken),
+          installed: true,
+          onboardedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      logger.warn("[AUTH] Failed to persist access token", err);
+    }
+  }
+
+  return {
+    shopRow,
+    shopDomain: shopRow?.shop || shop,
+    shopAccessToken,
+  };
+};
+
 
 const generateDiscountCode = (rule, idx = 0) => {
   const base = "SMART";
@@ -5277,28 +5482,36 @@ function CartDrawerPreview({
   upsellEnabled = false,
   upsellItems = [],
   upsellSettings = {},
+  discountRules = [],
+  bxgyRules = [],
+  currencyCode = "USD",
 }) {
   const theme = buildThemeFromStyles(stylesFromDb);
+  const previewCurrency = String(currencyCode || "USD").toUpperCase();
+  const formatMoney = (value) => formatCurrency(value, previewCurrency);
   const checkoutLabel = theme.checkoutButtonText || "Checkout";
   const radius = theme.radius;
   const stepBg = theme.bg;
   const stepText = theme.textColor;
   const drawerRaw = theme.cartDrawerBackground;
   const drawerHex = normalizeHex(drawerRaw);
-  const drawerGradient = drawerHex
-    ? `linear-gradient(180deg, ${darkenHex(drawerHex, 0.22)} 0%, ${lightenHex(drawerHex, 0.22)} 100%)`
-    : isCssGradient(drawerRaw)
-      ? drawerRaw
-      : `linear-gradient(180deg, ${drawerRaw} 0%, ${drawerRaw} 100%)`;
+  const drawerMode = String(theme.cartDrawerBackgroundMode || "color").toLowerCase();
+  const drawerSolid =
+    drawerHex || normalizeHex(theme.bg) || DEFAULT_STYLE_SETTINGS.bg || "#000000";
+  const drawerGradient = isCssGradient(drawerRaw)
+    ? drawerRaw
+    : drawerHex
+      ? `linear-gradient(180deg, ${darkenHex(drawerHex, 0.22)} 0%, ${lightenHex(drawerHex, 0.22)} 100%)`
+      : `linear-gradient(180deg, ${drawerSolid} 0%, ${drawerSolid} 100%)`;
   const wrapperBgStyle =
-    theme.cartDrawerBackgroundMode === "image" && theme.cartDrawerImage
+    drawerMode === "image" && theme.cartDrawerImage
       ? {
         backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.06) 100%), url(${theme.cartDrawerImage})`,
         backgroundRepeat: "no-repeat",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
-      : { background: drawerGradient };
+      : { background: drawerMode === "color" ? drawerSolid : drawerGradient };
 
   const border = theme.borderColor || "rgba(255,255,255,0.18)";
   const cardBorder = theme.borderColor
@@ -5308,18 +5521,116 @@ function CartDrawerPreview({
   const surface2 = "rgba(255,255,255,0.12)";
   const surfaceText = theme.cartDrawerTextColor;
   const headerText = theme.cartDrawerHeaderColor;
+  const announcementBarBg =
+    theme.announcementBarBackgroundColor || theme.buttonColor || stepBg;
+  const announcementBarText =
+    theme.announcementBarTextColor || surfaceText || "#ffffff";
+  const buttonLabelColor = theme.buttonLabelColor || "#ffffff";
+  const iconColor = theme.iconColor || stepText;
+  const progressLineColor = theme.progress || stepText;
+  const progressTrackBg = normalizeHex(progressLineColor)
+    ? lightenHex(progressLineColor, 0.5)
+    : "rgba(255,255,255,0.35)";
+  const progressFillColor = progressLineColor;
+  const stepNodeBg = "rgba(255,255,255,0.95)";
+  const previewCardBg = "#ffffff";
+  const previewCardText = "#111111";
+  const previewCardBorder = "rgba(0,0,0,0.08)";
 
   const selected = steps.filter(Boolean).map((k) => rulesById[k]).filter(Boolean);
   const hasSteps = selected.length > 0;
+  const PREVIEW_UNIT_PRICE = 100;
+  const parsePreviewPrice = (value) => {
+    if (value === undefined || value === null || value === "") return null;
+    if (typeof value === "number") return value;
+    const cleaned = String(value).replace(/[^0-9.-]/g, "");
+    const num = Number(cleaned);
+    return Number.isFinite(num) ? num : null;
+  };
   const items =
     Array.isArray(previewItems) && previewItems.length
-      ? previewItems.map((x) => ({ ...x, qty: 1 }))
-      : [{ title: "Product", image: "", qty: 1, price: 0 }];
+      ? previewItems.map((x) => {
+          const parsed = parsePreviewPrice(x?.price);
+          const unit =
+            Number.isFinite(parsed) && parsed > 0 ? parsed : PREVIEW_UNIT_PRICE;
+          return { ...x, qty: 1, price: unit };
+        })
+      : [{ title: "Product", image: "", qty: 1, price: PREVIEW_UNIT_PRICE }];
   const subtotal = items.reduce(
     (sum, it) => sum + Number(it.price || 0) * Number(it.qty || 0),
     0
   );
   const totalQty = items.reduce((sum, it) => sum + Number(it.qty || 0), 0);
+
+  const normalizeAnnouncementText = (value) =>
+    String(value ?? "").replace(/\s{2,}/g, " ").trim();
+
+  const codeAnnouncementMessages = (Array.isArray(discountRules) ? discountRules : [])
+    .filter((rule) => String(rule?.type || "").toLowerCase() === "code")
+    .filter((rule) => rule?.enabled !== false)
+    .map((rule) => {
+      const minPurchase = getDiscountMinPurchase(rule);
+      const remaining =
+        minPurchase !== null && Number.isFinite(minPurchase)
+          ? Math.max(0, minPurchase - subtotal)
+          : null;
+      const discountValueWithOff = formatDiscountValueDisplay(rule) || "";
+      const discountValue =
+        discountValueWithOff.replace(/\s*off$/i, "").trim() || discountValueWithOff;
+      const discountCode =
+        pickString(rule?.discountCode, rule?.discount_code, rule?.code) || "CODE";
+      const rawBelow = pickString(rule?.progressTextBelow);
+      const isGenericBelow =
+        rawBelow && /^discount!?$/i.test(String(rawBelow).trim());
+      const template = pickString(
+        isGenericBelow ? "" : rawBelow,
+        rule?.progressTextBefore,
+        DEFAULT_CODE_DISCOUNT_CONTENT_TEXT.progressTextBefore
+      );
+      const tokens = {
+        goal: remaining !== null ? formatMoney(remaining) : "",
+        current_status: formatMoney(subtotal),
+        discount: discountValue,
+        discount_value: discountValue,
+        discount_value_with_off: discountValueWithOff || discountValue,
+        discount_code: discountCode,
+      };
+      return normalizeAnnouncementText(renderProgressText(template, tokens));
+    })
+    .filter(Boolean);
+
+  const bxgyAnnouncementMessages = (Array.isArray(bxgyRules) ? bxgyRules : [])
+    .filter((rule) => rule?.enabled !== false)
+    .map((rule) => {
+      const xQty = pickNumber(rule?.xQty, rule?.x_qty, rule?.x);
+      const yQty = pickNumber(rule?.yQty, rule?.y_qty, rule?.y);
+      const isUnlocked =
+        Number.isFinite(xQty) && Number(xQty) > 0 ? totalQty >= Number(xQty) : false;
+      const template = pickString(
+        isUnlocked ? rule?.afterOfferUnlockMessage : rule?.beforeOfferUnlockMessage,
+        isUnlocked
+          ? DEFAULT_BXGY_CONTENT_TEXT.afterOfferUnlockMessage
+          : DEFAULT_BXGY_CONTENT_TEXT.beforeOfferUnlockMessage
+      );
+      const tokens = {
+        x: Number.isFinite(xQty) ? xQty : "X",
+        y: Number.isFinite(yQty) ? yQty : "Y",
+      };
+      return normalizeAnnouncementText(renderProgressText(template, tokens));
+    })
+    .filter(Boolean);
+
+  const announcementMessages = [
+    ...codeAnnouncementMessages,
+    ...bxgyAnnouncementMessages,
+  ];
+  const marqueeBaseMessages =
+    announcementMessages.length === 1
+      ? new Array(4).fill(announcementMessages[0])
+      : announcementMessages;
+  const marqueeMessages = marqueeBaseMessages.length
+    ? [...marqueeBaseMessages, ...marqueeBaseMessages]
+    : [];
   const thresholdsInOrder = selected.map((r) =>
     Number.isFinite(Number(r.threshold)) ? Number(r.threshold) : 0
   );
@@ -5328,7 +5639,7 @@ function CartDrawerPreview({
   const remaining = nextThreshold ? Math.max(0, nextThreshold - subtotal) : 0;
   const rewardText =
     hasSteps && nextThreshold
-      ? `Spend ${formatCurrency(remaining)} more for next reward`
+      ? `Spend ${formatMoney(remaining)} more for next reward`
       : hasSteps
         ? "All rewards unlocked"
         : "";
@@ -5352,11 +5663,11 @@ function CartDrawerPreview({
   };
 
   const discountFieldStyle = {
-    background: surface,
-    border: `1px solid ${cardBorder}`,
+    background: previewCardBg,
+    border: `1px solid ${previewCardBorder}`,
     borderRadius: radius,
     padding: "14px 16px",
-    color: surfaceText,
+    color: previewCardText,
     fontWeight: 700,
     fontSize: theme.base,
     opacity: 0.95,
@@ -5368,23 +5679,9 @@ function CartDrawerPreview({
     borderRadius: radius,
     display: "grid",
     placeItems: "center",
-    color: "#ffffff",
+    color: buttonLabelColor,
     fontWeight: 800,
     fontSize: theme.base,
-  };
-
-  const totalCheckoutRowStyle = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1.8fr",
-    gap: 12,
-  };
-
-  const totalBoxStyle = {
-    background: surface,
-    border: `1px solid ${cardBorder}`,
-    borderRadius: radius,
-    padding: "12px 14px",
-    color: surfaceText,
   };
 
   const checkoutStyle = {
@@ -5394,12 +5691,13 @@ function CartDrawerPreview({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "#ffffff",
+    color: buttonLabelColor,
     fontWeight: 600,
     fontSize: theme.headingPx,
     position: "relative",
     minHeight: 54,
   };
+  const checkoutLabelWithTotal = `${checkoutLabel} - ${formatMoney(subtotal)}`;
 
   const badgeStyle = {
     position: "absolute",
@@ -5440,15 +5738,20 @@ function CartDrawerPreview({
       upsellItems.length
   );
   const upsellTitle = String(upsellSettings?.sectionTitle || "You may also like");
-  const upsellBtnText = String(upsellSettings?.buttonText || "add to cart");
+  const upsellBtnText = String(upsellSettings?.buttonText || "Add to cart");
   const upsellBg = upsellSettings?.backgroundColor || "rgba(255,255,255,0.08)";
   const upsellText = upsellSettings?.textColor || surfaceText;
-  const upsellBorder = upsellSettings?.borderColor || cardBorder;
+  const upsellBorder = upsellSettings?.borderColor;
   const upsellButtonBg = upsellSettings?.buttonColor || theme.buttonColor || surface2;
+  const upsellCardBg = upsellBg;
+  const upsellCardText = upsellText;
+  const upsellCardBorder = upsellBorder || "rgba(0,0,0,0.08)";
   const upsellShowAsSlider = Boolean(upsellSettings?.showAsSlider);
   const upsellAutoplay = Boolean(upsellSettings?.autoplay);
   const upsellArrowColor = upsellSettings?.arrowColor || upsellText;
   const canSlideUpsell = Boolean(upsellShowAsSlider && upsellItems.length > 1);
+  const upsellArrowButtonSize = 30;
+  const upsellPreviewSidePadding = canSlideUpsell ? 38 : 0;
   const [upsellSlideIndex, setUpsellSlideIndex] = React.useState(0);
 
   React.useEffect(() => {
@@ -5465,14 +5768,14 @@ function CartDrawerPreview({
     return () => clearInterval(timer);
   }, [canSlideUpsell, upsellAutoplay, upsellItems.length]);
 
-  const upsellVisibleItems = canSlideUpsell ? upsellItems : upsellItems.slice(0, 2);
+  const upsellVisibleItems = upsellItems;
 
   return (
     <div style={{ width: "100%" }}>
       <div
         style={{
           width: "100%",
-          minHeight: 600,
+          minHeight: 560,
           borderRadius: radius,
           overflow: "hidden",
           fontFamily: theme.font,
@@ -5512,6 +5815,32 @@ function CartDrawerPreview({
           </div>
         </div>
 
+        {announcementMessages.length > 0 && (
+          <div
+            className="preview-marquee"
+            style={{
+              background: announcementBarBg,
+              borderTop: `1px solid ${border}`,
+              borderBottom: `1px solid ${border}`,
+            }}
+          >
+            <div className="preview-marquee-track">
+              {marqueeMessages.map((msg, idx) => (
+                <span
+                  key={`announce-${idx}`}
+                  className="preview-marquee-item"
+                  style={{
+                    color: announcementBarText,
+                    fontSize: theme.base,
+                  }}
+                >
+                  {msg}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div style={{ background: stepBg, padding: "10px 16px 14px 16px" }}>
           {hasSteps ? (
             <>
@@ -5529,13 +5858,13 @@ function CartDrawerPreview({
               <div style={{ position: "relative", padding: "12px 2px 0 2px" }}>
                 <div
                   style={{
-                    height: 8,
+                    height: 6,
                     borderRadius: 999,
-                    background: theme.progress,
+                    background: progressTrackBg,
                     overflow: "hidden",
                   }}
                 >
-                  <div style={{ width: `${fillPct}%`, height: "100%", background: stepText }} />
+                  <div style={{ width: `${fillPct}%`, height: "100%", background: progressFillColor }} />
                 </div>
 
                 {selected.map((rule, idx) => {
@@ -5546,15 +5875,16 @@ function CartDrawerPreview({
                       style={{
                         position: "absolute",
                         left: `calc(${x}% - 18px)`,
-                        top: -2,
+                        top: -4,
                         width: 36,
                         height: 36,
                         borderRadius: 999,
-                        background: "rgba(255,255,255,0.18)",
-                        border: `2px solid ${stepText}`,
+                        background: stepNodeBg,
+                        border: `2px solid ${progressLineColor}`,
                         display: "grid",
                         placeItems: "center",
                         fontSize: 16,
+                        color: iconColor,
                       }}
                       aria-hidden="true"
                       title={rule.label}
@@ -5606,15 +5936,14 @@ function CartDrawerPreview({
               <div
                 key={`it-${idx}`}
                 style={{
-                  background: "rgba(255,255,255,0.08)",
+                  background: previewCardBg,
                   borderRadius: radius,
                   padding: 12,
                   display: "grid",
                   gridTemplateColumns: "58px 1fr auto",
                   gap: 12,
                   alignItems: "center",
-                  marginBottom: 14,
-                  border: `1px solid ${cardBorder}`,
+                  border: `1px solid ${previewCardBorder}`,
                 }}
               >
                 <div
@@ -5623,8 +5952,8 @@ function CartDrawerPreview({
                     height: 58,
                     borderRadius: radius,
                     overflow: "hidden",
-                    border: `1px solid ${cardBorder}`,
-                    background: "rgba(255,255,255,0.10)",
+                    border: `1px solid ${previewCardBorder}`,
+                    background: previewCardBg,
                   }}
                 >
                   {it.image ? (
@@ -5642,7 +5971,7 @@ function CartDrawerPreview({
                   <div
                     style={{
                       fontSize: theme.headingPx,
-                      color: headerText,
+                      color: previewCardText,
                       marginBottom: 8,
                     }}
                   >
@@ -5655,11 +5984,11 @@ function CartDrawerPreview({
                         width: 38,
                         height: 34,
                         borderRadius: radius,
-                        background: "rgba(255,255,255,0.12)",
-                        border: `1px solid ${cardBorder}`,
+                        background: previewCardBg,
+                        border: `1px solid ${previewCardBorder}`,
                         display: "grid",
                         placeItems: "center",
-                        color: surfaceText,
+                        color: previewCardText,
                         fontSize: 20,
                       }}
                       aria-hidden="true"
@@ -5672,11 +6001,11 @@ function CartDrawerPreview({
                         width: 44,
                         height: 34,
                         borderRadius: radius,
-                        background: "rgba(255,255,255,0.12)",
-                        border: `1px solid ${cardBorder}`,
+                        background: previewCardBg,
+                        border: `1px solid ${previewCardBorder}`,
                         display: "grid",
                         placeItems: "center",
-                        color: surfaceText,
+                        color: previewCardText,
                       }}
                     >
                       {qty}
@@ -5687,11 +6016,11 @@ function CartDrawerPreview({
                         width: 38,
                         height: 34,
                         borderRadius: radius,
-                        background: "rgba(255,255,255,0.12)",
-                        border: `1px solid ${cardBorder}`,
+                        background: previewCardBg,
+                        border: `1px solid ${previewCardBorder}`,
                         display: "grid",
                         placeItems: "center",
-                        color: surfaceText,
+                        color: previewCardText,
                       }}
                       aria-hidden="true"
                     >
@@ -5701,18 +6030,18 @@ function CartDrawerPreview({
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: theme.headingPx, color: headerText }}>
-                    {fmtINRPlain(lineTotal)}
+                  <div style={{ fontSize: theme.headingPx, color: previewCardText }}>
+                    {formatMoney(lineTotal)}
                   </div>
                   <div
                     style={{
                       marginTop: 6,
                       fontSize: Math.max(12, theme.base - 2),
-                      color: surfaceText,
+                      color: previewCardText,
                       opacity: 0.95,
                     }}
                   >
-                    {unit > 0 ? `${fmtINRPlain(unit)} each` : ""}
+                    {unit > 0 ? `${formatMoney(unit)} each` : ""}
                   </div>
                 </div>
               </div>
@@ -5722,16 +6051,12 @@ function CartDrawerPreview({
           {upsellPreviewEnabled && (
             <div
               style={{
-                marginTop: 8,
-                padding: 10,
-                borderRadius: radius,
-                border: `1px solid ${upsellBorder}`,
-                background: upsellBg,
+                background: previewCardBg,
               }}
             >
               <div
                 style={{
-                  fontSize: Math.max(12, theme.base),
+                  fontSize: Math.max(14, theme.base),
                   fontWeight: 700,
                   color: upsellText,
                   textAlign: "center",
@@ -5741,166 +6066,190 @@ function CartDrawerPreview({
                 {upsellTitle}
               </div>
 
-              {canSlideUpsell && (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 8,
-                    gap: 8,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setUpsellSlideIndex((prev) =>
-                        prev - 1 < 0 ? upsellItems.length - 1 : prev - 1
-                      )
-                    }
-                    aria-label="Previous upsell"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 999,
-                      border: `1px solid ${upsellBorder}`,
-                      background: "#ffffff",
-                      color: upsellArrowColor,
-                      display: "grid",
-                      placeItems: "center",
-                      padding: 0,
-                      lineHeight: 1,
-                      fontSize: 18,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    &#x2039;
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setUpsellSlideIndex((prev) =>
-                        prev + 1 >= upsellItems.length ? 0 : prev + 1
-                      )
-                    }
-                    aria-label="Next upsell"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 999,
-                      border: `1px solid ${upsellBorder}`,
-                      background: "#ffffff",
-                      color: upsellArrowColor,
-                      display: "grid",
-                      placeItems: "center",
-                      padding: 0,
-                      lineHeight: 1,
-                      fontSize: 18,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    &#x203A;
-                  </button>
-                </div>
-              )}
               <div
+                className="upsell-carousel"
                 style={{
+                  position: "relative",
+                  padding: canSlideUpsell ? `0 ${upsellPreviewSidePadding}px` : 0,
                   overflow: "hidden",
-                  width: "100%",
                 }}
               >
-                <div
-                  style={
-                    canSlideUpsell
-                      ? {
-                          display: "flex",
-                          width: "100%",
-                          transform: `translate3d(-${upsellSlideIndex * 100}%, 0, 0)`,
-                          transition: "transform 520ms cubic-bezier(0.22, 1, 0.36, 1)",
-                          willChange: "transform",
-                        }
-                      : { display: "grid", gap: 8 }
-                  }
-                >
-                  {upsellVisibleItems.map((item, idx) => (
-                    <div
-                      key={`upsell-${idx}`}
+                {canSlideUpsell && (
+                  <React.Fragment>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setUpsellSlideIndex((prev) =>
+                          prev - 1 < 0 ? upsellItems.length - 1 : prev - 1
+                        )
+                      }
+                      aria-label="Previous upsell"
                       style={{
-                        flex: canSlideUpsell ? "0 0 100%" : "0 0 auto",
+                        position: "absolute",
+                        left: 2,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: upsellArrowButtonSize,
+                        height: upsellArrowButtonSize,
+                        borderRadius: 999,
+                        background: "#ffffff",
+                        color: upsellArrowColor,
                         display: "grid",
-                        gridTemplateColumns: "56px 1fr auto",
-                        gap: 10,
-                        alignItems: "center",
-                        padding: 8,
-                        borderRadius: 10,
-                        border: `1px solid ${upsellBorder}`,
-                        background: "rgba(255,255,255,0.06)",
-                        marginBottom:
-                          canSlideUpsell || idx === upsellVisibleItems.length - 1 ? 0 : 8,
-                        boxSizing: "border-box",
+                        placeItems: "center",
+                        padding: 0,
+                        lineHeight: 1,
+                        fontSize: 18,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        zIndex: 2,
                       }}
                     >
+                      &#x2039;
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setUpsellSlideIndex((prev) =>
+                          prev + 1 >= upsellItems.length ? 0 : prev + 1
+                        )
+                      }
+                      aria-label="Next upsell"
+                      style={{
+                        position: "absolute",
+                        right: 2,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: upsellArrowButtonSize,
+                        height: upsellArrowButtonSize,
+                        background: "#ffffff",
+                        color: upsellArrowColor,
+                        display: "grid",
+                        placeItems: "center",
+                        padding: 0,
+                        lineHeight: 1,
+                        fontSize: 18,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        zIndex: 2,
+                      }}
+                    >
+                      &#x203A;
+                    </button>
+                  </React.Fragment>
+                )}
+                <div
+                  style={{
+                    background: upsellBg,
+                    padding: 8,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    className="upsell-carousel-track"
+                    style={
+                      canSlideUpsell
+                        ? {
+                            width: "100%",
+                            transform: `translate3d(-${upsellSlideIndex * 100}%, 0, 0)`,
+                            transition:
+                              "transform 520ms cubic-bezier(0.22, 1, 0.36, 1)",
+                            willChange: "transform",
+                            gap: 0,
+                          }
+                        : {
+                            width: "100%",
+                            flexDirection: "column",
+                            transform: "none",
+                          }
+                    }
+                  >
+                    {upsellVisibleItems.map((item, idx) => (
                       <div
+                        key={`upsell-${idx}`}
                         style={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: 10,
-                          overflow: "hidden",
-                          background: "rgba(255,255,255,0.12)",
+                          flex: canSlideUpsell ? "0 0 100%" : "0 0 auto",
+                          padding: "12px 14px",
+                          boxSizing: "border-box",
+                          width: "100%",
+                          display: "grid",
+                          gridTemplateColumns: "68px minmax(0, 1fr) auto",
+                          gap: 14,
+                          alignItems: "center",
+                          minWidth: 0,
+                          background: upsellCardBg,
                         }}
                       >
-                        {item?.image ? (
-                          <img
-                            src={item.image}
-                            alt=""
-                            width={56}
-                            height={56}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          />
-                        ) : null}
-                      </div>
-
-                      <div style={{ minWidth: 0 }}>
                         <div
                           style={{
-                            fontSize: Math.max(12, theme.base),
-                            fontWeight: 600,
-                            color: upsellText,
-                            whiteSpace: "nowrap",
+                            width: 68,
+                            height: 68,
+                            borderRadius: 12,
+                            background: "#EEF2F7",
                             overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            justifySelf: "center",
+                            display: "grid",
+                            placeItems: "center",
                           }}
                         >
-                          {item?.title || "Product"}
+                          {item?.image ? (
+                            <img
+                              src={item.image}
+                              alt=""
+                              width={64}
+                              height={64}
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : null}
                         </div>
+
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              display: "block",
+                              fontWeight: 600,
+                              color: upsellCardText,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {item?.title || "Product"}
+                          </div>
+                          <div
+                            style={{
+                              display: "block",
+                              marginTop: 2,
+                              fontWeight: 600,
+                              color: upsellCardText,
+                              opacity: 0.85,
+                            }}
+                          >
+                            {item?.price || formatMoney(0)}
+                          </div>
+                        </div>
+
                         <div
                           style={{
-                            fontSize: Math.max(11, theme.base - 2),
+                            padding: "9px 12px",
+                            borderRadius: 12,
+                            background: upsellButtonBg,
+                            border: `1px solid ${upsellBorder}`,
                             color: upsellText,
-                            opacity: 0.85,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            whiteSpace: "nowrap",
+                            minWidth: 112,
+                            justifyContent: "center",
                           }}
                         >
-                          {item?.price || "$0.00"}
+                          + <span>{upsellBtnText}</span>
                         </div>
                       </div>
-
-                      <div
-                        style={{
-                          borderRadius: 10,
-                          border: `1px solid ${upsellBorder}`,
-                          background: upsellButtonBg,
-                          color: "#ffffff",
-                          padding: "6px 8px",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        + {upsellBtnText}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -5915,18 +6264,9 @@ function CartDrawerPreview({
             </div>
           )}
 
-          <div style={totalCheckoutRowStyle}>
-            <div style={totalBoxStyle}>
-              <div style={{ fontSize: Math.max(12, theme.base - 3), fontWeight: 600, marginBottom: 4, color: surfaceText }}>
-                Total
-              </div>
-              <div style={{ fontSize: theme.headingPx }}>
-                {fmtINRPlain(subtotal)}
-              </div>
-            </div>
-
+          <div style={{ display: "grid" }}>
             <div style={checkoutStyle}>
-              {checkoutLabel}
+              {checkoutLabelWithTotal}
               <div style={badgeStyle} aria-hidden="true">
                 {totalQty}
               </div>
@@ -6256,9 +6596,11 @@ export default function AppRules() {
     steps: stepsSeed = ["", "", "", ""],
     previewItems: previewItemsSeed = [],
     shop: loaderShop = null,
+    currencyCode: loaderCurrencyCode = "USD",
   } = loaderData;
 
   const [selected, setSelected] = React.useState(0);
+  const currencyCode = String(loaderCurrencyCode || "USD").toUpperCase();
 
   const buildTabContent = (label, emoji) => (
     <span
@@ -6702,6 +7044,24 @@ export default function AppRules() {
     styleSeed.borderColor ?? DEFAULT_STYLE_SETTINGS.borderColor
   );
 
+  const [announcementBarBackgroundColor, setAnnouncementBarBackgroundColor] =
+    React.useState(
+      styleSeed.announcementBarBackgroundColor ??
+      DEFAULT_STYLE_SETTINGS.announcementBarBackgroundColor
+    );
+
+  const [announcementBarTextColor, setAnnouncementBarTextColor] = React.useState(
+    styleSeed.announcementBarTextColor ?? DEFAULT_STYLE_SETTINGS.announcementBarTextColor
+  );
+
+  const [buttonLabelColor, setButtonLabelColor] = React.useState(
+    styleSeed.buttonLabelColor ?? DEFAULT_STYLE_SETTINGS.buttonLabelColor
+  );
+
+  const [iconColor, setIconColor] = React.useState(
+    styleSeed.iconColor ?? DEFAULT_STYLE_SETTINGS.iconColor
+  );
+
   const [cartDrawerBackground, setCartDrawerBackground] = React.useState(
     styleSeed.cartDrawerBackground ?? ""
   );
@@ -6817,6 +7177,10 @@ export default function AppRules() {
       progress,
       buttonColor,
       borderColor,
+      announcementBarBackgroundColor,
+      announcementBarTextColor,
+      buttonLabelColor,
+      iconColor,
       cartDrawerBackground: cartDrawerBackgroundValue,
       cartDrawerTextColor,
       cartDrawerHeaderColor,
@@ -6835,6 +7199,10 @@ export default function AppRules() {
       progress,
       buttonColor,
       borderColor,
+      announcementBarBackgroundColor,
+      announcementBarTextColor,
+      buttonLabelColor,
+      iconColor,
       cartDrawerBackgroundValue,
       cartDrawerTextColor,
       cartDrawerHeaderColor,
@@ -7136,6 +7504,56 @@ export default function AppRules() {
     [triggerThemeBurst]
   );
 
+  const handleAnnouncementBarBackgroundColorChange = React.useCallback(
+    (value) => {
+      setAnnouncementBarBackgroundColor(value);
+      triggerThemeBurst();
+    },
+    [triggerThemeBurst]
+  );
+
+  const handleAnnouncementBarTextColorChange = React.useCallback(
+    (value) => {
+      setAnnouncementBarTextColor(value);
+      triggerThemeBurst();
+    },
+    [triggerThemeBurst]
+  );
+
+  const handleButtonLabelColorChange = React.useCallback(
+    (value) => {
+      setButtonLabelColor(value);
+      triggerThemeBurst();
+    },
+    [triggerThemeBurst]
+  );
+
+  const handleIconColorChange = React.useCallback(
+    (value) => {
+      setIconColor(value);
+      triggerThemeBurst();
+    },
+    [triggerThemeBurst]
+  );
+
+  const resolveSolidCartDrawerColor = React.useCallback(
+    (raw) => {
+      const direct = normalizeHex(raw);
+      if (direct) return direct;
+      if (isCssGradient(raw)) {
+        const parsed = extractGradientHexColors(raw);
+        if (parsed?.start) return parsed.start;
+      }
+      return (
+        normalizeHex(cartDrawerGradientStart) ||
+        normalizeHex(cartDrawerGradientEnd) ||
+        normalizeHex(DEFAULT_STYLE_SETTINGS.bg) ||
+        "#000000"
+      );
+    },
+    [cartDrawerGradientStart, cartDrawerGradientEnd]
+  );
+
   const handleCartDrawerBackgroundChange = React.useCallback(
     (value) => {
       setCartDrawerBackground(value);
@@ -7178,10 +7596,14 @@ export default function AppRules() {
         setCartDrawerGradientEnd((prev) => prev || fallback);
       }
 
+      if (value === "color") {
+        setCartDrawerBackground((prev) => resolveSolidCartDrawerColor(prev));
+      }
+
       triggerThemeBurst();
     },
 
-    [cartDrawerBackground, triggerThemeBurst]
+    [cartDrawerBackground, resolveSolidCartDrawerColor, triggerThemeBurst]
   );
 
   const handleCartDrawerImageChange = React.useCallback(
@@ -7193,6 +7615,19 @@ export default function AppRules() {
 
     [triggerThemeBurst]
   );
+
+  React.useEffect(() => {
+    if (cartDrawerBackgroundMode !== "color") return;
+    if (!isCssGradient(cartDrawerBackground)) return;
+    const solid = resolveSolidCartDrawerColor(cartDrawerBackground);
+    if (solid && solid !== cartDrawerBackground) {
+      setCartDrawerBackground(solid);
+    }
+  }, [
+    cartDrawerBackground,
+    cartDrawerBackgroundMode,
+    resolveSolidCartDrawerColor,
+  ]);
 
   const handleCartDrawerGradientStartChange = React.useCallback(
     (value) => {
@@ -7447,6 +7882,10 @@ export default function AppRules() {
           buttonColor,
 
           borderColor,
+          announcementBarBackgroundColor,
+          announcementBarTextColor,
+          buttonLabelColor,
+          iconColor,
 
           cartDrawerBackground: cartDrawerBackgroundValue.trim()
             ? cartDrawerBackgroundValue.trim()
@@ -7580,7 +8019,7 @@ export default function AppRules() {
       try {
         setSaving(true);
 
-        const res = await fetch("/app/rules", {
+        const res = await fetch("/api/rules", {
           method: "POST",
 
           headers: {
@@ -7811,6 +8250,11 @@ export default function AppRules() {
 
       borderColor,
 
+      announcementBarBackgroundColor,
+      announcementBarTextColor,
+      buttonLabelColor,
+      iconColor,
+
       cartDrawerBackgroundValue,
 
       cartDrawerBackground,
@@ -7885,7 +8329,7 @@ export default function AppRules() {
       }
 
       try {
-        const res = await fetch("/app/rules", {
+        const res = await fetch("/api/rules", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -8130,7 +8574,7 @@ export default function AppRules() {
       let deleted = false;
 
       try {
-        const res = await fetch("/app/rules", {
+        const res = await fetch("/api/rules", {
           method: "POST",
 
           headers: {
@@ -8255,7 +8699,7 @@ export default function AppRules() {
         if (rule.freeProductDiscountID)
           deletePayload.deleteFreeProductDiscount = rule.freeProductDiscountID;
 
-        const res = await fetch("/app/rules", {
+        const res = await fetch("/api/rules", {
           method: "POST",
 
           headers: {
@@ -8394,7 +8838,7 @@ export default function AppRules() {
 
         if (rule.id) deletePayload.deleteBxgyRuleId = rule.id;
 
-        const res = await fetch("/app/rules", {
+        const res = await fetch("/api/rules", {
           method: "POST",
 
           headers: {
@@ -8969,12 +9413,12 @@ export default function AppRules() {
                   {renderTokenField(
                     `before-${i}`,
                     "Text above progress bar (before achieving goal)",
-                    r.progressTextBefore || "Add {{goal}} more to get Free Shipping on this order!",
+                    r.progressTextBefore ?? DEFAULT_STYLE_SETTINGS.progressTextBefore,
                     (value) =>
                       updateShippingRuleField(
                         i,
                         "progressTextBefore",
-                        value?.trim() ? value : null
+                        value
                       ),
                     null,
                     { disabled: shippingReadOnly }
@@ -9016,15 +9460,15 @@ export default function AppRules() {
                   <TextField
                     label="Campaign name"
                     disabled={shippingReadOnly}
-                    value={r.campaignName || "Free Shipping"}
+                    value={r.campaignName ?? "Free Shipping"}
                     onChange={(value) =>
                       updateShippingRuleField(
                         i,
                         "campaignName",
-                        value?.trim() ? value : null
+                        value
                       )
                     }
-                    placeholder="Shipping Rule"
+                    placeholder="Free Shipping"
                   />
                 </Box>
                 <Box style={{ flex: "1 1 220px" }}>
@@ -9370,6 +9814,7 @@ export default function AppRules() {
       </Box>
     </Card>
   );
+
   const renderDiscountPanel = (
     title,
     filterRule = () => true,
@@ -9783,7 +10228,8 @@ export default function AppRules() {
                         {renderTokenField(
                           `discount-below-${index}`,
                           "Text below preview",
-                          r.progressTextBelow || "",
+                          r.progressTextBelow ||
+                            getDiscountContentDefaults(r.type).progressTextBelow,
                           (value) =>
                             updateDiscountRuleField(
                               index,
@@ -9830,14 +10276,15 @@ export default function AppRules() {
                         <TextField
                           label="Campaign name"
                           disabled={readOnly}
-                          value={r.codeCampaignName || "Code Discount"}
+                          value={r.codeCampaignName ?? "Code Discount"}
                           onChange={(value) =>
                             updateDiscountRuleField(
                               index,
                               "codeCampaignName",
-                              value?.trim() ? value : null
+                              value
                             )
                           }
+                          placeholder="Code Discount"
                         />
                       </Box>
                     </InlineStack>
@@ -10894,6 +11341,16 @@ export default function AppRules() {
     return sizeOpt?.value ? String(sizeOpt.value) : "";
   }, []);
 
+  const formatPreviewPrice = React.useCallback(
+    (value, fallback = 25) => {
+      const cleaned = String(value ?? "").replace(/[^0-9.-]/g, "");
+      const num = Number(cleaned);
+      const safe = Number.isFinite(num) && num > 0 ? num : fallback;
+      return formatCurrency(safe, currencyCode);
+    },
+    [currencyCode]
+  );
+
   const upsellPreviewItems = React.useMemo(() => {
     const productItems =
       upsellProductIds.length > 0
@@ -10902,14 +11359,14 @@ export default function AppRules() {
             if (!p) {
               return {
                 title: `Saved product ${String(id).split("/").pop() || idx + 1}`,
-                price: "$25.00",
+                price: formatPreviewPrice(null, 25),
                 option: "",
                 image: "",
               };
             }
             return {
               title: p.title || "Product",
-              price: p.price ? `$${p.price}` : "$25.00",
+              price: formatPreviewPrice(p.price, 25),
               option: getVariantLabel(p),
               image: p.image || "",
             };
@@ -10923,7 +11380,7 @@ export default function AppRules() {
       collectionProducts.length > 0
         ? collectionProducts.map((p) => ({
             title: p.title || "Product",
-            price: p.price ? `$${p.price}` : "$25.00",
+            price: formatPreviewPrice(p.price, 25),
             option: getVariantLabel(p),
             image: p.image || "",
           }))
@@ -10939,14 +11396,29 @@ export default function AppRules() {
     const base = modeItems.length
       ? modeItems
       : [
-          { title: "Product 1", price: "$25.00", option: "Color", image: "" },
-          { title: "Product 2", price: "$40.00", option: "Size", image: "" },
+          {
+            title: "Product 1",
+            price: formatPreviewPrice(null, 25),
+            option: "Color",
+            image: "",
+          },
+          {
+            title: "Product 2",
+            price: formatPreviewPrice(null, 40),
+            option: "Size",
+            image: "",
+          },
         ];
 
     if (base.length === 1) {
       return [
         base[0],
-        { title: "Product 2", price: "$40.00", option: "Size", image: "" },
+        {
+          title: "Product 2",
+          price: formatPreviewPrice(null, 40),
+          option: "Size",
+          image: "",
+        },
       ];
     }
 
@@ -10957,6 +11429,7 @@ export default function AppRules() {
     productsById,
     upsellSelectedCollections,
     getVariantLabel,
+    formatPreviewPrice,
   ]);
 
   React.useEffect(() => {
@@ -10989,13 +11462,15 @@ export default function AppRules() {
       prev + 1 >= upsellPreviewItems.length ? 0 : prev + 1
     );
   }, [upsellShowAsSlider, upsellPreviewItems.length]);
+  const upsellArrowButtonSize = 30;
+  const upsellPreviewSidePadding = upsellShowAsSlider ? 38 : 0;
 
   const UpsellPanel = (
     <React.Fragment>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "60% 40%",
+          gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
           gap: 16,
           alignItems: "start",
         }}
@@ -11192,7 +11667,7 @@ export default function AppRules() {
         </Card>
           
         <Card>
-          <Box padding="100">
+          <Box padding="200">
             <BlockStack gap="200">
               <Text as="h5" variant="headingXs">
                 Preview
@@ -11204,6 +11679,9 @@ export default function AppRules() {
                 style={{
                   borderColor: upsellBorderColor,
                   background: "#ffffff",
+                  width: "100%",
+                  maxWidth: 560,
+                  marginInline: "auto",
                 }}
               >
                 <BlockStack gap="200">
@@ -11221,7 +11699,9 @@ export default function AppRules() {
                     className="upsell-carousel"
                     style={{
                       position: "relative",
-                      padding: upsellShowAsSlider ? "0 0px" : 0,
+                      padding: upsellShowAsSlider
+                        ? `0 ${upsellPreviewSidePadding}px`
+                        : 0,
                       overflow: "hidden",
                     }}
                   >
@@ -11233,11 +11713,11 @@ export default function AppRules() {
                           aria-label="Previous"
                           style={{
                             position: "absolute",
-                            left: 8,
+                            left: 2,
                             top: "50%",
                             transform: "translateY(-50%)",
-                            width: 24,
-                            height: 24,
+                            width: upsellArrowButtonSize,
+                            height: upsellArrowButtonSize,
                             borderRadius: 999,
                             border: `1px solid ${upsellBorderColor}`,
                             display: "grid",
@@ -11260,11 +11740,11 @@ export default function AppRules() {
                           aria-label="Next"
                           style={{
                             position: "absolute",
-                            right: 8,
+                            right: 2,
                             top: "50%",
                             transform: "translateY(-50%)",
-                            width: 24,
-                            height: 24,
+                            width: upsellArrowButtonSize,
+                            height: upsellArrowButtonSize,
                             borderRadius: 999,
                             border: `1px solid ${upsellBorderColor}`,
                             display: "grid",
@@ -11284,50 +11764,51 @@ export default function AppRules() {
                       </React.Fragment>
                     )}
                     <div
-                      className="upsell-carousel-track"
-                      style={
-                        upsellShowAsSlider
-                          ? {
-                              width: "100%",
-                              transform: `translate3d(-${upsellPreviewIndex * 100}%, 0, 0)`,
-                              transition:
-                                "transform 520ms cubic-bezier(0.22, 1, 0.36, 1)",
-                              willChange: "transform",
-                              gap: 0,
-                            }
-                          : {
-                              width: "100%",
-                              flexDirection: "column",
-                              transform: "none",
-                            }
-                      }
+                      style={{
+                        border: `1px solid ${upsellBorderColor}`,
+                        borderRadius: 12,
+                        background: upsellBgColor,
+                        overflow: "hidden",
+                      }}
                     >
-                      {upsellPreviewItems.map((item, idx) => (
-                        <div
-                          key={`${item.title}-${idx}`}
-                          style={{
-                            flex: upsellShowAsSlider ? "0 0 100%" : "0 0 auto",
-                            padding: 10,
-                            borderRadius: 12,
-                            border: `1px solid ${upsellBorderColor}`,
-                            background: upsellBgColor,
-                            boxSizing: "border-box",
-                            width: "100%",
-                          }}
-                        >
+                      <div
+                        className="upsell-carousel-track"
+                        style={
+                          upsellShowAsSlider
+                            ? {
+                                width: "100%",
+                                transform: `translate3d(-${upsellPreviewIndex * 100}%, 0, 0)`,
+                                transition:
+                                  "transform 520ms cubic-bezier(0.22, 1, 0.36, 1)",
+                                willChange: "transform",
+                                gap: 0,
+                              }
+                            : {
+                                width: "100%",
+                                flexDirection: "column",
+                                transform: "none",
+                              }
+                        }
+                      >
+                        {upsellPreviewItems.map((item, idx) => (
                           <div
+                            key={`${item.title}-${idx}`}
                             style={{
+                              flex: upsellShowAsSlider ? "0 0 100%" : "0 0 auto",
+                              padding: "12px 14px",
+                              boxSizing: "border-box",
+                              width: "100%",
                               display: "grid",
-                              gridTemplateColumns: "64px minmax(0, 1fr) auto",
-                              gap: 12,
+                              gridTemplateColumns: "68px minmax(0, 1fr) auto",
+                              gap: 14,
                               alignItems: "center",
                               minWidth: 0,
                             }}
                           >
                             <div
                               style={{
-                                width: 64,
-                                height: 64,
+                                width: 68,
+                                height: 68,
                                 borderRadius: 12,
                                 background: "#EEF2F7",
                                 overflow: "hidden",
@@ -11351,28 +11832,30 @@ export default function AppRules() {
                               ) : null}
                             </div>
                             <div style={{ minWidth: 0 }}>
-                              <InlineStack align="space-between" blockAlign="center">
-                                <Text
-                                  as="span"
-                                  variant="bodyMd"
-                                  style={{
-                                    fontWeight: 600,
-                                    color: upsellTextColor,
-                                  }}
-                                >
-                                  {item.title}
-                                </Text>
-                                <Text
-                                  as="span"
-                                  variant="bodyMd"
-                                  style={{
-                                    fontWeight: 600,
-                                    color: upsellTextColor,
-                                  }}
-                                >
-                                  {item.price}
-                                </Text>
-                              </InlineStack>
+                              <Text
+                                as="span"
+                                variant="bodyMd"
+                                style={{
+                                  display: "block",
+                                  fontWeight: 600,
+                                  color: upsellTextColor,
+                                }}
+                              >
+                                {item.title}
+                              </Text>
+                              <Text
+                                as="span"
+                                variant="bodyMd"
+                                style={{
+                                  display: "block",
+                                  marginTop: 2,
+                                  fontWeight: 600,
+                                  color: upsellTextColor,
+                                  opacity: 0.85,
+                                }}
+                              >
+                                {item.price}
+                              </Text>
                               {item.option ? (
                                 <Text
                                   as="span"
@@ -11387,64 +11870,30 @@ export default function AppRules() {
                                   {item.option}
                                 </Text>
                               ) : null}
-                              <div
-                                style={{
-                                  marginTop: 8,
-                                  display: "flex",
-                                  flexWrap: "wrap",
-                                  gap: 10,
-                                  alignItems: "center",
-                                  minWidth: 0,
-                                }}
-                              >
-                                {item.option ? (
-                                  <div
-                                    style={{
-                                      border: `1px solid ${upsellBorderColor}`,
-                                      borderRadius: 10,
-                                      padding: "8px 12px",
-                                      fontSize: 12,
-                                      color: upsellTextColor,
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      alignItems: "center",
-                                      background: "#ffffff",
-                                    }}
-                                  >
-                                    {item.option}
-                                    <span style={{ fontSize: 14 }}>&#x25BC;</span>
-                                  </div>
-                                ) : (
-                                  <div />
-                                )}
-                                <div
-                                  style={{
-                                    padding: "8px 10px",
-                                    borderRadius: 10,
-                                    background: upsellButtonColor,
-                                    border: `1px solid ${upsellBorderColor}`,
-                                    color: upsellTextColor,
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                    whiteSpace: "nowrap",
-                                    width: 100,
-                                    justifyContent: "center",
-                                  }}
-                                >
-                                  +
-                                  <span style={{ textTransform: "lowercase" }}>
-                                    {upsellButtonText}
-                                  </span>
-                                </div>
-                              </div>
                             </div>
-                            <div />
+                            <div
+                              style={{
+                                padding: "9px 12px",
+                                borderRadius: 12,
+                                background: upsellButtonColor,
+                                border: `1px solid ${upsellBorderColor}`,
+                                color: upsellTextColor,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                                whiteSpace: "nowrap",
+                                minWidth: 112,
+                                justifyContent: "center",
+                              }}
+                            >
+                              +
+                              <span>{upsellButtonText}</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </BlockStack>
@@ -11488,12 +11937,13 @@ export default function AppRules() {
         <Box
           padding="400"
           style={{
-            display: "flex",
-            gap: 0,
-            flexWrap: "wrap",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+            gap: 20,
+            alignItems: "start",
           }}
         >
-          <Box style={{ flex: "1 1 320px", minWidth: 320 }}>
+          <Box style={{ minWidth: 0 }}>
             <InlineStack gap="400" wrap>
               <Box style={{ minWidth: 70, maxWidth: 105 }}>
                 <TextField
@@ -11544,15 +11994,39 @@ export default function AppRules() {
                 />
 
                 <ColorField
+                  label="Announcement Bar Background Color"
+                  value={announcementBarBackgroundColor}
+                  onChange={handleAnnouncementBarBackgroundColorChange}
+                />
+
+                <ColorField
+                  label="Announcement Bar text color"
+                  value={announcementBarTextColor}
+                  onChange={handleAnnouncementBarTextColorChange}
+                />
+
+                <ColorField
                   label="Button color"
                   value={buttonColor}
                   onChange={setButtonColor}
                 />
 
                 <ColorField
+                  label="Button Label Color"
+                  value={buttonLabelColor}
+                  onChange={handleButtonLabelColorChange}
+                />
+
+                <ColorField
                   label="Border color"
                   value={borderColor}
                   onChange={setBorderColor}
+                />
+
+                <ColorField
+                  label="Icon Color"
+                  value={iconColor}
+                  onChange={handleIconColorChange}
                 />
                 <TextField
                   label="Checkout button label"
@@ -11638,11 +12112,11 @@ export default function AppRules() {
                     />
                   </InlineStack>
 
-                  {/* <Checkbox
+                  <Checkbox
                     label="Show discount code apply checkbox"
                     checked={discountCodeApply}
                     onChange={handleDiscountCodeApplyChange}
-                  /> */}
+                  />
                 </BlockStack>
               </Box>
             </Box>
@@ -11667,36 +12141,41 @@ export default function AppRules() {
             </div>
           </Box>
 
-          <Box style={{ flex: "1 1 320px", minWidth: 320 }}>
+          <Box style={{ minWidth: 0 }}>
             <Text as="h5" variant="headingXs">
               Cart drawer preview
             </Text>
 
             <Box paddingBlockStart="200">
-              <BlockStack gap="200">
-                <CartDrawerPreview
-                  steps={cartSteps}
-                  rulesById={rulesById}
-                  stylesFromDb={stylePreviewSettings}
-                  previewItems={previewItems}
-                  upsellEnabled={upsellEnabled}
-                  upsellItems={upsellPreviewItems}
-                  upsellSettings={{
-                    enabled: upsellEnabled,
-                    recommendationMode: upsellMode,
-                    sectionTitle: upsellSectionTitle,
-                    buttonText: upsellButtonText,
-                    showAsSlider: upsellShowAsSlider,
-                    autoplay: upsellAutoplay,
-                    backgroundColor: upsellBgColor,
-                    textColor: upsellTextColor,
-                    borderColor: upsellBorderColor,
-                    buttonColor: upsellButtonColor,
-                    arrowColor: upsellArrowColor,
-                    selectedProductIds: upsellProductIds,
-                    selectedCollectionIds: upsellCollectionIds,
-                  }}
-                />
+              <BlockStack gap="200" inlineAlign="center">
+                <div style={{ width: "100%", maxWidth: 640, marginInline: "auto" }}>
+                  <CartDrawerPreview
+                    steps={cartSteps}
+                    rulesById={rulesById}
+                    stylesFromDb={stylePreviewSettings}
+                    previewItems={previewItems}
+                    discountRules={discountRules}
+                    bxgyRules={bxgyRules}
+                    currencyCode={currencyCode}
+                    upsellEnabled={upsellEnabled}
+                    upsellItems={upsellPreviewItems}
+                    upsellSettings={{
+                      enabled: upsellEnabled,
+                      recommendationMode: upsellMode,
+                      sectionTitle: upsellSectionTitle,
+                      buttonText: upsellButtonText,
+                      showAsSlider: upsellShowAsSlider,
+                      autoplay: upsellAutoplay,
+                      backgroundColor: upsellBgColor,
+                      textColor: upsellTextColor,
+                      borderColor: upsellBorderColor,
+                      buttonColor: upsellButtonColor,
+                      arrowColor: upsellArrowColor,
+                      selectedProductIds: upsellProductIds,
+                      selectedCollectionIds: upsellCollectionIds,
+                    }}
+                  />
+                </div>
               </BlockStack>
             </Box>
           </Box>
@@ -11797,6 +12276,7 @@ export default function AppRules() {
     <Frame>
       <style>{celebrationStyles}</style>
       <style>{DISCOUNT_SLIDE_ANIMATION}</style>
+      <style>{ANNOUNCEMENT_MARQUEE_ANIMATION}</style>
       <style>{UPSELL_CAROUSEL_ANIMATION}</style>
       <style dangerouslySetInnerHTML={{ __html: LEFT_ALIGN_BUTTON_CSS }} />
       <Page title="Cart Rules Settings" fullWidth>

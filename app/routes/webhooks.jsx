@@ -119,6 +119,7 @@ export async function action({ request }) {
         installed: false,
         uninstalledAt: new Date(),
         accessToken: null,
+        appStatus: "inactive",
       },
     });
     return new Response("OK", { status: 200 });
