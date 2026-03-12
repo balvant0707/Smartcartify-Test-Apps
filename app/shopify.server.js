@@ -40,29 +40,38 @@ const shopify = shopifyApp({
         logger.warn("[webhooks] register failed", { shop, error });
       }
 
-      const existingShop = await prisma.shop.findUnique({ where: { shop } });
+      let existingShop = null;
+      try {
+        existingShop = await prisma.shop.findUnique({ where: { shop } });
+      } catch (err) {
+        logger.warn("[afterAuth] prisma shop findUnique failed", { shop, error: err?.message });
+      }
       const isNewInstall = !existingShop || existingShop.installed === false;
       const forceSend = process.env.FORCE_INSTALL_EMAIL === "true";
 
       const encryptedAccessToken = encryptAccessToken(session?.accessToken);
       const hadTokenBefore = Boolean(decryptAccessToken(existingShop?.accessToken));
 
-      await prisma.shop.upsert({
-        where: { shop },
-        update: {
-          accessToken: encryptedAccessToken ?? undefined,
-          installed: true,
-          uninstalledAt: null,
-          appStatus: "active",
-        },
-        create: {
-          shop,
-          accessToken: encryptedAccessToken,
-          installed: true,
-          onboardedAt: new Date(),
-          appStatus: "active",
-        },
-      });
+      try {
+        await prisma.shop.upsert({
+          where: { shop },
+          update: {
+            accessToken: encryptedAccessToken ?? undefined,
+            installed: true,
+            uninstalledAt: null,
+            appStatus: "active",
+          },
+          create: {
+            shop,
+            accessToken: encryptedAccessToken,
+            installed: true,
+            onboardedAt: new Date(),
+            appStatus: "active",
+          },
+        });
+      } catch (err) {
+        logger.warn("[afterAuth] prisma shop upsert failed", { shop, error: err?.message });
+      }
 
       if (!isNewInstall && !forceSend && hadTokenBefore) {
         logger.log("[email] afterAuth not new install; skipping email.", { shop });

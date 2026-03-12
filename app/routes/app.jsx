@@ -24,23 +24,27 @@ export const loader = async ({ request }) => {
   const resolvedShop = normalizeShopDomain(session?.shop) || headerShop;
   if (resolvedShop) {
     // Ensure the shop row exists/updates whenever the app is opened
-    await prisma.shop.upsert({
-      where: { shop: resolvedShop },
-      update: {
-        accessToken: encryptedAccessToken ?? undefined,
-        installed: true,
-        uninstalledAt: null,
-        appStatus: "active",
-        updatedAt: new Date(),
-      },
-      create: {
-        shop: resolvedShop,
-        accessToken: encryptedAccessToken ?? null,
-        installed: true,
-        appStatus: "active",
-        onboardedAt: new Date(),
-      },
-    });
+    try {
+      await prisma.shop.upsert({
+        where: { shop: resolvedShop },
+        update: {
+          accessToken: encryptedAccessToken ?? undefined,
+          installed: true,
+          uninstalledAt: null,
+          appStatus: "active",
+          updatedAt: new Date(),
+        },
+        create: {
+          shop: resolvedShop,
+          accessToken: encryptedAccessToken ?? null,
+          installed: true,
+          appStatus: "active",
+          onboardedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      console.error("[app.jsx loader] prisma shop upsert failed:", err?.message);
+    }
   }
   const url = new URL(request.url);
   return {
