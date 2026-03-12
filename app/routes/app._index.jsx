@@ -1,16 +1,12 @@
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { useEffect, useRef, useState } from "react";
-import { useLoaderData, useLocation, useNavigate, useRouteError } from "react-router";
+import { useLoaderData, useLocation, useRouteError } from "react-router";
 import { authenticate, apiVersion } from "../shopify.server";
 import { Page, Card, Text } from "@shopify/polaris";
 
 import { Icon } from "@shopify/polaris";
 import {
-  CheckCircleIcon,
-  ChevronDownIcon,
   PaintBrushFlatIcon,
   ShippingLabelIcon,
-  ClipboardIcon,
 } from "@shopify/polaris-icons";
 
 const CUSTOM_ICON_CSS = `
@@ -39,7 +35,7 @@ details[data-accordion] summary::marker {
 `;
 
 const EMBED_BLOCK_HANDLE = "smart-block"; // ✅ your blocks/smart-block.liquid
-const EMBED_API_KEY = "b55a28208623440fd6a8987892e4aec3"; // client_id from shopify.app.toml
+const EMBED_TYPE_FRAGMENT = `/blocks/${EMBED_BLOCK_HANDLE}`;
 
 async function getMainThemeId(admin) {
   const res = await admin.graphql(
@@ -136,33 +132,51 @@ async function getSettingsData(admin, session, themeId) {
   return getSettingsDataViaRestAPI(session, themeId);
 }
 
-function findEmbedBlock(settingsData) {
-  const needle = `/blocks/${EMBED_BLOCK_HANDLE}/`;
-  let found = null;
+function isMatchingEmbedType(type) {
+  return (
+    typeof type === "string" &&
+    type.includes("shopify://apps/") &&
+    type.includes("/blocks/") &&
+    type.includes(EMBED_TYPE_FRAGMENT)
+  );
+}
+
+function isEmbedBlockEnabled(block) {
+  if (!block || typeof block !== "object") return false;
+  if (block.disabled === true) return false;
+  if (block.settings && typeof block.settings.enabled === "boolean") {
+    return block.settings.enabled !== false;
+  }
+  return true;
+}
+
+function getCurrentThemeEmbedBlocks(settingsData) {
+  const currentBlocks = settingsData?.current?.blocks;
+  if (!currentBlocks || typeof currentBlocks !== "object") return [];
+  return Object.values(currentBlocks).filter(
+    (block) => block && typeof block === "object" && isMatchingEmbedType(block.type)
+  );
+}
+
+function findEmbedBlocks(settingsData) {
+  const matches = [];
 
   const walk = (node) => {
-    if (found) return;
     if (Array.isArray(node)) {
-      for (const x of node) walk(x);
+      for (const item of node) walk(item);
       return;
     }
     if (!node || typeof node !== "object") return;
 
-    const type = typeof node.type === "string" ? node.type : "";
-    if (
-      type.includes("shopify://apps/") &&
-      type.includes("/blocks/") &&
-      type.includes(needle)
-    ) {
-      found = node;
-      return;
+    if (isMatchingEmbedType(node.type)) {
+      matches.push(node);
     }
 
-    for (const k of Object.keys(node)) walk(node[k]);
+    for (const key of Object.keys(node)) walk(node[key]);
   };
 
   walk(settingsData);
-  return found;
+  return matches;
 }
 
 async function getEmbedEnabled(admin, session) {
@@ -185,30 +199,31 @@ async function getEmbedEnabled(admin, session) {
     return { enabled: false, debug: "settings_data.json JSON parse failed" };
   }
 
-  const block = findEmbedBlock(settingsData);
-  if (!block) {
+  const currentThemeBlocks = getCurrentThemeEmbedBlocks(settingsData);
+  const matchedBlocks = currentThemeBlocks.length
+    ? currentThemeBlocks
+    : findEmbedBlocks(settingsData);
+
+  if (!matchedBlocks.length) {
     return {
       enabled: false,
-      debug: `Embed block not found. Expected /blocks/${EMBED_BLOCK_HANDLE}/ in type`,
+      debug: `Embed block not found. Expected ${EMBED_TYPE_FRAGMENT} in type`,
     };
   }
 
-  // Theme editor toggle OFF => disabled:true
-  let enabled = block.disabled === true ? false : true;
-
-  // Optional: your internal setting "enabled"
-  if (block.settings && typeof block.settings.enabled === "boolean") {
-    if (block.settings.enabled === false) enabled = false;
-  }
+  const enabled = matchedBlocks.some(isEmbedBlockEnabled);
+  const sampleBlock = matchedBlocks[0];
 
   return {
     enabled,
     debug: {
-      type: block.type,
-      disabled: !!block.disabled,
-      settingsEnabled:
-        block.settings && typeof block.settings.enabled === "boolean"
-          ? block.settings.enabled
+      matches: matchedBlocks.length,
+      currentThemeMatches: currentThemeBlocks.length,
+      sampleType: sampleBlock.type,
+      sampleDisabled: !!sampleBlock.disabled,
+      sampleSettingsEnabled:
+        sampleBlock.settings && typeof sampleBlock.settings.enabled === "boolean"
+          ? sampleBlock.settings.enabled
           : "n/a",
     },
   };
@@ -217,6 +232,8 @@ async function getEmbedEnabled(admin, session) {
 export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = session?.shop ?? null;
+  const appEmbedOwnerId =
+    process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_SMART_CART_ID || "";
 
   let embedEnabled = false;
   let debug = null;
@@ -230,18 +247,14 @@ export const loader = async ({ request }) => {
     debug = e?.message || "unknown error";
   }
 
-  return { shop, embedEnabled, debug };
+  return { shop, embedEnabled, debug, appEmbedOwnerId };
 };
 
 export default function Index() {
-  const { shop, embedEnabled } = useLoaderData() ?? {};
+  const { shop, embedEnabled, appEmbedOwnerId } = useLoaderData() ?? {};
   const location = useLocation();
-  const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
   const host = params.get("host");
-  const [copied, setCopied] = useState(false);
-
-  const HEADER_SNIPPET = '<a data-smart-cartify-open class="my-cart-icon">My Cart</a>';
 
   const withHost = (path) => {
     if (!host) return path;
@@ -310,71 +323,26 @@ export default function Index() {
     },
   ];
 
+  const themeTemplate = "index";
   const themeAdminUrl = shop
-    ? `https://${shop}/admin/themes/current/editor?context=apps`
+    ? `https://${shop}/admin/themes/current/editor?context=apps&template=${themeTemplate}`
     : null;
 
   // Deep link that auto-toggles the app embed block to ON in the theme editor
-  const activateEmbedUrl = shop
-    ? `https://${shop}/admin/themes/current/editor?context=apps&activateAppId=${EMBED_API_KEY}/${EMBED_BLOCK_HANDLE}`
+  const activateEmbedUrl = shop && appEmbedOwnerId
+    ? `https://${shop}/admin/themes/current/editor?context=apps&template=${themeTemplate}&activateAppId=${appEmbedOwnerId}/${EMBED_BLOCK_HANDLE}`
     : null;
 
-  const setupSteps = [
-    {
-      title: "Cart drawer compatibility check",
-      body:
-        "Multiple active cart drawer apps may cause conflicts. To ensure the best shopping experience, keep only one cart drawer app active at a time.",
-      buttonLabel: "Open theme settings",
-      href: themeAdminUrl,
-      external: true,
-      completed: true,
-    },
-    {
-      title: "Enable SmartCartify in your theme editor",
-      body:
-        "Click Activate to open the theme editor with SmartCartify pre-selected. Toggle the switch to ON, then click Save. If the toggle is already on, your app is active.",
-      buttonLabel: embedEnabled ? "Activated ✓" : "Activate",
-      href: activateEmbedUrl,
-      external: true,
-      completed: !!embedEnabled,
-    },
-    {
-      title: "Edit the cart drawer to match your store's design",
-      body:
-        "Go to the cart editor to customize the cart drawer so it matches your storefront.",
-      buttonLabel: "Go to cart editor",
-      href: withHost("/app/rules"),
-      external: false,
-      completed: true,
-    },
-  ];
-
-  const completedCount = setupSteps.filter((s) => s.completed).length;
-  const progressPercent = Math.round(
-    (completedCount / setupSteps.length) * 100
-  );
-  const [isAccordionOpen, setIsAccordionOpen] = useState(
-    () => completedCount < setupSteps.length
-  );
-  const prevCompletedCountRef = useRef(completedCount);
-  useEffect(() => {
-    if (
-      completedCount === setupSteps.length &&
-      prevCompletedCountRef.current !== setupSteps.length
-    ) {
-      setIsAccordionOpen(false);
-    }
-    prevCompletedCountRef.current = completedCount;
-  }, [completedCount, setupSteps.length]);
-
-  const handleCopySnippet = async () => {
-    try {
-      await navigator.clipboard.writeText(HEADER_SNIPPET);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
+  const openAppEmbedsUrl = activateEmbedUrl || themeAdminUrl;
+  const embedStatusLabel = embedEnabled ? "ON" : "OFF";
+  const embedStatusStyle = {
+    borderRadius: 999,
+    padding: "6px 14px",
+    fontSize: 12,
+    fontWeight: 700,
+    lineHeight: 1,
+    color: embedEnabled ? "#05422f" : "#b42318",
+    background: embedEnabled ? "#d1fae5" : "#fee4e2",
   };
 
   return (
@@ -385,424 +353,43 @@ export default function Index() {
       />
 
       <s-section>
-        <details
-          data-accordion
-          open={isAccordionOpen}
-          onToggle={(event) => setIsAccordionOpen(event.currentTarget.open)}
-          style={{
-            borderRadius: "20px",
-            border: "1px solid rgba(0,0,0,0.08)",
-            background: "#fff",
-            boxShadow: "0 14px 40px rgba(15, 23, 42, 0.08)",
-          }}
-        >
-          <summary
-            style={{
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "16px",
-              padding: "16px 22px",
-              borderBottom: "1px solid rgba(0,0,0,0.08)",
-              margin: 0,
-            }}
-          >
-            <div>
-              <s-heading level="5" as="h3" style={{ margin: 0 }}>
-                Quick Setup Guide ⚡
-              </s-heading>
-              <div style={{ fontSize: "0.85rem", color: "rgba(5, 11, 17, 0.7)" }}>
-                {`${completedCount} / ${setupSteps.length} steps completed`}
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <s-progress-bar
-                progress={progressPercent}
-                size="small"
-                style={{ flex: 1, width: 110 }}
-              />
-              <Icon
-                source={ChevronDownIcon}
-                color="base"
-                style={{
-                  transform: isAccordionOpen ? "rotate(-180deg)" : "rotate(0deg)",
-                  transition: "transform 0.25s ease",
-                }}
-              />
-            </div>
-          </summary>
-
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {setupSteps.map((step, idx) => (
-              <div
-                key={step.title}
-                style={{
-                  padding: "20px 22px",
-                  borderBottom:
-                    idx === setupSteps.length - 1
-                      ? "none"
-                      : "1px solid rgba(0,0,0,0.08)",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "16px",
-                }}
-              >
-                <div
-                  className="step-indicator"
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "50%",
-                    border: `2px solid ${step.completed ? "#16a34a" : "#111111"}`,
-                    background: step.completed ? "#16a34a" : "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {step.completed ? (
-                    <Icon
-                      source={CheckCircleIcon}
-                      style={{
-                        color: "#ffffff",
-                        fill: "#ffffff !important",
-                        stroke: "#ffffff",
-                      }}
-                    />
-                  ) : (
-                    <span
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        border: "2px solid #111",
-                        display: "block",
-                        background: "transparent",
-                      }}
-                    />
-                  )}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <s-heading level="5" style={{ margin: "4px 0" }}>
-                    {step.title}
-                  </s-heading>
-                  <s-paragraph tone="subdued">{step.body}</s-paragraph>
-                  <div style={{ marginTop: 12 }}>
-                    {step.external ? (
-                      <s-button
-                        href={step.href}
-                        variant="primary"
-                        tone="success"
-                        target="_blank"
-                        rel="noreferrer"
-                        disabled={!step.href}
-                        style={{
-                          backgroundColor: "#2C7A7B",
-                          borderColor: "#2C7A7B",
-                        }}
-                      >
-                        {step.buttonLabel}
-                      </s-button>
-                    ) : (
-                      <s-button
-                        variant="primary"
-                        tone="success"
-                        disabled={!step.href}
-                        onClick={() => step.href && navigate(step.href)}
-                        style={{
-                          backgroundColor: "#2C7A7B",
-                          borderColor: "#2C7A7B",
-                        }}
-                      >
-                        {step.buttonLabel}
-                      </s-button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </details>
-      </s-section>
-
-      {/* <s-section>
         <s-box
           padding="base"
           background="white"
           borderRadius="extraLarge"
           borderWidth="base"
-          style={{ boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)" }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <s-heading level="5">Theme header snippet</s-heading>
-            <s-paragraph tone="subdued">
-              Add this line to your theme header.liquid file.
-            </s-paragraph>
-            <div
-              style={{
-                display: "flex",
-                gap: "12px",
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <textarea
-                readOnly
-                value={HEADER_SNIPPET}
-                rows={1}
-                style={{
-                  flex: "1 1 520px",
-                  minWidth: 280,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #e5e7eb",
-                  fontFamily: "monospace",
-                  fontSize: 13,
-                  background: "#f9fafb",
-                  color: "#111827",
-                  resize: "none",
-                }}
-              />
-              <s-button
-                onClick={handleCopySnippet}
-                variant="secondary"
-                style={{ backgroundColor: "#111111", color: "#ffffff" }}
-              >
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <Icon
-                    source={ClipboardIcon}
-                    style={{ color: "#ffffff", fill: "#ffffff !important", width: "24px", height: "24px" }}
-                  />
-                  {copied ? "Copied" : "Copy"}
-                </span>
-              </s-button>
-            </div>
-          </div>
-        </s-box>
-      </s-section> */}
-
-      {/* ── Theme Onboarding Instructions ── */}
-      <s-section>
-        <details
-          data-accordion
           style={{
-            borderRadius: "20px",
-            border: "1px solid rgba(0,0,0,0.08)",
-            background: "#fff",
-            boxShadow: "0 14px 40px rgba(15, 23, 42, 0.08)",
+            boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)",
+            background: "#f8fafc",
           }}
         >
-          <summary
-            style={{
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "16px",
-              padding: "16px 22px",
-              borderBottom: "1px solid rgba(0,0,0,0.06)",
-              margin: 0,
-            }}
-          >
-            <div>
-              <s-heading level="5" as="h3" style={{ margin: 0 }}>
-                📖 How to install SmartCartify in your theme
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <s-heading level="5" style={{ margin: 0 }}>
+                App embed status
               </s-heading>
-              <div style={{ fontSize: "0.85rem", color: "rgba(5, 11, 17, 0.6)", marginTop: 2 }}>
-                Step-by-step guide to activate the app embed block
-              </div>
-            </div>
-            <Icon source={ChevronDownIcon} color="base" />
-          </summary>
-
-          <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: "28px" }}>
-
-            {/* Step 1 */}
-            <div style={{ display: "flex", gap: "16px" }}>
-              <div style={{
-                minWidth: 32, height: 32, borderRadius: "50%",
-                background: "#2C7A7B", color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 15, flexShrink: 0,
-              }}>1</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>
-                  Select the theme where you want to add SmartCartify
-                </div>
-                <div style={{ fontSize: 13, color: "rgba(15,23,42,0.7)", lineHeight: 1.6 }}>
-                  SmartCartify works as an <strong>App Embed Block</strong> — it is supported in all Shopify themes.
-                  Go to <strong>Online Store → Themes</strong> and make sure your desired theme is published (or use "Customize" on any unpublished theme to preview first).
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <s-button
-                    href={shop ? `https://${shop}/admin/themes` : null}
-                    variant="secondary"
-                    target="_blank"
-                    rel="noreferrer"
-                    disabled={!shop}
-                  >
-                    Go to Themes
-                  </s-button>
-                </div>
-              </div>
+              <span style={embedStatusStyle}>{embedStatusLabel}</span>
             </div>
 
-            <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }} />
-
-            {/* Step 2 */}
-            <div style={{ display: "flex", gap: "16px" }}>
-              <div style={{
-                minWidth: 32, height: 32, borderRadius: "50%",
-                background: "#2C7A7B", color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 15, flexShrink: 0,
-              }}>2</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>
-                  Activate the SmartCartify App Embed Block
-                </div>
-                <div style={{ fontSize: 13, color: "rgba(15,23,42,0.7)", lineHeight: 1.6 }}>
-                  Click the button below. It opens the Theme Editor directly on the <strong>App Embeds</strong> panel
-                  with SmartCartify pre-selected. Simply <strong>toggle the switch to ON</strong> and click&nbsp;
-                  <strong>Save</strong>.
-                </div>
-                <div
-                  style={{
-                    margin: "12px 0",
-                    padding: "12px 16px",
-                    background: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: 10,
-                    fontSize: 13,
-                    color: "#15803d",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  <strong>Tip:</strong> If the toggle is already green / on, the embed is active — no further action needed.
-                  The status badge on this page will update automatically.
-                </div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <s-button
-                    href={activateEmbedUrl}
-                    variant="primary"
-                    tone="success"
-                    target="_blank"
-                    rel="noreferrer"
-                    disabled={!activateEmbedUrl}
-                    style={{ backgroundColor: "#2C7A7B", borderColor: "#2C7A7B" }}
-                  >
-                    {embedEnabled ? "View embed (already active)" : "Activate embed block →"}
-                  </s-button>
-                  <s-button
-                    href={themeAdminUrl}
-                    variant="secondary"
-                    target="_blank"
-                    rel="noreferrer"
-                    disabled={!themeAdminUrl}
-                  >
-                    Open Theme Editor
-                  </s-button>
-                </div>
-              </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <s-button
+                href={openAppEmbedsUrl}
+                variant="primary"
+                target="_blank"
+                rel="noreferrer"
+                disabled={!openAppEmbedsUrl}
+                style={{ backgroundColor: "#1f2937", borderColor: "#1f2937" }}
+              >
+                Open App Embeds
+              </s-button>
             </div>
 
-            <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }} />
-
-            {/* Step 3 – Deactivate */}
-            <div style={{ display: "flex", gap: "16px" }}>
-              <div style={{
-                minWidth: 32, height: 32, borderRadius: "50%",
-                background: "#6b7280", color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 15, flexShrink: 0,
-              }}>3</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>
-                  How to deactivate (if needed)
-                </div>
-                <div style={{ fontSize: 13, color: "rgba(15,23,42,0.7)", lineHeight: 1.6 }}>
-                  Open the Theme Editor → click <strong>App Embeds</strong> in the left sidebar →
-                  find <strong>SmartCartify</strong> → toggle the switch to <strong>OFF</strong> → click <strong>Save</strong>.
-                  The cart drawer will stop rendering on your storefront immediately after saving.
-                </div>
-              </div>
-            </div>
-
-            <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }} />
-
-            {/* Step 4 – Templates */}
-            <div style={{ display: "flex", gap: "16px" }}>
-              <div style={{
-                minWidth: 32, height: 32, borderRadius: "50%",
-                background: "#2C7A7B", color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 15, flexShrink: 0,
-              }}>4</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>
-                  Supported templates & where the embed appears
-                </div>
-                <div style={{ fontSize: 13, color: "rgba(15,23,42,0.7)", lineHeight: 1.6, marginBottom: 10 }}>
-                  The SmartCartify cart drawer is an <strong>App Embed Block</strong> — it renders as a floating overlay
-                  and is available on <em>every page</em> of your store once enabled. No specific template targeting is required.
-                </div>
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-                  gap: 8,
-                }}>
-                  {["Home (index.json)", "Product pages", "Collection pages", "Cart page", "Blog & Articles", "Custom pages"].map((t) => (
-                    <div key={t} style={{
-                      padding: "6px 10px",
-                      background: "#f0fdf4",
-                      border: "1px solid #bbf7d0",
-                      borderRadius: 8,
-                      fontSize: 12,
-                      color: "#15803d",
-                      fontWeight: 500,
-                    }}>✓ {t}</div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }} />
-
-            {/* Step 5 – Configure settings */}
-            <div style={{ display: "flex", gap: "16px" }}>
-              <div style={{
-                minWidth: 32, height: 32, borderRadius: "50%",
-                background: "#2C7A7B", color: "#fff",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 15, flexShrink: 0,
-              }}>5</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>
-                  Configure app embed settings
-                </div>
-                <div style={{ fontSize: 13, color: "rgba(15,23,42,0.7)", lineHeight: 1.6 }}>
-                  In the Theme Editor, after activating the embed, click the <strong>SmartCartify</strong> row to expand
-                  its settings panel. You can adjust behaviour options directly there.
-                  For full style customization (colors, fonts, layout), use the&nbsp;
-                  <strong>Style &amp; Preview</strong> tab inside this app.
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <s-button
-                    href={withHost("/app/rules?tab=style")}
-                    variant="secondary"
-                  >
-                    Customize Style &amp; Preview
-                  </s-button>
-                </div>
-              </div>
-            </div>
-
+            <p style={{ margin: 0, color: "rgba(15,23,42,0.75)", fontSize: 12, lineHeight: 1.65 }}>
+              Click the button below to go to your theme editor, and activate theme extension. Your cart will not work until theme extension is activated.
+            </p>
           </div>
-        </details>
+        </s-box>
       </s-section>
-
       <s-section heading="What you can orchestrate">
         <div
           style={{
@@ -953,3 +540,4 @@ export function ErrorBoundary() {
     </Page>
   );
 }
+

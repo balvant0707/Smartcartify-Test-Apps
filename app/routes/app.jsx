@@ -76,9 +76,9 @@ export default function App() {
     );
   }
 
-  const rulesHref = host
-    ? `/app/rules?host=${encodeURIComponent(host)}&tab=shipping`
-    : "/app/rules?tab=shipping";
+  const docsHref = host
+    ? `/app/documents?host=${encodeURIComponent(host)}`
+    : "/app/documents";
 
   return (
     <BridgeProvider embedded apiKey={apiKey} host={host} forceRedirect>
@@ -87,9 +87,7 @@ export default function App() {
         <s-app-nav>
           {/* <s-link href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</s-link> */}
           <s-link href={host ? `/app/rules?host=${encodeURIComponent(host)}` : "/app/rules"}>Cart Rule</s-link>
-          {/* <s-link href={host ? `/app/pricing?host=${encodeURIComponent(host)}` : "/app/pricing"}>Pricing</s-link> */}
-          <s-link href="https://cartliftcartdrawerupsell.tawk.help/category/features" target="_blank" rel="noopener noreferrer">Documents</s-link>
-          {/* <s-link href={host ? `/app/help?host=${encodeURIComponent(host)}` : "/app/help"}>Help</s-link> */}
+          <s-link href={docsHref}>Documents</s-link>
         </s-app-nav>
 
         {/* Nested routes render here */}
