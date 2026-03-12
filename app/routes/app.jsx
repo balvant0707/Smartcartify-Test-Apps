@@ -85,7 +85,7 @@ export default function App() {
           <s-link href={host ? `/app/rules?host=${encodeURIComponent(host)}` : "/app/rules"}>Cart Rule</s-link>
           {/* <s-link href={host ? `/app/pricing?host=${encodeURIComponent(host)}` : "/app/pricing"}>Pricing</s-link> */}
           <s-link href="https://cartliftcartdrawerupsell.tawk.help/category/features" target="_blank" rel="noopener noreferrer">Documents</s-link>
-          <s-link href={host ? `/app/help?host=${encodeURIComponent(host)}` : "/app/help"}>Help</s-link>
+          {/* <s-link href={host ? `/app/help?host=${encodeURIComponent(host)}` : "/app/help"}>Help</s-link> */}
         </s-app-nav>
 
         {/* Nested routes render here */}
