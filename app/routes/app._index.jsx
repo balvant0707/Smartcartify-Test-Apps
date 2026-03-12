@@ -9,7 +9,6 @@ import {
   CheckCircleIcon,
   ChevronDownIcon,
   PaintBrushFlatIcon,
-  QuestionCircleIcon,
   ShippingLabelIcon,
   ClipboardIcon,
 } from "@shopify/polaris-icons";
@@ -308,12 +307,6 @@ export default function Index() {
       href: withHost("/app/rules?tab=style"),
       icon: PaintBrushFlatIcon,
       bg: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)",
-    },
-    {
-      label: "View FAQs & support",
-      href: withHost("/app/help"),
-      icon: QuestionCircleIcon,
-      bg: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
     },
   ];
 
