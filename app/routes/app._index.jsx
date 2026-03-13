@@ -346,7 +346,7 @@ export default function Index() {
   };
 
   return (
-    <s-page heading="SmartCartify">
+    <s-page heading="CartLift: Cart Drawer & Upsell">
       <style
         type="text/css"
         dangerouslySetInnerHTML={{ __html: CUSTOM_ICON_CSS }}
@@ -385,7 +385,7 @@ export default function Index() {
             </div>
 
             <p style={{ margin: 0, color: "rgba(15,23,42,0.75)", fontSize: 12, lineHeight: 1.65 }}>
-              Click the button below to go to your theme editor, and activate theme extension. Your cart will not work until theme extension is activated.
+              You will be redirected to the Shopify theme editor, where you can enable CartLift: Cart Drawer & Upsell. Make sure to save your changes after enabling it.
             </p>
           </div>
         </s-box>
