@@ -23,16 +23,46 @@ export const loader = async ({ request }) => {
     null;
   const resolvedShop = normalizeShopDomain(session?.shop) || headerShop;
   if (resolvedShop) {
-    // Ensure the shop row exists/updates whenever the app is opened
-    let shopRow = null;
+    // Fetch store contact info from Shopify Admin API
+    let shopInfo = {};
     try {
-      shopRow = await prisma.shop.upsert({
+      const response = await admin.graphql(
+        `query LoaderShopInfo {
+          shop {
+            email
+            phone
+            primaryDomain { host }
+            shopOwnerName
+          }
+        }`,
+      );
+      const data = await response.json();
+      shopInfo = data?.data?.shop || {};
+    } catch (err) {
+      console.error("[app.jsx loader] Shopify shop info fetch failed:", err?.message);
+    }
+
+    const ownerParts = (shopInfo.shopOwnerName || "").trim().split(/\s+/);
+    const firstName = ownerParts[0] || null;
+    const lastName = ownerParts.slice(1).join(" ") || null;
+    const email = shopInfo.email || null;
+    const domain = shopInfo.primaryDomain?.host || resolvedShop;
+    const contactNumber = shopInfo.phone || null;
+
+    // Insert new shop record or update existing one with all fields
+    try {
+      await prisma.shop.upsert({
         where: { shop: resolvedShop },
         update: {
           accessToken: encryptedAccessToken ?? undefined,
           installed: true,
           uninstalledAt: null,
           appStatus: "active",
+          firstName,
+          lastName,
+          email,
+          domain,
+          contactNumber,
           updatedAt: new Date(),
         },
         create: {
@@ -41,42 +71,15 @@ export const loader = async ({ request }) => {
           installed: true,
           appStatus: "active",
           onboardedAt: new Date(),
+          firstName,
+          lastName,
+          email,
+          domain,
+          contactNumber,
         },
       });
     } catch (err) {
       console.error("[app.jsx loader] prisma shop upsert failed:", err?.message);
-    }
-
-    // Populate contact fields if they are missing (new install or afterAuth did not complete)
-    if (shopRow && !shopRow.email && admin) {
-      try {
-        const response = await admin.graphql(
-          `query LoaderShopInfo {
-            shop {
-              name
-              email
-              phone
-              primaryDomain { host }
-              shopOwnerName
-            }
-          }`,
-        );
-        const data = await response.json();
-        const info = data?.data?.shop || {};
-        const ownerParts = (info.shopOwnerName || "").trim().split(/\s+/);
-        await prisma.shop.update({
-          where: { shop: resolvedShop },
-          data: {
-            firstName: ownerParts[0] || null,
-            lastName: ownerParts.slice(1).join(" ") || null,
-            email: info.email || null,
-            domain: info.primaryDomain?.host || resolvedShop,
-            contactNumber: info.phone || null,
-          },
-        });
-      } catch (err) {
-        console.error("[app.jsx loader] shop contact fields update failed:", err?.message);
-      }
     }
   }
   const url = new URL(request.url);
