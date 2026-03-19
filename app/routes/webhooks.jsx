@@ -141,6 +141,7 @@ export async function action({ request }) {
         await prisma.shop.create({
           data: {
             shop,
+            domain: shop,
             installed: false,
             uninstalledAt: new Date(),
             accessToken: null,

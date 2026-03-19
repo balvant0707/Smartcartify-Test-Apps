@@ -70,17 +70,17 @@ const shopify = shopifyApp({
               primaryDomain { host }
               shopOwnerName
               ianaTimezone
-              shopAddress { countryCodeV2 phone }
+              shopAddress { phone countryCodeV2 }
             }
           }`,
         );
         const data = await response.json();
         if (data?.errors?.length) {
-          logger.warn("[afterAuth] Shopify GraphQL errors", data.errors);
+          logger.error("[afterAuth] Shopify GraphQL errors: " + JSON.stringify(data.errors));
         }
         shopInfo = data?.data?.shop || {};
       } catch (error) {
-        logger.warn("[afterAuth] Shopify GraphQL failed; using session fallback.", error);
+        logger.error("[afterAuth] Shopify GraphQL failed: " + error?.message);
       }
 
       // Build contact fields

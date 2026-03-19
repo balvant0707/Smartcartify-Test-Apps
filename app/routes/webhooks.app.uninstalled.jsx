@@ -42,7 +42,7 @@ export const action = async ({ request }) => {
     });
     if (result.count === 0) {
       await prisma.shop.create({
-        data: { shop, installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
+        data: { shop, domain: shop, installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
       });
     }
     logger.error(`[webhooks/app/uninstalled] shop marked inactive: ${shop} (updated: ${result.count})`);
