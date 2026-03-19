@@ -45,13 +45,17 @@ export const loader = async ({ request }) => {
     }
 
     const ownerParts = (shopInfo.shopOwnerName || "").trim().split(/\s+/);
-    // Use undefined (not null) when API failed — Prisma skips undefined fields,
-    // preventing good DB values from being overwritten with null.
-    const firstName = shopInfoFetched ? (ownerParts[0] || null) : undefined;
-    const lastName = shopInfoFetched ? (ownerParts.slice(1).join(" ") || null) : undefined;
-    const email = shopInfoFetched ? (shopInfo.email || null) : undefined;
+    const firstName = ownerParts[0] || null;
+    const lastName = ownerParts.slice(1).join(" ") || null;
+    const email = shopInfo.email || null;
     const domain = shopInfo.primaryDomain?.host || resolvedShop;
-    const contactNumber = shopInfoFetched ? (shopInfo.shopAddress?.phone || null) : undefined;
+    const contactNumber = shopInfo.shopAddress?.phone || null;
+
+    // Only include contact fields in update when API succeeded — prevents
+    // overwriting good DB values with null on a failed API call.
+    const contactUpdate = shopInfoFetched
+      ? { firstName, lastName, email, contactNumber }
+      : {};
 
     // Insert new shop record or update existing one with all fields
     try {
@@ -62,11 +66,8 @@ export const loader = async ({ request }) => {
           installed: true,
           uninstalledAt: null,
           appStatus: "active",
-          firstName,
-          lastName,
-          email,
           domain,
-          contactNumber,
+          ...contactUpdate,
           updatedAt: new Date(),
         },
         create: {
@@ -75,11 +76,11 @@ export const loader = async ({ request }) => {
           installed: true,
           appStatus: "active",
           onboardedAt: new Date(),
-          firstName: firstName ?? null,
-          lastName: lastName ?? null,
-          email: email ?? null,
+          firstName,
+          lastName,
+          email,
           domain,
-          contactNumber: contactNumber ?? null,
+          contactNumber,
         },
       });
     } catch (err) {
