@@ -14,7 +14,7 @@ import { normalizeShopDomain } from "../lib/shopUtils.server.js";
 
 // 2) Loader (auth check)
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const encryptedAccessToken = encryptAccessToken(session?.accessToken);
   const headerShop =
     normalizeShopDomain(request.headers.get("x-shopify-shop-domain")) ||
@@ -24,8 +24,9 @@ export const loader = async ({ request }) => {
   const resolvedShop = normalizeShopDomain(session?.shop) || headerShop;
   if (resolvedShop) {
     // Ensure the shop row exists/updates whenever the app is opened
+    let shopRow = null;
     try {
-      await prisma.shop.upsert({
+      shopRow = await prisma.shop.upsert({
         where: { shop: resolvedShop },
         update: {
           accessToken: encryptedAccessToken ?? undefined,
@@ -44,6 +45,38 @@ export const loader = async ({ request }) => {
       });
     } catch (err) {
       console.error("[app.jsx loader] prisma shop upsert failed:", err?.message);
+    }
+
+    // Populate contact fields if they are missing (new install or afterAuth did not complete)
+    if (shopRow && !shopRow.email && admin) {
+      try {
+        const response = await admin.graphql(
+          `query LoaderShopInfo {
+            shop {
+              name
+              email
+              phone
+              primaryDomain { host }
+              shopOwnerName
+            }
+          }`,
+        );
+        const data = await response.json();
+        const info = data?.data?.shop || {};
+        const ownerParts = (info.shopOwnerName || "").trim().split(/\s+/);
+        await prisma.shop.update({
+          where: { shop: resolvedShop },
+          data: {
+            firstName: ownerParts[0] || null,
+            lastName: ownerParts.slice(1).join(" ") || null,
+            email: info.email || null,
+            domain: info.primaryDomain?.host || resolvedShop,
+            contactNumber: info.phone || null,
+          },
+        });
+      } catch (err) {
+        console.error("[app.jsx loader] shop contact fields update failed:", err?.message);
+      }
     }
   }
   const url = new URL(request.url);

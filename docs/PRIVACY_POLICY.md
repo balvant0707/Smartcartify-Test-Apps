@@ -1,248 +1,166 @@
 # Privacy Policy
 
-**App Name:** CartLift: Cart Drawer & Upsell
-**Developer:** Pryxo Tech Private Limited
-**Contact:** balvant@pryxotech.com
-**App URL:** https://cartmilestone.smartreminder.in
-**Effective Date:** March 19, 2026
+**App Name:** CartLift: Cart Drawer & Upsell  
+**Developer:** Pryxo Tech Private Limited  
+**Contact Email:** balvant@pryxotech.com  
+**Support URL:** https://cartmilestone.smartreminder.in/  
+**Effective Date:** March 19, 2026  
 **Last Updated:** March 19, 2026
-
----
 
 ## 1. Introduction
 
-Pryxo Tech Private Limited ("we," "us," or "our") operates the **CartLift: Cart Drawer & Upsell** Shopify application (the "App"). This Privacy Policy explains how we collect, use, store, and protect information when you install and use our App on your Shopify store.
-
-By installing or using the App, you agree to the practices described in this Privacy Policy. If you do not agree, please uninstall the App.
-
----
-
-## 2. Who This Policy Applies To
+Pryxo Tech Private Limited ("we", "us", or "our") provides the CartLift: Cart Drawer & Upsell Shopify application (the "App"). This Privacy Policy explains what information we collect, how we use it, how we protect it, and the choices available to Shopify merchants who install and use the App.
 
 This Privacy Policy applies to:
 
-- **Merchants** — Shopify store owners and administrators who install and configure the App.
-- **Storefront Visitors** — Customers who visit a merchant's store where the App is active.
+- Shopify merchants who install or use the App.
+- Storefront visitors interacting with a store where the App is enabled.
 
----
+By installing or using the App, you agree to the practices described in this Privacy Policy.
 
-## 3. Information We Collect
+## 2. Information We Collect
 
-### 3.1 Merchant Information
+### 2.1 Merchant and Store Information
 
-When a merchant installs the App, we collect and store the following information via Shopify's OAuth authentication:
+When a merchant installs or authenticates the App through Shopify, we may collect and store:
 
-| Data | Purpose |
-|------|---------|
-| Shop domain (e.g., `yourstore.myshopify.com`) | Identify and associate the merchant's account |
-| Store owner's first name and last name | Personalize communication and support |
-| Store owner's email address | Send installation confirmations and notifications |
-| Store primary domain | Link store identity |
-| Store contact/phone number | Merchant identification |
-| Shopify access token (encrypted) | Authenticate API calls to the merchant's Shopify store |
-| App installation status and timestamps | Track installation lifecycle |
-| Shopify OAuth session data (scope, expiry, locale) | Manage authenticated sessions |
+- Shop domain, such as `examplestore.myshopify.com`
+- Store primary domain
+- Store owner or administrator first name and last name
+- Store owner or administrator email address
+- Store contact phone number, if provided by Shopify
+- Shopify session details such as scopes, locale, expiration, and related session metadata
+- Shopify access token used to operate the App on the merchant's behalf
+- Installation status, onboarding data, and timestamps related to installation or uninstallation
 
-### 3.2 App Configuration Data
+### 2.2 App Configuration Data
 
-When merchants configure the App, we store the following **merchant-created** configuration data:
+When a merchant configures the App, we store the settings created inside the App, including:
 
-- **Shipping Rules** — Free shipping thresholds, reward types, progress messages, and related Shopify rate/method IDs.
-- **Discount Rules** — Discount campaigns, discount codes, applicable product/collection scope, progress messages.
-- **Free Gift Rules** — Gift product IDs, trigger conditions, quantity limits, applicable product lists.
-- **Buy X Get Y (BXGY) Rules** — Quantity triggers, gift products, applicable scope (products/collections/store-wide).
-- **Style Settings** — Cart drawer colors, fonts, radius, background, button text, and other UI customizations.
-- **Upsell Settings** — Upsell section title, button text, colors, selected product/collection IDs, and display preferences.
+- Shipping progress and free shipping rules
+- Discount and discount code rules
+- Free gift rules
+- Buy X Get Y campaign rules
+- Cart drawer styling and display settings
+- Upsell settings, including selected product IDs or collection IDs
 
-### 3.3 Billing & Subscription Data
+### 2.3 Billing and Subscription Data
 
-We store subscription information related to the App's billing plan:
+If the merchant uses a paid plan, we may store billing and subscription details received from Shopify, including:
 
-- Plan name and ID
-- Subscription status (e.g., ACTIVE, CANCELLED, FROZEN)
+- Plan name and plan ID
+- Subscription status
 - Billing interval, amount, and currency
-- Current period end date
-- Shopify subscription GID (Global ID)
-- Trial days and test subscription flag
+- Trial information
+- Shopify subscription identifiers
+- Current billing period end date
 
-This data is sourced from Shopify's `app_subscriptions/update` webhook.
+### 2.4 Storefront and Customer Data
 
-### 3.4 Storefront Visitor Data
+The App may read limited storefront cart information in real time in order to display promotions, discounts, free gift logic, progress messaging, and upsell recommendations.
 
-**We do not collect, store, or process any personally identifiable information (PII) about individual customers or storefront visitors.**
+We do not store customer personal data such as:
 
-The App operates entirely through Shopify's cart and storefront APIs:
+- Customer name
+- Customer email address
+- Customer postal address
+- Customer payment information
 
-- Cart contents are read in real-time from the visitor's browser session via Shopify's `/cart.js` endpoint.
-- No cart data is transmitted to or stored on our servers.
-- No customer names, emails, addresses, or payment information are accessed or stored.
+Cart information used by the storefront extension is processed dynamically and is not stored on our servers as customer profiles.
 
----
+## 3. How We Use Information
 
-## 4. How We Use Information
+We use the information we collect to:
 
-We use the information we collect for the following purposes:
+- Install, authenticate, and operate the App within a merchant's Shopify store
+- Save merchant-created rules, settings, and storefront customizations
+- Show cart drawer offers, progress bars, discounts, free gifts, and upsells
+- Retrieve relevant product or collection information from Shopify when needed for App features
+- Manage billing and subscription status
+- Send merchant-facing installation, uninstallation, or support-related emails
+- Maintain security, prevent misuse, and comply with Shopify platform requirements
+- Respond to legal, compliance, or data protection obligations
 
-| Purpose | Data Used |
-|---------|-----------|
-| Authenticate API requests to Shopify | Encrypted access token |
-| Deliver cart drawer, upsell, and promotion functionality on storefronts | App configuration rules and settings |
-| Send installation/uninstallation notification emails to merchants | Merchant email, name, shop domain |
-| Send internal operational notifications to the app developer | Merchant email, shop domain |
-| Track app billing and plan status | Subscription data from Shopify |
-| Provide product and collection data for upsell recommendations | Shopify product/collection IDs (fetched via Admin API, not stored persistently) |
-| Comply with GDPR data deletion requests | Shop and session records |
+## 4. Shopify Permissions
 
----
+The App requests Shopify API access scopes that are necessary to provide its features. These permissions may include access related to discounts, products, shipping, themes, and order-related functionality. We use Shopify access only as needed to operate the App for the merchant.
 
-## 5. Shopify API Permissions (Scopes)
+## 5. Data Sharing
 
-The App requests the following Shopify API permission scopes. We only request scopes that are necessary for core features:
+We do not sell, rent, or trade merchant data or customer data.
 
-| Scope | Reason |
-|-------|--------|
-| `read_discounts` / `write_discounts` | Create and manage discount codes used in cart drawer promotions |
-| `read_products` / `write_products` | Fetch product data for upsell recommendations and free gift identification |
-| `read_shipping` / `write_shipping` | Create and manage shipping rate rules for free shipping progress bars |
-| `read_themes` / `write_themes` | Embed the cart drawer extension into the merchant's storefront theme |
-| `read_orders` / `write_orders` | Read order context for buy-x-get-y and discount validation |
+We may share limited information with service providers only when necessary to run the App, such as:
 
----
+- Shopify, for platform APIs, billing, authentication, and webhook delivery
+- Infrastructure and database providers used to host and store App data
+- Email delivery providers used to send installation, uninstallation, or support-related communications
 
-## 6. Data Storage and Security
+These third parties receive only the information needed to provide their services to us.
 
-### 6.1 Storage Location
+## 6. Cookies, Browser Storage, and Tracking
 
-All merchant configuration data is stored in a MySQL database hosted on our infrastructure at `192.250.231.31`. This server is maintained by Pryxo Tech Private Limited.
+The App does not use its own advertising trackers on a merchant's storefront.
 
-### 6.2 Access Token Security
+The storefront script may use browser `sessionStorage` for limited temporary functionality, such as remembering a pending discount code during a browsing session. This information remains in the visitor's browser session and is not stored on our servers by that feature.
 
-Shopify access tokens are **encrypted at rest** using AES encryption before being stored in the database. They are decrypted only when needed to make API calls.
+Shopify or other services used by the merchant may set their own cookies or tracking technologies independently of this App.
 
-### 6.3 Data Retention
+## 7. Data Retention
 
-- Merchant configuration data (rules, settings) is retained as long as the App is installed.
-- On uninstallation, the shop's access token is cleared and the shop record is marked inactive. Configuration rules may be retained for a short period to support reinstallation.
-- On receipt of a Shopify `shop/redact` webhook (typically 48 hours after uninstallation), **all shop data is permanently deleted**, including: sessions, shop record, all rules (shipping, discount, free gift, BXGY), style settings, upsell settings, and subscription records.
+We retain merchant data for as long as reasonably necessary to operate the App and meet legal or platform obligations.
 
-### 6.4 Security Measures
+In general:
 
-- All communications between the App and Shopify use HTTPS/TLS encryption.
-- App proxy requests from storefronts are verified using HMAC-SHA256 signature validation.
-- Webhook payloads are verified using HMAC-SHA256 before processing.
-- Access tokens are stored in encrypted form.
-- We follow Shopify's security guidelines for embedded app development.
+- Merchant configuration data is retained while the App remains installed and active.
+- If the App is uninstalled, we may mark the installation as inactive and clear access credentials needed for App operation.
+- If Shopify sends a `shop/redact` request, we delete shop-related data associated with the App as required by Shopify and applicable law.
 
----
+## 8. Data Security
 
-## 7. Data Sharing and Third Parties
+We use reasonable administrative, technical, and organizational measures to protect information handled by the App.
 
-We do **not** sell, rent, or trade merchant or customer data to third parties.
+Examples include:
 
-We may share data with the following categories of service providers solely to operate the App:
+- Encryption of Shopify access tokens at rest
+- HTTPS or TLS for data transmitted between the App and Shopify
+- Verification of Shopify webhooks and app proxy requests
+- Restricted use of merchant data for App operations only
 
-| Service | Purpose | Data Shared |
-|---------|---------|-------------|
-| **Shopify** | Platform API access, webhook delivery | Merchant access tokens (used to call Shopify APIs) |
-| **SMTP Email Service** (cartmilestone.smartreminder.in) | Send installation and uninstallation notification emails | Merchant email address, store name |
-| **MySQL Database Host** | Store app configuration data | All merchant configuration data |
+No method of transmission or storage is completely secure, but we take reasonable steps to protect the data we handle.
 
-No customer (storefront visitor) data is shared with any third party.
+## 9. GDPR and Shopify Privacy Webhooks
 
----
+The App is designed to support Shopify privacy compliance requirements.
 
-## 8. Cookies and Tracking
+Based on the App's current implementation:
 
-The App itself does **not** set cookies on the storefront or use tracking technologies.
+- We do not maintain stored customer profiles containing customer personal data.
+- For customer data access or deletion requests received through Shopify privacy webhooks, our response reflects that the App does not store customer personal data in its own database.
+- For `shop/redact` requests, we delete shop-related App data associated with the merchant as required.
 
-The App reads from the browser's `sessionStorage` to temporarily remember a pending discount code across page loads. This data:
-- Never leaves the visitor's browser.
-- Is not transmitted to our servers.
-- Is cleared when the browser session ends.
+## 10. Merchant Rights
 
-Shopify may set its own cookies on storefronts independently of this App. Please refer to [Shopify's Privacy Policy](https://www.shopify.com/legal/privacy) for details.
+Depending on applicable law, merchants may have rights to:
 
----
+- Request access to the data we hold about their store
+- Request correction of inaccurate information
+- Request deletion of their App-related store data
+- Request information about how their data is used
 
-## 9. GDPR Compliance
+To make a privacy-related request, contact us at `balvant@pryxotech.com`.
 
-We comply with the General Data Protection Regulation (GDPR) and Shopify's privacy requirements.
+## 11. Children's Privacy
 
-### 9.1 Customer Data Requests
-
-If a merchant's customer submits a data access request:
-
-- We do **not** store any personally identifiable customer information.
-- We respond to `customers/data_request` webhooks with a confirmation that no customer data is held.
-
-### 9.2 Customer Data Redaction
-
-If a merchant's customer requests deletion of their data:
-
-- We respond to `customers/redact` webhooks with a confirmation that no customer data needs to be deleted.
-
-### 9.3 Shop Data Redaction
-
-When Shopify sends a `shop/redact` webhook (after a merchant uninstalls the App):
-
-- All data associated with the merchant's shop is permanently deleted from our database.
-- This includes: shop record, sessions, all rules, style settings, upsell settings, and subscription records.
-
-### 9.4 Your Rights (Merchants)
-
-As a merchant (data controller/processor relationship), you have the right to:
-
-- **Access** — Request a copy of the data we hold about your store.
-- **Correction** — Request correction of inaccurate data.
-- **Deletion** — Request deletion of your store's data at any time by contacting us or uninstalling the App.
-- **Portability** — Request your data in a portable format.
-
-To exercise these rights, contact us at: **balvant@pryxotech.com**
-
----
-
-## 10. Children's Privacy
-
-The App is designed for use by Shopify merchants (businesses). We do not knowingly collect data from individuals under the age of 18. If you believe we have inadvertently collected such data, contact us immediately and we will delete it.
-
----
-
-## 11. Data Breach Notification
-
-In the event of a data breach that affects merchant data, we will:
-
-1. Investigate and contain the breach promptly.
-2. Notify affected merchants within 72 hours of discovery, where required by applicable law.
-3. Notify Shopify as required by the Shopify Partner Agreement.
-4. Take corrective measures to prevent recurrence.
-
----
+The App is intended for business use by Shopify merchants and is not directed to children. We do not knowingly collect personal information from children.
 
 ## 12. Changes to This Privacy Policy
 
-We may update this Privacy Policy from time to time. When we make material changes, we will:
-
-- Update the "Last Updated" date at the top of this document.
-- Notify merchants via email (using the email address associated with their store) where required.
-
-Continued use of the App after changes are posted constitutes acceptance of the updated policy.
-
----
+We may update this Privacy Policy from time to time. If we make material changes, we will update the "Last Updated" date above and may provide additional notice where required.
 
 ## 13. Contact Us
 
-If you have questions, concerns, or requests regarding this Privacy Policy or your data, please contact us:
+If you have questions about this Privacy Policy or the App's privacy practices, please contact:
 
-**Pryxo Tech Private Limited**
-Email: balvant@pryxotech.com
-App Support: https://cartmilestone.smartreminder.in
-
----
-
-## 14. Governing Law
-
-This Privacy Policy is governed by the laws of India. Any disputes arising in connection with this policy shall be subject to the exclusive jurisdiction of the courts of India.
-
----
-
-*This Privacy Policy was generated based on the actual data practices of the CartLift: Cart Drawer & Upsell application.*
+Pryxo Tech Private Limited  
+Email: balvant@pryxotech.com  
+Support: https://cartmilestone.smartreminder.in/

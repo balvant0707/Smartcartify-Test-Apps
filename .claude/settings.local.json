@@ -4,7 +4,8 @@
       "Bash(xargs cat:*)",
       "Bash(ls /c/xampp/htdocs/shopifyApps/smart-cartify/*.log)",
       "Bash(ls /c/xampp/htdocs/shopifyApps/smart-cartify/iisnode*.log)",
-      "Bash(find /c/xampp/htdocs/shopifyApps/smart-cartify -name *.log -not -path */node_modules/*)"
+      "Bash(find /c/xampp/htdocs/shopifyApps/smart-cartify -name *.log -not -path */node_modules/*)",
+      "Bash(node -e \"const p = require\\(''./node_modules/@shopify/shopify-app-react-router/package.json''\\); console.log\\(p.version\\)\")"
     ]
   }
 }
