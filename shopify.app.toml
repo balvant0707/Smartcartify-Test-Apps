@@ -5,6 +5,8 @@ name = "CartLift: Cart Drawer & Upsell"
 application_url = "https://cartmilestone.smartreminder.in/"
 embedded = true
 
+handle = "cartlift-cart-drawer-upsell"
+
 [build]
 automatically_update_urls_on_dev = true
 
