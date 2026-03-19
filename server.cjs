@@ -77,8 +77,25 @@ const childProcess = require("node:child_process");
 const express = require("express");
 const appRoot = __dirname;
 
+const quoteForCmd = (value) => {
+  const stringValue = String(value ?? "");
+  if (!stringValue) return '""';
+  if (!/[\s"&|<>^]/.test(stringValue)) return stringValue;
+  return `"${stringValue.replace(/"/g, '""')}"`;
+};
+
 const runStartupTask = (label, file, args) => {
   try {
+    if (process.platform === "win32" && /\.(cmd|bat)$/i.test(file)) {
+      const command = [file, ...args].map(quoteForCmd).join(" ");
+      childProcess.execFileSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", command], {
+        cwd: appRoot,
+        env: process.env,
+        stdio: "inherit",
+      });
+      return;
+    }
+
     childProcess.execFileSync(file, args, {
       cwd: appRoot,
       env: process.env,
@@ -98,6 +115,19 @@ const runStartupDatabaseTasks = () => {
   const bootstrapScript = path.join(appRoot, "scripts", "bootstrap-shop-schema.mjs");
   if (fs.existsSync(bootstrapScript)) {
     runStartupTask("shop bootstrap", process.execPath, [bootstrapScript]);
+  }
+
+  const prismaCliJs = path.join(
+    appRoot,
+    "node_modules",
+    "prisma",
+    "build",
+    "index.js",
+  );
+
+  if (fs.existsSync(prismaCliJs)) {
+    runStartupTask("prisma migrate deploy", process.execPath, [prismaCliJs, "migrate", "deploy"]);
+    return;
   }
 
   const prismaBin = path.join(
