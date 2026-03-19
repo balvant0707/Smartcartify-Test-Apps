@@ -15,6 +15,7 @@ import {
 import { sendEmail } from "./lib/email.server.js";
 import { decryptAccessToken, encryptAccessToken } from "./lib/accessTokenCrypto.server.js";
 import logger from "./lib/logger.server.js";
+import { safeUpsertShop } from "./lib/shopPersistence.server.js";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -91,10 +92,11 @@ const shopify = shopifyApp({
       const resolvedDomain = shopInfo.primaryDomain?.host || shop;
       const resolvedPhone = shopInfo.shopAddress?.phone || null;
 
-      // Single upsert — access token + contact fields written together so nothing is partial
+      // Single upsert - access token + contact fields written together so nothing is partial
       try {
-        await prisma.shop.upsert({
-          where: { shop },
+        await safeUpsertShop({
+          shop,
+          context: "afterAuth",
           update: {
             accessToken: encryptedAccessToken ?? undefined,
             installed: true,
@@ -107,7 +109,6 @@ const shopify = shopifyApp({
             contactNumber: resolvedPhone,
           },
           create: {
-            shop,
             accessToken: encryptedAccessToken,
             installed: true,
             onboardedAt: new Date(),

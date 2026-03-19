@@ -8,8 +8,8 @@ import { AppProvider as BridgeProvider } from "@shopify/shopify-app-react-router
 import { AppProvider as PolarisProvider, Page, Card, Text } from "@shopify/polaris";
 import en from "@shopify/polaris/locales/en.json";
 import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
 import { encryptAccessToken } from "../lib/accessTokenCrypto.server.js";
+import { safeUpsertShop } from "../lib/shopPersistence.server.js";
 import { normalizeShopDomain } from "../lib/shopUtils.server.js";
 
 // 2) Loader (auth check)
@@ -59,8 +59,9 @@ export const loader = async ({ request }) => {
 
     // Insert new shop record or update existing one with all fields
     try {
-      await prisma.shop.upsert({
-        where: { shop: resolvedShop },
+      await safeUpsertShop({
+        shop: resolvedShop,
+        context: "app loader",
         update: {
           accessToken: encryptedAccessToken ?? undefined,
           installed: true,
@@ -68,10 +69,8 @@ export const loader = async ({ request }) => {
           appStatus: "active",
           domain,
           ...contactUpdate,
-          updatedAt: new Date(),
         },
         create: {
-          shop: resolvedShop,
           accessToken: encryptedAccessToken ?? null,
           installed: true,
           appStatus: "active",

@@ -4,6 +4,7 @@
 
 import prisma from "../db.server";
 import logger from "../lib/logger.server.js";
+import { safeCreateShop, safeUpdateManyShop } from "../lib/shopPersistence.server.js";
 import { authenticate } from "../shopify.server";
 
 export const action = async ({ request }) => {
@@ -16,12 +17,14 @@ export const action = async ({ request }) => {
   try {
     await prisma.session.deleteMany({ where: { shop } }).catch(() => null);
     await prisma.planSubscription.deleteMany({ where: { shop } }).catch(() => null);
-    const result = await prisma.shop.updateMany({
+    const result = await safeUpdateManyShop({
+      context: "legacy webhook app/uninstalled update",
       where: { shop },
       data: { installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
     });
     if (result.count === 0) {
-      await prisma.shop.create({
+      await safeCreateShop({
+        context: "legacy webhook app/uninstalled create",
         data: { shop, domain: shop, installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
       });
     }

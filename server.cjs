@@ -73,7 +73,44 @@ try { require("dotenv").config(); } catch {}
 
 const path = require("node:path");
 const fs = require("node:fs");
+const childProcess = require("node:child_process");
 const express = require("express");
+const appRoot = __dirname;
+
+const runStartupTask = (label, file, args) => {
+  try {
+    childProcess.execFileSync(file, args, {
+      cwd: appRoot,
+      env: process.env,
+      stdio: "inherit",
+    });
+  } catch (error) {
+    console.error(`[startup] ${label} failed`, error);
+    process.exit(1);
+  }
+};
+
+const runStartupDatabaseTasks = () => {
+  if (process.env.SKIP_STARTUP_DB_TASKS === "true") {
+    return;
+  }
+
+  const bootstrapScript = path.join(appRoot, "scripts", "bootstrap-shop-schema.mjs");
+  if (fs.existsSync(bootstrapScript)) {
+    runStartupTask("shop bootstrap", process.execPath, [bootstrapScript]);
+  }
+
+  const prismaBin = path.join(
+    appRoot,
+    "node_modules",
+    ".bin",
+    process.platform === "win32" ? "prisma.cmd" : "prisma",
+  );
+
+  if (fs.existsSync(prismaBin)) {
+    runStartupTask("prisma migrate deploy", prismaBin, ["migrate", "deploy"]);
+  }
+};
 
 // ---- Optional middlewares (safe import) ----
 let compressionMw = (_r,_s,next)=>next();
@@ -88,6 +125,7 @@ try { createRequestHandler = require("@react-router/express").createRequestHandl
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", true);
+runStartupDatabaseTasks();
 
 // Allow Shopify to iframe the app; avoid X-Frame-Options blocking.
 app.use((req, res, next) => {
@@ -108,8 +146,6 @@ app.get("/ping", (_req, res) => res.type("text").send("pong"));
 // -----------------------------------------------------
 // 📁 Static assets
 // -----------------------------------------------------
-const appRoot = __dirname;
-
 // /public first
 const publicDir = path.join(appRoot, "public");
 if (fs.existsSync(publicDir)) {

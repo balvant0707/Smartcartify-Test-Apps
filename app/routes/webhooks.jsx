@@ -6,6 +6,7 @@ import {
   buildUninstallEmail,
 } from "../lib/emailTemplates.server.js";
 import logger from "../lib/logger.server.js";
+import { safeCreateShop, safeUpdateManyShop } from "../lib/shopPersistence.server.js";
 import { authenticate } from "../shopify.server";
 
 const toDateOrNull = (value) => {
@@ -93,7 +94,8 @@ export async function action({ request }) {
     await prisma.planSubscription.deleteMany({ where: { shop } }).catch(() => null);
 
     try {
-      const result = await prisma.shop.updateMany({
+      const result = await safeUpdateManyShop({
+        context: "webhooks app/uninstalled update",
         where: { shop },
         data: {
           installed: false,
@@ -103,8 +105,9 @@ export async function action({ request }) {
         },
       });
       if (result.count === 0) {
-        // No existing record — create one so the uninstall state is recorded
-        await prisma.shop.create({
+        // No existing record - create one so the uninstall state is recorded
+        await safeCreateShop({
+          context: "webhooks app/uninstalled create",
           data: {
             shop,
             domain: shop,
