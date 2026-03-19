@@ -1,4 +1,4 @@
-const APP_NAME = process.env.APP_NAME || "Smartcartify";
+const APP_NAME = process.env.APP_NAME || "CartLift: Cart Drawer & Upsell";
 const APP_URL = process.env.APP_URL || process.env.SHOPIFY_APP_URL || "";
 const SUPPORT_EMAIL =
   process.env.SUPPORT_EMAIL ||
@@ -20,7 +20,7 @@ export const buildInstallEmail = ({ shopName, shopDomain, ownerName }) => {
   const safeShop = escapeHtml(shopName || shopDomain || "your store");
   const safeDomain = shopDomain ? escapeHtml(shopDomain) : "";
   const shopLine = safeDomain ? `${safeShop} (${safeDomain})` : safeShop;
-  const subject = "Thank you for installing Smartcartify 🎉";
+  const subject = "Thank you for installing CartLift: Cart Drawer & Upsell 🎉";
   const logoUrl = APP_URL ? `${APP_URL}/public/images/Pryxo-Tech-Logo-New.webp` : "";
 
   const supportEmail = SUPPORT_EMAIL || "support@pryxotech.com";
@@ -29,17 +29,17 @@ export const buildInstallEmail = ({ shopName, shopDomain, ownerName }) => {
   const text = [
     `Hi${safeName ? ` ${safeName}` : ""},`,
     "",
-    `Thank you for installing Smartcartify – Smart Cart Drawer & Promotions on your store ${shopLine}!`,
+    `Thank you for installing CartLift: Cart Drawer & Upsell – Smart Cart Drawer & Promotions on your store ${shopLine}!`,
     "We’re excited to have you on board and look forward to helping you increase conversions, boost average order value, and improve your customers’ shopping experience.",
     "",
-    "What Smartcartify helps you with:",
+    "What CartLift: Cart Drawer & Upsell helps you with:",
     "- Increase cart conversion using dynamic cart drawer",
     "- Boost AOV with smart offers like Buy X Get Y, Free Gifts & Discounts",
     "- Show progress bars, urgency messages & trust nudges",
     "- Fully customizable design to match your store theme",
     "",
     "Next Steps:",
-    "1) Open your Smartcartify dashboard from Shopify Apps.",
+    "1) Open your CartLift: Cart Drawer & Upsell dashboard from Shopify Apps.",
     "2) Configure your first promotion or cart rule.",
     "3) Preview the cart drawer on your storefront.",
     "4) Publish and start converting more visitors into buyers.",
@@ -50,9 +50,9 @@ export const buildInstallEmail = ({ shopName, shopDomain, ownerName }) => {
     "",
     "Warm regards,",
     "Team Pryxo Tech",
-    "Smartcartify Support",
+    "CartLift: Cart Drawer & Upsell Support",
     "",
-    "You are receiving this email because you installed the Smartcartify app on your Shopify store.",
+    "You are receiving this email because you installed the CartLift: Cart Drawer & Upsell app on your Shopify store.",
   ].join("\n");
 
   const html = `
@@ -61,7 +61,7 @@ export const buildInstallEmail = ({ shopName, shopDomain, ownerName }) => {
         Hi${safeName ? ` ${safeName}` : ""},
       </h2>
       <p style="margin: 0 0 12px;">
-        Thank you for installing <strong>Smartcartify – Smart Cart Drawer &amp; Promotions</strong>
+        Thank you for installing <strong>CartLift: Cart Drawer & Upsell – Smart Cart Drawer &amp; Promotions</strong>
         on your store <strong>${shopLine}</strong>! 🎉
       </p>
       <p style="margin: 0 0 16px;">
@@ -74,7 +74,7 @@ export const buildInstallEmail = ({ shopName, shopDomain, ownerName }) => {
           : ""
       }
       <hr style="border:0;border-top:1px solid #e5e7eb;margin:20px 0;" />
-      <h3 style="margin: 0 0 8px;">🚀 What Smartcartify helps you with:</h3>
+      <h3 style="margin: 0 0 8px;">🚀 What CartLift: Cart Drawer & Upsell helps you with:</h3>
       <ul style="margin: 0 0 16px; padding-left: 18px;">
         <li>Increase cart conversion using dynamic cart drawer</li>
         <li>Boost AOV with smart offers like <strong>Buy X Get Y</strong>, Free Gifts &amp; Discounts</li>
@@ -83,7 +83,7 @@ export const buildInstallEmail = ({ shopName, shopDomain, ownerName }) => {
       </ul>
       <h3 style="margin: 0 0 8px;">⚡ Next Steps</h3>
       <ol style="margin: 0 0 16px; padding-left: 18px;">
-        <li>Open your Smartcartify dashboard from Shopify Apps.</li>
+        <li>Open your CartLift: Cart Drawer & Upsell dashboard from Shopify Apps.</li>
         <li>Configure your first promotion or cart rule.</li>
         <li>Preview the cart drawer on your storefront.</li>
         <li>Publish and start converting more visitors into buyers.</li>

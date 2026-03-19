@@ -3804,7 +3804,7 @@ const buildDiscountCodeInput = (
   const minSubtotalInput = minSubtotal ? minSubtotal.toFixed(2) : null;
   const titleValue = buildDiscountDisplayTitle(rule);
   return {
-    title: appendRuleIndexSuffix(`SmartCartify ${titleValue}`, index),
+    title: appendRuleIndexSuffix(`CartLift ${titleValue}`, index),
     code,
     startsAt: new Date().toISOString(),
     customerSelection: { all: true },
@@ -3836,7 +3836,7 @@ const buildAutomaticDiscountInput = (
   const titleValue = buildDiscountDisplayTitle(rule);
 
   return {
-    title: appendRuleIndexSuffix(`SmartCartify Auto ${titleValue}`, index),
+    title: appendRuleIndexSuffix(`CartLift: Cart Drawer & Upsell Auto ${titleValue}`, index),
     startsAt: new Date().toISOString(),
     customerGets: {
       value: buildDiscountValueInput(rule, currencyCode),
@@ -3938,7 +3938,7 @@ const buildBxgyCustomerGets = (rule = {}, selection) => {
 const buildBxgyAutomaticInput = (rule = {}, index = 0) => {
   const selection = buildBxgySelection(rule);
   const usageLimit = Math.max(num(rule.maxGifts), 0);
-  const baseTitle = rule.title || `SmartCartify BXGY ${rule.xQty || "X"} → ${rule.yQty || "Y"}`;
+  const baseTitle = rule.title || `CartLift: Cart Drawer & Upsell BXGY ${rule.xQty || "X"} → ${rule.yQty || "Y"}`;
   const suffix = typeof index === "number" ? ` (#${index + 1})` : "";
   const title = `${baseTitle}${suffix}`;
   const customerGets = buildBxgyCustomerGets(rule, selection);
@@ -4473,8 +4473,8 @@ const syncShippingRateViaGraphql = async ({
 const buildRateName = (rule, index = null) => {
   const nameBase =
     rule.method === "express"
-      ? "SmartCartify Express"
-      : "SmartCartify Standard";
+      ? "CartLift: Cart Drawer & Upsell Express"
+      : "CartLift: Cart Drawer & Upsell Standard";
 
   const ordinal = Number.isInteger(index) && index >= 0 ? ` ${index + 1}` : "";
 

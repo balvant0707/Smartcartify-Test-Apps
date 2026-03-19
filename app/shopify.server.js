@@ -73,11 +73,6 @@ const shopify = shopifyApp({
         logger.warn("[afterAuth] prisma shop upsert failed", { shop, error: err?.message });
       }
 
-      if (!isNewInstall && !forceSend && hadTokenBefore) {
-        logger.log("[email] afterAuth not new install; skipping email.", { shop });
-        return;
-      }
-
       let shopInfo = {};
       try {
         const response = await admin.graphql(
@@ -121,6 +116,11 @@ const shopify = shopifyApp({
           appStatus: "active",
         },
       }).catch((err) => logger.warn("[shop] contact fields update failed", err));
+
+      if (!isNewInstall && !forceSend && hadTokenBefore) {
+        logger.log("[email] afterAuth not new install; skipping email.", { shop });
+        return;
+      }
 
       const testRecipient = process.env.TEST_OWNER_EMAIL || "";
       const toEmail = testRecipient || resolvedEmail;
