@@ -34,16 +34,20 @@ export const action = async ({ request }) => {
   logger.log(`[webhooks/app/uninstalled] fallback handler for ${shop}`);
 
   try {
-    await prisma.session.deleteMany({ where: { shop } });
+    await prisma.session.deleteMany({ where: { shop } }).catch(() => null);
     await prisma.planSubscription.deleteMany({ where: { shop } }).catch(() => null);
-    await prisma.shop.upsert({
+    const result = await prisma.shop.updateMany({
       where: { shop },
-      update: { installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
-      create: { shop, installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
+      data: { installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
     });
-    logger.log(`[webhooks/app/uninstalled] shop marked inactive: ${shop}`);
+    if (result.count === 0) {
+      await prisma.shop.create({
+        data: { shop, installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
+      });
+    }
+    logger.error(`[webhooks/app/uninstalled] shop marked inactive: ${shop} (updated: ${result.count})`);
   } catch (err) {
-    logger.warn("[webhooks/app/uninstalled] DB update failed:", err?.message);
+    logger.error("[webhooks/app/uninstalled] DB update failed:", err?.message);
   }
 
   return new Response();

@@ -118,7 +118,7 @@ export async function action({ request }) {
 
   // ✅ App uninstall cleanup
   if (topic === "app/uninstalled") {
-    logger.log(`[webhooks] app/uninstalled received for ${shop}`);
+    logger.error(`[webhooks] app/uninstalled received for ${shop}`);
 
     // Fetch shop data BEFORE updating so we have email/name for the notification
     const existingShop = await prisma.shop.findFirst({ where: { shop } }).catch(() => null);
@@ -127,25 +127,30 @@ export async function action({ request }) {
     await prisma.planSubscription.deleteMany({ where: { shop } }).catch(() => null);
 
     try {
-      await prisma.shop.upsert({
+      const result = await prisma.shop.updateMany({
         where: { shop },
-        update: {
-          installed: false,
-          uninstalledAt: new Date(),
-          accessToken: null,
-          appStatus: "inactive",
-        },
-        create: {
-          shop,
+        data: {
           installed: false,
           uninstalledAt: new Date(),
           accessToken: null,
           appStatus: "inactive",
         },
       });
-      logger.log(`[webhooks] shop marked inactive, accessToken cleared: ${shop}`);
+      if (result.count === 0) {
+        // No existing record — create one so the uninstall state is recorded
+        await prisma.shop.create({
+          data: {
+            shop,
+            installed: false,
+            uninstalledAt: new Date(),
+            accessToken: null,
+            appStatus: "inactive",
+          },
+        });
+      }
+      logger.error(`[webhooks] shop marked inactive, accessToken cleared: ${shop} (updated: ${result.count})`);
     } catch (err) {
-      logger.warn(`[webhooks] shop upsert failed on uninstall for ${shop}:`, err?.message);
+      logger.error(`[webhooks] shop update failed on uninstall for ${shop}:`, err?.message);
     }
 
     // Fire emails without blocking the response
