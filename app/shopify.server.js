@@ -119,9 +119,9 @@ const shopify = shopifyApp({
             contactNumber: resolvedPhone,
           },
         });
-        logger.log("[afterAuth] shop record saved", { shop });
+        logger.error("[afterAuth] shop record saved: " + shop);
       } catch (err) {
-        logger.warn("[afterAuth] prisma shop upsert failed", { shop, error: err?.message });
+        logger.error("[afterAuth] prisma shop upsert failed: " + shop + " — " + err?.message);
       }
 
       if (!isNewInstall && !forceSend && hadTokenBefore) {
