@@ -25,6 +25,7 @@ export const loader = async ({ request }) => {
   if (resolvedShop) {
     // Fetch store contact info from Shopify Admin API
     let shopInfo = {};
+    let shopInfoFetched = false;
     try {
       const response = await admin.graphql(
         `query LoaderShopInfo {
@@ -38,16 +39,19 @@ export const loader = async ({ request }) => {
       );
       const data = await response.json();
       shopInfo = data?.data?.shop || {};
+      shopInfoFetched = Boolean(shopInfo.email);
     } catch (err) {
       console.error("[app.jsx loader] Shopify shop info fetch failed:", err?.message);
     }
 
     const ownerParts = (shopInfo.shopOwnerName || "").trim().split(/\s+/);
-    const firstName = ownerParts[0] || null;
-    const lastName = ownerParts.slice(1).join(" ") || null;
-    const email = shopInfo.email || null;
+    // Use undefined (not null) when API failed — Prisma skips undefined fields,
+    // preventing good DB values from being overwritten with null.
+    const firstName = shopInfoFetched ? (ownerParts[0] || null) : undefined;
+    const lastName = shopInfoFetched ? (ownerParts.slice(1).join(" ") || null) : undefined;
+    const email = shopInfoFetched ? (shopInfo.email || null) : undefined;
     const domain = shopInfo.primaryDomain?.host || resolvedShop;
-    const contactNumber = shopInfo.shopAddress?.phone || null;
+    const contactNumber = shopInfoFetched ? (shopInfo.shopAddress?.phone || null) : undefined;
 
     // Insert new shop record or update existing one with all fields
     try {
@@ -71,11 +75,11 @@ export const loader = async ({ request }) => {
           installed: true,
           appStatus: "active",
           onboardedAt: new Date(),
-          firstName,
-          lastName,
-          email,
+          firstName: firstName ?? null,
+          lastName: lastName ?? null,
+          email: email ?? null,
           domain,
-          contactNumber,
+          contactNumber: contactNumber ?? null,
         },
       });
     } catch (err) {

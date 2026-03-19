@@ -1,30 +1,12 @@
-import crypto from "crypto";
 import prisma from "../db.server";
 import { PLANS } from "../lib/plans.js";
-import { normalizeShopDomain } from "../lib/shopUtils.server.js";
 import { sendEmail } from "../lib/email.server.js";
 import {
   buildOwnerUninstallEmail,
   buildUninstallEmail,
 } from "../lib/emailTemplates.server.js";
 import logger from "../lib/logger.server.js";
-
-function verifyShopifyHmac(request, rawBody) {
-  const hmac = request.headers.get("X-Shopify-Hmac-Sha256");
-  const secret = process.env.SHOPIFY_API_SECRET || "";
-  if (!secret || !hmac) return false;
-
-  const digest = crypto
-    .createHmac("sha256", secret)
-    .update(rawBody, "utf8")
-    .digest("base64");
-
-  const provided = Buffer.from(hmac || "", "utf8");
-  const expected = Buffer.from(digest, "utf8");
-
-  if (provided.length !== expected.length) return false;
-  return crypto.timingSafeEqual(expected, provided);
-}
+import { authenticate } from "../shopify.server";
 
 const toDateOrNull = (value) => {
   if (!value) return null;
@@ -33,23 +15,7 @@ const toDateOrNull = (value) => {
 };
 
 export async function action({ request }) {
-  const topic = request.headers.get("X-Shopify-Topic");
-  const shopHeader = request.headers.get("X-Shopify-Shop-Domain");
-  const shop = normalizeShopDomain(shopHeader);
-  if (!shop) return new Response("Invalid shop", { status: 400 });
-
-  const rawBody = await request.text();
-
-  if (!verifyShopifyHmac(request, rawBody)) {
-    return new Response("Invalid HMAC", { status: 401 });
-  }
-
-  let payload = {};
-  try {
-    payload = rawBody ? JSON.parse(rawBody) : {};
-  } catch {
-    return new Response("Invalid JSON payload", { status: 400 });
-  }
+  const { topic, shop, payload } = await authenticate.webhook(request);
 
   // ✅ Billing/subscription updates
   if (topic === "app_subscriptions/update") {
