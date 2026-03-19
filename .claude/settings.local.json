@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs cat:*)",
+      "Bash(ls /c/xampp/htdocs/shopifyApps/smart-cartify/*.log)",
+      "Bash(ls /c/xampp/htdocs/shopifyApps/smart-cartify/iisnode*.log)",
+      "Bash(find /c/xampp/htdocs/shopifyApps/smart-cartify -name *.log -not -path */node_modules/*)"
+    ]
+  }
+}
