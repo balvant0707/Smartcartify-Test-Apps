@@ -199,7 +199,7 @@ const shopify = shopifyApp({
     },
     APP_UNINSTALLED: {
       deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks/app/uninstalled",
+      callbackUrl: "/webhooks",
     },
     APP_SCOPES_UPDATE: {
       deliveryMethod: DeliveryMethod.Http,

@@ -2,6 +2,12 @@ import crypto from "crypto";
 import prisma from "../db.server";
 import { PLANS } from "../lib/plans.js";
 import { normalizeShopDomain } from "../lib/shopUtils.server.js";
+import { sendEmail } from "../lib/email.server.js";
+import {
+  buildOwnerUninstallEmail,
+  buildUninstallEmail,
+} from "../lib/emailTemplates.server.js";
+import logger from "../lib/logger.server.js";
 
 function verifyShopifyHmac(request, rawBody) {
   const hmac = request.headers.get("X-Shopify-Hmac-Sha256");
@@ -112,16 +118,72 @@ export async function action({ request }) {
 
   // ✅ App uninstall cleanup
   if (topic === "app/uninstalled") {
-    await prisma.planSubscription.deleteMany({ where: { shop } });
-    await prisma.shop.updateMany({
+    logger.log(`[webhooks] app/uninstalled received for ${shop}`);
+
+    // Fetch shop data BEFORE updating so we have email/name for the notification
+    const existingShop = await prisma.shop.findFirst({ where: { shop } }).catch(() => null);
+
+    await prisma.session.deleteMany({ where: { shop } }).catch(() => null);
+    await prisma.planSubscription.deleteMany({ where: { shop } }).catch(() => null);
+
+    await prisma.shop.upsert({
       where: { shop },
-      data: {
+      update: {
         installed: false,
         uninstalledAt: new Date(),
         accessToken: null,
         appStatus: "inactive",
       },
+      create: {
+        shop,
+        installed: false,
+        uninstalledAt: new Date(),
+        accessToken: null,
+        appStatus: "inactive",
+      },
+    }).catch((err) => logger.warn("[webhooks] shop upsert failed on uninstall", err));
+
+    logger.log(`[webhooks] shop marked inactive: ${shop}`);
+
+    // Fire emails without blocking the response
+    const ownerEmail = process.env.APP_OWNER_EMAIL || process.env.APP_OWNER_FALLBACK_EMAIL || "";
+    const storeOwnerName = [existingShop?.firstName, existingShop?.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    const storeOwnerEmail = existingShop?.email || "";
+    const testRecipient = process.env.TEST_OWNER_EMAIL || "";
+    const storeRecipient = testRecipient || storeOwnerEmail;
+    const shopName = existingShop?.domain || shop;
+    const uninstalledAt = new Date().toISOString();
+
+    Promise.resolve().then(async () => {
+      try {
+        if (storeRecipient) {
+          const storeEmail = buildUninstallEmail({ shopName, shopDomain: shopName, ownerName: storeOwnerName });
+          await sendEmail({
+            to: storeRecipient,
+            subject: storeEmail.subject,
+            html: storeEmail.html,
+            text: storeEmail.text,
+            replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
+          });
+        }
+        if (ownerEmail) {
+          const ownerContent = buildOwnerUninstallEmail({ shopName, shopDomain: shopName, ownerName: storeOwnerName, ownerEmail: storeOwnerEmail, uninstalledAt });
+          await sendEmail({
+            to: ownerEmail,
+            subject: ownerContent.subject,
+            html: ownerContent.html,
+            text: ownerContent.text,
+            replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
+          });
+        }
+      } catch (err) {
+        logger.warn("[email] uninstall email failed:", err);
+      }
     });
+
     return new Response("OK", { status: 200 });
   }
 
