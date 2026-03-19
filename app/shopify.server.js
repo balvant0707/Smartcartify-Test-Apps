@@ -67,11 +67,10 @@ const shopify = shopifyApp({
             shop {
               name
               email
-              phone
               primaryDomain { host }
               shopOwnerName
-              countryCode
               ianaTimezone
+              shopAddress { countryCodeV2 phone }
             }
           }`,
         );
@@ -90,7 +89,7 @@ const shopify = shopifyApp({
       const resolvedLastName = ownerNameParts.slice(1).join(" ") || null;
       const resolvedEmail = shopInfo.email || session?.email || null;
       const resolvedDomain = shopInfo.primaryDomain?.host || shop;
-      const resolvedPhone = shopInfo.phone || null;
+      const resolvedPhone = shopInfo.shopAddress?.phone || null;
 
       // Single upsert — access token + contact fields written together so nothing is partial
       try {
@@ -175,7 +174,7 @@ const shopify = shopifyApp({
             shopDomain: resolvedShopDomain,
             ownerName: resolvedOwnerName,
             ownerEmail: resolvedOwnerEmail,
-            country: shopInfo.countryCode || "N/A",
+            country: shopInfo.shopAddress?.countryCodeV2 || "N/A",
             timezone: shopInfo.ianaTimezone || "N/A",
             installedAt,
             planName: "N/A",

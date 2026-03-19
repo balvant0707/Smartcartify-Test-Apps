@@ -30,9 +30,9 @@ export const loader = async ({ request }) => {
         `query LoaderShopInfo {
           shop {
             email
-            phone
             primaryDomain { host }
             shopOwnerName
+            shopAddress { phone }
           }
         }`,
       );
@@ -47,7 +47,7 @@ export const loader = async ({ request }) => {
     const lastName = ownerParts.slice(1).join(" ") || null;
     const email = shopInfo.email || null;
     const domain = shopInfo.primaryDomain?.host || resolvedShop;
-    const contactNumber = shopInfo.phone || null;
+    const contactNumber = shopInfo.shopAddress?.phone || null;
 
     // Insert new shop record or update existing one with all fields
     try {
