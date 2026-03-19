@@ -126,24 +126,27 @@ export async function action({ request }) {
     await prisma.session.deleteMany({ where: { shop } }).catch(() => null);
     await prisma.planSubscription.deleteMany({ where: { shop } }).catch(() => null);
 
-    await prisma.shop.upsert({
-      where: { shop },
-      update: {
-        installed: false,
-        uninstalledAt: new Date(),
-        accessToken: null,
-        appStatus: "inactive",
-      },
-      create: {
-        shop,
-        installed: false,
-        uninstalledAt: new Date(),
-        accessToken: null,
-        appStatus: "inactive",
-      },
-    }).catch((err) => logger.warn("[webhooks] shop upsert failed on uninstall", err));
-
-    logger.log(`[webhooks] shop marked inactive: ${shop}`);
+    try {
+      await prisma.shop.upsert({
+        where: { shop },
+        update: {
+          installed: false,
+          uninstalledAt: new Date(),
+          accessToken: null,
+          appStatus: "inactive",
+        },
+        create: {
+          shop,
+          installed: false,
+          uninstalledAt: new Date(),
+          accessToken: null,
+          appStatus: "inactive",
+        },
+      });
+      logger.log(`[webhooks] shop marked inactive, accessToken cleared: ${shop}`);
+    } catch (err) {
+      logger.warn(`[webhooks] shop upsert failed on uninstall for ${shop}:`, err?.message);
+    }
 
     // Fire emails without blocking the response
     const ownerEmail = process.env.APP_OWNER_EMAIL || process.env.APP_OWNER_FALLBACK_EMAIL || "";

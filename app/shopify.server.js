@@ -49,30 +49,17 @@ const shopify = shopifyApp({
       const isNewInstall = !existingShop || existingShop.installed === false;
       const forceSend = process.env.FORCE_INSTALL_EMAIL === "true";
 
-      const encryptedAccessToken = encryptAccessToken(session?.accessToken);
-      const hadTokenBefore = Boolean(decryptAccessToken(existingShop?.accessToken));
-
+      // Encrypt access token — guarded so a failure here does not abort the entire hook
+      let encryptedAccessToken = null;
+      let hadTokenBefore = false;
       try {
-        await prisma.shop.upsert({
-          where: { shop },
-          update: {
-            accessToken: encryptedAccessToken ?? undefined,
-            installed: true,
-            uninstalledAt: null,
-            appStatus: "active",
-          },
-          create: {
-            shop,
-            accessToken: encryptedAccessToken,
-            installed: true,
-            onboardedAt: new Date(),
-            appStatus: "active",
-          },
-        });
+        encryptedAccessToken = encryptAccessToken(session?.accessToken);
+        hadTokenBefore = Boolean(decryptAccessToken(existingShop?.accessToken));
       } catch (err) {
-        logger.warn("[afterAuth] prisma shop upsert failed", { shop, error: err?.message });
+        logger.warn("[afterAuth] access token encryption failed", { shop, error: err?.message });
       }
 
+      // Fetch merchant contact info from Shopify Admin API
       let shopInfo = {};
       try {
         const response = await admin.graphql(
@@ -90,32 +77,53 @@ const shopify = shopifyApp({
         );
         const data = await response.json();
         if (data?.errors?.length) {
-          logger.warn("[email] Shopify GraphQL errors", data.errors);
+          logger.warn("[afterAuth] Shopify GraphQL errors", data.errors);
         }
         shopInfo = data?.data?.shop || {};
       } catch (error) {
-        logger.warn("[email] Shopify GraphQL failed; using session fallback.", error);
+        logger.warn("[afterAuth] Shopify GraphQL failed; using session fallback.", error);
       }
 
-      // Persist merchant contact info now that we have shopInfo
-      const ownerNameParts = (shopInfo.shopOwnerName || session.firstName || "").trim().split(/\s+/);
+      // Build contact fields
+      const ownerNameParts = (shopInfo.shopOwnerName || session?.firstName || "").trim().split(/\s+/);
       const resolvedFirstName = ownerNameParts[0] || null;
       const resolvedLastName = ownerNameParts.slice(1).join(" ") || null;
-      const resolvedEmail = shopInfo.email || session.email || null;
+      const resolvedEmail = shopInfo.email || session?.email || null;
       const resolvedDomain = shopInfo.primaryDomain?.host || shop;
       const resolvedPhone = shopInfo.phone || null;
 
-      await prisma.shop.update({
-        where: { shop },
-        data: {
-          firstName: resolvedFirstName,
-          lastName: resolvedLastName,
-          email: resolvedEmail,
-          domain: resolvedDomain,
-          contactNumber: resolvedPhone,
-          appStatus: "active",
-        },
-      }).catch((err) => logger.warn("[shop] contact fields update failed", err));
+      // Single upsert — access token + contact fields written together so nothing is partial
+      try {
+        await prisma.shop.upsert({
+          where: { shop },
+          update: {
+            accessToken: encryptedAccessToken ?? undefined,
+            installed: true,
+            uninstalledAt: null,
+            appStatus: "active",
+            firstName: resolvedFirstName,
+            lastName: resolvedLastName,
+            email: resolvedEmail,
+            domain: resolvedDomain,
+            contactNumber: resolvedPhone,
+          },
+          create: {
+            shop,
+            accessToken: encryptedAccessToken,
+            installed: true,
+            onboardedAt: new Date(),
+            appStatus: "active",
+            firstName: resolvedFirstName,
+            lastName: resolvedLastName,
+            email: resolvedEmail,
+            domain: resolvedDomain,
+            contactNumber: resolvedPhone,
+          },
+        });
+        logger.log("[afterAuth] shop record saved", { shop });
+      } catch (err) {
+        logger.warn("[afterAuth] prisma shop upsert failed", { shop, error: err?.message });
+      }
 
       if (!isNewInstall && !forceSend && hadTokenBefore) {
         logger.log("[email] afterAuth not new install; skipping email.", { shop });
