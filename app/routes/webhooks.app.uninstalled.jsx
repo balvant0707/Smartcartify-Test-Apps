@@ -25,7 +25,7 @@ export const action = async ({ request }) => {
         data: { shop, domain: shop, installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
       });
     }
-    logger.error(`[webhooks/app/uninstalled] shop marked inactive: ${shop} (updated: ${result.count})`);
+    logger.log(`[webhooks/app/uninstalled] shop marked inactive: ${shop} (updated: ${result.count})`);
   } catch (err) {
     logger.error("[webhooks/app/uninstalled] DB update failed:", err?.message);
   }

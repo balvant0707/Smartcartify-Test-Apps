@@ -84,7 +84,7 @@ export async function action({ request }) {
 
   // ✅ App uninstall cleanup
   if (topic === "app/uninstalled") {
-    logger.error(`[webhooks] app/uninstalled received for ${shop}`);
+    logger.log(`[webhooks] app/uninstalled received for ${shop}`);
 
     // Fetch shop data BEFORE updating so we have email/name for the notification
     const existingShop = await prisma.shop.findFirst({ where: { shop } }).catch(() => null);
@@ -115,7 +115,7 @@ export async function action({ request }) {
           },
         });
       }
-      logger.error(`[webhooks] shop marked inactive, accessToken cleared: ${shop} (updated: ${result.count})`);
+      logger.log(`[webhooks] shop marked inactive, accessToken cleared: ${shop} (updated: ${result.count})`);
     } catch (err) {
       logger.error(`[webhooks] shop update failed on uninstall for ${shop}:`, err?.message);
     }
