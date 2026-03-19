@@ -40,51 +40,48 @@ export const action = async ({ request }) => {
     const storeRecipient = testRecipient || storeOwnerEmail;
     const uninstalledAt = timestamp.toISOString();
 
-    try {
-      if (storeRecipient) {
-        const storeEmail = buildUninstallEmail({
-          shopName: shop,
-          shopDomain: shop,
-          ownerName: storeOwnerName,
-        });
-        await sendEmail({
-          to: storeRecipient,
-          subject: storeEmail.subject,
-          html: storeEmail.html,
-          text: storeEmail.text,
-          replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
-        });
-        logger.log("[email] store uninstall email sent", {
-          shop,
-          to: storeRecipient,
-        });
-      } else {
-        logger.warn("[email] store owner email missing; uninstall email skipped");
-      }
+    // Fire emails without blocking the response — prevents Shopify webhook timeouts
+    Promise.resolve().then(async () => {
+      try {
+        if (storeRecipient) {
+          const storeEmail = buildUninstallEmail({
+            shopName: shop,
+            shopDomain: shop,
+            ownerName: storeOwnerName,
+          });
+          await sendEmail({
+            to: storeRecipient,
+            subject: storeEmail.subject,
+            html: storeEmail.html,
+            text: storeEmail.text,
+            replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
+          });
+          logger.log("[email] store uninstall email sent", { shop, to: storeRecipient });
+        } else {
+          logger.warn("[email] store owner email missing; uninstall email skipped");
+        }
 
-      if (ownerEmail) {
-        const ownerEmailContent = buildOwnerUninstallEmail({
-          shopName: shop,
-          shopDomain: shop,
-          ownerName: storeOwnerName,
-          ownerEmail: storeOwnerEmail,
-          uninstalledAt,
-        });
-        await sendEmail({
-          to: ownerEmail,
-          subject: ownerEmailContent.subject,
-          html: ownerEmailContent.html,
-          text: ownerEmailContent.text,
-          replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
-        });
-        logger.log("[email] owner uninstall email sent", {
-          shop,
-          to: ownerEmail,
-        });
+        if (ownerEmail) {
+          const ownerEmailContent = buildOwnerUninstallEmail({
+            shopName: shop,
+            shopDomain: shop,
+            ownerName: storeOwnerName,
+            ownerEmail: storeOwnerEmail,
+            uninstalledAt,
+          });
+          await sendEmail({
+            to: ownerEmail,
+            subject: ownerEmailContent.subject,
+            html: ownerEmailContent.html,
+            text: ownerEmailContent.text,
+            replyTo: process.env.SMTP_REPLY_TO || process.env.SUPPORT_EMAIL || "",
+          });
+          logger.log("[email] owner uninstall email sent", { shop, to: ownerEmail });
+        }
+      } catch (error) {
+        logger.warn("[email] uninstall email failed:", error);
       }
-    } catch (error) {
-      logger.warn("[email] uninstall email failed:", error);
-    }
+    });
   }
 
   return new Response();

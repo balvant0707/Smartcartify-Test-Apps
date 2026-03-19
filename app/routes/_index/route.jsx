@@ -19,7 +19,7 @@ export default function App() {
     <div className={styles.index}>
       <div className={styles.content}>
         <h1 className={styles.heading}>
-          SmartCartify turns your cart into a sales booster
+          CartLift: Cart Drawer & Upsell turns your cart into a sales booster
         </h1>
         <p className={styles.text}>
           Create a fast, flexible cart drawer with progress milestones, auto

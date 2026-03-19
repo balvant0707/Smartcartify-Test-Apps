@@ -8826,7 +8826,7 @@ export default function AppRules() {
 
       setDeletingRuleLabel(
         rule.title ||
-        `SmartCartify BXGY ${rule.xQty || "X"} → ${rule.yQty || "Y"}`
+        `CartLift: Cart Drawer & Upsell BXGY ${rule.xQty || "X"} → ${rule.yQty || "Y"}`
       );
 
       let deleted = false;

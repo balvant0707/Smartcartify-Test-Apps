@@ -339,7 +339,7 @@ const setShopifyDiscountActiveState = async ({
 // ---------- BASIC MIN-AMOUNT FREE GIFT DISCOUNT ----------
 
 const buildMinAmountAutomaticInput = (rule, giftVariantId) => {
-  const title = `SmartCartify Free gift ${rule.minPurchase || ""}`.trim();
+  const title = `CartLift: Cart Drawer & Upsell Free gift ${rule.minPurchase || ""}`.trim();
   const minPurchaseValue = Number(rule.minPurchase) || 0;
   const minSubtotal = minPurchaseValue > 0 ? minPurchaseValue.toFixed(2) : null;
 
@@ -362,7 +362,7 @@ const buildMinAmountAutomaticInput = (rule, giftVariantId) => {
 
   // IMPORTANT: use DiscountItemsInput.products.productVariantsToAdd
   const payload = {
-    title: title || "SmartCartify Free gift",
+    title: title || "CartLift: Cart Drawer & Upsell Free gift",
     startsAt: new Date().toISOString(),
     customerSelection: { all: true },
     destinationSelection: { all: true },
@@ -492,7 +492,7 @@ const buildBxgyDiscountInput = (
 
   // IMPORTANT: customerGets.items must use DiscountItemsInput.products.productVariantsToAdd
   return {
-    title: `SmartCartify Free gift >= $${minPurchaseValue}`,
+    title: `CartLift: Cart Drawer & Upsell Free gift >= $${minPurchaseValue}`,
     startsAt: new Date().toISOString(),
     combinesWith: {
       orderDiscounts: true,

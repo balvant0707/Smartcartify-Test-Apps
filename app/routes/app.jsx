@@ -68,7 +68,7 @@ export default function App() {
               Launch this app from Shopify Admin
             </Text>
             <Text tone="subdued">
-              Open SmartCartify from your Shopify Admin Apps list so it can pass the host parameter and render embedded.
+              Open CartLift: Cart Drawer & Upsell from your Shopify Admin Apps list so it can pass the host parameter and render embedded.
             </Text>
           </Card>
         </Page>

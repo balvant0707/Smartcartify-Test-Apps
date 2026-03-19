@@ -100,16 +100,16 @@ export const buildInstallEmail = ({ shopName, shopDomain, ownerName }) => {
         🌐 <a href="https://pryxotech.com">https://pryxotech.com</a>
       </p>
       <p style="margin: 0 0 12px;">
-        Thank you again for trusting <strong>Smartcartify</strong> to grow your business.
+        Thank you again for trusting <strong>CartLift: Cart Drawer & Upsell</strong> to grow your business.
       </p>
       <p style="margin: 0;">
         Warm regards,<br />
         <strong>Team Pryxo Tech</strong><br />
-        Smartcartify Support
+        CartLift: Cart Drawer & Upsell Support
       </p>
       <hr style="border:0;border-top:1px solid #e5e7eb;margin:20px 0;" />
       <p style="margin: 0; color: #6b7280; font-size: 12px;">
-        You are receiving this email because you installed the Smartcartify app on your Shopify store.
+        You are receiving this email because you installed the CartLift: Cart Drawer & Upsell app on your Shopify store.
       </p>
     </div>
   `;
@@ -140,12 +140,12 @@ export const buildOwnerInstallEmail = ({
   const safeTrial = escapeHtml(trialStatus || "N/A");
   const safeVersion = escapeHtml(appVersion || "N/A");
 
-  const subject = "New Store Installed Smartcartify 🚀";
+  const subject = "New Store Installed CartLift: Cart Drawer & Upsell 🚀";
 
   const text = [
     "Hello Team,",
     "",
-    "A new store has just installed the Smartcartify – Smart Cart Drawer & Promotions app.",
+    "A new store has just installed the CartLift: Cart Drawer & Upsell – Smart Cart Drawer & Promotions app.",
     "Below are the installation details:",
     "",
     "Store Details",
@@ -158,7 +158,7 @@ export const buildOwnerInstallEmail = ({
     `- Installed At: ${safeInstalledAt}`,
     "",
     "App Details",
-    `- App Name: Smartcartify`,
+    `- App Name: CartLift: Cart Drawer & Upsell`,
     `- Plan Selected: ${safePlan}`,
     `- Trial Status: ${safeTrial}`,
     `- App Version: ${safeVersion}`,
@@ -171,7 +171,7 @@ export const buildOwnerInstallEmail = ({
     "",
     "This is an automated system notification.",
     "",
-    "Smartcartify System",
+    "CartLift: Cart Drawer & Upsell System",
     "Pryxo Tech Internal",
   ].join("\n");
 
@@ -179,7 +179,7 @@ export const buildOwnerInstallEmail = ({
     <div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
       <h2 style="margin: 0 0 12px;">Hello Team,</h2>
       <p style="margin: 0 0 12px;">
-        A new store has just installed the <strong>Smartcartify – Smart Cart Drawer &amp; Promotions</strong> app. 🎉
+        A new store has just installed the <strong>CartLift: Cart Drawer & Upsell – Smart Cart Drawer &amp; Promotions</strong> app. 🎉
         Below are the installation details:
       </p>
       <hr style="border:0;border-top:1px solid #e5e7eb;margin:20px 0;" />
@@ -195,7 +195,7 @@ export const buildOwnerInstallEmail = ({
       </ul>
       <h3 style="margin: 0 0 8px;">📦 App Details</h3>
       <ul style="margin: 0 0 16px; padding-left: 18px;">
-        <li><strong>App Name:</strong> Smartcartify</li>
+        <li><strong>App Name:</strong> CartLift: Cart Drawer & Upsell</li>
         <li><strong>Plan Selected:</strong> ${safePlan}</li>
         <li><strong>Trial Status:</strong> ${safeTrial}</li>
         <li><strong>App Version:</strong> ${safeVersion}</li>
@@ -210,7 +210,7 @@ export const buildOwnerInstallEmail = ({
       <p style="margin: 0;">This is an automated system notification.</p>
       <p style="margin: 12px 0 0; color: #6b7280;">
         —<br />
-        <strong>Smartcartify System</strong><br />
+        <strong>CartLift: Cart Drawer & Upsell System</strong><br />
         Pryxo Tech Internal
       </p>
     </div>
@@ -224,13 +224,13 @@ export const buildUninstallEmail = ({ shopName, shopDomain, ownerName }) => {
   const safeShop = escapeHtml(shopName || shopDomain || "your store");
   const safeDomain = shopDomain ? escapeHtml(shopDomain) : "";
   const shopLine = safeDomain ? `${safeShop} (${safeDomain})` : safeShop;
-  const subject = "Sorry to see you go from Smartcartify";
+  const subject = "Sorry to see you go from CartLift: Cart Drawer & Upsell";
   const supportEmail = SUPPORT_EMAIL || "support@pryxotech.com";
 
   const text = [
     `Hi${safeName ? ` ${safeName}` : ""},`,
     "",
-    `Your store ${shopLine} has uninstalled Smartcartify.`,
+    `Your store ${shopLine} has uninstalled CartLift: Cart Drawer & Upsell.`,
     "If this was a mistake, you can reinstall anytime from the Shopify App Store.",
     "",
     "We would love to know why you left so we can improve.",
@@ -238,14 +238,14 @@ export const buildUninstallEmail = ({ shopName, shopDomain, ownerName }) => {
     "",
     "Warm regards,",
     "Team Pryxo Tech",
-    "Smartcartify Support",
+    "CartLift: Cart Drawer & Upsell Support",
   ].join("\n");
 
   const html = `
     <div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
       <h2 style="margin: 0 0 12px;">Hi${safeName ? ` ${safeName}` : ""},</h2>
       <p style="margin: 0 0 12px;">
-        Your store <strong>${shopLine}</strong> has uninstalled Smartcartify.
+        Your store <strong>${shopLine}</strong> has uninstalled CartLift: Cart Drawer & Upsell.
       </p>
       <p style="margin: 0 0 12px;">
         If this was a mistake, you can reinstall anytime from the Shopify App Store.
@@ -258,7 +258,7 @@ export const buildUninstallEmail = ({ shopName, shopDomain, ownerName }) => {
       <p style="margin: 0;">
         Warm regards,<br />
         <strong>Team Pryxo Tech</strong><br />
-        Smartcartify Support
+        CartLift: Cart Drawer & Upsell Support
       </p>
     </div>
   `;
@@ -279,12 +279,12 @@ export const buildOwnerUninstallEmail = ({
   const safeOwnerEmail = escapeHtml(ownerEmail || "Unknown");
   const safeUninstalledAt = escapeHtml(uninstalledAt || new Date().toISOString());
 
-  const subject = "Store Uninstalled Smartcartify";
+  const subject = "Store Uninstalled CartLift: Cart Drawer & Upsell";
 
   const text = [
     "Hello Team,",
     "",
-    "A store has uninstalled the Smartcartify app.",
+    "A store has uninstalled the CartLift: Cart Drawer & Upsell app.",
     "",
     "Store Details",
     `- Store Name: ${safeShopName}`,
@@ -295,7 +295,7 @@ export const buildOwnerUninstallEmail = ({
     "",
     "This is an automated system notification.",
     "",
-    "Smartcartify System",
+    "CartLift: Cart Drawer & Upsell System",
     "Pryxo Tech Internal",
   ].join("\n");
 
@@ -303,7 +303,7 @@ export const buildOwnerUninstallEmail = ({
     <div style="font-family: Arial, sans-serif; color: #1f2937; line-height: 1.6;">
       <h2 style="margin: 0 0 12px;">Hello Team,</h2>
       <p style="margin: 0 0 12px;">
-        A store has uninstalled the <strong>Smartcartify</strong> app.
+        A store has uninstalled the <strong>CartLift: Cart Drawer & Upsell</strong> app.
       </p>
       <hr style="border:0;border-top:1px solid #e5e7eb;margin:20px 0;" />
       <h3 style="margin: 0 0 8px;">Store Details</h3>
@@ -317,7 +317,7 @@ export const buildOwnerUninstallEmail = ({
       <p style="margin: 0;">This is an automated system notification.</p>
       <p style="margin: 12px 0 0; color: #6b7280;">
         —<br />
-        <strong>Smartcartify System</strong><br />
+        <strong>CartLift: Cart Drawer & Upsell System</strong><br />
         Pryxo Tech Internal
       </p>
     </div>

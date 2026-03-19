@@ -4,7 +4,7 @@ import db from "../db.server";
 /**
  * GDPR Webhook Handlers
  *
- * SmartCartify Data Handling Policy:
+ * CartLift: Cart Drawer & Upsell Data Handling Policy:
  * - This app does NOT store any personally identifiable customer information (PII)
  * - We only store shop-level configuration data (rules, settings, styles)
  * - Cart data is ephemeral and processed in real-time without persistence
@@ -50,12 +50,12 @@ export const action = async ({ request }) => {
   const normalized = topic?.toLowerCase?.() ?? "";
 
   if (normalized === "customers/data_request") {
-    // SmartCartify does not store any customer PII.
+    // CartLift: Cart Drawer & Upsell does not store any customer PII.
     // Responding with 200 OK as per Shopify GDPR requirements.
     // No data payload is returned because no customer data exists.
     logGdprEvent("customers/data_request processed (no PII stored)", shop);
     return new Response(JSON.stringify({
-      message: "No customer data stored by SmartCartify"
+      message: "No customer data stored by CartLift: Cart Drawer & Upsell"
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
@@ -63,12 +63,12 @@ export const action = async ({ request }) => {
   }
 
   if (normalized === "customers/redact") {
-    // SmartCartify does not store any customer PII.
+    // CartLift: Cart Drawer & Upsell does not store any customer PII.
     // Responding with 200 OK as per Shopify GDPR requirements.
     // No deletion needed because no customer data exists.
     logGdprEvent("customers/redact processed (no PII stored)", shop);
     return new Response(JSON.stringify({
-      message: "No customer data to redact - SmartCartify does not store customer PII"
+      message: "No customer data to redact - CartLift: Cart Drawer & Upsell does not store customer PII"
     }), {
       status: 200,
       headers: { "Content-Type": "application/json" }

@@ -18,6 +18,9 @@ const jsonResponse = (data, status = 200) =>
     status,
     headers: {
       "Content-Type": "application/json",
+      // Never cache error responses — prevents Shopify CDN from serving
+      // stale 500/401 errors to storefronts for up to 5 minutes
+      ...(status >= 400 ? { "Cache-Control": "no-store" } : {}),
     },
   });
 
@@ -438,7 +441,7 @@ export const loader = async ({ request }) => {
         error:
           error instanceof Error
             ? error.message
-            : "Failed to load SmartCartify configuration",
+            : "Failed to load CartLift: Cart Drawer & Upsell configuration",
       },
       500
     );
@@ -447,7 +450,7 @@ export const loader = async ({ request }) => {
 
 export const action = () =>
   jsonResponse(
-    { ok: false, error: "SmartCartify proxy only responds to GET requests" },
+    { ok: false, error: "CartLift: Cart Drawer & Upsell proxy only responds to GET requests" },
     405
   );
 

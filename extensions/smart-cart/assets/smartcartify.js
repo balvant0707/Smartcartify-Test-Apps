@@ -5,6 +5,27 @@
   if (window.__SMARTCARTIFY_CARTDRAWER_V27__) return;
   window.__SMARTCARTIFY_CARTDRAWER_V27__ = true;
 
+  /* =========================================================
+   ✅ BLOCK THEME CART-DRAWER CUSTOM ELEMENT REGISTRATION
+   Prevents theme's cart-drawer.js from throwing:
+   "Cannot read properties of null (reading 'setAttribute')"
+   Must run before any theme script registers cart-drawer.
+  ========================================================= */
+  if (!window.__SC_CE_PATCHED__ && typeof customElements !== "undefined") {
+    window.__SC_CE_PATCHED__ = true;
+    const _origDefine = customElements.define.bind(customElements);
+    customElements.define = function (name, constructor, options) {
+      const blocked = [
+        "cart-drawer",
+        "cart-drawer-items",
+        "cart-notification",
+        "cart-notification-drawer",
+      ];
+      if (blocked.includes(name)) return;
+      return _origDefine(name, constructor, options);
+    };
+  }
+
   const root = document.getElementById("smart-embed-root");
   if (!root) return;
 
