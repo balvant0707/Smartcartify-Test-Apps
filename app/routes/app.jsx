@@ -23,22 +23,28 @@ export const loader = async ({ request }) => {
     let domain = resolvedShop;
     try {
       const response = await admin.graphql(`
-        query {
+        query GetShopOwnerInfo {
           shop {
             email
             primaryDomain { host }
-            shopAddress { firstName lastName phone }
+            shopAddress { phone }
+            accountOwner {
+              firstName
+              lastName
+              email
+              phone
+            }
           }
         }
       `);
       const json = await response.json();
       const info = json?.data?.shop;
       if (info) {
-        firstName     = info.shopAddress?.firstName || null;
-        lastName      = info.shopAddress?.lastName  || null;
-        email         = info.email || null;
+        firstName     = info.accountOwner?.firstName || null;
+        lastName      = info.accountOwner?.lastName  || null;
+        email         = info.accountOwner?.email || info.email || null;
         domain        = info.primaryDomain?.host || resolvedShop;
-        contactNumber = info.shopAddress?.phone || null;
+        contactNumber = info.accountOwner?.phone || info.shopAddress?.phone || null;
       }
     } catch (err) {
       console.error("[app.jsx loader] GraphQL fetch failed:", err?.message);

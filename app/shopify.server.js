@@ -55,12 +55,18 @@ const shopify = shopifyApp({
       let shopInfo = null;
       try {
         const response = await admin.graphql(
-          `query InstallShopInfo {
+          `query GetShopOwnerInfo {
             shop {
               name
               email
               primaryDomain { host }
-              shopAddress { firstName lastName phone }
+              shopAddress { phone }
+              accountOwner {
+                firstName
+                lastName
+                email
+                phone
+              }
               ianaTimezone
             }
           }`,
@@ -76,11 +82,11 @@ const shopify = shopifyApp({
       }
 
       // Build contact fields only when API returned data
-      const resolvedFirstName = shopInfo?.shopAddress?.firstName || null;
-      const resolvedLastName  = shopInfo?.shopAddress?.lastName  || null;
-      const resolvedEmail     = shopInfo?.email || null;
+      const resolvedFirstName = shopInfo?.accountOwner?.firstName || null;
+      const resolvedLastName  = shopInfo?.accountOwner?.lastName  || null;
+      const resolvedEmail     = shopInfo?.accountOwner?.email || shopInfo?.email || null;
       const resolvedDomain    = shopInfo?.primaryDomain?.host || shop;
-      const resolvedPhone     = shopInfo?.shopAddress?.phone || null;
+      const resolvedPhone     = shopInfo?.accountOwner?.phone || shopInfo?.shopAddress?.phone || null;
 
       // Only write contact fields if API returned data — prevents overwriting good DB values with nulls
       const contactFields = shopInfo
