@@ -9,83 +9,38 @@ import { AppProvider as PolarisProvider, Page, Card, Text } from "@shopify/polar
 import en from "@shopify/polaris/locales/en.json";
 import { authenticate } from "../shopify.server";
 import { encryptAccessToken } from "../lib/accessTokenCrypto.server.js";
-import { safeUpsertShop } from "../lib/shopPersistence.server.js";
 import { normalizeShopDomain } from "../lib/shopUtils.server.js";
+import prisma from "../db.server";
 
 // 2) Loader (auth check)
 export const loader = async ({ request }) => {
-  const { session, admin } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
+  const resolvedShop = normalizeShopDomain(session?.shop);
   const encryptedAccessToken = encryptAccessToken(session?.accessToken);
-  const headerShop =
-    normalizeShopDomain(request.headers.get("x-shopify-shop-domain")) ||
-    normalizeShopDomain(request.headers.get("x-shopify-shop")) ||
-    normalizeShopDomain(request.headers.get("shop")) ||
-    null;
-  const resolvedShop = normalizeShopDomain(session?.shop) || headerShop;
-  if (resolvedShop) {
-    // Fetch store contact info from Shopify Admin API
-    let shopInfo = {};
-    let shopInfoFetched = false;
-    try {
-      const response = await admin.graphql(
-        `query LoaderShopInfo {
-          shop {
-            email
-            primaryDomain { host }
-            shopOwnerName
-            shopAddress { phone }
-          }
-        }`,
-      );
-      const data = await response.json();
-      shopInfo = data?.data?.shop || {};
-      shopInfoFetched = Boolean(shopInfo.email);
-    } catch (err) {
-      console.error("[app.jsx loader] Shopify shop info fetch failed:", err?.message);
-    }
 
-    const ownerParts = (shopInfo.shopOwnerName || "").trim().split(/\s+/);
-    const firstName = ownerParts[0] || null;
-    const lastName = ownerParts.slice(1).join(" ") || null;
-    const email = shopInfo.email || null;
-    const domain = shopInfo.primaryDomain?.host || resolvedShop;
-    const contactNumber = shopInfo.shopAddress?.phone || null;
+  if (resolvedShop && encryptedAccessToken) {
+    const existing = await prisma.shop.findUnique({ where: { shop: resolvedShop } });
 
-    // Only include contact fields in update when API succeeded — prevents
-    // overwriting good DB values with null on a failed API call.
-    const contactUpdate = shopInfoFetched
-      ? { firstName, lastName, email, contactNumber }
-      : {};
-
-    // Insert new shop record or update existing one with all fields
-    try {
-      await safeUpsertShop({
-        shop: resolvedShop,
-        context: "app loader",
-        update: {
-          accessToken: encryptedAccessToken ?? undefined,
-          installed: true,
-          uninstalledAt: null,
-          appStatus: "active",
-          domain,
-          ...contactUpdate,
-        },
-        create: {
-          accessToken: encryptedAccessToken ?? null,
+    if (!existing) {
+      // New shop — simple INSERT
+      await prisma.shop.create({
+        data: {
+          shop: resolvedShop,
+          accessToken: encryptedAccessToken,
           installed: true,
           appStatus: "active",
           onboardedAt: new Date(),
-          firstName,
-          lastName,
-          email,
-          domain,
-          contactNumber,
         },
-      });
-    } catch (err) {
-      console.error("[app.jsx loader] prisma shop upsert failed:", err?.message);
+      }).catch((err) => console.error("[app.jsx loader] shop create failed:", err?.message));
+    } else {
+      // Existing shop — UPDATE access token only
+      await prisma.shop.update({
+        where: { shop: resolvedShop },
+        data: { accessToken: encryptedAccessToken },
+      }).catch((err) => console.error("[app.jsx loader] shop update failed:", err?.message));
     }
   }
+
   const url = new URL(request.url);
   return {
     apiKey: process.env.SHOPIFY_API_KEY || "",
