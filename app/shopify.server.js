@@ -60,8 +60,7 @@ const shopify = shopifyApp({
               name
               email
               primaryDomain { host }
-              shopOwnerName
-              shopAddress { phone countryCodeV2 }
+              shopAddress { firstName lastName phone }
               ianaTimezone
             }
           }`,
@@ -77,13 +76,11 @@ const shopify = shopifyApp({
       }
 
       // Build contact fields only when API returned data
-      const ownerNameRaw = shopInfo?.shopOwnerName || session?.firstName || "";
-      const ownerNameParts = ownerNameRaw.trim().split(/\s+/);
-      const resolvedFirstName = ownerNameParts[0] || null;
-      const resolvedLastName = ownerNameParts.slice(1).join(" ") || null;
-      const resolvedEmail = shopInfo?.email || session?.email || null;
-      const resolvedDomain = shopInfo?.primaryDomain?.host || shop;
-      const resolvedPhone = shopInfo?.shopAddress?.phone || null;
+      const resolvedFirstName = shopInfo?.shopAddress?.firstName || null;
+      const resolvedLastName  = shopInfo?.shopAddress?.lastName  || null;
+      const resolvedEmail     = shopInfo?.email || null;
+      const resolvedDomain    = shopInfo?.primaryDomain?.host || shop;
+      const resolvedPhone     = shopInfo?.shopAddress?.phone || null;
 
       // Only write contact fields if API returned data — prevents overwriting good DB values with nulls
       const contactFields = shopInfo
@@ -136,7 +133,7 @@ const shopify = shopifyApp({
 
       const resolvedShopName = shopInfo?.name || shop;
       const resolvedShopDomain = resolvedDomain;
-      const resolvedOwnerName = shopInfo?.shopOwnerName || session?.firstName || "";
+      const resolvedOwnerName = [resolvedFirstName, resolvedLastName].filter(Boolean).join(" ") || "";
       const resolvedOwnerEmail = resolvedEmail || "";
       const installedAt = new Date().toISOString();
       const appVersion =

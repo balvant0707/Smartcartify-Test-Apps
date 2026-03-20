@@ -27,19 +27,17 @@ export const loader = async ({ request }) => {
           shop {
             email
             primaryDomain { host }
-            shopOwnerName
-            shopAddress { phone }
+            shopAddress { firstName lastName phone }
           }
         }
       `);
       const json = await response.json();
       const info = json?.data?.shop;
       if (info) {
-        const parts = (info.shopOwnerName || "").trim().split(/\s+/);
-        firstName = parts[0] || null;
-        lastName = parts.slice(1).join(" ") || null;
-        email = info.email || null;
-        domain = info.primaryDomain?.host || resolvedShop;
+        firstName     = info.shopAddress?.firstName || null;
+        lastName      = info.shopAddress?.lastName  || null;
+        email         = info.email || null;
+        domain        = info.primaryDomain?.host || resolvedShop;
         contactNumber = info.shopAddress?.phone || null;
       }
     } catch (err) {
