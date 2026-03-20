@@ -7,7 +7,8 @@
       "Bash(find /c/xampp/htdocs/shopifyApps/smart-cartify -name *.log -not -path */node_modules/*)",
       "Bash(node -e \"const p = require\\(''./node_modules/@shopify/shopify-app-react-router/package.json''\\); console.log\\(p.version\\)\")",
       "Bash(npx prisma:*)",
-      "mcp__shopify-dev-mcp__validate_graphql_codeblocks"
+      "mcp__shopify-dev-mcp__validate_graphql_codeblocks",
+      "Bash(npm run:*)"
     ]
   }
 }
