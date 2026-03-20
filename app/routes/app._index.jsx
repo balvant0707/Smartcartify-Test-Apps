@@ -7,6 +7,8 @@ import { Icon } from "@shopify/polaris";
 import {
   PaintBrushFlatIcon,
   ShippingLabelIcon,
+  BookOpenIcon,
+  StarIcon,
 } from "@shopify/polaris-icons";
 
 const CUSTOM_ICON_CSS = `
@@ -313,13 +315,25 @@ export default function Index() {
       label: "Configure Rewards",
       href: withHost("/app/rules"),
       icon: ShippingLabelIcon,
-      bg: "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)",
+      external: false,
     },
     {
       label: "Customize Style & Preview",
       href: withHost("/app/rules?tab=style"),
       icon: PaintBrushFlatIcon,
-      bg: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)",
+      external: false,
+    },
+    {
+      label: "User Guide",
+      href: "https://docs.smart-cartify.com",
+      icon: BookOpenIcon,
+      external: true,
+    },
+    {
+      label: "App Review",
+      href: "https://apps.shopify.com/smart-cartify#modal-show=ReviewListingModal",
+      icon: StarIcon,
+      external: true,
     },
   ];
 
@@ -486,19 +500,17 @@ export default function Index() {
               padding: "6px 2px",
             }}
           >
-            {quickShortcuts.map((item) => (
-              <s-link
-                key={item.label}
-                href={item.href}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  color: "#111111",
-                  fontWeight: 600,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center" }}>
+            {quickShortcuts.map((item) => {
+              const linkStyle = {
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                color: "#111111",
+                fontWeight: 600,
+                textDecoration: "none",
+              };
+              const inner = (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span
                     style={{
                       display: "flex",
@@ -509,12 +521,31 @@ export default function Index() {
                     }}
                     aria-hidden="true"
                   >
-                    <Icon style={{ fill: "#000000" }} source={item.icon} color="base" />
+                    <Icon source={item.icon} color="base" />
                   </span>
                   <span style={{ fontSize: "14px", color: "#000000" }}>{item.label}</span>
                 </div>
-              </s-link>
-            ))}
+              );
+              return item.external ? (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={linkStyle}
+                >
+                  {inner}
+                </a>
+              ) : (
+                <s-link
+                  key={item.label}
+                  href={item.href}
+                  style={linkStyle}
+                >
+                  {inner}
+                </s-link>
+              );
+            })}
           </div>
         </s-box>
       </s-section>
