@@ -325,7 +325,7 @@ export default function Index() {
     },
     {
       label: "User Guide",
-      href: "https://cartliftcartdrawerupsell.tawk.help/category/features",
+      href: "https://cartliftcartdrawerupsell.tawk.help/article/dashboard-page",
       icon: BookOpenIcon,
       external: true,
     },

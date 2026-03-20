@@ -36,6 +36,7 @@ import {
   ProductIcon,
   ThemeIcon,
   StarFilledIcon,
+  QuestionCircleIcon,
   MagicIcon,
   CheckSmallIcon,
   CartIcon,
@@ -6576,30 +6577,37 @@ export default function AppRules() {
     {
       id: "shipping",
       content: buildTabContent("Shipping Rules", DeliveryIcon),
+      guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/shipping-rule-tab",
     },
     {
       id: "discount",
       content: buildTabContent("Automatic Discounts", DiscountIcon),
+      guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/automatic-discounts-tab",
     },
     {
       id: "free",
       content: buildTabContent("Free Product & Quantity", GiftCardIcon),
+      guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/free-product-quantity-tab",
     },
     {
       id: "discount-code",
       content: buildTabContent("Code Discount", CodeIcon),
+      guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/automatic-discounts-tab",
     },
     {
       id: "bxgy",
       content: buildTabContent("Buy X Get Y (BXGY)", TransferInternalIcon),
+      guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/buy-x-get-y-bxgy-tab",
     },
     {
       id: "upsell",
       content: buildTabContent("Upsell Products", ProductIcon),
+      guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/cart-drawer-upsell-apps",
     },
     {
       id: "style",
       content: buildTabContent("Customize & Preview", ThemeIcon),
+      guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/customize-preview-tab",
     },
   ];
 
@@ -12215,21 +12223,45 @@ export default function AppRules() {
               <Box padding="300" style={{ minHeight: "auto" }}>
                 <BlockStack gap="200">
                   {tabs.map((tab, idx) => (
-                    <Button
-                      key={tab.id}
-                      fullWidth
-                      size="large"
-                      onClick={() => handleTabSelect(idx)}
-                      tone={selected === idx ? "primary" : undefined}
-                      variant={selected === idx ? "primary" : "secondary"}
-                    >
-                      <InlineStack gap="100" align="center">
-                        {tab.icon && (
-                          <Icon source={tab.icon} color="base" />
-                        )}
-                        <span>{tab.content}</span>
-                      </InlineStack>
-                    </Button>
+                    <div key={tab.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <div style={{ flex: 1 }}>
+                        <Button
+                          fullWidth
+                          size="large"
+                          onClick={() => handleTabSelect(idx)}
+                          tone={selected === idx ? "primary" : undefined}
+                          variant={selected === idx ? "primary" : "secondary"}
+                        >
+                          <InlineStack gap="100" align="center">
+                            {tab.icon && (
+                              <Icon source={tab.icon} color="base" />
+                            )}
+                            <span>{tab.content}</span>
+                          </InlineStack>
+                        </Button>
+                      </div>
+                      {tab.guideUrl && (
+                        <a
+                          href={tab.guideUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="View guide"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            color: "#6b7280",
+                            flexShrink: 0,
+                            textDecoration: "none",
+                          }}
+                        >
+                          <Icon source={QuestionCircleIcon} />
+                        </a>
+                      )}
+                    </div>
                   ))}
                 </BlockStack>
               </Box>
