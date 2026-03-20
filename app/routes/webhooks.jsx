@@ -6,7 +6,6 @@ import {
   buildUninstallEmail,
 } from "../lib/emailTemplates.server.js";
 import logger from "../lib/logger.server.js";
-import { safeCreateShop, safeUpdateManyShop } from "../lib/shopPersistence.server.js";
 import { authenticate } from "../shopify.server";
 
 const toDateOrNull = (value) => {
@@ -94,31 +93,28 @@ export async function action({ request }) {
     await prisma.planSubscription.deleteMany({ where: { shop } }).catch(() => null);
 
     try {
-      const result = await safeUpdateManyShop({
-        context: "webhooks app/uninstalled update",
-        where: { shop },
-        data: {
-          installed: false,
-          uninstalledAt: new Date(),
-          accessToken: null,
-          appStatus: "inactive",
-        },
-      });
-      if (result.count === 0) {
-        // No existing record - create one so the uninstall state is recorded
-        await safeCreateShop({
-          context: "webhooks app/uninstalled create",
+      if (existingShop) {
+        await prisma.shop.update({
+          where: { shop },
           data: {
-            shop,
-            domain: shop,
+            accessToken: null,
             installed: false,
             uninstalledAt: new Date(),
+            appStatus: "inactive",
+          },
+        });
+      } else {
+        await prisma.shop.create({
+          data: {
+            shop,
             accessToken: null,
+            installed: false,
+            uninstalledAt: new Date(),
             appStatus: "inactive",
           },
         });
       }
-      logger.log(`[webhooks] shop marked inactive, accessToken cleared: ${shop} (updated: ${result.count})`);
+      logger.log(`[webhooks] shop marked inactive, accessToken cleared: ${shop}`);
     } catch (err) {
       logger.error(`[webhooks] shop update failed on uninstall for ${shop}:`, err?.message);
     }

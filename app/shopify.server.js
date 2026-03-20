@@ -14,7 +14,6 @@ import {
 } from "./lib/emailTemplates.server.js";
 import { sendEmail } from "./lib/email.server.js";
 import logger from "./lib/logger.server.js";
-import { safeUpsertShop } from "./lib/shopPersistence.server.js";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -84,37 +83,42 @@ const shopify = shopifyApp({
       const resolvedDomain = shopInfo.primaryDomain?.host || shop;
       const resolvedPhone = shopInfo.shopAddress?.phone || null;
 
-      // Single upsert - access token + contact fields written together so nothing is partial
+      // Insert or update shop record with contact fields + access token
       try {
-        await safeUpsertShop({
-          shop,
-          context: "afterAuth",
-          update: {
-            accessToken: accessToken ?? undefined,
-            installed: true,
-            uninstalledAt: null,
-            appStatus: "active",
-            firstName: resolvedFirstName,
-            lastName: resolvedLastName,
-            email: resolvedEmail,
-            domain: resolvedDomain,
-            contactNumber: resolvedPhone,
-          },
-          create: {
-            accessToken: accessToken,
-            installed: true,
-            onboardedAt: new Date(),
-            appStatus: "active",
-            firstName: resolvedFirstName,
-            lastName: resolvedLastName,
-            email: resolvedEmail,
-            domain: resolvedDomain,
-            contactNumber: resolvedPhone,
-          },
-        });
+        if (!existingShop) {
+          await prisma.shop.create({
+            data: {
+              shop,
+              accessToken,
+              installed: true,
+              onboardedAt: new Date(),
+              appStatus: "active",
+              firstName: resolvedFirstName,
+              lastName: resolvedLastName,
+              email: resolvedEmail,
+              domain: resolvedDomain,
+              contactNumber: resolvedPhone,
+            },
+          });
+        } else {
+          await prisma.shop.update({
+            where: { shop },
+            data: {
+              accessToken,
+              installed: true,
+              uninstalledAt: null,
+              appStatus: "active",
+              firstName: resolvedFirstName,
+              lastName: resolvedLastName,
+              email: resolvedEmail,
+              domain: resolvedDomain,
+              contactNumber: resolvedPhone,
+            },
+          });
+        }
         logger.log("[afterAuth] shop record saved: " + shop);
       } catch (err) {
-        logger.error("[afterAuth] prisma shop upsert failed: " + shop + " — " + err?.message);
+        logger.error("[afterAuth] prisma shop save failed: " + shop + " — " + err?.message);
       }
 
       if (!isNewInstall && !forceSend && hadTokenBefore) {
