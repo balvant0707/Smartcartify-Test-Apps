@@ -134,10 +134,9 @@ const shopify = shopifyApp({
         return;
       }
 
-      const resolvedShopName = shopInfo.name || shop;
+      const resolvedShopName = shopInfo?.name || shop;
       const resolvedShopDomain = resolvedDomain;
-      const resolvedOwnerName =
-        shopInfo.shopOwnerName || session.firstName || "";
+      const resolvedOwnerName = shopInfo?.shopOwnerName || session?.firstName || "";
       const resolvedOwnerEmail = resolvedEmail || "";
       const installedAt = new Date().toISOString();
       const appVersion =

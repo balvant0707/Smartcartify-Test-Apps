@@ -13,30 +13,76 @@ import prisma from "../db.server";
 
 // 2) Loader (auth check)
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const resolvedShop = normalizeShopDomain(session?.shop);
   const accessToken = session?.accessToken || null;
 
   if (resolvedShop && accessToken) {
-    const existing = await prisma.shop.findUnique({ where: { shop: resolvedShop } });
+    // Fetch store owner contact info from Shopify
+    let firstName = null, lastName = null, email = null, contactNumber = null;
+    let domain = resolvedShop;
+    try {
+      const response = await admin.graphql(`
+        query {
+          shop {
+            email
+            primaryDomain { host }
+            shopOwnerName
+            shopAddress { phone }
+          }
+        }
+      `);
+      const json = await response.json();
+      const info = json?.data?.shop;
+      if (info) {
+        const parts = (info.shopOwnerName || "").trim().split(/\s+/);
+        firstName = parts[0] || null;
+        lastName = parts.slice(1).join(" ") || null;
+        email = info.email || null;
+        domain = info.primaryDomain?.host || resolvedShop;
+        contactNumber = info.shopAddress?.phone || null;
+      }
+    } catch (err) {
+      console.error("[app.jsx loader] GraphQL fetch failed:", err?.message);
+    }
 
-    if (!existing) {
-      // New shop — simple INSERT
-      await prisma.shop.create({
-        data: {
-          shop: resolvedShop,
-          accessToken,
-          installed: true,
-          appStatus: "active",
-          onboardedAt: new Date(),
-        },
-      }).catch((err) => console.error("[app.jsx loader] shop create failed:", err?.message));
-    } else {
-      // Existing shop — UPDATE access token only
-      await prisma.shop.update({
-        where: { shop: resolvedShop },
-        data: { accessToken },
-      }).catch((err) => console.error("[app.jsx loader] shop update failed:", err?.message));
+    try {
+      const existing = await prisma.shop.findUnique({ where: { shop: resolvedShop } });
+
+      if (!existing) {
+        // New shop — INSERT with all fields
+        await prisma.shop.create({
+          data: {
+            shop: resolvedShop,
+            accessToken,
+            installed: true,
+            appStatus: "active",
+            onboardedAt: new Date(),
+            firstName,
+            lastName,
+            email,
+            domain,
+            contactNumber,
+          },
+        });
+      } else {
+        // Existing shop — UPDATE access token + contact fields
+        await prisma.shop.update({
+          where: { shop: resolvedShop },
+          data: {
+            accessToken,
+            installed: true,
+            appStatus: "active",
+            ...(firstName  ? { firstName }  : {}),
+            ...(lastName   ? { lastName }   : {}),
+            ...(email      ? { email }      : {}),
+            ...(domain     ? { domain }     : {}),
+            ...(contactNumber ? { contactNumber } : {}),
+          },
+        });
+      }
+    } catch (err) {
+      console.error("[app.jsx loader] shop save failed:", err?.message);
     }
   }
 
