@@ -28,6 +28,17 @@ import {
 
 import {
   CheckCircleIcon,
+  DeliveryIcon,
+  DiscountIcon,
+  GiftCardIcon,
+  CodeIcon,
+  TransferInternalIcon,
+  ProductIcon,
+  ThemeIcon,
+  StarFilledIcon,
+  MagicIcon,
+  CheckSmallIcon,
+  CartIcon,
 } from "@shopify/polaris-icons";
 import { authenticate, apiVersion } from "../shopify.server";
 import prisma from "../db.server";
@@ -449,9 +460,9 @@ const stepLabelForRule = (type, rule) => {
 };
 
 const iconForType = (type) => {
-  if (type === "shipping") return "🚚";
-  if (type === "discount") return "🏷️";
-  return "🎁";
+  if (type === "shipping") return <Icon source={DeliveryIcon} />;
+  if (type === "discount") return <Icon source={DiscountIcon} />;
+  return <Icon source={GiftCardIcon} />;
 };
 
 const getStepCenters = (count) => {
@@ -1633,15 +1644,15 @@ const CART_STEP_OPTIONS = [
   { label: "Cart Step 4", value: "step4" },
 ];
 
-const ICON_EMOJI = {
-  sparkles: "✨",
-  truck: "🚚",
-  tag: "🏷️",
-  gift: "🎁",
-  star: "⭐",
-  fire: "🔥",
-  check: "✅",
-  cart: "🛒",
+const ICON_POLARIS = {
+  sparkles: MagicIcon,
+  truck: DeliveryIcon,
+  tag: DiscountIcon,
+  gift: GiftCardIcon,
+  star: StarFilledIcon,
+  fire: StarFilledIcon,
+  check: CheckSmallIcon,
+  cart: CartIcon,
 };
 
 export const loader = async ({ request }) => {
@@ -5413,18 +5424,9 @@ const ruleIconArt = {
   ),
 };
 
-const ICON_SYMBOLS = {
-  sparkles: "✨",
-  truck: "🚚",
-  tag: "🏷️",
-  gift: "🎁",
-  star: "⭐",
-  fire: "🔥",
-  check: "✅",
-  cart: "🛒",
-};
-
-const iconGlyph = (choice) => ICON_SYMBOLS[choice] || "•";
+const iconGlyph = (choice) => (
+  <Icon source={ICON_POLARIS[choice] || ICON_POLARIS.sparkles} />
+);
 
 /* ---------- Simple rule card ---------- */
 
@@ -6075,6 +6077,7 @@ function CartDrawerPreview({
                         transform: "translateY(-50%)",
                         width: upsellArrowButtonSize,
                         height: upsellArrowButtonSize,
+                        borderRadius: 999,
                         background: "#ffffff",
                         color: upsellArrowColor,
                         display: "grid",
@@ -6556,7 +6559,7 @@ export default function AppRules() {
   const [selected, setSelected] = React.useState(0);
   const currencyCode = String(loaderCurrencyCode || "USD").toUpperCase();
 
-  const buildTabContent = (label, emoji) => (
+  const buildTabContent = (label, polarisIcon) => (
     <span
       style={{
         display: "inline-flex",
@@ -6564,9 +6567,7 @@ export default function AppRules() {
         gap: 8,
       }}
     >
-      <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>
-        {emoji}
-      </span>
+      <Icon source={polarisIcon} />
       <span>{label}</span>
     </span>
   );
@@ -6574,31 +6575,31 @@ export default function AppRules() {
   const tabs = [
     {
       id: "shipping",
-      content: buildTabContent("Shipping Rules", "🚚"),
+      content: buildTabContent("Shipping Rules", DeliveryIcon),
     },
     {
       id: "discount",
-      content: buildTabContent("Automatic Discounts", "⚡"),
+      content: buildTabContent("Automatic Discounts", DiscountIcon),
     },
     {
       id: "free",
-      content: buildTabContent("Free Product & Quantity", "🎉"),
+      content: buildTabContent("Free Product & Quantity", GiftCardIcon),
     },
     {
       id: "discount-code",
-      content: buildTabContent("Code Discount", "🏷️"),
+      content: buildTabContent("Code Discount", CodeIcon),
     },
     {
       id: "bxgy",
-      content: buildTabContent("Buy X Get Y (BXGY)", "🎁"),
+      content: buildTabContent("Buy X Get Y (BXGY)", TransferInternalIcon),
     },
     {
       id: "upsell",
-      content: buildTabContent("Upsell Products", "🎁"),
+      content: buildTabContent("Upsell Products", ProductIcon),
     },
     {
       id: "style",
-      content: buildTabContent("Customize & Preview", "🎨"),
+      content: buildTabContent("Customize & Preview", ThemeIcon),
     },
   ];
 
@@ -9394,9 +9395,9 @@ export default function AppRules() {
               const isRuleComplete =
                 Number.isFinite(entry.threshold) &&
                 previewCurrentTotal >= entry.threshold;
-              const iconSymbol =
-                ICON_EMOJI[entry.rule?.iconChoice || "truck"] ||
-                ICON_EMOJI.truck;
+              const iconSource =
+                ICON_POLARIS[entry.rule?.iconChoice || "truck"] ||
+                ICON_POLARIS.truck;
               return (
                 <div
                   key={entry.rule?.id || `preview-rule-${idx}`}
@@ -9418,14 +9419,13 @@ export default function AppRules() {
                       borderRadius: 999,
                       display: "grid",
                       placeItems: "center",
-                      fontSize: 18,
                       background: "#f3f4f6",
                     }}
                   >
                     {isRuleComplete ? (
                       <Icon source={CheckCircleIcon} color="success" />
                     ) : (
-                      iconSymbol
+                      <Icon source={iconSource} />
                     )}
                   </div>
                   {ruleCopy ? (
@@ -9529,8 +9529,7 @@ export default function AppRules() {
                     {stepComplete ? (
                       <Icon source={CheckCircleIcon} color="white" />
                     ) : (
-                      ICON_EMOJI[entry.rule?.iconChoice || "tag"] ||
-                      ICON_EMOJI.tag
+                      <Icon source={ICON_POLARIS[entry.rule?.iconChoice || "tag"] || ICON_POLARIS.tag} />
                     )}
                   </div>
                   {ruleCopy && (
@@ -9607,9 +9606,9 @@ export default function AppRules() {
                 ruleBelowText || stepLabelForRule("free", entry.rule);
               const stepThreshold = (idx + 1) / freeStepCount;
               const isRuleComplete = freePreviewSliderPercent >= stepThreshold;
-              const iconSymbol =
-                ICON_EMOJI[entry.rule?.iconChoice || "gift"] ||
-                ICON_EMOJI.gift;
+              const iconSource =
+                ICON_POLARIS[entry.rule?.iconChoice || "gift"] ||
+                ICON_POLARIS.gift;
               const center = freeStepPercents[idx] ?? 0;
               return (
                 <div
@@ -9639,7 +9638,7 @@ export default function AppRules() {
                     {isRuleComplete ? (
                       <Icon source={CheckCircleIcon} color="success" />
                     ) : (
-                      iconSymbol
+                      <Icon source={iconSource} />
                     )}
                   </div>
                   {ruleCopy && (
@@ -10250,8 +10249,7 @@ export default function AppRules() {
                               {iconComplete ? (
                                 <Icon source={CheckCircleIcon} color="success" />
                               ) : (
-                                ICON_EMOJI[r.iconChoice || "tag"] ||
-                                ICON_EMOJI["tag"]
+                                <Icon source={ICON_POLARIS[r.iconChoice || "tag"] || ICON_POLARIS.tag} />
                               )}
                             </div>
                           </div>

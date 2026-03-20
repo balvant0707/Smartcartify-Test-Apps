@@ -8,7 +8,8 @@
       "Bash(node -e \"const p = require\\(''./node_modules/@shopify/shopify-app-react-router/package.json''\\); console.log\\(p.version\\)\")",
       "Bash(npx prisma:*)",
       "mcp__shopify-dev-mcp__validate_graphql_codeblocks",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(node -e \"const icons = require\\(''@shopify/polaris-icons''\\); [''DeliveryIcon'',''DiscountIcon'',''GiftCardIcon'',''CodeIcon'',''TransferInternalIcon'',''ProductIcon'',''ThemeIcon''].forEach\\(n => console.log\\(n, !!icons[n]\\)\\)\")"
     ]
   }
 }
