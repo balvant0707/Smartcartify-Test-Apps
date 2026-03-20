@@ -37,7 +37,6 @@ import {
   syncFreeProductDiscountsToShopify,
   resolveAllProductsCollectionId,
 } from "../lib/minAmountFreeGift.server.js";
-import { decryptAccessToken, encryptAccessToken } from "../lib/accessTokenCrypto.server.js";
 const logger = console;
 
 // Client-side conditional logging (only logs in development)
@@ -3691,7 +3690,7 @@ const resolveShopAdminAccess = async (shop, sessionAccessToken) => {
     orderBy: { id: "desc" },
   });
 
-  const dbAccessToken = decryptAccessToken(shopRow?.accessToken);
+  const dbAccessToken = shopRow?.accessToken || null;
   const offlineAccessToken = await getOfflineSessionAccessToken(shop);
 
   const shopAccessToken =
@@ -3705,13 +3704,13 @@ const resolveShopAdminAccess = async (shop, sessionAccessToken) => {
       await prisma.shop.upsert({
         where: { shop },
         update: {
-          accessToken: encryptAccessToken(shopAccessToken),
+          accessToken: shopAccessToken,
           installed: true,
           uninstalledAt: null,
         },
         create: {
           shop,
-          accessToken: encryptAccessToken(shopAccessToken),
+          accessToken: shopAccessToken,
           installed: true,
           onboardedAt: new Date(),
         },

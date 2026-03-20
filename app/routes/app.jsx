@@ -8,7 +8,6 @@ import { AppProvider as BridgeProvider } from "@shopify/shopify-app-react-router
 import { AppProvider as PolarisProvider, Page, Card, Text } from "@shopify/polaris";
 import en from "@shopify/polaris/locales/en.json";
 import { authenticate } from "../shopify.server";
-import { encryptAccessToken } from "../lib/accessTokenCrypto.server.js";
 import { normalizeShopDomain } from "../lib/shopUtils.server.js";
 import prisma from "../db.server";
 
@@ -16,9 +15,9 @@ import prisma from "../db.server";
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const resolvedShop = normalizeShopDomain(session?.shop);
-  const encryptedAccessToken = encryptAccessToken(session?.accessToken);
+  const accessToken = session?.accessToken || null;
 
-  if (resolvedShop && encryptedAccessToken) {
+  if (resolvedShop && accessToken) {
     const existing = await prisma.shop.findUnique({ where: { shop: resolvedShop } });
 
     if (!existing) {
@@ -26,7 +25,7 @@ export const loader = async ({ request }) => {
       await prisma.shop.create({
         data: {
           shop: resolvedShop,
-          accessToken: encryptedAccessToken,
+          accessToken,
           installed: true,
           appStatus: "active",
           onboardedAt: new Date(),
@@ -36,7 +35,7 @@ export const loader = async ({ request }) => {
       // Existing shop — UPDATE access token only
       await prisma.shop.update({
         where: { shop: resolvedShop },
-        data: { accessToken: encryptedAccessToken },
+        data: { accessToken },
       }).catch((err) => console.error("[app.jsx loader] shop update failed:", err?.message));
     }
   }

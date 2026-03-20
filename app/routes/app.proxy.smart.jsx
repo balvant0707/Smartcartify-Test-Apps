@@ -1,9 +1,5 @@
 import prisma from "../db.server.js";
 import crypto from "crypto";
-import {
-  decryptAccessToken,
-  encryptAccessToken,
-} from "../lib/accessTokenCrypto.server.js";
 import logger from "../lib/logger.server.js";
 import { apiVersion } from "../shopify.server.js";
 import { getShopFromRequest } from "../lib/shopUtils.server.js";
@@ -267,7 +263,7 @@ const fetchProductsForCollection = async (shopDomain, accessToken, collectionId)
 };
 
 const resolveShopAccessToken = async (shop, shopRow) => {
-  const primary = decryptAccessToken(shopRow?.accessToken);
+  const primary = shopRow?.accessToken || null;
   if (shopRow?.installed && primary) return primary;
 
   const offlineSessionId = `offline_${shop}`;
@@ -294,18 +290,17 @@ const resolveShopAccessToken = async (shop, shopRow) => {
 
   if (!fallbackToken) return null;
 
-  const encrypted = encryptAccessToken(fallbackToken);
   await prisma.shop.upsert({
     where: { shop },
     update: {
-      accessToken: encrypted ?? undefined,
+      accessToken: fallbackToken,
       installed: true,
       uninstalledAt: null,
       updatedAt: new Date(),
     },
     create: {
       shop,
-      accessToken: encrypted ?? null,
+      accessToken: fallbackToken,
       installed: true,
       onboardedAt: new Date(),
     },

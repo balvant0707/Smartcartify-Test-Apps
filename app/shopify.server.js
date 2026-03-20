@@ -13,7 +13,6 @@ import {
   buildOwnerInstallEmail,
 } from "./lib/emailTemplates.server.js";
 import { sendEmail } from "./lib/email.server.js";
-import { decryptAccessToken, encryptAccessToken } from "./lib/accessTokenCrypto.server.js";
 import logger from "./lib/logger.server.js";
 import { safeUpsertShop } from "./lib/shopPersistence.server.js";
 
@@ -50,15 +49,8 @@ const shopify = shopifyApp({
       const isNewInstall = !existingShop || existingShop.installed === false;
       const forceSend = process.env.FORCE_INSTALL_EMAIL === "true";
 
-      // Encrypt access token — guarded so a failure here does not abort the entire hook
-      let encryptedAccessToken = null;
-      let hadTokenBefore = false;
-      try {
-        encryptedAccessToken = encryptAccessToken(session?.accessToken);
-        hadTokenBefore = Boolean(decryptAccessToken(existingShop?.accessToken));
-      } catch (err) {
-        logger.warn("[afterAuth] access token encryption failed", { shop, error: err?.message });
-      }
+      const accessToken = session?.accessToken || null;
+      const hadTokenBefore = Boolean(existingShop?.accessToken);
 
       // Fetch merchant contact info from Shopify Admin API
       let shopInfo = {};
@@ -98,7 +90,7 @@ const shopify = shopifyApp({
           shop,
           context: "afterAuth",
           update: {
-            accessToken: encryptedAccessToken ?? undefined,
+            accessToken: accessToken ?? undefined,
             installed: true,
             uninstalledAt: null,
             appStatus: "active",
@@ -109,7 +101,7 @@ const shopify = shopifyApp({
             contactNumber: resolvedPhone,
           },
           create: {
-            accessToken: encryptedAccessToken,
+            accessToken: accessToken,
             installed: true,
             onboardedAt: new Date(),
             appStatus: "active",
