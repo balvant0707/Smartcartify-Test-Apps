@@ -325,13 +325,13 @@ export default function Index() {
     },
     {
       label: "User Guide",
-      href: "https://docs.smart-cartify.com",
+      href: "https://cartliftcartdrawerupsell.tawk.help/category/features",
       icon: BookOpenIcon,
       external: true,
     },
     {
       label: "App Review",
-      href: "https://apps.shopify.com/smart-cartify#modal-show=ReviewListingModal",
+      href: "https://apps.shopify.com/cartlift-cart-drawer-upsell#modal-show=ReviewListingModal",
       icon: StarIcon,
       external: true,
     },
