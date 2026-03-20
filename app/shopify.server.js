@@ -59,14 +59,9 @@ const shopify = shopifyApp({
             shop {
               name
               email
+              shopOwnerName
               primaryDomain { host }
               shopAddress { phone }
-              accountOwner {
-                firstName
-                lastName
-                email
-                phone
-              }
               ianaTimezone
             }
           }`,
@@ -82,11 +77,12 @@ const shopify = shopifyApp({
       }
 
       // Build contact fields only when API returned data
-      const resolvedFirstName = shopInfo?.accountOwner?.firstName || null;
-      const resolvedLastName  = shopInfo?.accountOwner?.lastName  || null;
-      const resolvedEmail     = shopInfo?.accountOwner?.email || shopInfo?.email || null;
+      const nameParts        = (shopInfo?.shopOwnerName || "").trim().split(/\s+/);
+      const resolvedFirstName = nameParts[0] || null;
+      const resolvedLastName  = nameParts.slice(1).join(" ") || null;
+      const resolvedEmail     = shopInfo?.email || null;
       const resolvedDomain    = shopInfo?.primaryDomain?.host || shop;
-      const resolvedPhone     = shopInfo?.accountOwner?.phone || shopInfo?.shopAddress?.phone || null;
+      const resolvedPhone     = shopInfo?.shopAddress?.phone || null;
 
       // Only write contact fields if API returned data — prevents overwriting good DB values with nulls
       const contactFields = shopInfo

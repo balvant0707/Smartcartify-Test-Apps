@@ -26,25 +26,21 @@ export const loader = async ({ request }) => {
         query GetShopOwnerInfo {
           shop {
             email
+            shopOwnerName
             primaryDomain { host }
             shopAddress { phone }
-            accountOwner {
-              firstName
-              lastName
-              email
-              phone
-            }
           }
         }
       `);
       const json = await response.json();
       const info = json?.data?.shop;
       if (info) {
-        firstName     = info.accountOwner?.firstName || null;
-        lastName      = info.accountOwner?.lastName  || null;
-        email         = info.accountOwner?.email || info.email || null;
+        const nameParts = (info.shopOwnerName || "").trim().split(/\s+/);
+        firstName     = nameParts[0] || null;
+        lastName      = nameParts.slice(1).join(" ") || null;
+        email         = info.email || null;
         domain        = info.primaryDomain?.host || resolvedShop;
-        contactNumber = info.accountOwner?.phone || info.shopAddress?.phone || null;
+        contactNumber = info.shopAddress?.phone || null;
       }
     } catch (err) {
       console.error("[app.jsx loader] GraphQL fetch failed:", err?.message);

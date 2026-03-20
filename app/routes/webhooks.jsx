@@ -95,7 +95,7 @@ export async function action({ request }) {
     try {
       if (existingShop) {
         await prisma.shop.update({
-          where: { shop },
+          where: { id: existingShop.id },
           data: {
             accessToken: null,
             installed: false,
