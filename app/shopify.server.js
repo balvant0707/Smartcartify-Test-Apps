@@ -52,7 +52,7 @@ const shopify = shopifyApp({
       const hadTokenBefore = Boolean(existingShop?.accessToken);
 
       // Fetch merchant contact info from Shopify Admin API
-      let shopInfo = {};
+      let shopInfo = null;
       try {
         const response = await admin.graphql(
           `query InstallShopInfo {
@@ -61,8 +61,8 @@ const shopify = shopifyApp({
               email
               primaryDomain { host }
               shopOwnerName
-              ianaTimezone
               shopAddress { phone countryCodeV2 }
+              ianaTimezone
             }
           }`,
         );
@@ -70,18 +70,25 @@ const shopify = shopifyApp({
         if (data?.errors?.length) {
           logger.error("[afterAuth] Shopify GraphQL errors: " + JSON.stringify(data.errors));
         }
-        shopInfo = data?.data?.shop || {};
+        shopInfo = data?.data?.shop || null;
+        logger.log("[afterAuth] shopInfo fetched: " + JSON.stringify(shopInfo));
       } catch (error) {
         logger.error("[afterAuth] Shopify GraphQL failed: " + error?.message);
       }
 
-      // Build contact fields
-      const ownerNameParts = (shopInfo.shopOwnerName || session?.firstName || "").trim().split(/\s+/);
+      // Build contact fields only when API returned data
+      const ownerNameRaw = shopInfo?.shopOwnerName || session?.firstName || "";
+      const ownerNameParts = ownerNameRaw.trim().split(/\s+/);
       const resolvedFirstName = ownerNameParts[0] || null;
       const resolvedLastName = ownerNameParts.slice(1).join(" ") || null;
-      const resolvedEmail = shopInfo.email || session?.email || null;
-      const resolvedDomain = shopInfo.primaryDomain?.host || shop;
-      const resolvedPhone = shopInfo.shopAddress?.phone || null;
+      const resolvedEmail = shopInfo?.email || session?.email || null;
+      const resolvedDomain = shopInfo?.primaryDomain?.host || shop;
+      const resolvedPhone = shopInfo?.shopAddress?.phone || null;
+
+      // Only write contact fields if API returned data — prevents overwriting good DB values with nulls
+      const contactFields = shopInfo
+        ? { firstName: resolvedFirstName, lastName: resolvedLastName, email: resolvedEmail, domain: resolvedDomain, contactNumber: resolvedPhone }
+        : {};
 
       // Insert or update shop record with contact fields + access token
       try {
@@ -93,13 +100,11 @@ const shopify = shopifyApp({
               installed: true,
               onboardedAt: new Date(),
               appStatus: "active",
-              firstName: resolvedFirstName,
-              lastName: resolvedLastName,
-              email: resolvedEmail,
               domain: resolvedDomain,
-              contactNumber: resolvedPhone,
+              ...contactFields,
             },
           });
+          logger.log("[afterAuth] shop record inserted: " + shop);
         } else {
           await prisma.shop.update({
             where: { shop },
@@ -108,15 +113,11 @@ const shopify = shopifyApp({
               installed: true,
               uninstalledAt: null,
               appStatus: "active",
-              firstName: resolvedFirstName,
-              lastName: resolvedLastName,
-              email: resolvedEmail,
-              domain: resolvedDomain,
-              contactNumber: resolvedPhone,
+              ...contactFields,
             },
           });
+          logger.log("[afterAuth] shop record updated: " + shop);
         }
-        logger.log("[afterAuth] shop record saved: " + shop);
       } catch (err) {
         logger.error("[afterAuth] prisma shop save failed: " + shop + " — " + err?.message);
       }
