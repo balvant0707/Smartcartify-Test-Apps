@@ -2630,7 +2630,6 @@
   pointer-events:none !important;
   display:flex !important;
   flex-direction:column;
-  font-family:system;
   font-size:var(--sc-base-font-size);
   color:var(--sc-drawer-text-color);
 }
@@ -4527,7 +4526,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
       const belowRaw = trimToNull(getProgressBelow(rule));
 
       const title =
-        trimToNull(rule?.cartStepName) ||
         trimToNull(rule?.campaignName) ||
         belowRaw ||
         (type === "shipping" ? "Shipping" : type === "discount" ? "Discount" : "Free Product");

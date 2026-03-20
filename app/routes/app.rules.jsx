@@ -23,7 +23,6 @@ import {
   Frame,
   Toast,
   Spinner,
-  Popover,
   Icon,
 } from "@shopify/polaris";
 
@@ -1023,50 +1022,6 @@ const DEFAULT_BXGY_CONTENT_TEXT = {
   afterOfferUnlockMessage: "🎉🎉 Congratulations! You've earned a free item",
 };
 
-const PROGRESS_TOKEN_OPTIONS = [
-  {
-    key: "goal",
-    label: "{{goal}}",
-    description: "Will be replaced with amount required to reach the goal",
-  },
-
-  {
-    key: "current_status",
-    label: "{{current_status}}",
-    description: "Will be replaced with the current cart value",
-  },
-
-  {
-    key: "discount",
-    label: "{{discount}}",
-    description: "Will be replaced with the discount amount",
-  },
-  {
-    key: "discount_value",
-    label: "{{discount_value}}",
-    description: "Will be replaced with the discount amount without the 'off' suffix",
-  },
-  {
-    key: "discount_value_with_off",
-    label: "{{discount_value_with_off}}",
-    description: "Will be replaced with the discount amount including the 'off' suffix",
-  },
-  {
-    key: "discount_code",
-    label: "{{discount_code}}",
-    description: "Will be replaced with the discount code",
-  },
-  {
-    key: "x",
-    label: "{{x}}",
-    description: "Will be replaced with the Buy (X qty) value",
-  },
-  {
-    key: "y",
-    label: "{{y}}",
-    description: "Will be replaced with the Get (Y qty) value",
-  },
-];
 
 const DISCOUNT_SLIDE_ANIMATION = `
   @keyframes discountPreviewSlide {
@@ -7212,9 +7167,6 @@ export default function AppRules() {
     ]
   );
 
-  const [activeTokenField, setActiveTokenField] = React.useState(null);
-
-  const tokenSetterRef = React.useRef(null);
 
   const [themeBurst, setThemeBurst] = React.useState(0);
 
@@ -7700,29 +7652,13 @@ export default function AppRules() {
     []
   );
 
-  const handleTokenInsert = React.useCallback(
-    (token) => {
-      const inserter = tokenSetterRef.current;
-
-      if (!inserter) return;
-
-      inserter(token);
-
-      setActiveTokenField(null);
-
-      tokenSetterRef.current = null;
-    },
-
-    []
-  );
-
   const renderTokenField = (
-    field,
+    _field,
     label,
     value,
     onChange,
     helpText,
-    { showTokenButton = true, disabled = false } = {}
+    { disabled = false } = {}
   ) => (
     <Box style={{ position: "relative" }}>
       <TextField
@@ -7735,80 +7671,6 @@ export default function AppRules() {
         style={{ width: "100%" }}
       />
 
-      {showTokenButton && (
-        <div
-          style={{
-            position: "absolute",
-            top: -20,
-            right: 0,
-            height: "100%",
-            display: "grid",
-            alignItems: "center",
-            paddingRight: 4,
-          }}
-        >
-          <Popover
-            active={!disabled && activeTokenField === field}
-            activator={
-              <Button
-                plain
-                size="slim"
-                aria-label="Insert template variable"
-                disabled={disabled}
-                onClick={() => {
-                  if (disabled) return;
-                  if (activeTokenField === field) {
-                    setActiveTokenField(null);
-                    tokenSetterRef.current = null;
-                    return;
-                  }
-
-                  tokenSetterRef.current = (token) => {
-                    const currentValue = value ?? "";
-                    const needsSpace =
-                      currentValue && !currentValue.endsWith(" ") ? " " : "";
-                    const next = `${currentValue}${needsSpace}${token}`;
-
-                    onChange(next);
-                  };
-
-                  setActiveTokenField(field);
-                }}
-              >
-                {"{}"}
-              </Button>
-            }
-            onClose={() => {
-              setActiveTokenField(null);
-
-              tokenSetterRef.current = null;
-            }}
-            preferredAlignment="right"
-          >
-            <BlockStack gap="0" style={{ paddingBlockEnd: 0, display: "block" }}>
-              {PROGRESS_TOKEN_OPTIONS.map((token) => (
-                <Button
-                  key={token.key}
-                  plain
-                  fullWidth
-                  style={{ justifyContent: "flex-start" }}
-                  onClick={() => handleTokenInsert(token.label)}
-                >
-                  <Box textAlign="left">
-                    <Text as="strong" variant="bodyMd">
-                      {token.label}
-                    </Text>
-
-                    <Text tone="subdued" variant="bodySm">
-                      {token.description}
-                    </Text>
-                  </Box>
-                </Button>
-              ))}
-            </BlockStack>
-          </Popover>
-        </div>
-      )}
     </Box>
   );
 
@@ -9359,8 +9221,8 @@ export default function AppRules() {
                     />
                   </div>
                 )}
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Rule icon</div>
+                {/* <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {/* <div style={{ fontSize: 13, fontWeight: 600 }}>Rule icon</div>
                   <Select
                     labelHidden
                     disabled={shippingReadOnly}
@@ -9373,8 +9235,8 @@ export default function AppRules() {
                         )
                       )
                     }
-                  />
-                </div>
+                  /> 
+                </div> */}
               </div>
               <Divider />
               <div
@@ -10063,7 +9925,7 @@ export default function AppRules() {
                           )
                         }
                       />
-                      <Select
+                      {/* <Select
                         label="Rule icon"
                         disabled={readOnly}
                         options={ICON_OPTIONS}
@@ -10075,7 +9937,7 @@ export default function AppRules() {
                             )
                           )
                         }
-                      />
+                      /> */}
                     </>
                   )}
                 </InlineStack>
@@ -10120,7 +9982,7 @@ export default function AppRules() {
                       }
                     />
 
-                    <Select
+                    {/* <Select
                       label="Rule icon"
                       disabled={readOnly}
                       options={ICON_OPTIONS}
@@ -10130,7 +9992,7 @@ export default function AppRules() {
                           x.map((it, idx) => (idx === index ? { ...it, iconChoice: v } : it))
                         )
                       }
-                    />
+                    /> */}
                   </InlineStack>
                 )}
 
@@ -10631,7 +10493,7 @@ export default function AppRules() {
                     )
                   }
                 />
-                <Select
+                {/* <Select
                   label="Rule icon"
                   disabled={freeReadOnly}
                   options={ICON_OPTIONS}
@@ -10643,7 +10505,7 @@ export default function AppRules() {
                       )
                     )
                   }
-                />
+                /> */}
               </InlineStack>
 
               <Divider />
@@ -11017,7 +10879,7 @@ export default function AppRules() {
                     </BlockStack>
                   )}
 
-                  <Select
+                  {/* <Select
                     label="Rule icon"
                     disabled={bxgyReadOnly}
                     options={ICON_OPTIONS}
@@ -11029,7 +10891,7 @@ export default function AppRules() {
                         )
                       )
                     }
-                  />
+                  /> */}
                 </InlineStack>
 
                 {r.scope !== "store" && (
