@@ -36,6 +36,7 @@ import {
   ProductIcon,
   ThemeIcon,
   StarFilledIcon,
+  BookOpenIcon,
   QuestionCircleIcon,
   MagicIcon,
   CheckSmallIcon,
@@ -6576,36 +6577,50 @@ export default function AppRules() {
   const tabs = [
     {
       id: "shipping",
+      label: "Shipping Rules",
+      icon: DeliveryIcon,
       content: buildTabContent("Shipping Rules", DeliveryIcon),
       guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/shipping-rule-tab",
     },
     {
       id: "discount",
+      label: "Automatic Discounts",
+      icon: DiscountIcon,
       content: buildTabContent("Automatic Discounts", DiscountIcon),
       guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/automatic-discounts-tab",
     },
     {
       id: "free",
+      label: "Free Product & Quantity",
+      icon: GiftCardIcon,
       content: buildTabContent("Free Product & Quantity", GiftCardIcon),
       guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/free-product-quantity-tab",
     },
     {
       id: "discount-code",
+      label: "Code Discount",
+      icon: CodeIcon,
       content: buildTabContent("Code Discount", CodeIcon),
       guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/automatic-discounts-tab",
     },
     {
       id: "bxgy",
+      label: "Buy X Get Y (BXGY)",
+      icon: TransferInternalIcon,
       content: buildTabContent("Buy X Get Y (BXGY)", TransferInternalIcon),
       guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/buy-x-get-y-bxgy-tab",
     },
     {
       id: "upsell",
+      label: "Upsell Products",
+      icon: ProductIcon,
       content: buildTabContent("Upsell Products", ProductIcon),
       guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/cart-drawer-upsell-apps",
     },
     {
       id: "style",
+      label: "Customize & Preview",
+      icon: ThemeIcon,
       content: buildTabContent("Customize & Preview", ThemeIcon),
       guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/customize-preview-tab",
     },
@@ -12219,53 +12234,68 @@ export default function AppRules() {
               alignItems: "start",
             }}
           >
-            <Card>
-              <Box padding="300" style={{ minHeight: "auto" }}>
-                <BlockStack gap="200">
-                  {tabs.map((tab, idx) => (
-                    <div key={tab.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <div style={{ flex: 1 }}>
-                        <Button
-                          fullWidth
-                          size="large"
-                          onClick={() => handleTabSelect(idx)}
-                          tone={selected === idx ? "primary" : undefined}
-                          variant={selected === idx ? "primary" : "secondary"}
-                        >
-                          <InlineStack gap="100" align="center">
-                            {tab.icon && (
-                              <Icon source={tab.icon} color="base" />
-                            )}
-                            <span>{tab.content}</span>
-                          </InlineStack>
-                        </Button>
-                      </div>
-                      {tab.guideUrl && (
-                        <a
-                          href={tab.guideUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="View guide"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: 28,
-                            height: 28,
-                            borderRadius: 6,
-                            color: "#6b7280",
-                            flexShrink: 0,
-                            textDecoration: "none",
-                          }}
-                        >
-                          <Icon source={QuestionCircleIcon} />
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </BlockStack>
-              </Box>
-            </Card>
+            <BlockStack gap="300">
+              <Card>
+                <Box padding="300" style={{ minHeight: "auto" }}>
+                  <BlockStack gap="200">
+                    {tabs.map((tab, idx) => (
+                      <Button
+                        key={tab.id}
+                        fullWidth
+                        size="large"
+                        onClick={() => handleTabSelect(idx)}
+                        tone={selected === idx ? "primary" : undefined}
+                        variant={selected === idx ? "primary" : "secondary"}
+                      >
+                        {tab.content}
+                      </Button>
+                    ))}
+                  </BlockStack>
+                </Box>
+              </Card>
+
+              <div
+                style={{
+                  padding: "14px",
+                  borderRadius: 12,
+                  background: "#ffffff",
+                  border: "1px solid #000000",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1e3a5f" }}>
+                    Need Help?
+                  </span>
+                </div>
+
+                <p style={{ fontSize: 12, color: "#475569", margin: 0, lineHeight: 1.5 }}>
+                  View the step-by-step guide for this tab.
+                </p>
+
+                <a
+                  href={tabs[selected]?.guideUrl || "https://cartliftcartdrawerupsell.tawk.help/category/features"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    padding: "5px 5px",
+                    borderRadius: 8,
+                    background: "#ffffff",
+                    color: "#000000",
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  {tabs[selected]?.label ? `${tabs[selected].label} Guide` : "View Documentation"}
+                </a>
+              </div>
+            </BlockStack>
             <div style={panelLayoutStyle}>
               <Card>
                 <Box padding={panelPadding}>{ActivePanel}</Box>

@@ -13,7 +13,7 @@ import prisma from "../db.server";
 
 // 2) Loader (auth check)
 export const loader = async ({ request }) => {
-  const { session, admin } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const resolvedShop = normalizeShopDomain(session?.shop);
   const accessToken = session?.accessToken || null;
 
@@ -22,28 +22,26 @@ export const loader = async ({ request }) => {
     let firstName = null, lastName = null, email = null, contactNumber = null;
     let domain = resolvedShop;
     try {
-      const response = await admin.graphql(`
-        query GetShopOwnerInfo {
-          shop {
-            email
-            shopOwnerName
-            primaryDomain { host }
-            shopAddress { phone }
-          }
+      const restRes = await fetch(
+        `https://${resolvedShop}/admin/api/2025-01/shop.json`,
+        { headers: { "X-Shopify-Access-Token": accessToken, "Content-Type": "application/json" } },
+      );
+      if (restRes.ok) {
+        const restBody = await restRes.json();
+        const s = restBody?.shop;
+        if (s) {
+          const nameParts = (s.shop_owner || "").trim().split(/\s+/);
+          firstName     = nameParts[0] || null;
+          lastName      = nameParts.slice(1).join(" ") || null;
+          email         = s.email || null;
+          domain        = s.domain || s.myshopify_domain || resolvedShop;
+          contactNumber = s.phone || null;
         }
-      `);
-      const json = await response.json();
-      const info = json?.data?.shop;
-      if (info) {
-        const nameParts = (info.shopOwnerName || "").trim().split(/\s+/);
-        firstName     = nameParts[0] || null;
-        lastName      = nameParts.slice(1).join(" ") || null;
-        email         = info.email || null;
-        domain        = info.primaryDomain?.host || resolvedShop;
-        contactNumber = info.shopAddress?.phone || null;
+      } else {
+        console.error(`[app.jsx loader] REST shop fetch failed: HTTP ${restRes.status}`);
       }
     } catch (err) {
-      console.error("[app.jsx loader] GraphQL fetch failed:", err?.message);
+      console.error("[app.jsx loader] REST shop fetch threw:", err?.message ?? String(err));
     }
 
     try {

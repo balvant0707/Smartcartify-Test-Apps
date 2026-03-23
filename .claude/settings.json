@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__shopify-dev-mcp__learn_shopify_api",
+      "Bash(xargs grep:*)"
+    ]
+  }
+}

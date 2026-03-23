@@ -51,29 +51,61 @@ const shopify = shopifyApp({
       const accessToken = session?.accessToken || null;
       const hadTokenBefore = Boolean(existingShop?.accessToken);
 
-      // Fetch merchant contact info from Shopify Admin API
+      // Fetch merchant contact info via REST API (more reliable than GraphQL in afterAuth context)
       let shopInfo = null;
       try {
-        const response = await admin.graphql(
-          `query GetShopOwnerInfo {
-            shop {
-              name
-              email
-              shopOwnerName
-              primaryDomain { host }
-              shopAddress { phone }
-              ianaTimezone
-            }
-          }`,
+        const restRes = await fetch(
+          `https://${shop}/admin/api/2025-01/shop.json`,
+          { headers: { "X-Shopify-Access-Token": accessToken, "Content-Type": "application/json" } },
         );
-        const data = await response.json();
-        if (data?.errors?.length) {
-          logger.error("[afterAuth] Shopify GraphQL errors: " + JSON.stringify(data.errors));
+        if (!restRes.ok) {
+          logger.error(`[afterAuth] REST shop fetch failed: HTTP ${restRes.status} ${restRes.statusText}`);
+        } else {
+          const restBody = await restRes.json();
+          const s = restBody?.shop;
+          if (s) {
+            shopInfo = {
+              name:            s.name          || null,
+              email:           s.email         || null,
+              shopOwnerName:   s.shop_owner    || null,
+              phone:           s.phone         || null,
+              primaryDomain:   { host: s.domain || s.myshopify_domain || shop },
+              ianaTimezone:    s.iana_timezone || null,
+              shopAddress:     { countryCodeV2: s.country_code || null },
+            };
+            logger.log("[afterAuth] shopInfo fetched via REST: " + JSON.stringify(shopInfo));
+          }
         }
-        shopInfo = data?.data?.shop || null;
-        logger.log("[afterAuth] shopInfo fetched: " + JSON.stringify(shopInfo));
       } catch (error) {
-        logger.error("[afterAuth] Shopify GraphQL failed: " + error?.message);
+        logger.error("[afterAuth] REST shop fetch threw: " + (error?.message ?? String(error)));
+        // Fallback: try GraphQL
+        try {
+          const gqlRes = await admin.graphql(
+            `query GetShopOwnerInfo {
+              shop {
+                name email shopOwnerName ianaTimezone
+                primaryDomain { host }
+                shopAddress { phone countryCodeV2 }
+              }
+            }`,
+          );
+          const gqlData = await gqlRes.json();
+          const s = gqlData?.data?.shop;
+          if (s) {
+            shopInfo = {
+              name:          s.name          || null,
+              email:         s.email         || null,
+              shopOwnerName: s.shopOwnerName || null,
+              phone:         s.shopAddress?.phone || null,
+              primaryDomain: { host: s.primaryDomain?.host || shop },
+              ianaTimezone:  s.ianaTimezone  || null,
+              shopAddress:   { countryCodeV2: s.shopAddress?.countryCodeV2 || null },
+            };
+            logger.log("[afterAuth] shopInfo fetched via GraphQL fallback: " + JSON.stringify(shopInfo));
+          }
+        } catch (gqlError) {
+          logger.error("[afterAuth] GraphQL fallback also failed: " + (gqlError?.message ?? String(gqlError)));
+        }
       }
 
       // Build contact fields only when API returned data
@@ -82,7 +114,7 @@ const shopify = shopifyApp({
       const resolvedLastName  = nameParts.slice(1).join(" ") || null;
       const resolvedEmail     = shopInfo?.email || null;
       const resolvedDomain    = shopInfo?.primaryDomain?.host || shop;
-      const resolvedPhone     = shopInfo?.shopAddress?.phone || null;
+      const resolvedPhone     = shopInfo?.phone || shopInfo?.shopAddress?.phone || null;
 
       // Only write contact fields if API returned data — prevents overwriting good DB values with nulls
       const contactFields = shopInfo
