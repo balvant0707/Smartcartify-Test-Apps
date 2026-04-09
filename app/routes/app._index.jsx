@@ -1,7 +1,9 @@
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { useLoaderData, useLocation, useRouteError } from "react-router";
+import React from "react";
+import { useFetcher, useLoaderData, useLocation, useRouteError } from "react-router";
 import { authenticate, apiVersion } from "../shopify.server";
-import { Page, Card, Text } from "@shopify/polaris";
+import prisma from "../db.server";
+import { Page, Card, Text, Modal, TextField, BlockStack } from "@shopify/polaris";
 
 import { Icon } from "@shopify/polaris";
 import {
@@ -38,6 +40,17 @@ details[data-accordion] summary::marker {
 
 const EMBED_BLOCK_HANDLE = "smart-block"; // ✅ your blocks/smart-block.liquid
 const EMBED_TYPE_FRAGMENT = `/blocks/${EMBED_BLOCK_HANDLE}`;
+const REVIEW_MODAL_INTENT = "submit-review-popup";
+const REVIEW_MODAL_DAY_THRESHOLD = 7;
+
+const json = (data, init = {}) =>
+  new Response(JSON.stringify(data), {
+    status: init.status || 200,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+    },
+  });
 
 async function getMainThemeId(admin) {
   const res = await admin.graphql(
@@ -236,6 +249,15 @@ export const loader = async ({ request }) => {
   const shop = session?.shop ?? null;
   const appEmbedOwnerId =
     process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_SMART_CART_ID || "";
+  const shopRecord = shop
+    ? await prisma.shop.findUnique({
+        where: { shop },
+        select: {
+          createdAt: true,
+          reviewSubmittedAt: true,
+        },
+      })
+    : null;
 
   let embedEnabled = false;
   let debug = null;
@@ -249,14 +271,111 @@ export const loader = async ({ request }) => {
     debug = e?.message || "unknown error";
   }
 
-  return { shop, embedEnabled, debug, appEmbedOwnerId };
+  const installAgeDays = shopRecord?.createdAt
+    ? Math.floor((Date.now() - new Date(shopRecord.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const shouldShowReviewPopup = Boolean(
+    shopRecord &&
+      typeof installAgeDays === "number" &&
+      installAgeDays >= REVIEW_MODAL_DAY_THRESHOLD &&
+      !shopRecord.reviewSubmittedAt
+  );
+
+  return {
+    shop,
+    embedEnabled,
+    debug,
+    appEmbedOwnerId,
+    shouldShowReviewPopup,
+    installAgeDays,
+  };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session?.shop ?? null;
+
+  if (!shop) {
+    return json({ ok: false, error: "Shop not found in session." }, { status: 400 });
+  }
+
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent !== REVIEW_MODAL_INTENT) {
+    return json({ ok: false, error: "Unsupported action." }, { status: 400 });
+  }
+
+  const ratingRaw = String(formData.get("rating") || "").trim();
+  const commentRaw = String(formData.get("comment") || "").trim();
+  const rating = Number.parseInt(ratingRaw, 10);
+
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return json(
+      { ok: false, error: "Rating is required and must be between 1 and 5." },
+      { status: 400 }
+    );
+  }
+
+  const comment = commentRaw ? commentRaw.slice(0, 2000) : null;
+  const now = new Date();
+
+  const updateResult = await prisma.shop.updateMany({
+    where: { shop },
+    data: {
+      reviewSubmittedAt: now,
+      reviewRating: rating,
+      reviewComment: comment,
+    },
+  });
+
+  if (updateResult.count === 0) {
+    await prisma.shop.create({
+      data: {
+        shop,
+        installed: true,
+        reviewSubmittedAt: now,
+        reviewRating: rating,
+        reviewComment: comment,
+      },
+    });
+  }
+
+  return json({ ok: true });
 };
 
 export default function Index() {
-  const { shop, embedEnabled, appEmbedOwnerId } = useLoaderData() ?? {};
+  const { shop, embedEnabled, appEmbedOwnerId, shouldShowReviewPopup, installAgeDays } =
+    useLoaderData() ?? {};
+  const fetcher = useFetcher();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const host = params.get("host");
+  const [reviewModalOpen, setReviewModalOpen] = React.useState(Boolean(shouldShowReviewPopup));
+  const [reviewRating, setReviewRating] = React.useState("5");
+  const [reviewComment, setReviewComment] = React.useState("");
+
+  React.useEffect(() => {
+    setReviewModalOpen(Boolean(shouldShowReviewPopup));
+  }, [shouldShowReviewPopup]);
+
+  React.useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.ok) {
+      setReviewModalOpen(false);
+    }
+  }, [fetcher.state, fetcher.data]);
+
+  const submittingReview = fetcher.state !== "idle";
+  const reviewError = fetcher.data && fetcher.data.ok === false ? fetcher.data.error : null;
+
+  const submitReview = () => {
+    const formData = new FormData();
+    formData.append("intent", REVIEW_MODAL_INTENT);
+    formData.append("rating", reviewRating);
+    formData.append("comment", reviewComment);
+    fetcher.submit(formData, { method: "post" });
+  };
 
   const withHost = (path) => {
     if (!host) return path;
@@ -337,6 +456,26 @@ export default function Index() {
     },
   ];
 
+  const dashboardApps = [
+    {
+      title: "Fomoify Sales Popup & Proof",
+      href: "https://apps.shopify.com/fomoify-sales-popup-proof",
+      imageSrc: "/images/fomoify-sales-popup-proof.png",
+      imageAlt: "Fomoify Sales Popup & Proof",
+    },
+    {
+      title: "MixBox – Box & Bundle Builder",
+      href: "https://apps.shopify.com/mixbox-box-bundle-builder",
+      imageSrc: "/images/mixbox-box-bundle-builder.jpg",
+      imageAlt: "MixBox – Box & Bundle Builder",
+    },
+    {
+      title: "Content AI – SEO Generator",
+      href: "https://apps.shopify.com/content-ai-seo-generator",
+      icon: StarIcon,
+    },
+  ];
+
   const themeTemplate = "index";
   const themeAdminUrl = shop
     ? `https://${shop}/admin/themes/current/editor?context=apps&template=${themeTemplate}`
@@ -360,7 +499,58 @@ export default function Index() {
   };
 
   return (
-    <s-page heading="CartLift: Cart Drawer & Upsell">
+    <>
+      <Modal
+        open={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        title="Share your CartLift experience"
+        primaryAction={{
+          content: "Submit review",
+          onAction: submitReview,
+          loading: submittingReview,
+        }}
+        secondaryActions={[
+          {
+            content: "Later",
+            onAction: () => setReviewModalOpen(false),
+            disabled: submittingReview,
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            <Text as="p" tone="subdued">
+              You have been using CartLift for {Math.max(Number(installAgeDays || 0), 0)} days.
+              Please share a quick review.
+            </Text>
+            <TextField
+              label="Rating"
+              type="number"
+              min={1}
+              max={5}
+              value={reviewRating}
+              onChange={setReviewRating}
+              autoComplete="off"
+              helpText="Enter a value from 1 to 5."
+            />
+            <TextField
+              label="Your review"
+              value={reviewComment}
+              onChange={setReviewComment}
+              multiline={4}
+              autoComplete="off"
+              placeholder="Tell us what is working well or what we should improve."
+            />
+            {reviewError ? (
+              <Text as="p" tone="critical">
+                {reviewError}
+              </Text>
+            ) : null}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      <s-page heading="CartLift: Cart Drawer & Upsell">
       <style
         type="text/css"
         dangerouslySetInnerHTML={{ __html: CUSTOM_ICON_CSS }}
@@ -549,7 +739,92 @@ export default function Index() {
           </div>
         </s-box>
       </s-section>
-    </s-page>
+
+      <s-section heading="Apps List">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: "18px",
+            alignItems: "stretch",
+          }}
+        >
+          {dashboardApps.map((app) => (
+            <s-box
+              key={app.title}
+              padding="base"
+              borderWidth="base"
+              borderRadius="large"
+              background="white"
+              shadow="raised"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+                minHeight: "210px",
+                justifyContent: "space-between",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 14,
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: app.icon
+                      ? "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)"
+                      : "transparent",
+                  }}
+                >
+                  {app.imageSrc ? (
+                    <img
+                      src={app.imageSrc}
+                      alt={app.imageAlt}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        color: "#0284c7",
+                        transform: "scale(1.4)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Icon source={app.icon} tone="base" />
+                    </span>
+                  )}
+                </div>
+                <text style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a" }}>
+                  {app.title}
+                </text>
+              </div>
+
+              <s-button
+                href={app.href}
+                target="_blank"
+                rel="noreferrer"
+                variant="primary"
+                style={{ backgroundColor: "#0f172a", color: "#ffffff" }}
+              >
+                View app
+              </s-button>
+            </s-box>
+          ))}
+        </div>
+      </s-section>
+      </s-page>
+    </>
   );
 }
 

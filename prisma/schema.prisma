@@ -42,6 +42,9 @@ model shop {
   domain        String?   @db.VarChar(255)
   contactNumber String?   @db.VarChar(50)
   appStatus     String    @default("active") @db.VarChar(20)
+  reviewSubmittedAt DateTime?
+  reviewRating      Int?
+  reviewComment     String?   @db.Text
 
   @@map("shop")
 }
