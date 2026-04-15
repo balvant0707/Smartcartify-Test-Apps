@@ -2551,8 +2551,8 @@
   --sc-btn-radius:12px;
   --sc-chip-radius:999px;
 
-  --sc-item-bg: transparent;
-  --sc-item-border: var(--sc-border);
+  --sc-item-bg: #f3f4f6;
+  --sc-item-border: transparent;
   --sc-image-bg: rgba(243,244,246,1);
 
   --sc-qty-btn-bg: rgba(255,255,255,1);
@@ -2926,6 +2926,11 @@ body.sc-cartify-open .shopify-section-group-header-group{
   -ms-overflow-style:none; /* IE/Edge legacy */
   border:1px solid var(--sc-border);
 }
+.sc-items-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
 
 .sc-items-list::-webkit-scrollbar{width:0;height:0;display:none;} /* Chrome/Safari */
 .sc-items-footer{
@@ -2989,82 +2994,106 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-item{
   position:relative;
   display:grid;
-  grid-template-columns:52px minmax(0, 1fr) auto;
+  grid-template-columns:88px minmax(0, 1fr);
   align-items:flex-start;
-  gap:12px;
-  padding:14px 16px;
-  border:0;
-  border-bottom:1px solid var(--sc-item-border);
+  gap:14px;
+  padding:12px;
+  border:1px solid var(--sc-item-border);
   background: var(--sc-item-bg);
-  border-radius:0;
+  border-radius:14px;
 }
 .sc-item:last-child{
-  border-bottom:none;
+  border-bottom:1px solid var(--sc-item-border);
 }
 .sc-img{
-  width:52px;height:52px;
-  overflow:hidden;background:var(--sc-image-bg);
+  width:88px;
+  height:88px;
+  overflow:hidden;
+  background:var(--sc-image-bg);
+  border-radius:10px;
   flex:0 0 auto;
 }
 .sc-img img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
-.sc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding-right:18px;}
+.sc-mid{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding-right:34px;
+}
 .sc-name{
   margin:0;
-  font-size:var(--sc-base-font-size) !important;
-  font-weight:500;
-  color:#000000;
+  font-size:30px !important;
+  font-size:clamp(20px, calc(var(--sc-base-font-size) * 1.5), 30px) !important;
+  font-weight:700;
+  line-height:1.2;
+  color:var(--sc-drawer-text-color);
   overflow:hidden;
   text-overflow:ellipsis;
+  white-space:nowrap;
 }
 .sc-name a{
   color:inherit;
   text-decoration:none;
-  font-size:var(--sc-base-font-size) !important;
+  font-size:inherit !important;
 }
 .sc-name a:hover{text-decoration:underline;}
 .sc-meta{
   display:flex;
   flex-direction:column;
-  gap:2px;
+  gap:3px;
 }
 .sc-meta-line{
   margin:0;
-  font-size:var(--sc-small-font-size) !important;
-  color:#000000;
+  font-size:22px !important;
+  font-size:clamp(15px, calc(var(--sc-base-font-size) * 1.1), 22px) !important;
+  font-weight:500;
+  color:var(--sc-muted);
   line-height:1.3;
 }
 .sc-progress-loading {
     display: none !important;
 }
+.sc-mid-bottom{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:4px;
+}
 .sc-qty{
   display:inline-flex;
   align-items:center;
-  overflow:hidden;
-  background:var(--sc-qty-input-bg);
+  gap:8px;
+  overflow:visible;
+  background:transparent;
 }
 .sc-qty button{
   width:34px;
-  height:30px;
-  border:1px solid #ddd;
+  height:34px;
+  border:1px solid var(--sc-qty-btn-border);
+  border-radius:8px;
   background:var(--sc-qty-btn-bg);
   cursor:pointer;
-  font-size:var(--sc-button-font-size);
+  font-size:20px;
+  font-weight:500;
   line-height:1;
-  color:#000000;
+  color:var(--sc-qty-btn-text);
 }
 .sc-qty button:hover{filter:brightness(0.96);}
 .sc-qty button:active{transform:scale(0.98);}
 .sc-qty input{
-  width:44px;
-  height:30px;
-  border:1px solid #ddd;
-  background:var(--sc-qty-input-bg);
+  width:26px;
+  height:34px;
+  border:none;
+  background:transparent;
   text-align:center;
   outline:none;
-  color:#000000;
-  border-left: 0;
-  border-right: 0;
-}
+  color:var(--sc-qty-input-text);
+  font-size:30px;
+  font-size:clamp(18px, calc(var(--sc-base-font-size) * 1.6), 30px);
+  font-weight:600;
+  padding:0;
 }
 .sc-qty input[type="number"]{
   appearance:textfield;
@@ -3080,15 +3109,21 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:flex;
   flex-direction:column;
   align-items:flex-end;
-  gap:4px;
-  margin-left:6px;
+  gap:2px;
+  margin-left:auto;
   white-space:nowrap;
-  padding-top:28px;
+  padding-top:0;
 }
 .sc-compare{font-size:var(--sc-small-font-size);color:#9ca3af;text-decoration:line-through;font-weight:700;}
-.sc-price{font-size:var(--sc-base-font-size);font-weight:900;color:#000000;}
+.sc-price{
+  font-size:36px;
+  font-size:clamp(20px, calc(var(--sc-base-font-size) * 1.85), 36px);
+  font-weight:700;
+  line-height:1.1;
+  color:var(--sc-drawer-text-color);
+}
 .sc-price.sc-price-free{
-  color:#000000;}
+  color:var(--sc-drawer-text-color);}
 .sc-free-tag{
   display:inline-block;
   margin-left:6px;
@@ -3283,23 +3318,22 @@ body.sc-cartify-open .shopify-section-group-header-group{
 /* remove icon */
 .sc-remove-x{
   position:absolute;
-  top:8px;
-  right:8px;
-  width:34px;height:34px;
+  top:10px;
+  right:10px;
+  width:28px;
+  height:28px;
   border:none;background:transparent;
   cursor:pointer;
-  font-size:var(--sc-button-font-size);
+  font-size:22px;
+  font-weight:700;
   line-height:1;
   display:flex;align-items:center;justify-content:center;
-  color: #000000;
+  color: var(--sc-muted);
 }
-.sc-remove-x svg{
-  width:16px;height:16px;
+.sc-remove-x .sc-remove-char{
   display:block;
-  color: currentColor;
-}
-.sc-remove-x svg *{
-  fill: currentColor !important;
+  font-size:inherit;
+  line-height:1;
 }
 .sc-remove-x:hover{opacity:.85}
 
@@ -3404,6 +3438,36 @@ body.sc-cartify-open .shopify-section-group-header-group{
   }
   .sc-discount{
     padding:0 8px;
+  }
+  .sc-item{
+    grid-template-columns:72px minmax(0, 1fr);
+    gap:12px;
+  }
+  .sc-img{
+    width:72px;
+    height:72px;
+  }
+  .sc-name{
+    font-size:clamp(17px, calc(var(--sc-base-font-size) * 1.25), 22px) !important;
+  }
+  .sc-meta-line{
+    font-size:clamp(13px, calc(var(--sc-base-font-size) * .92), 16px) !important;
+  }
+  .sc-qty{
+    gap:6px;
+  }
+  .sc-qty button{
+    width:30px;
+    height:30px;
+    font-size:18px;
+  }
+  .sc-qty input{
+    width:22px;
+    height:30px;
+    font-size:clamp(16px, calc(var(--sc-base-font-size) * 1.2), 20px);
+  }
+  .sc-price{
+    font-size:clamp(18px, calc(var(--sc-base-font-size) * 1.3), 24px);
   }
 }
 .sc-foot-amt{
@@ -3587,7 +3651,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
   opacity:.6;
   cursor:not-allowed;
 }
-
+.icon.icon-cart.cart-lift {
+    height: 2.4rem !important;
+    width: 2.4rem !important;
+    fill: none;
+    vertical-align: middle;
+}
 /* confetti */
 .sc-paper{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3;}
 .sc-paper-piece{position:absolute;border-radius:3px;opacity:1;animation-name:scPaperFall;animation-timing-function:linear;background:linear-gradient(45deg, rgba(255,123,172,1), rgba(255,210,245,1));box-shadow:0 6px 18px rgba(0,0,0,.10);}
@@ -3629,10 +3698,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-open-count{
   position:absolute;
-  top: 0;
+  top: -5px;
   right: 0;
-  min-width: 20px;
-  height: 22px !important;
+  min-width: 18px;
+  height: 18px !important;
   border-radius:999px;
   padding:0 5px;
   display:inline-flex;
@@ -5046,27 +5115,27 @@ body.sc-cartify-open .shopify-section-group-header-group{
               <p class="sc-name" title="${safe(it.product_title)}">${nameHtml}</p>
               ${metaHtml}
               ${freeTag}
-
-              ${isReward
-                ? ""
-                : `<div class="sc-qty">
-                <button type="button" data-qty="dec" aria-label="Decrease">-</button>
-                <input type="number" min="0" inputmode="numeric" value="${qty}" data-qty="input" />
-                <button type="button" data-qty="inc" aria-label="Increase">+</button>
-              </div>`}
-            </div>
-
-            <div class="sc-pricebox">
-              ${
-                hasCompare && showPrice
-                  ? `<span class="sc-compare">${formatMoney(compareLine, currency)}</span>`
-                  : ``
-              }
-              ${showPrice ? `<span class="${priceClass}">${priceText}</span>` : ``}
+              <div class="sc-mid-bottom">
+                ${isReward
+                  ? ""
+                  : `<div class="sc-qty">
+                  <button type="button" data-qty="dec" aria-label="Decrease">-</button>
+                  <input type="number" min="0" inputmode="numeric" value="${qty}" data-qty="input" />
+                  <button type="button" data-qty="inc" aria-label="Increase">+</button>
+                </div>`}
+                <div class="sc-pricebox">
+                  ${
+                    hasCompare && showPrice
+                      ? `<span class="sc-compare">${formatMoney(compareLine, currency)}</span>`
+                      : ``
+                  }
+                  ${showPrice ? `<span class="${priceClass}">${priceText}</span>` : ``}
+                </div>
+              </div>
             </div>
 
             <button type="button" class="sc-remove-x" data-remove="1" aria-label="Remove">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M11.5 8.25C11.9142 8.25 12.25 8.58579 12.25 9V13.25C12.25 13.6642 11.9142 14 11.5 14C11.0858 14 10.75 13.6642 10.75 13.25V9C10.75 8.58579 11.0858 8.25 11.5 8.25Z"></path><path d="M9.25 9C9.25 8.58579 8.91421 8.25 8.5 8.25C8.08579 8.25 7.75 8.58579 7.75 9V13.25C7.75 13.6642 8.08579 14 8.5 14C8.91421 14 9.25 13.6642 9.25 13.25V9Z"></path><path fill-rule="evenodd" clip-rule="evenodd" d="M7.24994 5.25C7.24994 3.73122 8.48116 2.5 9.99994 2.5C11.5187 2.5 12.7499 3.73122 12.7499 5.25H15.75C16.1642 5.25 16.5 5.58579 16.5 6C16.5 6.41421 16.1642 6.75 15.75 6.75H14.9999L14.9998 12.2001C14.9998 13.8802 14.9997 14.7203 14.6728 15.362C14.3851 15.9265 13.9262 16.3854 13.3617 16.673C12.72 17 11.8799 17 10.1997 17H9.79999C8.11978 17 7.27968 17 6.63793 16.673C6.07343 16.3854 5.61448 15.9264 5.32687 15.3619C4.99989 14.7202 4.9999 13.8801 4.99994 12.1999L5.00005 6.75H4.25C3.83579 6.75 3.5 6.41421 3.5 6C3.5 5.58579 3.83579 5.25 4.25 5.25H7.24994ZM8.74994 5.25C8.74994 4.55964 9.30958 4 9.99994 4C10.6903 4 11.2499 4.55964 11.2499 5.25H8.74994ZM6.50007 6.75H13.4999L13.4998 12.2001C13.4998 13.0649 13.4986 13.6233 13.4639 14.0483C13.4305 14.4558 13.374 14.6068 13.3362 14.681C13.1924 14.9632 12.963 15.1927 12.6807 15.3365C12.6065 15.3743 12.4555 15.4308 12.048 15.4641C11.623 15.4988 11.0646 15.5 10.1997 15.5H9.79999C8.93513 15.5 8.37671 15.4988 7.95169 15.4641C7.54418 15.4308 7.3931 15.3743 7.31893 15.3365C7.03668 15.1927 6.80721 14.9632 6.6634 14.681C6.62561 14.6068 6.56909 14.4557 6.53581 14.0482C6.50109 13.6232 6.49994 13.0648 6.49995 12.1999L6.50007 6.75Z"></path></svg>
+              <span class="sc-remove-char" aria-hidden="true">&times;</span>
             </button>
           </div>
         `;
@@ -6368,7 +6437,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   ========================================================= */
   const ensureOpenButton = () => {
     const cartSvg =
-      '<svg class="icon icon-cart" width="25" height="24" viewBox="0 0 28 26" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
+      '<svg class="icon icon-cart cart-lift" width="25" height="24" viewBox="0 0 28 26" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
       '<path d="M8.57235 25C9.26443 25 9.82548 24.4389 9.82548 23.7468C9.82548 23.0548 9.26443 22.4937 8.57235 22.4937C7.88026 22.4937 7.31921 23.0548 7.31921 23.7468C7.31921 24.4389 7.88026 25 8.57235 25Z" stroke="#96483B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
       '<path d="M22.357 25C23.0491 25 23.6101 24.4389 23.6101 23.7468C23.6101 23.0548 23.0491 22.4937 22.357 22.4937C21.6649 22.4937 21.1039 23.0548 21.1039 23.7468C21.1039 24.4389 21.6649 25 22.357 25Z" stroke="#96483B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
       '<path d="M1.11658 1H3.62284L6.95618 16.5639C7.07845 17.1339 7.39561 17.6435 7.85306 18.0048C8.3105 18.3662 8.87962 18.5568 9.46244 18.5439H21.7181C22.2885 18.5429 22.8415 18.3475 23.2858 17.9898C23.7301 17.6321 24.0391 17.1335 24.1617 16.5764L26.2294 7.26566H4.96369" stroke="#96483B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
