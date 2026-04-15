@@ -2777,7 +2777,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   position:relative;
 }
 .sc-label{
-  font-size:var(--sc-heading-font-size);
+  font-size:var(--sc-heading-font-size) !important;
   font-weight:600;margin:0 0 12px;
   text-align:center;
   min-height:22px;
@@ -3010,12 +3010,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding-right:18px;}
 .sc-name{
   margin:0;
-  font-size:var(--sc-base-font-size);
-  font-weight:800;
+  font-size:var(--sc-base-font-size) !important;
+  font-weight:500;
   color:#000000;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
-.sc-name a{color:inherit;text-decoration:none;}
+.sc-name a{
+  color:inherit;
+  text-decoration:none;
+  font-size:var(--sc-base-font-size) !important;
+}
 .sc-name a:hover{text-decoration:underline;}
 .sc-meta{
   display:flex;
@@ -3024,7 +3029,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-meta-line{
   margin:0;
-  font-size:var(--sc-small-font-size);
+  font-size:var(--sc-small-font-size) !important;
   color:#000000;
   line-height:1.3;
 }
@@ -6363,8 +6368,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
   ========================================================= */
   const ensureOpenButton = () => {
     const cartSvg =
-      '<svg class="icon icon-cart" style="width: 4rem; height: 4rem;" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">' +
-      '<path fill="currentColor" fill-rule="evenodd" d="M20.5 6.5a4.75 4.75 0 00-4.75 4.75v.56h-3.16l-.77 11.6a5 5 0 004.99 5.34h7.38a5 5 0 004.99-5.33l-.77-11.6h-3.16v-.57A4.75 4.75 0 0020.5 6.5zm3.75 5.31v-.56a3.75 3.75 0 10-7.5 0v.56h7.5zm-7.5 1h7.5v.56a3.75 3.75 0 11-7.5 0v-.56zm-1 0v.56a4.75 4.75 0 109.5 0v-.56h2.22l.71 10.67a4 4 0 01-3.99 4.27h-7.38a4 4 0 01-4-4.27l.72-10.67h2.22z"></path>' +
+      '<svg class="icon icon-cart" width="25" height="24" viewBox="0 0 28 26" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M8.57235 25C9.26443 25 9.82548 24.4389 9.82548 23.7468C9.82548 23.0548 9.26443 22.4937 8.57235 22.4937C7.88026 22.4937 7.31921 23.0548 7.31921 23.7468C7.31921 24.4389 7.88026 25 8.57235 25Z" stroke="#96483B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
+      '<path d="M22.357 25C23.0491 25 23.6101 24.4389 23.6101 23.7468C23.6101 23.0548 23.0491 22.4937 22.357 22.4937C21.6649 22.4937 21.1039 23.0548 21.1039 23.7468C21.1039 24.4389 21.6649 25 22.357 25Z" stroke="#96483B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
+      '<path d="M1.11658 1H3.62284L6.95618 16.5639C7.07845 17.1339 7.39561 17.6435 7.85306 18.0048C8.3105 18.3662 8.87962 18.5568 9.46244 18.5439H21.7181C22.2885 18.5429 22.8415 18.3475 23.2858 17.9898C23.7301 17.6321 24.0391 17.1335 24.1617 16.5764L26.2294 7.26566H4.96369" stroke="#96483B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
       "</svg>";
     const horizonCart = document.querySelector("cart-drawer-component");
     if (horizonCart) {
