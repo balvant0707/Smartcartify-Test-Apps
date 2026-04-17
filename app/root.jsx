@@ -1,8 +1,12 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
+import globalStyles from "./styles/global.css?url";
 import { useEffect } from "react";
 
-export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
+export const links = () => [
+  { rel: "stylesheet", href: polarisStyles },
+  { rel: "stylesheet", href: globalStyles },
+];
 
 // Performance logging only in development
 const perfLog = (...args) => {

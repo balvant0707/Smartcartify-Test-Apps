@@ -1,0 +1,13 @@
+.Polaris-Card,
+.Polaris-LegacyCard,
+.Polaris-Button,
+.Polaris-Button::before,
+.Polaris-Button::after,
+s-box,
+s-box::part(base),
+s-box::part(container),
+s-button,
+s-button::part(base),
+s-button::part(button) {
+  border-radius: 0 !important;
+}

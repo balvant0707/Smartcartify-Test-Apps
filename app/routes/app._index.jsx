@@ -3,7 +3,7 @@ import React from "react";
 import { useFetcher, useLoaderData, useLocation, useRouteError } from "react-router";
 import { authenticate, apiVersion } from "../shopify.server";
 import prisma from "../db.server";
-import { Page, Card, Text, Modal, TextField, BlockStack } from "@shopify/polaris";
+import { Page, Card, Text, Modal, TextField, BlockStack, InlineStack } from "@shopify/polaris";
 
 import { Icon } from "@shopify/polaris";
 import {
@@ -11,6 +11,8 @@ import {
   ShippingLabelIcon,
   BookOpenIcon,
   StarIcon,
+  StarFilledIcon,
+  InfoIcon,
 } from "@shopify/polaris-icons";
 
 const CUSTOM_ICON_CSS = `
@@ -36,12 +38,24 @@ details[data-accordion] summary::marker {
 .step-indicator span svg {
     fill: #fff;
 }
+.Polaris-Card,
+.Polaris-LegacyCard,
+.Polaris-Button,
+.Polaris-Button::before,
+.Polaris-Button::after,
+s-box,
+s-button,
+s-button::part(base),
+s-button::part(button) {
+  border-radius: 0 !important;
+}
 `;
 
 const EMBED_BLOCK_HANDLE = "smart-block"; // ✅ your blocks/smart-block.liquid
 const EMBED_TYPE_FRAGMENT = `/blocks/${EMBED_BLOCK_HANDLE}`;
 const REVIEW_MODAL_INTENT = "submit-review-popup";
 const REVIEW_MODAL_DAY_THRESHOLD = 7;
+const REVIEW_SUPPORT_URL = "https://cartliftcartdrawerupsell.tawk.help/article/dashboard-page";
 
 const json = (data, init = {}) =>
   new Response(JSON.stringify(data), {
@@ -353,8 +367,9 @@ export default function Index() {
   const params = new URLSearchParams(location.search);
   const host = params.get("host");
   const [reviewModalOpen, setReviewModalOpen] = React.useState(Boolean(shouldShowReviewPopup));
-  const [reviewRating, setReviewRating] = React.useState("5");
+  const [reviewRating, setReviewRating] = React.useState(0);
   const [reviewComment, setReviewComment] = React.useState("");
+  const [reviewClientError, setReviewClientError] = React.useState(null);
 
   React.useEffect(() => {
     setReviewModalOpen(Boolean(shouldShowReviewPopup));
@@ -370,9 +385,15 @@ export default function Index() {
   const reviewError = fetcher.data && fetcher.data.ok === false ? fetcher.data.error : null;
 
   const submitReview = () => {
+    if (!reviewRating) {
+      setReviewClientError("Please select a rating before submitting.");
+      return;
+    }
+
+    setReviewClientError(null);
     const formData = new FormData();
     formData.append("intent", REVIEW_MODAL_INTENT);
-    formData.append("rating", reviewRating);
+    formData.append("rating", String(reviewRating));
     formData.append("comment", reviewComment);
     fetcher.submit(formData, { method: "post" });
   };
@@ -489,7 +510,7 @@ export default function Index() {
   const openAppEmbedsUrl = activateEmbedUrl || themeAdminUrl;
   const embedStatusLabel = embedEnabled ? "ON" : "OFF";
   const embedStatusStyle = {
-    borderRadius: 999,
+    borderRadius: 0,
     padding: "6px 14px",
     fontSize: 12,
     fontWeight: 700,
@@ -503,44 +524,105 @@ export default function Index() {
       <Modal
         open={reviewModalOpen}
         onClose={() => setReviewModalOpen(false)}
-        title="Share your CartLift experience"
+        title="Review this app"
         primaryAction={{
-          content: "Submit review",
+          content: "Submit",
           onAction: submitReview,
           loading: submittingReview,
+          disabled: !reviewRating,
         }}
         secondaryActions={[
           {
-            content: "Later",
-            onAction: () => setReviewModalOpen(false),
+            content: "Get support",
+            url: REVIEW_SUPPORT_URL,
+            external: true,
             disabled: submittingReview,
           },
         ]}
       >
         <Modal.Section>
-          <BlockStack gap="300">
-            <Text as="p" tone="subdued">
-              You have been using CartLift for {Math.max(Number(installAgeDays || 0), 0)} days.
-              Please share a quick review.
-            </Text>
+          <BlockStack gap="400">
+            <div
+              style={{
+                background: "#e9f3ff",
+                borderRadius: 8,
+                padding: "12px 14px",
+              }}
+            >
+              <InlineStack gap="200" blockAlign="center">
+                <Icon source={InfoIcon} tone="info" />
+                <Text as="p" variant="bodyMd" fontWeight="medium" tone="info">
+                  Development stores aren&apos;t eligible to review apps. This is for testing purposes only.
+                </Text>
+              </InlineStack>
+            </div>
+
+            <BlockStack gap="200">
+              <InlineStack gap="300" blockAlign="center" wrap={false}>
+                <img
+                  src="/images/upsellproduct.png"
+                  alt="CartLift app icon"
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 10,
+                    objectFit: "cover",
+                    flexShrink: 0,
+                  }}
+                />
+                <BlockStack gap="100">
+                  <Text as="p" variant="headingMd">
+                    How would you rate CartLift: Cart Drawer & Upsell?
+                  </Text>
+                  <InlineStack gap="100">
+                    {[1, 2, 3, 4, 5].map((starValue) => {
+                      const active = reviewRating >= starValue;
+                      return (
+                        <button
+                          key={starValue}
+                          type="button"
+                          onClick={() => {
+                            setReviewRating(starValue);
+                            setReviewClientError(null);
+                          }}
+                          aria-label={`Rate ${starValue} out of 5`}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            padding: 0,
+                            cursor: "pointer",
+                            color: active ? "#8a6116" : "#8a8a8a",
+                            display: "inline-flex",
+                          }}
+                        >
+                          <Icon source={active ? StarFilledIcon : StarIcon} tone="base" />
+                        </button>
+                      );
+                    })}
+                  </InlineStack>
+                </BlockStack>
+              </InlineStack>
+            </BlockStack>
+
             <TextField
-              label="Rating"
-              type="number"
-              min={1}
-              max={5}
-              value={reviewRating}
-              onChange={setReviewRating}
-              autoComplete="off"
-              helpText="Enter a value from 1 to 5."
-            />
-            <TextField
-              label="Your review"
+              label="Describe your experience (optional)"
               value={reviewComment}
               onChange={setReviewComment}
-              multiline={4}
+              multiline={6}
               autoComplete="off"
-              placeholder="Tell us what is working well or what we should improve."
+              placeholder="What should other merchants know about this app?"
             />
+            <InlineStack align="space-between" blockAlign="center">
+              <Text as="p" tone="subdued">
+                If your review is published on the Shopify App Store, we&apos;ll include some details about your store.
+              </Text>
+              <Icon source={InfoIcon} tone="subdued" />
+            </InlineStack>
+            {reviewClientError ? (
+              <Text as="p" tone="critical">
+                {reviewClientError}
+              </Text>
+            ) : null}
             {reviewError ? (
               <Text as="p" tone="critical">
                 {reviewError}
@@ -560,7 +642,7 @@ export default function Index() {
         <s-box
           padding="base"
           background="white"
-          borderRadius="extraLarge"
+          borderRadius="none"
           borderWidth="base"
           style={{
             boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)",
@@ -608,7 +690,7 @@ export default function Index() {
               key={card.title}
               padding="base"
               borderWidth="base"
-              borderRadius="large"
+              borderRadius="none"
               background="subdued"
               shadow="raised"
               style={{
@@ -624,7 +706,7 @@ export default function Index() {
                   style={{
                     width: "60px !important",
                     height: "60px !important",
-                    borderRadius: "25px",
+                    borderRadius: "4px",
                     background: "transparent",
                     display: "flex",
                     alignItems: "center",
@@ -664,7 +746,7 @@ export default function Index() {
               <s-button
                 href={card.href}
                 variant="primary"
-                style={{ backgroundColor: "#2C7A7B", color: "#ffffff" }}
+                style={{ backgroundColor: "#2C7A7B", color: "#ffffff", borderRadius: 0 }}
               >
                 Configure
               </s-button>
@@ -677,7 +759,7 @@ export default function Index() {
         <s-box
           padding="base"
           background="white"
-          borderRadius="extraLarge"
+          borderRadius="none"
           borderWidth="base"
           style={{ boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)" }}
         >
@@ -740,7 +822,7 @@ export default function Index() {
         </s-box>
       </s-section>
 
-      <s-section heading="Apps List">
+      <s-section heading="Recommended Our Growth Apps">
         <div
           style={{
             display: "grid",
@@ -754,7 +836,7 @@ export default function Index() {
               key={app.title}
               padding="base"
               borderWidth="base"
-              borderRadius="large"
+              borderRadius="none"
               background="white"
               shadow="raised"
               style={{
@@ -770,7 +852,7 @@ export default function Index() {
                   style={{
                     width: 72,
                     height: 72,
-                    borderRadius: 14,
+                    borderRadius: 4,
                     overflow: "hidden",
                     display: "flex",
                     alignItems: "center",
@@ -815,7 +897,7 @@ export default function Index() {
                 target="_blank"
                 rel="noreferrer"
                 variant="primary"
-                style={{ backgroundColor: "#0f172a", color: "#ffffff" }}
+                style={{ backgroundColor: "#0f172a", color: "#ffffff", borderRadius: 0 }}
               >
                 View app
               </s-button>

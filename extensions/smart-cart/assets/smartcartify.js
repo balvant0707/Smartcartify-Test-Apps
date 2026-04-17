@@ -155,6 +155,8 @@
   let cartCacheValue = null;
   let cartCacheTs = 0;
   let cartFetchInFlight = null;
+  const lineQtyDesired = new Map();
+  const lineQtyInFlight = new Set();
 
   const invalidateCartCache = () => {
     cartCacheValue = null;
@@ -1815,7 +1817,27 @@
       credentials: "same-origin",
       body: JSON.stringify({ line, quantity }),
     });
-    if (!r.ok) throw new Error(`[SmartCartify] Cart change failed (${r.status})`);
+    if (!r.ok) {
+      let payload = null;
+      let text = "";
+      try {
+        payload = await r.json();
+      } catch {
+        try {
+          text = await r.text();
+        } catch { }
+      }
+      const message =
+        trimToNull(payload?.description) ||
+        trimToNull(payload?.message) ||
+        trimToNull(payload?.error) ||
+        trimToNull(text) ||
+        `[SmartCartify] Cart change failed (${r.status})`;
+      const err = new Error(message);
+      err.status = r.status;
+      err.payload = payload;
+      throw err;
+    }
     const j = await r.json();
     cartCacheValue = j;
     cartCacheTs = Date.now();
@@ -1906,10 +1928,93 @@
   };
 
   const syncItemsLoading = (isLoading) => {
-    const itemsWrap = drawer.querySelector(".sc-items-list");
-    if (!itemsWrap) return;
-    const hasItems = !!itemsWrap.querySelector(".sc-item");
-    drawer.classList.toggle("sc-loading-items", !!isLoading && !hasItems);
+    drawer.classList.toggle("sc-loading-items", !!isLoading);
+  };
+
+  const isQuantityLimitMessage = (message) => {
+    const m = String(message || "").toLowerCase();
+    if (!m) return false;
+    return (
+      m.includes("maximum") ||
+      m.includes("max quantity") ||
+      m.includes("can't add more") ||
+      m.includes("cannot add more") ||
+      m.includes("only") && m.includes("left") ||
+      m.includes("available") ||
+      m.includes("stock") ||
+      m.includes("sold out")
+    );
+  };
+
+  const showCartActionMessage = (message, tone = "error") => {
+    const el = drawer.querySelector("[data-sc-cart-msg]");
+    const textEl = drawer.querySelector("[data-sc-cart-msg-text]");
+    if (!el) return;
+    const txt = trimToNull(message);
+    if (!txt) {
+      el.hidden = true;
+      if (textEl) textEl.textContent = "";
+      el.classList.remove("show", "warn", "error", "info");
+      return;
+    }
+    if (textEl) textEl.textContent = txt;
+    else el.textContent = txt;
+    el.hidden = false;
+    el.classList.remove("warn", "error", "info");
+    el.classList.add(tone === "warn" ? "warn" : tone === "info" ? "info" : "error");
+    el.classList.add("show");
+  };
+
+  const setLineInputValue = (line, qty) => {
+    const input = drawer.querySelector(`.sc-item[data-line="${line}"] input[data-qty="input"]`);
+    if (!(input instanceof HTMLInputElement)) return;
+    input.value = String(Math.max(0, Number(qty) || 0));
+  };
+
+  const setLineBusy = (line, busy) => {
+    const row = drawer.querySelector(`.sc-item[data-line="${line}"]`);
+    if (!(row instanceof HTMLElement)) return;
+    row.classList.toggle("sc-item-pending", !!busy);
+  };
+
+  const applyLineQuantityChange = async (line, qty) => {
+    const nextQty = Math.max(0, Number(qty) || 0);
+    lineQtyDesired.set(line, nextQty);
+    setLineInputValue(line, nextQty);
+    if (lineQtyInFlight.has(line)) return;
+
+    lineQtyInFlight.add(line);
+    setLineBusy(line, true);
+    setProgressLoading(true);
+
+    try {
+      while (true) {
+        const desiredQty = Math.max(0, Number(lineQtyDesired.get(line)) || 0);
+        CART = await cartChange(line, desiredQty);
+        await enforceRewardValidity();
+        renderAllFromCache();
+
+        const latestDesired = Math.max(0, Number(lineQtyDesired.get(line)) || 0);
+        if (latestDesired === desiredQty) break;
+      }
+      showCartActionMessage("");
+    } catch (err) {
+      console.error("[SmartCartify] quantity update failed:", err);
+      const msg =
+        trimToNull(err?.message) || "Couldn't update quantity. Please try again.";
+      showCartActionMessage(msg, isQuantityLimitMessage(msg) ? "warn" : "error");
+      try {
+        CART = await fetchCart({ force: true });
+        renderAllFromCache();
+      } catch (refreshErr) {
+        console.error("[SmartCartify] quantity recovery failed:", refreshErr);
+      }
+    } finally {
+      lineQtyDesired.delete(line);
+      lineQtyInFlight.delete(line);
+      setLineBusy(line, false);
+      setProgressLoading(false);
+    }
   };
 
   /* =========================================================
@@ -2619,7 +2724,8 @@
 }
 .sc-drawer{
   position:fixed;top:0;right:0;height:100%;
-  width:var(--sc-drawer-width);
+  max-width:445px;
+  width:100% !important;
   background: var(--sc-drawer-bg);
   background-size:cover;
   background-position:center;
@@ -2777,7 +2883,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   position:relative;
 }
 .sc-label{
-  font-size:var(--sc-heading-font-size) !important;
+  font-size:var(--sc-base-font-size) !important;
   font-weight:600;margin:0 0 12px;
   text-align:center;
   min-height:22px;
@@ -2913,9 +3019,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   padding:0;
   backdrop-filter:blur(6px);
   color:#000000;
-  background: #ffffff;
-  margin: 10px;
-  padding: 10px;
+  margin: 5px;
+  padding: 0px;
   display:flex;
   flex-direction:column;
   gap:10px;
@@ -2930,6 +3035,58 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:flex;
   flex-direction:column;
   gap:10px;
+}
+.sc-cart-msg{
+  margin:0 0 10px;
+  padding:12px 14px;
+  border-radius:14px;
+  font-size:var(--sc-small-font-size);
+  font-weight:600;
+  line-height:1.35;
+  border:1px solid transparent;
+  display:none;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+.sc-cart-msg.show{
+  display:flex;
+}
+.sc-cart-msg-text{
+  margin:0;
+  flex:1;
+}
+.sc-cart-msg-close{
+  border:none;
+  background:transparent;
+  color:inherit;
+  width:20px;
+  height:20px;
+  padding:0;
+  margin:0;
+  line-height:1;
+  font-size:18px;
+  font-weight:700;
+  cursor:pointer;
+  opacity:.8;
+}
+.sc-cart-msg-close:hover{
+  opacity:1;
+}
+.sc-cart-msg.warn{
+  background:rgba(254,226,226,.55);
+  border-color:rgba(239,68,68,.4);
+  color:#b23a3a;
+}
+.sc-cart-msg.error{
+  background:rgba(254,226,226,.84);
+  border-color:rgba(239,68,68,.4);
+  color:#991b1b;
+}
+.sc-cart-msg.info{
+  background:rgba(219,234,254,.84);
+  border-color:rgba(59,130,246,.35);
+  color:#1e3a8a;
 }
 
 .sc-items-list::-webkit-scrollbar{width:0;height:0;display:none;} /* Chrome/Safari */
@@ -2947,7 +3104,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:10px;
+  gap:0;
   background:rgba(255,255,255,.88);
   z-index:2;
 }
@@ -2996,10 +3153,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:grid;
   grid-template-columns:88px minmax(0, 1fr);
   align-items:flex-start;
-  gap:14px;
-  padding:12px;
+  gap:10px;
+  padding:5px;
   border:1px solid var(--sc-item-border);
-  background: var(--sc-item-bg);
   border-radius:14px;
 }
 .sc-item:last-child{
@@ -3026,16 +3182,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-size:30px !important;
   font-size:clamp(20px, calc(var(--sc-base-font-size) * 1.5), 30px) !important;
   font-weight:700;
-  line-height:1.2;
+  line-height:18px !important;
   color:var(--sc-drawer-text-color);
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
 }
 .sc-name a{
   color:inherit;
   text-decoration:none;
-  font-size:inherit !important;
+  font-size:var(--sc-base-font-size) !important;
 }
 .sc-name a:hover{text-decoration:underline;}
 .sc-meta{
@@ -3045,11 +3198,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-meta-line{
   margin:0;
-  font-size:22px !important;
-  font-size:clamp(15px, calc(var(--sc-base-font-size) * 1.1), 22px) !important;
   font-weight:500;
-  color:var(--sc-muted);
-  line-height:1.3;
+  color:var(--sc-text);
+  font-size:var(--sc-base-font-size) !important;
+  line-height:15px !important;
 }
 .sc-progress-loading {
     display: none !important;
@@ -3084,14 +3236,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-qty button:active{transform:scale(0.98);}
 .sc-qty input{
   width:26px;
-  height:34px;
+  height:26px;
   border:none;
   background:transparent;
   text-align:center;
   outline:none;
   color:var(--sc-qty-input-text);
-  font-size:30px;
-  font-size:clamp(18px, calc(var(--sc-base-font-size) * 1.6), 30px);
+  font-size:var(--sc-base-font-size) !important;
   font-weight:600;
   padding:0;
 }
@@ -3103,6 +3254,18 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-qty input[type="number"]::-webkit-inner-spin-button{
   -webkit-appearance:none;
   margin:0;
+}
+.sc-item.sc-item-pending .sc-qty{
+  position:relative;
+}
+.sc-item.sc-item-pending .sc-qty::after{
+  content:"";
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  border:2px solid #e5e7eb;
+  border-top-color:var(--sc-progress);
+  animation:scSpin .8s linear infinite;
 }
 .sc-pricebox{
   flex:0 0 auto;
@@ -3116,7 +3279,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-compare{font-size:var(--sc-small-font-size);color:#9ca3af;text-decoration:line-through;font-weight:700;}
 .sc-price{
-  font-size:36px;
+  font-size:var(--sc-base-font-size) !important;
   font-size:clamp(20px, calc(var(--sc-base-font-size) * 1.85), 36px);
   font-weight:700;
   line-height:1.1;
@@ -3316,19 +3479,22 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-upsell-arrow.right{right: -28px;}
 
 /* remove icon */
-.sc-remove-x{
-  position:absolute;
-  top:10px;
-  right:10px;
-  width:28px;
-  height:28px;
-  border:none;background:transparent;
-  cursor:pointer;
-  font-size:22px;
-  font-weight:700;
-  line-height:1;
-  display:flex;align-items:center;justify-content:center;
-  color: var(--sc-muted);
+.sc-remove-x {
+    position: absolute;
+    top: 7px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sc-text);
 }
 .sc-remove-x .sc-remove-char{
   display:block;
@@ -3451,7 +3617,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     font-size:clamp(17px, calc(var(--sc-base-font-size) * 1.25), 22px) !important;
   }
   .sc-meta-line{
-    font-size:clamp(13px, calc(var(--sc-base-font-size) * .92), 16px) !important;
+    font-size:var(--sc-base-font-size) !important;
   }
   .sc-qty{
     gap:6px;
@@ -3464,7 +3630,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   .sc-qty input{
     width:22px;
     height:30px;
-    font-size:clamp(16px, calc(var(--sc-base-font-size) * 1.2), 20px);
+    font-size:var(--sc-base-font-size) !important;
   }
   .sc-price{
     font-size:clamp(18px, calc(var(--sc-base-font-size) * 1.3), 24px);
@@ -3698,7 +3864,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-open-count{
   position:absolute;
-  top: -5px;
+  top: 5px;
   right: 0;
   min-width: 18px;
   height: 18px !important;
@@ -3711,7 +3877,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-weight:700;
   background:#000000;
   color:#ffffff;
-  border:1px solid rgba(255,255,255,.75);
   line-height:1;
 }
     `;
@@ -3755,12 +3920,15 @@ body.sc-cartify-open .shopify-section-group-header-group{
     </div>
 
     <div class="sc-items">
+      <div class="sc-cart-msg" data-sc-cart-msg hidden>
+        <p class="sc-cart-msg-text" data-sc-cart-msg-text></p>
+        <button class="sc-cart-msg-close" type="button" data-sc-cart-msg-close aria-label="Close">&times;</button>
+      </div>
       <div class="sc-items-list">
         <div class="sc-empty">Loading cart…</div>
       </div>
       <div class="sc-items-loading" aria-hidden="true">
         <div class="sc-items-spinner"></div>
-        <div class="sc-items-loading-text">Loading cart…</div>
       </div>
       <div class="sc-items-footer">
         <div class="sc-upsell" hidden></div>
@@ -6337,11 +6505,35 @@ body.sc-cartify-open .shopify-section-group-header-group{
           body: fd,
           credentials: "same-origin",
         });
-        if (!rr.ok) throw new Error("Add to cart failed");
+        if (!rr.ok) {
+          let payload = null;
+          let text = "";
+          try {
+            payload = await rr.json();
+          } catch {
+            try {
+              text = await rr.text();
+            } catch { }
+          }
+          const addErrMessage =
+            trimToNull(payload?.description) ||
+            trimToNull(payload?.message) ||
+            trimToNull(payload?.error) ||
+            trimToNull(text) ||
+            "Add to cart failed";
+          openDrawer();
+          showCartActionMessage(
+            addErrMessage,
+            isQuantityLimitMessage(addErrMessage) ? "warn" : "error"
+          );
+          throw new Error(addErrMessage);
+        }
 
         await openAndRefreshDrawer();
       } catch (err) {
         console.error("[SmartCartify] click intercept add failed:", err);
+        const errMsg = trimToNull(err?.message) || "";
+        if (isQuantityLimitMessage(errMsg)) return;
         try {
           form.submit();
         } catch { }
@@ -6388,6 +6580,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
   drawer.addEventListener("click", async (e) => {
     const el = e.target;
     if (!(el instanceof Element)) return;
+    if (el.closest("[data-sc-cart-msg-close]")) {
+      showCartActionMessage("");
+      return;
+    }
     const item = el.closest(".sc-item");
     if (!item) return;
     const line = Number(item.getAttribute("data-line"));
@@ -6395,16 +6591,19 @@ body.sc-cartify-open .shopify-section-group-header-group{
     const input = item.querySelector('input[data-qty="input"]');
     const current = Number(input?.value || 0);
     try {
-      setProgressLoading(true);
-      if (el.matches('[data-qty="inc"]')) CART = await cartChange(line, current + 1);
-      if (el.matches('[data-qty="dec"]')) CART = await cartChange(line, Math.max(0, current - 1));
-      if (el.matches('[data-remove="1"]') || el.closest?.('[data-remove="1"]')) CART = await cartChange(line, 0);
-      await enforceRewardValidity();
-      renderAllFromCache();
+      if (el.matches('[data-qty="inc"]')) {
+        await applyLineQuantityChange(line, current + 1);
+        return;
+      }
+      if (el.matches('[data-qty="dec"]')) {
+        await applyLineQuantityChange(line, Math.max(0, current - 1));
+        return;
+      }
+      if (el.matches('[data-remove="1"]') || el.closest?.('[data-remove="1"]')) {
+        await applyLineQuantityChange(line, 0);
+      }
     } catch (err) {
       console.error(err);
-    } finally {
-      setProgressLoading(false);
     }
   });
 
@@ -6417,14 +6616,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
     if (!line) return;
     const qty = Math.max(0, Number(el.value || 0));
     try {
-      setProgressLoading(true);
-      CART = await cartChange(line, qty);
-      await enforceRewardValidity();
-      renderAllFromCache();
+      await applyLineQuantityChange(line, qty);
     } catch (err) {
       console.error(err);
-    } finally {
-      setProgressLoading(false);
     }
   });
 
