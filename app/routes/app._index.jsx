@@ -660,6 +660,7 @@ export default function Index() {
           padding="base"
           background="white"
           borderWidth="base"
+          borderRadius="base"
           style={{
             boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)",
             background: "#f8fafc",

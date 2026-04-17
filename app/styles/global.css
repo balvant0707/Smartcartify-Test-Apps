@@ -15,7 +15,11 @@ s-section::part(base),
 s-section::part(root),
 s-section::part(section),
 s-section::part(container),
-s-section::part(content) {
+s-section::part(content),
+.Polaris-Page__Section,
+.Polaris-Page-Section,
+.Polaris-Card__Section,
+.Polaris-LegacyCard__Section {
   border-radius: 0 !important;
 }
 

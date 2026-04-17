@@ -1,7 +1,6 @@
 // app/routes/app.jsx
 
-// 1) Import CSS and dependencies at the top
-import "@shopify/polaris/build/esm/styles.css";
+// 1) Import dependencies at the top
 import { Outlet, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider as BridgeProvider } from "@shopify/shopify-app-react-router/react";
