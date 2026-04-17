@@ -47,14 +47,19 @@ s-box,
 s-button,
 s-button::part(base),
 s-button::part(button) {
-  border-radius: 0 !important;
+  border-radius: 4px !important;
+}
+s-page::part(heading),
+s-section::part(heading),
+s-heading {
+  font-size: 14px !important;
 }
 `;
 
 const EMBED_BLOCK_HANDLE = "smart-block"; // ✅ your blocks/smart-block.liquid
 const EMBED_TYPE_FRAGMENT = `/blocks/${EMBED_BLOCK_HANDLE}`;
 const REVIEW_MODAL_INTENT = "submit-review-popup";
-const REVIEW_MODAL_DAY_THRESHOLD = 7;
+const REVIEW_MODAL_RULE_THRESHOLD = 3;
 const REVIEW_SUPPORT_URL = "https://cartliftcartdrawerupsell.tawk.help/article/dashboard-page";
 
 const json = (data, init = {}) =>
@@ -263,15 +268,21 @@ export const loader = async ({ request }) => {
   const shop = session?.shop ?? null;
   const appEmbedOwnerId =
     process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_SMART_CART_ID || "";
-  const shopRecord = shop
-    ? await prisma.shop.findUnique({
-        where: { shop },
-        select: {
-          createdAt: true,
-          reviewSubmittedAt: true,
-        },
-      })
-    : null;
+  const [shopRecord, shippingRuleCount, discountRuleCount, freeGiftRuleCount, bxgyRuleCount] =
+    shop
+      ? await Promise.all([
+          prisma.shop.findUnique({
+            where: { shop },
+            select: {
+              reviewSubmittedAt: true,
+            },
+          }),
+          prisma.shippingRule.count({ where: { shop } }),
+          prisma.discountRule.count({ where: { shop } }),
+          prisma.freeGiftRule.count({ where: { shop } }),
+          prisma.bxgyRule.count({ where: { shop } }),
+        ])
+      : [null, 0, 0, 0, 0];
 
   let embedEnabled = false;
   let debug = null;
@@ -285,14 +296,15 @@ export const loader = async ({ request }) => {
     debug = e?.message || "unknown error";
   }
 
-  const installAgeDays = shopRecord?.createdAt
-    ? Math.floor((Date.now() - new Date(shopRecord.createdAt).getTime()) / (1000 * 60 * 60 * 24))
-    : null;
+  const totalRulesCount =
+    Number(shippingRuleCount || 0) +
+    Number(discountRuleCount || 0) +
+    Number(freeGiftRuleCount || 0) +
+    Number(bxgyRuleCount || 0);
 
   const shouldShowReviewPopup = Boolean(
     shopRecord &&
-      typeof installAgeDays === "number" &&
-      installAgeDays >= REVIEW_MODAL_DAY_THRESHOLD &&
+      totalRulesCount >= REVIEW_MODAL_RULE_THRESHOLD &&
       !shopRecord.reviewSubmittedAt
   );
 
@@ -302,7 +314,7 @@ export const loader = async ({ request }) => {
     debug,
     appEmbedOwnerId,
     shouldShowReviewPopup,
-    installAgeDays,
+    totalRulesCount,
   };
 };
 
@@ -360,7 +372,7 @@ export const action = async ({ request }) => {
 };
 
 export default function Index() {
-  const { shop, embedEnabled, appEmbedOwnerId, shouldShowReviewPopup, installAgeDays } =
+  const { shop, embedEnabled, appEmbedOwnerId, shouldShowReviewPopup } =
     useLoaderData() ?? {};
   const fetcher = useFetcher();
   const location = useLocation();
@@ -480,18 +492,27 @@ export default function Index() {
   const dashboardApps = [
     {
       title: "Fomoify Sales Popup & Proof",
+      category: "Social Proof",
+      description:
+        "Increase trust using real-time sales popups and conversion proof nudges.",
       href: "https://apps.shopify.com/fomoify-sales-popup-proof",
       imageSrc: "/images/fomoify-sales-popup-proof.png",
       imageAlt: "Fomoify Sales Popup & Proof",
     },
     {
-      title: "MixBox – Box & Bundle Builder",
+      title: "MixBox - Box & Bundle Builder",
+      category: "Bundle",
+      description:
+        "Build custom bundles and boxed products to increase average order value.",
       href: "https://apps.shopify.com/mixbox-box-bundle-builder",
       imageSrc: "/images/mixbox-box-bundle-builder.jpg",
-      imageAlt: "MixBox – Box & Bundle Builder",
+      imageAlt: "MixBox - Box & Bundle Builder",
     },
     {
-      title: "Content AI – SEO Generator",
+      title: "Content AI - SEO Generator",
+      category: "SEO",
+      description:
+        "Generate SEO-friendly content to improve visibility and conversion.",
       href: "https://apps.shopify.com/content-ai-seo-generator",
       icon: StarIcon,
     },
@@ -510,10 +531,10 @@ export default function Index() {
   const openAppEmbedsUrl = activateEmbedUrl || themeAdminUrl;
   const embedStatusLabel = embedEnabled ? "ON" : "OFF";
   const embedStatusStyle = {
-    borderRadius: 0,
+    borderRadius: 4,
     padding: "6px 14px",
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 600,
     lineHeight: 1,
     color: embedEnabled ? "#05422f" : "#b42318",
     background: embedEnabled ? "#d1fae5" : "#fee4e2",
@@ -542,30 +563,26 @@ export default function Index() {
       >
         <Modal.Section>
           <BlockStack gap="400">
-            <div
+            {/* <div
               style={{
                 background: "#e9f3ff",
-                borderRadius: 8,
+                borderRadius: 4,
                 padding: "12px 14px",
               }}
             >
               <InlineStack gap="200" blockAlign="center">
                 <Icon source={InfoIcon} tone="info" />
-                <Text as="p" variant="bodyMd" fontWeight="medium" tone="info">
-                  Development stores aren&apos;t eligible to review apps. This is for testing purposes only.
-                </Text>
               </InlineStack>
-            </div>
+            </div> */}
 
             <BlockStack gap="200">
               <InlineStack gap="300" blockAlign="center" wrap={false}>
                 <img
-                  src="/images/upsellproduct.png"
+                  src="/images/cart-lift.png"
                   alt="CartLift app icon"
                   style={{
                     width: 48,
                     height: 48,
-                    borderRadius: 10,
                     objectFit: "cover",
                     flexShrink: 0,
                   }}
@@ -642,7 +659,6 @@ export default function Index() {
         <s-box
           padding="base"
           background="white"
-          borderRadius="none"
           borderWidth="base"
           style={{
             boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)",
@@ -651,7 +667,7 @@ export default function Index() {
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <s-heading level="5" style={{ margin: 0 }}>
+              <s-heading level="5" style={{ margin: 0, fontSize: "14px" }}>
                 App embed status
               </s-heading>
               <span style={embedStatusStyle}>{embedStatusLabel}</span>
@@ -690,7 +706,6 @@ export default function Index() {
               key={card.title}
               padding="base"
               borderWidth="base"
-              borderRadius="none"
               background="subdued"
               shadow="raised"
               style={{
@@ -704,8 +719,8 @@ export default function Index() {
               <div style={{ display: "flex", alignItems: "center" }}>
                 <div
                   style={{
-                    width: "60px !important",
-                    height: "60px !important",
+                    width: "40px !important",
+                    height: "40px !important",
                     borderRadius: "4px",
                     background: "transparent",
                     display: "flex",
@@ -719,21 +734,21 @@ export default function Index() {
                     src={card.imageSrc}
                     alt={card.imageAlt}
                     style={{
-                      width: 60,
-                      height: 60,
+                      width: 40,
+                      height: 40,
                       objectFit: "contain",
                       display: "block",
                     }}
                   />
                 </div>
-                <text style={{ fontSize: "18px", fontWeight: "600" }}>
+                <text style={{ fontSize: "14px", fontWeight: "700" }}>
                   {card.title}
                 </text>
               </div>
 
               <div
                 style={{
-                  fontSize: "14px",
+                  fontSize: "12px",
                   lineHeight: 1.5,
                   marginTop: "6px",
                   marginBottom: "6px",
@@ -746,7 +761,7 @@ export default function Index() {
               <s-button
                 href={card.href}
                 variant="primary"
-                style={{ backgroundColor: "#2C7A7B", color: "#ffffff", borderRadius: 0 }}
+                style={{ backgroundColor: "#2C7A7B", color: "#ffffff", borderRadius: 4 }}
               >
                 Configure
               </s-button>
@@ -759,7 +774,6 @@ export default function Index() {
         <s-box
           padding="base"
           background="white"
-          borderRadius="none"
           borderWidth="base"
           style={{ boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)" }}
         >
@@ -778,7 +792,7 @@ export default function Index() {
                 alignItems: "center",
                 gap: "12px",
                 color: "#111111",
-                fontWeight: 600,
+                fontWeight: 700,
                 textDecoration: "none",
               };
               const inner = (
@@ -795,7 +809,7 @@ export default function Index() {
                   >
                     <Icon source={item.icon} color="base" />
                   </span>
-                  <span style={{ fontSize: "14px", color: "#000000" }}>{item.label}</span>
+                  <span style={{ fontSize: "14px",fontWeight: 700,color: "#000000" }}>{item.label}</span>
                 </div>
               );
               return item.external ? (
@@ -836,60 +850,97 @@ export default function Index() {
               key={app.title}
               padding="base"
               borderWidth="base"
-              borderRadius="none"
               background="white"
               shadow="raised"
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: "12px",
-                minHeight: "210px",
+                gap: "14px",
+                minHeight: "190px",
                 justifyContent: "space-between",
               }}
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 <div
                   style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: 4,
-                    overflow: "hidden",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    background: app.icon
-                      ? "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)"
-                      : "transparent",
+                    justifyContent: "space-between",
+                    gap: "10px",
                   }}
                 >
-                  {app.imageSrc ? (
-                    <img
-                      src={app.imageSrc}
-                      alt={app.imageAlt}
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                    <div
                       style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
-                  ) : (
-                    <span
-                      style={{
-                        color: "#0284c7",
-                        transform: "scale(1.4)",
-                        display: "inline-flex",
+                        width: 38,
+                        height: 38,
+                        borderRadius: 4,
+                        overflow: "hidden",
+                        display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        flexShrink: 0,
                       }}
                     >
-                      <Icon source={app.icon} tone="base" />
+                      {app.imageSrc ? (
+                        <img
+                          src={app.imageSrc}
+                          alt={app.imageAlt}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: "block",
+                          }}
+                        />
+                      ) : (
+                        <span
+                          style={{
+                            color: "#0284c7",
+                            transform: "scale(1.2)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Icon source={app.icon} tone="base" />
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: 700,
+                        color: "#303030",
+                        lineHeight: 1.25,
+                      }}
+                    >
+                      {app.title}
                     </span>
-                  )}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#6d6d6d",
+                      background: "#efefef",
+                      padding: "4px 10px",
+                      borderRadius: 4,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {app.category}
+                  </span>
                 </div>
-                <text style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a" }}>
-                  {app.title}
-                </text>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    lineHeight: 1.35,
+                    color: "#5c5f62",
+                  }}
+                >
+                  {app.description}
+                </span>
               </div>
 
               <s-button
@@ -897,7 +948,14 @@ export default function Index() {
                 target="_blank"
                 rel="noreferrer"
                 variant="primary"
-                style={{ backgroundColor: "#0f172a", color: "#ffffff", borderRadius: 0 }}
+                style={{
+                  backgroundColor: "#1f1f1f",
+                  color: "#ffffff",
+                  borderRadius: 4,
+                  width: "100%",
+                  textAlign: "center",
+                  justifyContent: "center",
+                }}
               >
                 View app
               </s-button>
@@ -928,4 +986,6 @@ export function ErrorBoundary() {
     </Page>
   );
 }
+
+
 

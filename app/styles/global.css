@@ -1,13 +1,29 @@
 .Polaris-Card,
 .Polaris-LegacyCard,
-.Polaris-Button,
-.Polaris-Button::before,
-.Polaris-Button::after,
 s-box,
 s-box::part(base),
 s-box::part(container),
+s-card,
+s-card::part(base),
+s-card::part(container),
+m-card,
+m-card::part(base),
+m-card::part(container),
+section,
+s-section,
+s-section::part(base),
+s-section::part(root),
+s-section::part(section),
+s-section::part(container),
+s-section::part(content) {
+  border-radius: 0 !important;
+}
+
+.Polaris-Button,
+.Polaris-Button::before,
+.Polaris-Button::after,
 s-button,
 s-button::part(base),
 s-button::part(button) {
-  border-radius: 0 !important;
+  border-radius: 4px !important;
 }
