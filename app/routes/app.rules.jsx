@@ -6699,11 +6699,11 @@ export default function AppRules() {
       products.map((p) => ({
         id: p.id,
         title: p.title,
-        subtitle: p.price ? `?${p.price}` : undefined,
+        subtitle: p.price !== null && p.price !== undefined && p.price !== "" ? formatCurrency(p.price, currencyCode) : undefined,
         image: p.image,
       })),
 
-    [products]
+    [products, currencyCode]
   );
 
   const collectionPickerItems = React.useMemo(
@@ -11049,64 +11049,6 @@ export default function AppRules() {
 
       </BlockStack>
 
-      <ResourcePickerModal
-        open={discountProductPickerIndex !== null}
-        onClose={() => setDiscountProductPickerIndex(null)}
-        title="Select products for discount"
-        items={productPickerItems}
-        selected={
-          discountProductPickerIndex === null
-            ? []
-            : discountRules[discountProductPickerIndex]?.appliesTo?.products ||
-            []
-        }
-        onApply={(values) => {
-          if (discountProductPickerIndex === null) return;
-
-          setDiscountRules((prev) =>
-            prev.map((rule, idx) =>
-              idx === discountProductPickerIndex
-                ? {
-                  ...rule,
-
-                  appliesTo: { ...rule.appliesTo, products: values },
-                }
-                : rule
-            )
-          );
-        }}
-        emptyText="No products available."
-        kindLabel="products"
-      />
-
-      <ResourcePickerModal
-        open={discountCollectionPickerIndex !== null}
-        onClose={() => setDiscountCollectionPickerIndex(null)}
-        title="Select collections for discount"
-        items={collectionPickerItems}
-        selected={
-          discountCollectionPickerIndex === null
-            ? []
-            : discountRules[discountCollectionPickerIndex]?.appliesTo
-              ?.collections || []
-        }
-        onApply={(values) => {
-          if (discountCollectionPickerIndex === null) return;
-
-          setDiscountRules((prev) =>
-            prev.map((rule, idx) =>
-              idx === discountCollectionPickerIndex
-                ? {
-                  ...rule,
-                  appliesTo: { ...rule.appliesTo, collections: values },
-                }
-                : rule
-            )
-          );
-        }}
-        emptyText="No collections available."
-        kindLabel="collections"
-      />
 
       <ResourcePickerModal
         open={bxgyProductPickerIndex !== null}
@@ -11843,6 +11785,8 @@ export default function AppRules() {
               </Box>
             </InlineStack>
 
+
+
             <Box paddingBlockStart="300">
               <InlineStack gap="400" wrap>
 
@@ -12216,6 +12160,66 @@ export default function AppRules() {
             </Box>
           </Box>
         </Modal>
+
+      <ResourcePickerModal
+        open={discountProductPickerIndex !== null}
+        onClose={() => setDiscountProductPickerIndex(null)}
+        title="Select products for discount"
+        items={productPickerItems}
+        selected={
+          discountProductPickerIndex === null
+            ? []
+            : discountRules[discountProductPickerIndex]?.appliesTo?.products ||
+            []
+        }
+        onApply={(values) => {
+          if (discountProductPickerIndex === null) return;
+
+          setDiscountRules((prev) =>
+            prev.map((rule, idx) =>
+              idx === discountProductPickerIndex
+                ? {
+                  ...rule,
+
+                  appliesTo: { ...rule.appliesTo, products: values },
+                }
+                : rule
+            )
+          );
+        }}
+        emptyText="No products available."
+        kindLabel="products"
+      />
+
+      <ResourcePickerModal
+        open={discountCollectionPickerIndex !== null}
+        onClose={() => setDiscountCollectionPickerIndex(null)}
+        title="Select collections for discount"
+        items={collectionPickerItems}
+        selected={
+          discountCollectionPickerIndex === null
+            ? []
+            : discountRules[discountCollectionPickerIndex]?.appliesTo
+              ?.collections || []
+        }
+        onApply={(values) => {
+          if (discountCollectionPickerIndex === null) return;
+
+          setDiscountRules((prev) =>
+            prev.map((rule, idx) =>
+              idx === discountCollectionPickerIndex
+                ? {
+                  ...rule,
+                  appliesTo: { ...rule.appliesTo, collections: values },
+                }
+                : rule
+            )
+          );
+        }}
+        emptyText="No collections available."
+        kindLabel="collections"
+      />
+
         <Box paddingBlockStart="300">
           <div
             style={{
