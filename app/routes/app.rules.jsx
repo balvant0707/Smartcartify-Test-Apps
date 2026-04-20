@@ -977,7 +977,7 @@ const DEFAULT_STYLE_SETTINGS = {
   cartDrawerBackgroundMode: "color",
   cartDrawerImage: "",
   progressTextBefore: "Add {{goal}} more to get Free Shipping with this order",
-  progressTextAfter: "🎉 Congratulations! You have unlocked Free Shipping!",
+  progressTextAfter: "?? Congratulations! You have unlocked Free Shipping!",
   checkoutButtonText: "Checkout",
   announcementBarBackgroundColor: "#000000",
   announcementBarTextColor: "#ffffff",
@@ -1009,13 +1009,13 @@ const DEFAULT_PROGRESS_TEXT = {
 
 const DEFAULT_AUTO_DISCOUNT_CONTENT_TEXT = {
   progressTextBefore: "Add {{goal}} more to unlock {{discount_value_with_off}} Discount!",
-  progressTextAfter: "🎉 Congratulations! {{discount_value}} off Discount!",
+  progressTextAfter: "?? Congratulations! {{discount_value}} off Discount!",
   progressTextBelow: "{{discount_value}} off Discount!",
 };
 
 const DEFAULT_CODE_DISCOUNT_CONTENT_TEXT = {
   progressTextBefore: "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}} off!",
-  progressTextAfter: "🎉 {{discount_value}} off Discount!",
+  progressTextAfter: "?? {{discount_value}} off Discount!",
   progressTextBelow: "Discount!",
 };
 
@@ -1025,14 +1025,14 @@ const getDiscountContentDefaults = (ruleType = "automatic") =>
     : DEFAULT_AUTO_DISCOUNT_CONTENT_TEXT;
 
 const DEFAULT_FREE_GIFT_CONTENT_TEXT = {
-  progressTextBefore: "Add {{goal}} more to unlock a FREE Product 🎁",
-  progressTextAfter: "🎉🎉 Congratulations! Your FREE Product is unlocked",
+  progressTextBefore: "Add {{goal}} more to unlock a FREE Product ??",
+  progressTextAfter: "???? Congratulations! Your FREE Product is unlocked",
   progressTextBelow: "FREE Product",
 };
 
 const DEFAULT_BXGY_CONTENT_TEXT = {
   beforeOfferUnlockMessage: "Add {{x}} more items to get {{y}} free",
-  afterOfferUnlockMessage: "🎉🎉 Congratulations! You've earned a free item",
+  afterOfferUnlockMessage: "???? Congratulations! You've earned a free item",
 };
 
 
@@ -1628,14 +1628,14 @@ const loadLegacyUpsellButtonColor = async (shop) => {
 };
 
 const ICON_OPTIONS = [
-  { label: "✨ Sparkles", value: "sparkles" },
-  { label: "🚚 Delivery", value: "truck" },
-  { label: "🏷️ Tag", value: "tag" },
-  { label: "🎁 Gift", value: "gift" },
-  { label: "⭐ Star", value: "star" },
-  { label: "🔥 Fire", value: "fire" },
-  { label: "✅ Check", value: "check" },
-  { label: "🛒 Cart", value: "cart" },
+  { label: "? Sparkles", value: "sparkles" },
+  { label: "?? Delivery", value: "truck" },
+  { label: "??? Tag", value: "tag" },
+  { label: "?? Gift", value: "gift" },
+  { label: "? Star", value: "star" },
+  { label: "?? Fire", value: "fire" },
+  { label: "? Check", value: "check" },
+  { label: "?? Cart", value: "cart" },
 ];
 
 const CART_STEP_OPTIONS = [
@@ -3905,7 +3905,7 @@ const buildBxgyCustomerGets = (rule = {}, selection) => {
 const buildBxgyAutomaticInput = (rule = {}, index = 0) => {
   const selection = buildBxgySelection(rule);
   const usageLimit = Math.max(num(rule.maxGifts), 0);
-  const baseTitle = rule.title || `CartLift: Cart Drawer & Upsell BXGY ${rule.xQty || "X"} → ${rule.yQty || "Y"}`;
+  const baseTitle = rule.title || `CartLift: Cart Drawer & Upsell BXGY ${rule.xQty || "X"} ? ${rule.yQty || "Y"}`;
   const suffix = typeof index === "number" ? ` (#${index + 1})` : "";
   const title = `${baseTitle}${suffix}`;
   const customerGets = buildBxgyCustomerGets(rule, selection);
@@ -5769,7 +5769,7 @@ function CartDrawerPreview({
             aria-hidden="true"
             title="Close drawer"
           >
-            <span style={{ fontSize: 20, lineHeight: 1 }}>×</span>
+            <span style={{ fontSize: 20, lineHeight: 1 }}>�</span>
           </div>
         </div>
 
@@ -5951,7 +5951,7 @@ function CartDrawerPreview({
                       }}
                       aria-hidden="true"
                     >
-                      <span style={{ fontSize: 20, lineHeight: 1 }}>−</span>
+                      <span style={{ fontSize: 20, lineHeight: 1 }}>-</span>
                     </div>
 
                     <div
@@ -6133,7 +6133,7 @@ function CartDrawerPreview({
                           display: "grid",
                           gridTemplateColumns: "68px minmax(0, 1fr) auto",
                           gap: 14,
-                          alignItems: "center",
+                          alignItems: "start",
                           minWidth: 0,
                           background: upsellCardBg,
                         }}
@@ -6142,7 +6142,7 @@ function CartDrawerPreview({
                           style={{
                             width: 68,
                             height: 68,
-                            borderRadius: 12,
+                            borderRadius: 0,
                             background: "#EEF2F7",
                             overflow: "hidden",
                             justifySelf: "center",
@@ -6174,37 +6174,38 @@ function CartDrawerPreview({
                           >
                             {item?.title || "Product"}
                           </div>
-                          <div
-                            style={{
-                              display: "block",
-                              marginTop: 2,
-                              fontWeight: 600,
-                              color: upsellCardText,
-                              opacity: 0.85,
-                            }}
-                          >
-                            {item?.price || formatMoney(0)}
+                          <div style={{ marginTop: 8 }}>
+                            <div
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 0,
+                                background: upsellButtonBg,
+                                border: `1px solid ${upsellBorder}`,
+                                color: upsellText,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                whiteSpace: "nowrap",
+                                justifyContent: "center",
+                              }}
+                            >
+                              + <span>{upsellBtnText}</span>
+                            </div>
                           </div>
                         </div>
 
                         <div
                           style={{
-                            padding: "9px 12px",
-                            borderRadius: 12,
-                            background: upsellButtonBg,
-                            border: `1px solid ${upsellBorder}`,
-                            color: upsellText,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
+                            fontWeight: 700,
+                            color: upsellCardText,
+                            fontSize: Math.max(theme.base + 2, 16),
+                            lineHeight: 1.2,
                             whiteSpace: "nowrap",
-                            minWidth: 112,
-                            justifyContent: "center",
                           }}
                         >
-                          + <span>{upsellBtnText}</span>
+                          {formatMoney(parsePreviewPrice(item?.price) || 0)}
                         </div>
                       </div>
                     ))}
@@ -8711,7 +8712,7 @@ export default function AppRules() {
 
       setDeletingRuleLabel(
         rule.title ||
-        `CartLift: Cart Drawer & Upsell BXGY ${rule.xQty || "X"} → ${rule.yQty || "Y"}`
+        `CartLift: Cart Drawer & Upsell BXGY ${rule.xQty || "X"} ? ${rule.yQty || "Y"}`
       );
 
       let deleted = false;
@@ -11683,7 +11684,7 @@ export default function AppRules() {
                               display: "grid",
                               gridTemplateColumns: "68px minmax(0, 1fr) auto",
                               gap: 14,
-                              alignItems: "center",
+                              alignItems: "start",
                               minWidth: 0,
                             }}
                           >
@@ -11691,7 +11692,7 @@ export default function AppRules() {
                               style={{
                                 width: 68,
                                 height: 68,
-                                borderRadius: 12,
+                                borderRadius: 0,
                                 background: "#EEF2F7",
                                 overflow: "hidden",
                                 justifySelf: "center",
@@ -11721,58 +11722,48 @@ export default function AppRules() {
                                   display: "block",
                                   fontWeight: 600,
                                   color: upsellTextColor,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
                                 }}
                               >
                                 {item.title}
                               </Text>
-                              <Text
-                                as="span"
-                                variant="bodyMd"
-                                style={{
-                                  display: "block",
-                                  marginTop: 2,
-                                  fontWeight: 600,
-                                  color: upsellTextColor,
-                                  opacity: 0.85,
-                                }}
-                              >
-                                {item.price}
-                              </Text>
-                              {item.option ? (
-                                <Text
-                                  as="span"
-                                  variant="bodySm"
+                              <div style={{ marginTop: 8 }}>
+                                <div
                                   style={{
-                                    display: "block",
+                                    padding: "8px 14px",
+                                    borderRadius: 0,
+                                    background: upsellButtonColor,
+                                    border: `1px solid ${upsellBorderColor}`,
                                     color: upsellTextColor,
-                                    opacity: 0.7,
-                                    marginTop: 4,
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    whiteSpace: "nowrap",
+                                    justifyContent: "center",
                                   }}
                                 >
-                                  {item.option}
-                                </Text>
-                              ) : null}
+                                  +
+                                  <span>{upsellButtonText}</span>
+                                </div>
+                              </div>
                             </div>
-                            <div
+                            <Text
+                              as="span"
+                              variant="bodyMd"
                               style={{
-                                padding: "9px 12px",
-                                borderRadius: 12,
-                                background: upsellButtonColor,
-                                border: `1px solid ${upsellBorderColor}`,
+                                fontWeight: 700,
                                 color: upsellTextColor,
-                                fontSize: 12,
-                                fontWeight: 600,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
+                                fontSize: 18,
+                                lineHeight: 1.2,
                                 whiteSpace: "nowrap",
-                                minWidth: 112,
-                                justifyContent: "center",
                               }}
                             >
-                              +
-                              <span>{upsellButtonText}</span>
-                            </div>
+                              {formatPreviewPrice(item?.price, 25)}
+                            </Text>
                           </div>
                         ))}
                       </div>

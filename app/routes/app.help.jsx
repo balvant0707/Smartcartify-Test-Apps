@@ -3,7 +3,7 @@ import React from "react";
 import { useRouteError } from "react-router";
 import {
   Page,
-  Card,
+  Box,
   Text,
   List,
   Button,
@@ -65,7 +65,7 @@ export default function Help() {
         style={{
           background:
             "linear-gradient(110deg, #b9d7ff 0%, #e7b0c4 45%, #f8b18f 100%)",
-          borderRadius: "14px",
+          borderRadius: "0px",
           padding: "20px",
           marginBottom: "16px",
         }}
@@ -91,7 +91,7 @@ export default function Help() {
 
       <Layout>
         <Layout.Section>
-          <Card sectioned>
+          <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
             <BlockStack gap="200">
               <div style={{ borderTop: "1px solid #e1e3e5", paddingTop: "12px" }}>
                 <Text as="h4" variant="headingSm">
@@ -103,7 +103,7 @@ export default function Help() {
                 </Text>
               </div>
             </BlockStack>
-          </Card>
+          </Box>
         </Layout.Section>
       </Layout>
     </Page>
@@ -114,7 +114,7 @@ export function ErrorBoundary() {
   const error = useRouteError();
   return (
     <Page title="Error">
-      <Card>
+      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
         <Text as="h2" variant="headingMd">Something went wrong</Text>
         <Text tone="subdued">
           We encountered an error loading the help page. Please try refreshing or contact support if the issue persists.
@@ -122,7 +122,7 @@ export function ErrorBoundary() {
         {process.env.NODE_ENV !== "production" && error?.message && (
           <Text tone="critical">{error.message}</Text>
         )}
-      </Card>
+      </Box>
     </Page>
   );
 }

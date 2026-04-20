@@ -3,7 +3,7 @@ import React from "react";
 import { useFetcher, useLoaderData, useLocation, useRouteError } from "react-router";
 import { authenticate, apiVersion } from "../shopify.server";
 import prisma from "../db.server";
-import { Page, Card, Text, Modal, TextField, BlockStack, InlineStack } from "@shopify/polaris";
+import { Page, Box, Text, Modal, TextField, BlockStack, InlineStack } from "@shopify/polaris";
 
 import { Icon } from "@shopify/polaris";
 import {
@@ -37,17 +37,6 @@ details[data-accordion] summary::marker {
 }
 .step-indicator span svg {
     fill: #fff;
-}
-.Polaris-Card,
-.Polaris-LegacyCard,
-.Polaris-Button,
-.Polaris-Button::before,
-.Polaris-Button::after,
-s-box,
-s-button,
-s-button::part(base),
-s-button::part(button) {
-  border-radius: 4px !important;
 }
 s-page::part(heading),
 s-section::part(heading),
@@ -660,7 +649,7 @@ export default function Index() {
           padding="base"
           background="white"
           borderWidth="base"
-          borderRadius="base"
+          borderRadius="none"
           style={{
             boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)",
             background: "#f8fafc",
@@ -975,7 +964,7 @@ export function ErrorBoundary() {
   const error = useRouteError();
   return (
     <Page title="Error">
-      <Card>
+      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
         <Text as="h2" variant="headingMd">Something went wrong</Text>
         <Text tone="subdued">
           We encountered an error loading the dashboard. Please try refreshing or contact support if the issue persists.
@@ -983,7 +972,7 @@ export function ErrorBoundary() {
         {process.env.NODE_ENV !== "production" && error?.message && (
           <Text tone="critical">{error.message}</Text>
         )}
-      </Card>
+      </Box>
     </Page>
   );
 }

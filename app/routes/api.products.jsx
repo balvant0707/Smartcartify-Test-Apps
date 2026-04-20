@@ -7,42 +7,70 @@ const edge = (x) => (x && x.edges ? x.edges.map((e) => e.node) : []);
 export async function loader({ request }) {
   try {
     const { admin } = await authenticate.admin(request);
+    const url = new URL(request.url);
+    const includeCollectionProducts =
+      url.searchParams.get("includeCollectionProducts") === "1";
 
-    const gql = `
-      query ProductsForPicker {
-        products(first: 250, sortKey: TITLE) {
-          edges {
-            node {
-              id
-              title
-              handle
-              variants(first: 1) { edges { node { id price } } }
-              images(first: 1)   { edges { node { url altText } } }
+    const gql = includeCollectionProducts
+      ? `
+          query ProductsForPicker {
+            products(first: 250, sortKey: TITLE) {
+              edges {
+                node {
+                  id
+                  title
+                  handle
+                  variants(first: 1) { edges { node { id price } } }
+                  images(first: 1)   { edges { node { url altText } } }
+                }
+              }
             }
-          }
-        }
-        collections(first: 250, sortKey: TITLE) {
-          edges {
-            node {
-              id
-              title
-              handle
-              products(first: 25, sortKey: TITLE) {
-                edges {
-                  node {
-                    id
-                    title
-                    handle
-                    variants(first: 1) { edges { node { id price title selectedOptions { name value } } } }
-                    images(first: 1)   { edges { node { url altText } } }
+            collections(first: 250, sortKey: TITLE) {
+              edges {
+                node {
+                  id
+                  title
+                  handle
+                  products(first: 25, sortKey: TITLE) {
+                    edges {
+                      node {
+                        id
+                        title
+                        handle
+                        variants(first: 1) { edges { node { id price title selectedOptions { name value } } } }
+                        images(first: 1)   { edges { node { url altText } } }
+                      }
+                    }
                   }
                 }
               }
             }
           }
-        }
-      }
-    `;
+        `
+      : `
+          query ProductsForPicker {
+            products(first: 250, sortKey: TITLE) {
+              edges {
+                node {
+                  id
+                  title
+                  handle
+                  variants(first: 1) { edges { node { id price } } }
+                  images(first: 1)   { edges { node { url altText } } }
+                }
+              }
+            }
+            collections(first: 250, sortKey: TITLE) {
+              edges {
+                node {
+                  id
+                  title
+                  handle
+                }
+              }
+            }
+          }
+        `;
 
     const resp = await admin.graphql(gql);
     const data = await resp.json();
@@ -61,25 +89,31 @@ export async function loader({ request }) {
         image: img?.url ?? null,
       };
     });
-    const collections = edge(data?.data?.collections).map((c) => ({
-      id: c.id,
-      title: c.title,
-      handle: c.handle,
-      products: edge(c.products).map((p) => {
-        const v = edge(p.variants)[0];
-        const img = edge(p.images)[0];
-        return {
-          id: p.id,
-          title: p.title,
-          handle: p.handle,
-          price: v?.price ?? null,
-          variantId: v?.id ?? null,
-          variantTitle: v?.title ?? null,
-          variantOptions: v?.selectedOptions ?? [],
-          image: img?.url ?? null,
-        };
-      }),
-    }));
+    const collections = edge(data?.data?.collections).map((c) => {
+      const collectionProducts = includeCollectionProducts
+        ? edge(c.products).map((p) => {
+            const v = edge(p.variants)[0];
+            const img = edge(p.images)[0];
+            return {
+              id: p.id,
+              title: p.title,
+              handle: p.handle,
+              price: v?.price ?? null,
+              variantId: v?.id ?? null,
+              variantTitle: v?.title ?? null,
+              variantOptions: v?.selectedOptions ?? [],
+              image: img?.url ?? null,
+            };
+          })
+        : [];
+
+      return {
+        id: c.id,
+        title: c.title,
+        handle: c.handle,
+        products: collectionProducts,
+      };
+    });
 
     return new Response(JSON.stringify({ products: items, collections }), {
       status: 200,

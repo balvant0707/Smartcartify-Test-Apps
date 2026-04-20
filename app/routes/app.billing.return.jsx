@@ -1,5 +1,5 @@
 import { useRouteError } from "react-router";
-import { Page, Card, Text } from "@shopify/polaris";
+import { Page, Box, Text } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import logger from "../lib/logger.server.js";
@@ -93,7 +93,7 @@ export function ErrorBoundary() {
   const error = useRouteError();
   return (
     <Page title="Billing Error">
-      <Card>
+      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
         <Text as="h2" variant="headingMd">Billing Error</Text>
         <Text tone="subdued">
           We encountered an error processing your billing request. Please try again or contact support if the issue persists.
@@ -101,7 +101,7 @@ export function ErrorBoundary() {
         {process.env.NODE_ENV !== "production" && error?.message && (
           <Text tone="critical">{error.message}</Text>
         )}
-      </Card>
+      </Box>
     </Page>
   );
 }

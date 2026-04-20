@@ -4,7 +4,7 @@
 import { Outlet, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider as BridgeProvider } from "@shopify/shopify-app-react-router/react";
-import { AppProvider as PolarisProvider, Page, Card, Text } from "@shopify/polaris";
+import { AppProvider as PolarisProvider, Page, Box, Text } from "@shopify/polaris";
 import en from "@shopify/polaris/locales/en.json";
 import { authenticate } from "../shopify.server";
 import { normalizeShopDomain } from "../lib/shopUtils.server.js";
@@ -100,14 +100,14 @@ export default function App() {
     return (
       <PolarisProvider i18n={en}>
         <Page title="Open from Shopify admin">
-          <Card sectioned>
+          <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
             <Text as="h2" variant="headingMd">
               Launch this app from Shopify Admin
             </Text>
             <Text tone="subdued">
               Open CartLift: Cart Drawer & Upsell from your Shopify Admin Apps list so it can pass the host parameter and render embedded.
             </Text>
-          </Card>
+          </Box>
         </Page>
       </PolarisProvider>
     );

@@ -8,7 +8,7 @@ export default function AppDocumentsRoute() {
         <s-box
           padding="base"
           background="white"
-          borderRadius="extraLarge"
+          borderRadius="none"
           borderWidth="base"
           style={{ boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)" }}
         >

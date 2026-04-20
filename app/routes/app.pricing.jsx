@@ -1,5 +1,5 @@
 import { Form, useLoaderData, useNavigation, useRouteError } from "react-router";
-import { Page, Text, Button, Badge, Card } from "@shopify/polaris";
+import { Page, Text, Button, Badge, Box } from "@shopify/polaris";
 import { useEffect, useState } from "react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -687,7 +687,7 @@ export function ErrorBoundary() {
   const error = useRouteError();
   return (
     <Page title="Error">
-      <Card>
+      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
         <Text as="h2" variant="headingMd">Something went wrong</Text>
         <Text tone="subdued">
           We encountered an error loading the pricing page. Please try refreshing or contact support if the issue persists.
@@ -695,7 +695,7 @@ export function ErrorBoundary() {
         {process.env.NODE_ENV !== "production" && error?.message && (
           <Text tone="critical">{error.message}</Text>
         )}
-      </Card>
+      </Box>
     </Page>
   );
 }
