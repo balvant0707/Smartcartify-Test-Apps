@@ -9,16 +9,83 @@ import { getShopFromRequest } from "../lib/shopUtils.server.js";
 const ADMIN_API_VERSION = apiVersion;
 const APP_PROXY_HMAC_TOLERANCE_SEC = 300;
 
-const jsonResponse = (data, status = 200) =>
+const jsonResponse = (data, status = 200, extraHeaders = {}) =>
   new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json",
-      // Never cache error responses — prevents Shopify CDN from serving
-      // stale 500/401 errors to storefronts for up to 5 minutes
       ...(status >= 400 ? { "Cache-Control": "no-store" } : {}),
+      ...extraHeaders,
     },
   });
+
+const DISCOUNT_RULE_SELECT = {
+  id: true,
+  shop: true,
+  type: true,
+  value: true,
+  minPurchase: true,
+  triggerType: true,
+  minQuantity: true,
+  enabled: true,
+  iconChoice: true,
+  shopifyDiscountCodeId: true,
+  discountCode: true,
+  progressTextBefore: true,
+  progressTextAfter: true,
+  progressTextBelow: true,
+  campaignName: true,
+  cartStepName: true,
+  codeCampaignName: true,
+  valueType: true,
+  appliesTo: true,
+  codeDiscountId: true,
+  condition: true,
+  rewardType: true,
+  scope: true,
+  startsAt: true,
+  endsAt: true,
+  priority: true,
+  customerTarget: true,
+  customerTags: true,
+  templateKey: true,
+  abTestEnabled: true,
+  abTestVariant: true,
+  translations: true,
+  analyticsImpressions: true,
+  analyticsConversions: true,
+};
+
+const FREE_GIFT_RULE_SELECT = {
+  id: true,
+  shop: true,
+  trigger: true,
+  minPurchase: true,
+  triggerType: true,
+  minQuantity: true,
+  qty: true,
+  limitPerOrder: true,
+  enabled: true,
+  iconChoice: true,
+  bonusProductId: true,
+  freeProductDiscountID: true,
+  progressTextBefore: true,
+  progressTextAfter: true,
+  progressTextBelow: true,
+  campaignName: true,
+  cartStepName: true,
+  startsAt: true,
+  endsAt: true,
+  priority: true,
+  customerTarget: true,
+  customerTags: true,
+  templateKey: true,
+  abTestEnabled: true,
+  abTestVariant: true,
+  translations: true,
+  analyticsImpressions: true,
+  analyticsConversions: true,
+};
 
 const timingSafeEqual = (a, b) => {
   const left = Buffer.from(String(a || ""), "utf8");
@@ -77,6 +144,133 @@ const buildShopMetadata = (shopRow) => {
     uninstalledAt: shopRow.uninstalledAt?.toISOString() ?? null,
     updatedAt: shopRow.updatedAt?.toISOString() ?? null,
   };
+};
+
+const isRuleScheduleActive = (rule = {}, now = new Date()) => {
+  const nowTime = now.getTime();
+  const startsAt = rule?.startsAt ? new Date(rule.startsAt).getTime() : null;
+  const endsAt = rule?.endsAt ? new Date(rule.endsAt).getTime() : null;
+  if (Number.isFinite(startsAt) && startsAt > nowTime) return false;
+  if (Number.isFinite(endsAt) && endsAt < nowTime) return false;
+  return true;
+};
+
+const parseJsonObject = (value, fallback = {}) => {
+  if (!value) return fallback;
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed
+        : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+};
+
+const parseDelimitedList = (value) =>
+  String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const getRequestContext = (request) => {
+  const url = new URL(request.url);
+  return {
+    customerLoggedIn: ["1", "true", "yes"].includes(
+      String(url.searchParams.get("customer_logged_in") || "").toLowerCase()
+    ),
+    customerTags: parseDelimitedList(url.searchParams.get("customer_tags")).map(
+      (tag) => tag.toLowerCase()
+    ),
+    locale: String(url.searchParams.get("locale") || "").toLowerCase(),
+    abSeed: String(url.searchParams.get("ab_seed") || ""),
+  };
+};
+
+const ruleMatchesCustomer = (rule = {}, context = {}) => {
+  const target = String(rule.customerTarget || "all");
+  if (target === "logged_in") return Boolean(context.customerLoggedIn);
+  if (target === "guest") return !context.customerLoggedIn;
+  if (target === "tags") {
+    const neededTags = parseDelimitedList(rule.customerTags).map((tag) =>
+      tag.toLowerCase()
+    );
+    if (!neededTags.length) return true;
+    return neededTags.some((tag) => context.customerTags.includes(tag));
+  }
+  return true;
+};
+
+const ruleMatchesAbTest = (rule = {}, context = {}) => {
+  if (!rule.abTestEnabled) return true;
+  const variant = String(rule.abTestVariant || "A").toUpperCase();
+  const seed = context.abSeed || context.customerTags.join("|") || "guest";
+  const bucket = Array.from(seed).reduce(
+    (sum, char) => sum + char.charCodeAt(0),
+    0
+  ) % 2;
+  return variant === (bucket === 0 ? "A" : "B");
+};
+
+const applyRuleTranslations = (rule = {}, locale = "") => {
+  if (!locale) return rule;
+  const translations = parseJsonObject(rule.translations, {});
+  const exact = parseJsonObject(translations[locale], null);
+  const language = locale.split("-")[0];
+  const languageMatch = parseJsonObject(translations[language], null);
+  const translated = exact || languageMatch;
+  if (!translated) return rule;
+  return { ...rule, ...translated };
+};
+
+const filterActiveScheduledRules = (rules = [], now = new Date(), context = {}) =>
+  (Array.isArray(rules) ? rules : [])
+    .filter((rule) => isRuleScheduleActive(rule, now))
+    .filter((rule) => ruleMatchesCustomer(rule, context))
+    .filter((rule) => ruleMatchesAbTest(rule, context))
+    .map((rule) => applyRuleTranslations(rule, context.locale))
+    .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+
+const ensureStyleCartIconColumn = async () => {
+  try {
+    await prisma.$executeRawUnsafe(
+      "ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL"
+    );
+  } catch (error) {
+    const message = String(error?.message || "");
+    const code = String(error?.code || "");
+    if (
+      code === "P2010" ||
+      message.includes("Duplicate column") ||
+      message.includes("1060")
+    ) {
+      return;
+    }
+    throw error;
+  }
+};
+
+const mergeStyleCartIconUrl = async (styleSettings) => {
+  if (!styleSettings?.id || styleSettings.cartIconUrl) return styleSettings;
+
+  try {
+    await ensureStyleCartIconColumn();
+    const rows = await prisma.$queryRaw`
+      SELECT cartIconUrl
+      FROM stylesettings
+      WHERE id = ${styleSettings.id}
+      LIMIT 1
+    `;
+    const cartIconUrl = Array.isArray(rows) ? rows[0]?.cartIconUrl : null;
+    return { ...styleSettings, cartIconUrl: cartIconUrl || "" };
+  } catch (error) {
+    logger.warn("[proxy] Failed to load style cart icon URL", error);
+    return styleSettings;
+  }
 };
 
 const buildVariantOptions = (product, variant) => {
@@ -176,7 +370,8 @@ const fetchBestSellingProducts = async (shopDomain, accessToken) => {
 const fetchProductsByIds = async (shopDomain, accessToken, ids = []) => {
   if (!shopDomain || !accessToken) return [];
   if (!Array.isArray(ids) || !ids.length) return [];
-  const uniqueIds = [...new Set(ids.map(String))];
+  // Shopify REST products.json has a hard cap of 250 per request
+  const uniqueIds = [...new Set(ids.map(String))].slice(0, 250);
   try {
     const endpoint = `https://${shopDomain}/admin/api/${ADMIN_API_VERSION}/products.json?ids=${encodeURIComponent(
       uniqueIds.join(",")
@@ -263,50 +458,39 @@ const fetchProductsForCollection = async (shopDomain, accessToken, collectionId)
 };
 
 const resolveShopAccessToken = async (shop, shopRow) => {
-  const primary = shopRow?.accessToken || null;
-  if (shopRow?.installed && primary) return primary;
+  try {
+    const primary = shopRow?.accessToken || null;
+    if (shopRow?.installed && primary) return primary;
 
-  const offlineSessionId = `offline_${shop}`;
-  let fallbackToken = null;
+    const offlineSessionId = `offline_${shop}`;
+    let fallbackToken = null;
 
-  const offlineSession = await prisma.session.findUnique({
-    where: { id: offlineSessionId },
-    select: { accessToken: true },
-  });
-  if (offlineSession?.accessToken) {
-    fallbackToken = String(offlineSession.accessToken);
-  }
-
-  if (!fallbackToken) {
-    const anySession = await prisma.session.findFirst({
-      where: { shop, accessToken: { not: null } },
+    const offlineSession = await prisma.session.findUnique({
+      where: { id: offlineSessionId },
       select: { accessToken: true },
-      orderBy: { expires: "desc" },
     });
-    if (anySession?.accessToken) {
-      fallbackToken = String(anySession.accessToken);
+    if (offlineSession?.accessToken) {
+      fallbackToken = String(offlineSession.accessToken);
     }
+
+    if (!fallbackToken) {
+      const anySession = await prisma.session.findFirst({
+        where: { shop, accessToken: { not: null } },
+        select: { accessToken: true },
+        orderBy: { expires: "desc" },
+      });
+      if (anySession?.accessToken) {
+        fallbackToken = String(anySession.accessToken);
+      }
+    }
+
+    // Return token without auto-creating/modifying the shop record.
+    // The shop record is managed by the admin auth flow — never create it here.
+    return fallbackToken ?? null;
+  } catch (err) {
+    logger.error("[proxy] resolveShopAccessToken failed for shop:", shop, err?.message);
+    return null;
   }
-
-  if (!fallbackToken) return null;
-
-  await prisma.shop.upsert({
-    where: { shop },
-    update: {
-      accessToken: fallbackToken,
-      installed: true,
-      uninstalledAt: null,
-      updatedAt: new Date(),
-    },
-    create: {
-      shop,
-      accessToken: fallbackToken,
-      installed: true,
-      onboardedAt: new Date(),
-    },
-  });
-
-  return fallbackToken;
 };
 
 export const loader = async ({ request }) => {
@@ -329,10 +513,18 @@ export const loader = async ({ request }) => {
       styleSettings,
       upsellSettings,
     ] = await Promise.all([
-      prisma.shop.findFirst({ where: { shop }, orderBy: { id: "desc" } }),
+      prisma.shop.findUnique({ where: { shop } }),
       prisma.shippingRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
-      prisma.discountRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
-      prisma.freeGiftRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
+      prisma.discountRule.findMany({
+        where: { shop },
+        orderBy: { id: "asc" },
+        select: DISCOUNT_RULE_SELECT,
+      }),
+      prisma.freeGiftRule.findMany({
+        where: { shop },
+        orderBy: { id: "asc" },
+        select: FREE_GIFT_RULE_SELECT,
+      }),
       prisma.bxgyRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
       prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } }),
       prisma.upsellSettings.findUnique({ where: { shop } }),
@@ -340,6 +532,7 @@ export const loader = async ({ request }) => {
 
     const shopAccessToken = await resolveShopAccessToken(shop, shopRow);
     const isAuthorized = Boolean(shopAccessToken);
+    const styleSettingsWithCartIcon = await mergeStyleCartIconUrl(styleSettings);
 
     if (!isAuthorized) {
       logger.warn("Proxy request without shop token; returning DB-only config", {
@@ -412,22 +605,45 @@ export const loader = async ({ request }) => {
       selectedCollectionsWithProducts.push(...batchResults);
     }
 
-    return jsonResponse({
-      ok: true,
-      shop,
-      authorized: isAuthorized,
-      metadata: buildShopMetadata(shopRow),
-      shippingRules,
-      discountRules,
-      freeGiftRules,
-      bxgyRules,
-      styleSettings: styleSettings ?? null,
-      upsellSettings: upsellSettings ?? null,
-      upsellProducts: bestSellingProducts,
-      upsellSelectedProducts: selectedProducts,
-      upsellSelectedCollections: selectedCollectionsWithProducts,
-      fetchedAt: new Date().toISOString(),
-    });
+    const scheduleNow = new Date();
+    const ruleContext = getRequestContext(request);
+
+    return jsonResponse(
+      {
+        ok: true,
+        shop,
+        authorized: isAuthorized,
+        metadata: buildShopMetadata(shopRow),
+        shippingRules: filterActiveScheduledRules(
+          shippingRules,
+          scheduleNow,
+          ruleContext
+        ),
+        discountRules: filterActiveScheduledRules(
+          discountRules,
+          scheduleNow,
+          ruleContext
+        ),
+        freeGiftRules: filterActiveScheduledRules(
+          freeGiftRules,
+          scheduleNow,
+          ruleContext
+        ),
+        bxgyRules: filterActiveScheduledRules(bxgyRules, scheduleNow, ruleContext),
+        styleSettings: styleSettingsWithCartIcon ?? null,
+        upsellSettings: upsellSettings ?? null,
+        upsellProducts: bestSellingProducts,
+        upsellSelectedProducts: selectedProducts,
+        upsellSelectedCollections: selectedCollectionsWithProducts,
+        fetchedAt: new Date().toISOString(),
+      },
+      200,
+      {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
+      }
+    );
   } catch (error) {
     logger.error("Smart proxy loader failed", error);
     return jsonResponse(
@@ -443,12 +659,57 @@ export const loader = async ({ request }) => {
   }
 };
 
-export const action = () =>
-  jsonResponse(
-    { ok: false, error: "CartLift: Cart Drawer & Upsell proxy only responds to GET requests" },
-    405
-  );
+const analyticsModelByType = {
+  shipping: prisma.shippingRule,
+  discount: prisma.discountRule,
+  free: prisma.freeGiftRule,
+  freegift: prisma.freeGiftRule,
+  freeGift: prisma.freeGiftRule,
+  bxgy: prisma.bxgyRule,
+};
 
-export const headers = () => ({
-  "Cache-Control": "public, max-age=300, stale-while-revalidate=300",
-});
+export const action = async ({ request }) => {
+  if (!verifyAppProxySignature(request)) {
+    return jsonResponse({ ok: false, error: "Invalid proxy signature" }, 401);
+  }
+
+  const shop = getShopFromRequest(request);
+  if (!shop) {
+    return jsonResponse({ ok: false, error: "Shop domain not provided" }, 400);
+  }
+
+  let body = {};
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ ok: false, error: "Invalid JSON body" }, 400);
+  }
+
+  const event = String(body.event || "").toLowerCase();
+  const ruleType = String(body.ruleType || body.type || "").trim();
+  const normalizedRuleType = ruleType.toLowerCase();
+  const ruleId = Number(body.ruleId || body.id || 0);
+  const model = analyticsModelByType[ruleType] || analyticsModelByType[normalizedRuleType];
+  const incrementField =
+    event === "conversion"
+      ? "analyticsConversions"
+      : event === "impression"
+        ? "analyticsImpressions"
+        : null;
+
+  if (!model || !Number.isInteger(ruleId) || ruleId <= 0 || !incrementField) {
+    return jsonResponse({ ok: false, error: "Invalid analytics event" }, 400);
+  }
+
+  try {
+    await model.updateMany({
+      where: { id: ruleId, shop },
+      data: { [incrementField]: { increment: 1 } },
+    });
+    return jsonResponse({ ok: true });
+  } catch (error) {
+    logger.error("Smart proxy analytics update failed", error);
+    return jsonResponse({ ok: false, error: "Failed to record analytics event" }, 500);
+  }
+};
+

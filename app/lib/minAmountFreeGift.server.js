@@ -62,6 +62,15 @@ const BXGY_DISCOUNT_MUTATION = `
   }
 `;
 
+const BXGY_DISCOUNT_UPDATE_MUTATION = `
+  mutation DiscountAutomaticBxgyUpdate($id: ID!, $automaticBxgyDiscount: DiscountAutomaticBxgyInput!) {
+    discountAutomaticBxgyUpdate(id: $id, automaticBxgyDiscount: $automaticBxgyDiscount) {
+      automaticDiscountNode { id }
+      userErrors { field message }
+    }
+  }
+`;
+
 const cleanShopDomain = (shopDomain) =>
   shopDomain.replace(/^https?:\/\//, "");
 
@@ -159,23 +168,34 @@ const GIFT_VARIANT_QUERY = `
 const allProductsIdsCache = new TTLCache();
 const giftVariantCache = new TTLCache();
 
+// Convert plain numeric REST IDs to GID format required by GraphQL
+const normalizeToGid = (rawId, defaultType = "Product") => {
+  if (!rawId) return rawId;
+  const s = String(rawId).trim();
+  if (s.startsWith("gid://shopify/")) return s;
+  if (/^\d+$/.test(s)) return `gid://shopify/${defaultType}/${s}`;
+  return s;
+};
+
 const resolveGiftVariantId = async (shopDomain, accessToken, giftId) => {
   if (!giftId) return null;
 
+  const normalizedId = normalizeToGid(giftId);
+
   // If it's already a variant GID, just use it
-  if (giftId.startsWith("gid://shopify/ProductVariant/")) {
-    return giftId;
+  if (normalizedId.startsWith("gid://shopify/ProductVariant/")) {
+    return normalizedId;
   }
 
   const normalizedShop = cleanShopDomain(shopDomain);
-  const cacheKey = `${normalizedShop}:${giftId}`;
+  const cacheKey = `${normalizedShop}:${normalizedId}`;
 
   if (giftVariantCache.has(cacheKey)) {
     return giftVariantCache.get(cacheKey);
   }
 
   const data = await adminGraphql(shopDomain, accessToken, GIFT_VARIANT_QUERY, {
-    id: giftId,
+    id: normalizedId,
   });
 
   const node = data?.node;
@@ -227,6 +247,8 @@ export const resolveAllProductsCollectionId = async (
   return collectionId;
 };
 
+const MAX_PRODUCT_ID_PAGES = 40; // cap at 40 × 250 = 10,000 products
+
 const fetchAllProductIds = async (shopDomain, accessToken) => {
   const normalizedShop = cleanShopDomain(shopDomain);
 
@@ -236,8 +258,10 @@ const fetchAllProductIds = async (shopDomain, accessToken) => {
 
   const ids = [];
   let after = null;
+  let pageCount = 0;
 
-  while (true) {
+  while (pageCount < MAX_PRODUCT_ID_PAGES) {
+    pageCount += 1;
     const data = await adminGraphql(
       shopDomain,
       accessToken,
@@ -263,6 +287,12 @@ const fetchAllProductIds = async (shopDomain, accessToken) => {
         : null;
 
     if (!after) break;
+  }
+
+  if (pageCount >= MAX_PRODUCT_ID_PAGES) {
+    logger.warn(
+      `fetchAllProductIds: reached page limit (${MAX_PRODUCT_ID_PAGES} pages, ${ids.length} IDs). Some products may be excluded.`,
+    );
   }
 
   allProductsIdsCache.set(normalizedShop, ids);
@@ -295,8 +325,8 @@ const deleteShopifyDiscountById = async (
   try {
     await adminGraphql(shopDomain, accessToken, deleteAutomaticMutation, { id });
     return true;
-  } catch (err) {
-    // Fallback to code delete if needed
+  } catch (automaticErr) {
+    logger.warn("deleteShopifyDiscountById: automatic delete failed, trying code delete", automaticErr?.message ?? automaticErr);
   }
 
   await adminGraphql(shopDomain, accessToken, deleteCodeMutation, { id });
@@ -339,35 +369,61 @@ const setShopifyDiscountActiveState = async ({
 // ---------- BASIC MIN-AMOUNT FREE GIFT DISCOUNT ----------
 
 const buildMinAmountAutomaticInput = (rule, giftVariantId) => {
-  const title = `CartLift: Cart Drawer & Upsell Free gift ${rule.minPurchase || ""}`.trim();
+  const triggerType =
+    String(rule.triggerType || "amount").toLowerCase() === "quantity"
+      ? "quantity"
+      : "amount";
   const minPurchaseValue = Number(rule.minPurchase) || 0;
+  const minQuantityValue = Math.floor(Number(rule.minQuantity) || 0);
   const minSubtotal = minPurchaseValue > 0 ? minPurchaseValue.toFixed(2) : null;
+  const minQuantity = minQuantityValue > 0 ? String(minQuantityValue) : null;
 
-  const qtyValue = Math.max(Number(rule.qty ?? "1") || 0, 0);
+  if (triggerType === "amount" && !minSubtotal) {
+    throw new Error("Min purchase must be greater than zero for free product discounts.");
+  }
+  if (triggerType === "quantity" && !minQuantity) {
+    throw new Error("Min quantity must be greater than zero for free product discounts.");
+  }
+
+  const title =
+    triggerType === "quantity"
+      ? `CartLift: Cart Drawer & Upsell Free gift >= ${minQuantity} items`
+      : `CartLift: Cart Drawer & Upsell Free gift >= ${minSubtotal}`;
+
+  // qty is the gift quantity; triggerType decides the cart threshold.
+  const giftQty = Math.max(Number(rule.qty ?? "1") || 1, 1);
   const limitValue = Math.max(Number(rule.limitPerOrder ?? "0") || 0, 0);
+  const startsAt = rule.startsAt ? new Date(rule.startsAt) : new Date();
+  const endsAt = rule.endsAt ? new Date(rule.endsAt) : null;
 
-  const minimumRequirement = {};
+  const minimumRequirement =
+    triggerType === "quantity"
+      ? {
+          quantity: {
+            greaterThanOrEqualToQuantity: minQuantity,
+          },
+        }
+      : {
+          subtotal: {
+            greaterThanOrEqualToSubtotal: minSubtotal,
+          },
+        };
 
-  if (minSubtotal) {
-    minimumRequirement.subtotal = {
-      greaterThanOrEqualToSubtotal: minSubtotal,
-    };
-  }
-
-  if (qtyValue) {
-    minimumRequirement.quantity = {
-      greaterThanOrEqualToQuantity: String(Math.max(1, qtyValue)),
-    };
-  }
-
-  // IMPORTANT: use DiscountItemsInput.products.productVariantsToAdd
+  // Use discountOnQuantity so only the exact gift qty gets 100% off,
+  // not every unit of that variant in the cart (which percentage:1 would do)
   const payload = {
-    title: title || "CartLift: Cart Drawer & Upsell Free gift",
-    startsAt: new Date().toISOString(),
+    title,
+    startsAt: Number.isNaN(startsAt.getTime())
+      ? new Date().toISOString()
+      : startsAt.toISOString(),
     customerSelection: { all: true },
-    destinationSelection: { all: true },
     customerGets: {
-      value: { percentage: 1 },
+      value: {
+        discountOnQuantity: {
+          quantity: String(giftQty),
+          effect: { percentage: 1 },
+        },
+      },
       items: {
         products: {
           productVariantsToAdd: giftVariantId ? [giftVariantId] : [],
@@ -381,13 +437,15 @@ const buildMinAmountAutomaticInput = (rule, giftVariantId) => {
     },
   };
 
-  if (Object.keys(minimumRequirement).length) {
-    payload.minimumRequirement = minimumRequirement;
-  }
+  payload.minimumRequirement = minimumRequirement;
 
   if (limitValue > 0) {
     payload.usageLimit = limitValue;
     payload.usesPerOrderLimit = String(limitValue);
+  }
+
+  if (endsAt && !Number.isNaN(endsAt.getTime())) {
+    payload.endsAt = endsAt.toISOString();
   }
 
   return payload;
@@ -456,11 +514,23 @@ const buildBxgyDiscountInput = (
   productIds,
   giftVariantId,
 ) => {
+  const triggerType =
+    String(rule.triggerType || "amount").toLowerCase() === "quantity"
+      ? "quantity"
+      : "amount";
   const minPurchaseValue = Number(rule.minPurchase ?? "");
-  if (Number.isNaN(minPurchaseValue) || minPurchaseValue <= 0) {
-    throw new Error(
-      "Min purchase must be greater than zero for free product discounts.",
-    );
+  const minQuantityValue = Number(rule.minQuantity ?? "");
+  if (
+    triggerType === "amount" &&
+    (Number.isNaN(minPurchaseValue) || minPurchaseValue <= 0)
+  ) {
+    throw new Error("Min purchase must be greater than zero for free product discounts.");
+  }
+  if (
+    triggerType === "quantity" &&
+    (Number.isNaN(minQuantityValue) || minQuantityValue <= 0)
+  ) {
+    throw new Error("Min quantity must be greater than zero for free product discounts.");
   }
 
   if (!giftVariantId) {
@@ -468,11 +538,14 @@ const buildBxgyDiscountInput = (
   }
 
   const qtyValue = Math.max(Number(rule.qty ?? "1") || 1, 1);
+  const startsAt = rule.startsAt ? new Date(rule.startsAt) : new Date();
+  const endsAt = rule.endsAt ? new Date(rule.endsAt) : null;
 
   const customerBuys = {
-    value: {
-      amount: minPurchaseValue.toFixed(2),
-    },
+    value:
+      triggerType === "quantity"
+        ? { quantity: String(Math.max(1, Math.floor(minQuantityValue))) }
+        : { amount: minPurchaseValue.toFixed(2) },
   };
 
   // Attach "buys" to all products via collection or product IDs
@@ -492,8 +565,16 @@ const buildBxgyDiscountInput = (
 
   // IMPORTANT: customerGets.items must use DiscountItemsInput.products.productVariantsToAdd
   return {
-    title: `CartLift: Cart Drawer & Upsell Free gift >= $${minPurchaseValue}`,
-    startsAt: new Date().toISOString(),
+    title:
+      triggerType === "quantity"
+        ? `CartLift: Cart Drawer & Upsell Free gift >= ${Math.max(1, Math.floor(minQuantityValue))} items`
+        : `CartLift: Cart Drawer & Upsell Free gift >= $${minPurchaseValue}`,
+    startsAt: Number.isNaN(startsAt.getTime())
+      ? new Date().toISOString()
+      : startsAt.toISOString(),
+    ...(endsAt && !Number.isNaN(endsAt.getTime())
+      ? { endsAt: endsAt.toISOString() }
+      : {}),
     combinesWith: {
       orderDiscounts: true,
       productDiscounts: false,
@@ -544,18 +625,6 @@ const syncSingleBxgyDiscount = async (params) => {
     return { id: existingDiscountId ?? null };
   }
 
-  if (existingDiscountId) {
-    try {
-      await deleteShopifyDiscountById(
-        shopDomain,
-        accessToken,
-        existingDiscountId,
-      );
-    } catch (err) {
-      logger.warn("Failed to delete existing free product discount", err);
-    }
-  }
-
   const giftVariantId = await resolveGiftVariantId(
     shopDomain,
     accessToken,
@@ -569,14 +638,42 @@ const syncSingleBxgyDiscount = async (params) => {
     giftVariantId,
   );
 
-  const data = await adminGraphql(
-    shopDomain,
-    accessToken,
-    BXGY_DISCOUNT_MUTATION,
-    { automaticBxgyDiscount: input },
-  );
+  const create = async () =>
+    adminGraphql(
+      shopDomain,
+      accessToken,
+      BXGY_DISCOUNT_MUTATION,
+      { automaticBxgyDiscount: input },
+    );
+
+  const update = async () =>
+    adminGraphql(
+      shopDomain,
+      accessToken,
+      BXGY_DISCOUNT_UPDATE_MUTATION,
+      {
+        id: existingDiscountId,
+        automaticBxgyDiscount: input,
+      },
+    );
+
+  const data = existingDiscountId
+    ? await update().catch(async (err) => {
+      logger.warn(
+        "Failed to update existing free product discount, creating replacement",
+        err,
+      );
+      await deleteShopifyDiscountById(
+        shopDomain,
+        accessToken,
+        existingDiscountId,
+      );
+      return create();
+    })
+    : await create();
 
   const nextId =
+    data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id ||
     data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id;
 
   if (!nextId) {
@@ -667,9 +764,13 @@ export const syncFreeProductDiscountsToShopify = async (params) => {
         rule: {
           bonusProductId: rule.bonus ?? null,
           minPurchase: rule.minPurchase ?? null,
+          triggerType: rule.triggerType ?? "amount",
+          minQuantity: rule.minQuantity ?? null,
           qty: rule.qty ?? null,
           limitPerOrder: rule.limit ?? null,
           enabled: Boolean(rule.enabled),
+          startsAt: rule.startsAt ?? null,
+          endsAt: rule.endsAt ?? null,
         },
         existingDiscountId: existingDiscountIds[index] ?? null,
         collectionId: allProductsCollectionId,

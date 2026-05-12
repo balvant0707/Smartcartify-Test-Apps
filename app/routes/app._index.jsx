@@ -43,6 +43,19 @@ s-section::part(heading),
 s-heading {
   font-size: 14px !important;
 }
+.dashboard-feature-card,
+.dashboard-app-card,
+.dashboard-status-card,
+.dashboard-shortcuts-card {
+  border: 1px solid #dcdfe4;
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+.dashboard-feature-card:hover,
+.dashboard-app-card:hover {
+  border-color: #b8c4d0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
 `;
 
 const EMBED_BLOCK_HANDLE = "smart-block"; // ✅ your blocks/smart-block.liquid
@@ -64,7 +77,7 @@ async function getMainThemeId(admin) {
   const res = await admin.graphql(
     `#graphql
     query Themes {
-      themes(first: 50) {
+      themes(first: 250) {
         nodes { id role }
       }
     }`
@@ -148,8 +161,8 @@ async function getSettingsData(admin, session, themeId) {
     if (raw !== null && raw !== undefined) {
       return raw;
     }
-  } catch {
-    // Swallow so REST fallback can run.
+  } catch (err) {
+    console.warn("[app._index] GraphQL asset read failed, trying REST fallback:", err?.message);
   }
 
   return getSettingsDataViaRestAPI(session, themeId);
@@ -336,26 +349,21 @@ export const action = async ({ request }) => {
   const comment = commentRaw ? commentRaw.slice(0, 2000) : null;
   const now = new Date();
 
-  const updateResult = await prisma.shop.updateMany({
+  await prisma.shop.upsert({
     where: { shop },
-    data: {
+    update: {
+      reviewSubmittedAt: now,
+      reviewRating: rating,
+      reviewComment: comment,
+    },
+    create: {
+      shop,
+      installed: true,
       reviewSubmittedAt: now,
       reviewRating: rating,
       reviewComment: comment,
     },
   });
-
-  if (updateResult.count === 0) {
-    await prisma.shop.create({
-      data: {
-        shop,
-        installed: true,
-        reviewSubmittedAt: now,
-        reviewRating: rating,
-        reviewComment: comment,
-      },
-    });
-  }
 
   return json({ ok: true });
 };
@@ -646,14 +654,11 @@ export default function Index() {
 
       <s-section>
         <s-box
+          className="dashboard-status-card"
           padding="base"
           background="white"
           borderWidth="base"
-          borderRadius="none"
-          style={{
-            boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)",
-            background: "#f8fafc",
-          }}
+          borderRadius="base"
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -676,34 +681,26 @@ export default function Index() {
               </s-button>
             </div>
 
-            <p style={{ margin: 0, color: "rgba(15,23,42,0.75)", fontSize: 12, lineHeight: 1.65 }}>
+            <p style={{ margin: 0, color: "#5c5f62", fontSize: 12, lineHeight: 1.65 }}>
               You will be redirected to the Shopify theme editor, where you can enable CartLift: Cart Drawer & Upsell. Make sure to save your changes after enabling it.
             </p>
           </div>
         </s-box>
       </s-section>
       <s-section heading="What you can orchestrate">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: "18px",
-            alignItems: "stretch",
-          }}
-        >
+        <div className="app-dashboard-grid">
           {featureCards.map((card) => (
             <s-box
               key={card.title}
+              className="dashboard-feature-card"
               padding="base"
               borderWidth="base"
-              background="subdued"
-              shadow="raised"
+              background="white"
               style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: "12px",
-                minHeight: "210px",
-                backgroundImage: "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)",
+                minHeight: "190px",
               }}
             >
               <div style={{ display: "flex", alignItems: "center" }}>
@@ -731,9 +728,9 @@ export default function Index() {
                     }}
                   />
                 </div>
-                <text style={{ fontSize: "14px", fontWeight: "700" }}>
+                <span style={{ fontSize: "14px", fontWeight: "700", color: "#202223" }}>
                   {card.title}
-                </text>
+                </span>
               </div>
 
               <div
@@ -751,7 +748,7 @@ export default function Index() {
               <s-button
                 href={card.href}
                 variant="primary"
-                style={{ backgroundColor: "#2C7A7B", color: "#ffffff", borderRadius: 4 }}
+                style={{ backgroundColor: "#1f2937", color: "#ffffff", borderRadius: 4 }}
               >
                 Configure
               </s-button>
@@ -762,10 +759,10 @@ export default function Index() {
 
       <s-section heading="Quick shortcuts">
         <s-box
+          className="dashboard-shortcuts-card"
           padding="base"
           background="white"
           borderWidth="base"
-          style={{ boxShadow: "0 10px 35px rgba(15, 23, 42, 0.08)" }}
         >
           <div
             style={{
@@ -827,21 +824,14 @@ export default function Index() {
       </s-section>
 
       <s-section heading="Recommended Our Growth Apps">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: "18px",
-            alignItems: "stretch",
-          }}
-        >
+        <div className="app-dashboard-grid">
           {dashboardApps.map((app) => (
             <s-box
               key={app.title}
+              className="dashboard-app-card"
               padding="base"
               borderWidth="base"
               background="white"
-              shadow="raised"
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -964,7 +954,7 @@ export function ErrorBoundary() {
   const error = useRouteError();
   return (
     <Page title="Error">
-      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
+      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="100" padding="400">
         <Text as="h2" variant="headingMd">Something went wrong</Text>
         <Text tone="subdued">
           We encountered an error loading the dashboard. Please try refreshing or contact support if the issue persists.

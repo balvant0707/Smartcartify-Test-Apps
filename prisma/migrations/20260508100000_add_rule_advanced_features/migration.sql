@@ -1,0 +1,53 @@
+ALTER TABLE `shippingrule`
+  ADD COLUMN `priority` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `customerTarget` VARCHAR(32) NOT NULL DEFAULT 'all',
+  ADD COLUMN `customerTags` LONGTEXT NULL,
+  ADD COLUMN `cartConditions` LONGTEXT NULL,
+  ADD COLUMN `templateKey` VARCHAR(64) NULL,
+  ADD COLUMN `abTestEnabled` BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN `abTestVariant` VARCHAR(32) NULL,
+  ADD COLUMN `translations` LONGTEXT NULL,
+  ADD COLUMN `analyticsImpressions` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `analyticsConversions` INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE `discountrule`
+  ADD COLUMN `priority` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `customerTarget` VARCHAR(32) NOT NULL DEFAULT 'all',
+  ADD COLUMN `customerTags` LONGTEXT NULL,
+  ADD COLUMN `cartConditions` LONGTEXT NULL,
+  ADD COLUMN `templateKey` VARCHAR(64) NULL,
+  ADD COLUMN `abTestEnabled` BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN `abTestVariant` VARCHAR(32) NULL,
+  ADD COLUMN `translations` LONGTEXT NULL,
+  ADD COLUMN `analyticsImpressions` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `analyticsConversions` INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE `freegiftrule`
+  ADD COLUMN `priority` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `customerTarget` VARCHAR(32) NOT NULL DEFAULT 'all',
+  ADD COLUMN `customerTags` LONGTEXT NULL,
+  ADD COLUMN `cartConditions` LONGTEXT NULL,
+  ADD COLUMN `templateKey` VARCHAR(64) NULL,
+  ADD COLUMN `abTestEnabled` BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN `abTestVariant` VARCHAR(32) NULL,
+  ADD COLUMN `translations` LONGTEXT NULL,
+  ADD COLUMN `analyticsImpressions` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `analyticsConversions` INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE `bxgyrule`
+  ADD COLUMN `priority` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `customerTarget` VARCHAR(32) NOT NULL DEFAULT 'all',
+  ADD COLUMN `customerTags` LONGTEXT NULL,
+  ADD COLUMN `cartConditions` LONGTEXT NULL,
+  ADD COLUMN `templateKey` VARCHAR(64) NULL,
+  ADD COLUMN `abTestEnabled` BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN `abTestVariant` VARCHAR(32) NULL,
+  ADD COLUMN `translations` LONGTEXT NULL,
+  ADD COLUMN `analyticsImpressions` INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN `analyticsConversions` INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE `stylesettings`
+  ADD COLUMN `drawerAutoOpen` BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN `drawerPosition` VARCHAR(32) NOT NULL DEFAULT 'right',
+  ADD COLUMN `stickyCheckout` BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN `mobileLayout` VARCHAR(32) NOT NULL DEFAULT 'drawer';

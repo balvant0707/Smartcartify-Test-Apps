@@ -68,7 +68,19 @@ model ShippingRule {
   progressTextBelow         String?  @db.Text
   campaignName              String?  @db.VarChar(255)
   cartStepName              String?  @db.VarChar(255)
+  startsAt                  DateTime?
+  endsAt                    DateTime?
+  priority                  Int      @default(0)
+  customerTarget            String   @default("all") @db.VarChar(32)
+  customerTags              String?  @db.LongText
+  templateKey               String?  @db.VarChar(64)
+  abTestEnabled             Boolean  @default(false)
+  abTestVariant             String?  @db.VarChar(32)
+  translations              String?  @db.LongText
+  analyticsImpressions      Int      @default(0)
+  analyticsConversions      Int      @default(0)
 
+  @@index([shop])
   @@map("shippingrule")
 }
 
@@ -78,6 +90,8 @@ model DiscountRule {
   type                  String
   value                 String?
   minPurchase           String?
+  triggerType           String   @default("amount") @db.VarChar(32)
+  minQuantity           String?
   enabled               Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -97,7 +111,19 @@ model DiscountRule {
   condition             String?  @db.VarChar(255)
   rewardType            String   @default("percent")
   scope                 String?  @db.VarChar(255)
+  startsAt              DateTime?
+  endsAt                DateTime?
+  priority              Int      @default(0)
+  customerTarget        String   @default("all") @db.VarChar(32)
+  customerTags          String?  @db.LongText
+  templateKey           String?  @db.VarChar(64)
+  abTestEnabled         Boolean  @default(false)
+  abTestVariant         String?  @db.VarChar(32)
+  translations          String?  @db.LongText
+  analyticsImpressions  Int      @default(0)
+  analyticsConversions  Int      @default(0)
 
+  @@index([shop])
   @@map("discountrule")
 }
 
@@ -106,6 +132,8 @@ model FreeGiftRule {
   shop                        String
   trigger                     String
   minPurchase                 String?
+  triggerType                 String   @default("amount") @db.VarChar(32)
+  minQuantity                 String?
   qty                         String?
   limitPerOrder               String?
   enabled                     Boolean  @default(false)
@@ -122,7 +150,19 @@ model FreeGiftRule {
   progressTextBelow           String?  @db.Text
   campaignName                String?  @db.VarChar(255)
   cartStepName                String?  @db.VarChar(255)
+  startsAt                    DateTime?
+  endsAt                      DateTime?
+  priority                    Int      @default(0)
+  customerTarget              String   @default("all") @db.VarChar(32)
+  customerTags                String?  @db.LongText
+  templateKey                 String?  @db.VarChar(64)
+  abTestEnabled               Boolean  @default(false)
+  abTestVariant               String?  @db.VarChar(32)
+  translations                String?  @db.LongText
+  analyticsImpressions        Int      @default(0)
+  analyticsConversions        Int      @default(0)
 
+  @@index([shop])
   @@map("freegiftrule")
 }
 
@@ -148,7 +188,19 @@ model BxgyRule {
   afterOfferUnlockMessage  String?
   beforeOfferUnlockMessage String?
   campaignName             String?  @db.VarChar(255)
+  startsAt                 DateTime?
+  endsAt                   DateTime?
+  priority                 Int      @default(0)
+  customerTarget           String   @default("all") @db.VarChar(32)
+  customerTags             String?  @db.LongText
+  templateKey              String?  @db.VarChar(64)
+  abTestEnabled            Boolean  @default(false)
+  abTestVariant            String?  @db.VarChar(32)
+  translations             String?  @db.LongText
+  analyticsImpressions     Int      @default(0)
+  analyticsConversions     Int      @default(0)
 
+  @@index([shop])
   @@map("bxgyrule")
 }
 
@@ -164,10 +216,11 @@ model StyleSettings {
   progress                 String
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
-  cartDrawerBackground     String?
-  cartDrawerTextColor      String?
-  cartDrawerHeaderColor    String?
-  discountCodeApply        Boolean  @default(false)
+    cartDrawerBackground     String?
+    cartDrawerTextColor      String?
+    cartDrawerHeaderColor    String?
+    cartIconUrl              String?
+    discountCodeApply        Boolean  @default(false)
   cartDrawerImage          String?
   cartDrawerBackgroundMode String   @default("color")
   borderColor              String?
@@ -177,7 +230,12 @@ model StyleSettings {
   announcementBarTextColor       String?
   buttonLabelColor               String?
   iconColor                      String?
+  drawerAutoOpen                 Boolean @default(true)
+  drawerPosition                 String  @default("right") @db.VarChar(32)
+  stickyCheckout                 Boolean @default(true)
+  mobileLayout                   String  @default("drawer") @db.VarChar(32)
 
+  @@index([shop])
   @@map("stylesettings")
 }
 

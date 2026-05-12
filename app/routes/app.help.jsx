@@ -63,11 +63,12 @@ export default function Help() {
     <Page title="Help & Support">
       <div
         style={{
-          background:
-            "linear-gradient(110deg, #b9d7ff 0%, #e7b0c4 45%, #f8b18f 100%)",
-          borderRadius: "0px",
+          background: "#ffffff",
+          border: "1px solid #dcdfe4",
+          borderRadius: 4,
           padding: "20px",
           marginBottom: "16px",
+          boxShadow: "0 1px 0 rgba(0, 0, 0, 0.04)",
         }}
       >
         <BlockStack gap="200">
@@ -91,9 +92,9 @@ export default function Help() {
 
       <Layout>
         <Layout.Section>
-          <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
+          <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="100" padding="300">
             <BlockStack gap="200">
-              <div style={{ borderTop: "1px solid #e1e3e5", paddingTop: "12px" }}>
+              <div>
                 <Text as="h4" variant="headingSm">
                   Prefer email?
                 </Text>
@@ -114,7 +115,7 @@ export function ErrorBoundary() {
   const error = useRouteError();
   return (
     <Page title="Error">
-      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
+      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="100" padding="400">
         <Text as="h2" variant="headingMd">Something went wrong</Text>
         <Text tone="subdued">
           We encountered an error loading the help page. Please try refreshing or contact support if the issue persists.

@@ -9,7 +9,8 @@
       "Bash(npx prisma:*)",
       "mcp__shopify-dev-mcp__validate_graphql_codeblocks",
       "Bash(npm run:*)",
-      "Bash(node -e \"const icons = require\\(''@shopify/polaris-icons''\\); [''DeliveryIcon'',''DiscountIcon'',''GiftCardIcon'',''CodeIcon'',''TransferInternalIcon'',''ProductIcon'',''ThemeIcon''].forEach\\(n => console.log\\(n, !!icons[n]\\)\\)\")"
+      "Bash(node -e \"const icons = require\\(''@shopify/polaris-icons''\\); [''DeliveryIcon'',''DiscountIcon'',''GiftCardIcon'',''CodeIcon'',''TransferInternalIcon'',''ProductIcon'',''ThemeIcon''].forEach\\(n => console.log\\(n, !!icons[n]\\)\\)\")",
+      "Bash(node -e \"const { Prisma } = require\\('@prisma/client'\\); const fields = Prisma.DiscountRuleScalarFieldEnum; console.log\\(JSON.stringify\\(Object.keys\\(fields\\), null, 2\\)\\);\")"
     ]
   }
 }

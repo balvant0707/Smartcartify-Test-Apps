@@ -3,6 +3,7 @@ import { Page, Box, Text } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import logger from "../lib/logger.server.js";
+import { PLANS } from "../lib/plans.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -29,7 +30,7 @@ export async function loader({ request }) {
 
   let active = null;
 
-  // ✅ Retry few times (Shopify side delay)
+  // Retry up to 5 times with 500ms gaps — Shopify activation has a short delay
   for (let i = 0; i < 5; i++) {
     const resp = await admin.graphql(query);
     const json = await resp.json();
@@ -40,14 +41,22 @@ export async function loader({ request }) {
     logger.log("Billing return attempt", i + 1, "activeSubscriptions:", list);
 
     if (active) break;
-    await sleep(700);
+    if (i < 4) await sleep(500);
   }
+
+  // Resolve planId by matching the Shopify subscription name against our PLANS config
+  const resolvePlanId = (subscriptionName) => {
+    if (!subscriptionName) return "monthly";
+    const lower = subscriptionName.toLowerCase();
+    const matched = PLANS.find((p) => p.name.toLowerCase() === lower || lower.includes(p.id));
+    return matched?.id ?? "monthly";
+  };
 
   if (active) {
     await prisma.planSubscription.upsert({
       where: { shop },
       update: {
-        planId: active.name.toLowerCase().includes("yearly") ? "yearly" : "monthly",
+        planId: resolvePlanId(active.name),
         planName: active.name,
         status: "ACTIVE",
         shopifySubGid: active.id,
@@ -57,7 +66,7 @@ export async function loader({ request }) {
       },
       create: {
         shop,
-        planId: active.name.toLowerCase().includes("yearly") ? "yearly" : "monthly",
+        planId: resolvePlanId(active.name),
         planName: active.name,
         status: "ACTIVE",
         shopifySubGid: active.id,
@@ -68,11 +77,13 @@ export async function loader({ request }) {
     });
   } else {
     logger.log("No ACTIVE subscription found yet for shop:", shop);
-    // Optional: keep PENDING if not found
-    await prisma.planSubscription.update({
+    await prisma.planSubscription.upsert({
       where: { shop },
-      data: { status: "PENDING" },
-    }).catch(() => {});
+      update: { status: "PENDING" },
+      create: { shop, status: "PENDING" },
+    }).catch((err) => {
+      logger.warn("Failed to set PENDING subscription for shop:", shop, err?.message);
+    });
   }
 
   const back =
@@ -93,7 +104,7 @@ export function ErrorBoundary() {
   const error = useRouteError();
   return (
     <Page title="Billing Error">
-      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
+      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="100" padding="400">
         <Text as="h2" variant="headingMd">Billing Error</Text>
         <Text tone="subdued">
           We encountered an error processing your billing request. Please try again or contact support if the issue persists.

@@ -1,6 +1,9 @@
 // app/routes/app.rules.jsx
 import React from "react";
 import { useLoaderData, useLocation, useNavigate, useRouteError } from "react-router";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import {
   Page,
   Layout,
@@ -24,6 +27,7 @@ import {
   Toast,
   Spinner,
   Icon,
+  DropZone,
 } from "@shopify/polaris";
 
 import {
@@ -41,6 +45,8 @@ import {
   MagicIcon,
   CheckSmallIcon,
   CartIcon,
+  PlusCircleIcon,
+  MinusCircleIcon,
 } from "@shopify/polaris-icons";
 import { authenticate, apiVersion } from "../shopify.server";
 import prisma from "../db.server";
@@ -49,18 +55,318 @@ import {
   syncFreeProductDiscountsToShopify,
   resolveAllProductsCollectionId,
 } from "../lib/minAmountFreeGift.server.js";
-const logger = console;
+const logger = { log: console.log.bind(console), warn: console.warn.bind(console), error: console.error.bind(console) };
 
-// Client-side conditional logging (only logs in development)
-const isDev = typeof window !== "undefined" ? false : process.env.NODE_ENV !== "production";
-const clientLog = (...args) => { if (isDev) logger.log(...args); };
-const clientWarn = (...args) => { if (isDev) logger.warn(...args); };
-const clientError = (...args) => { logger.error(...args); }; // Always log errors
+// Client-side conditional logging: window is defined in browser, not on server
+const isDev = typeof window === "undefined"
+  ? process.env.NODE_ENV !== "production"
+  : false;
+const clientLog = (...args) => { if (isDev) console.log(...args); };
+const clientWarn = (...args) => { if (isDev) console.warn(...args); };
+const clientError = (...args) => { console.error(...args); };
+
+const CART_ICON_UPLOAD_DIR = path.join(
+  process.cwd(),
+  "public",
+  "uploads",
+  "cart-icons"
+);
+const APP_PUBLIC_URL = (
+  process.env.APP_URL ||
+  process.env.SHOPIFY_APP_URL ||
+  ""
+).replace(/\/+$/, "");
+const CART_ICON_PUBLIC_PATH = "/uploads/cart-icons";
+const CART_ICON_MAX_BYTES = 2 * 1024 * 1024;
+const CART_ICON_ALLOWED_TYPES = new Map([
+  ["image/png", "png"],
+  ["image/jpeg", "jpg"],
+  ["image/webp", "webp"],
+  ["image/svg+xml", "svg"],
+  ["image/gif", "gif"],
+]);
+
+const uploadCartIconFile = async (file) => {
+  if (!file || typeof file.arrayBuffer !== "function") {
+    throw new Error("Please select an image file.");
+  }
+
+  const type = String(file.type || "").toLowerCase();
+  const ext = CART_ICON_ALLOWED_TYPES.get(type);
+  if (!ext) {
+    throw new Error("Upload a PNG, JPG, WebP, GIF, or SVG image.");
+  }
+
+  if (Number(file.size || 0) > CART_ICON_MAX_BYTES) {
+    throw new Error("Cart icon image must be 2 MB or smaller.");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  if (!buffer.length) {
+    throw new Error("The selected image is empty.");
+  }
+
+  await mkdir(CART_ICON_UPLOAD_DIR, { recursive: true });
+  const filename = `${randomUUID()}.${ext}`;
+  await writeFile(path.join(CART_ICON_UPLOAD_DIR, filename), buffer);
+  const publicPath = `${CART_ICON_PUBLIC_PATH}/${filename}`;
+  return APP_PUBLIC_URL ? `${APP_PUBLIC_URL}${publicPath}` : publicPath;
+};
 
 const LEFT_ALIGN_BUTTON_CSS = `
 .Polaris-Button--textAlignCenter {
   justify-content: left;
   text-align: left;
+}
+`;
+
+const RULES_PAGE_CSS = `
+.rules-page-shell {
+  padding-block-start: 12px;
+}
+
+.rules-workspace {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.rules-sidebar {
+  position: sticky;
+  top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.rules-nav-card,
+.rules-help-card,
+.rules-main-card,
+.rules-rule-card > .Polaris-Card {
+  border: 1px solid #dcdfe4;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  background: #ffffff;
+}
+
+.rules-nav-list {
+  display: grid;
+  gap: 6px;
+}
+
+.rules-tab-button {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #303030;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.rules-tab-button:hover {
+  background: #f6f6f7;
+}
+
+.rules-tab-button--active {
+  background: #eff6ff;
+  border-color: #b7d7ff;
+  color: #0b3b75;
+}
+
+.rules-tab-button__icon {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rules-tab-button__icon .Polaris-Icon {
+  width: 18px;
+  height: 18px;
+}
+
+.rules-help-card {
+  padding: 12px;
+  border-radius: 4px;
+  display: grid;
+  gap: 8px;
+}
+
+.rules-help-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #c9cccf;
+  color: #202223;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.rules-help-link:hover {
+  background: #f6f6f7;
+}
+
+.rules-panel-layout {
+  min-width: 0;
+}
+
+.rules-panel-layout--main-column-width {
+  max-width: calc(100% - 356px);
+}
+
+.rules-panel-layout--with-preview {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+  align-items: start;
+}
+
+.rules-rule-card {
+  overflow: hidden;
+}
+
+.rules-rule-card + .rules-rule-card {
+  margin-top: 10px;
+}
+
+.rules-rule-body {
+  display: block;
+}
+
+.rules-rule-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.rules-rule-title {
+  min-width: 0;
+}
+
+.rules-rule-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.rules-field-panel {
+  padding: 10px;
+  border: 1px solid #e3e5e8;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.rules-field-panel--inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.rules-field-panel--grid {
+  display: grid;
+  gap: 12px;
+  align-items: end;
+  max-width: 100%;
+}
+
+.rules-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.rules-advanced-grid__wide {
+  grid-column: 1 / -1;
+}
+
+.rules-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  margin-bottom: 2px;
+}
+
+@media (max-width: 1100px) {
+  .rules-workspace,
+  .rules-panel-layout--with-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .rules-panel-layout--main-column-width {
+    max-width: none;
+  }
+
+  .rules-sidebar {
+    position: static;
+  }
+
+  .rules-nav-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .rules-nav-list {
+    grid-template-columns: 1fr;
+  }
+
+  .rules-rule-header {
+    grid-template-columns: 1fr;
+  }
+
+  .rules-rule-actions {
+    justify-content: flex-start;
+  }
+
+  .rules-field-panel--grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .rules-advanced-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rule-accordion-btn:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+.rule-accordion-btn__content {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rule-accordion-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  width: 24px;
+  flex-shrink: 0;
 }
 `;
 
@@ -79,8 +385,20 @@ const formatCurrency = (value = 0, currency = "USD", locale = "en-US") => {
   }
 };
 
-// Legacy helper for backward compatibility (will use shop currency from context)
-const fmtINR = (value = 0, currency = "USD") => formatCurrency(value, currency);
+const getCurrencySymbol = (currency = "USD", locale = "en-US") => {
+  try {
+    const parts = new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).formatToParts(0);
+    return parts.find((part) => part.type === "currency")?.value || currency;
+  } catch {
+    return currency;
+  }
+};
+
+const fmtMoney = (value = 0, currency = "USD") => formatCurrency(value, currency);
 
 const PROGRESS_TOKEN_PATTERN = /\{\{\s*(\w+)\s*\}\}/g;
 const HIGHLIGHT_TOKENS = new Set(["discount", "discount_code"]);
@@ -221,13 +539,17 @@ const gqlRequest = async (session, query, variables = {}, authToken, shopDomainO
 
 
 // Use formatCurrency for all currency display - supports shop currency
-const fmtINRPlain = (n, currency = "USD") => formatCurrency(n, currency);
+const fmtMoneyPlain = (n, currency = "USD") => formatCurrency(n, currency);
 
 const STEP_SLOTS = ["step1", "step2", "step3", "step4"];
 const normalizeStepSlot = (value) => {
   if (value === undefined || value === null) return "";
   const text = String(value).trim().toLowerCase();
   if (STEP_SLOTS.includes(text)) return text;
+  const compact = text.replace(/[_-]/g, "").replace(/\s+/g, "");
+  if (STEP_SLOTS.includes(compact)) return compact;
+  const cartStepMatch = compact.match(/^cartstep0*([1-4])$/);
+  if (cartStepMatch) return `step${cartStepMatch[1]}`;
   const match = text.match(/step\s*([1-4])$/);
   if (match) return `step${match[1]}`;
   const numericMatch = text.match(/([1-4])/);
@@ -370,18 +692,50 @@ const getDiscountMinPurchase = (r) =>
     r.spendAmount
   );
 
+const normalizeTriggerType = (value) =>
+  String(value || "amount").toLowerCase() === "quantity"
+    ? "quantity"
+    : "amount";
+
+const getMinQuantity = (rule = {}) =>
+  pickNumber(rule.minQuantity, rule.min_quantity, rule.quantityRequired);
+
+const getRuleTriggerThreshold = (rule = {}) => {
+  const triggerType = normalizeTriggerType(rule.triggerType);
+  const value =
+    triggerType === "quantity"
+      ? getMinQuantity(rule)
+      : getDiscountMinPurchase(rule);
+  return { triggerType, value };
+};
+
+const formatQuantityPreviewValue = (value) => {
+  const qty = Math.max(0, Math.ceil(Number(value) || 0));
+  return `${qty} ${qty === 1 ? "item" : "items"}`;
+};
+
+const formatTriggerPreviewValue = (rule, value, currency = "USD") =>
+  normalizeTriggerType(rule?.triggerType) === "quantity"
+    ? formatQuantityPreviewValue(value)
+    : fmtMoney(value, currency);
+
 const getDiscountValue = (r) =>
   pickNumber(r.value, r.discountValue, r.percent, r.percentage, r.amountOff);
 
-const buildDiscountOptionText = (r) => {
-  const min = getDiscountMinPurchase(r);
+const buildDiscountOptionText = (r, currency = "USD") => {
+  const { triggerType, value: min } = getRuleTriggerThreshold(r);
   const val = getDiscountValue(r);
-  const minTxt = min !== null ? `Min ${fmtINRPlain(min)} ` : "Min ";
+  const minTxt =
+    min !== null
+      ? triggerType === "quantity"
+        ? `Min ${min} qty `
+        : `Min ${fmtMoneyPlain(min, currency)} `
+      : "Min ";
   const valueType = (r.valueType || "percent").toString().toLowerCase();
   const valTxt =
     val !== null
       ? valueType === "amount"
-        ? `off ${fmtINR(val)} Discount`
+        ? `off ${fmtMoney(val, currency)} Discount`
         : `off ${val}% Discount`
       : "off Discount";
   return `${minTxt}${valTxt}`;
@@ -390,19 +744,19 @@ const buildDiscountOptionText = (r) => {
 const getDiscountValueMode = (rule) =>
   String(rule?.valueType || "percent").toLowerCase();
 
-const formatDiscountValueDisplay = (rule) => {
+const formatDiscountValueDisplay = (rule, currency = "USD") => {
   const value = getDiscountValue(rule);
   if (value === null) return null;
   return getDiscountValueMode(rule) === "amount"
-    ? `${fmtINR(value)} off`
+    ? `${fmtMoney(value, currency)} off`
     : `${value}% off`;
 };
 
-const formatDiscountStepLabelValue = (rule) => {
+const formatDiscountStepLabelValue = (rule, currency = "USD") => {
   const value = getDiscountValue(rule);
   if (value === null) return null;
   return getDiscountValueMode(rule) === "amount"
-    ? `${fmtINRPlain(value)} Discount`
+    ? `${fmtMoneyPlain(value, currency)} Discount`
     : `${value}% Discount`;
 };
 
@@ -419,16 +773,21 @@ const getFreeGiftMinPurchase = (r) =>
 const getFreeGiftQty = (r) =>
   pickNumber(r.qty, r.quantity, r.freeQty, r.giftQty, 1);
 
-const buildFreeGiftOptionText = (r) => {
-  const min = getFreeGiftMinPurchase(r);
+const buildFreeGiftOptionText = (r, currency = "USD") => {
+  const { triggerType, value: min } = getRuleTriggerThreshold(r);
   const qty = getFreeGiftQty(r);
-  const minTxt = min !== null ? `Min ${fmtINRPlain(min)} ` : "Min ";
+  const minTxt =
+    min !== null
+      ? triggerType === "quantity"
+        ? `Min ${min} qty `
+        : `Min ${fmtMoneyPlain(min, currency)} `
+      : "Min ";
   const qtyTxt =
     qty !== null ? `off ${qty} Free Product` : "off Free Product";
   return `${minTxt}${qtyTxt}`;
 };
 
-const buildFullOptionLabel = (type, rule) => {
+const buildFullOptionLabel = (type, rule, currency = "USD") => {
   if (!rule) return "None";
 
   if (type === "shipping") {
@@ -442,19 +801,19 @@ const buildFullOptionLabel = (type, rule) => {
       rule.minimumAmount,
       rule.spendAmount
     );
-    const minTxt = min !== null ? `Min ${fmtINRPlain(min)} - ` : "Min - ";
+    const minTxt = min !== null ? `Min ${fmtMoneyPlain(min, currency)} - ` : "Min - ";
     return `${minTxt}${getShippingText(rule)}`;
   }
 
-  if (type === "discount") return buildDiscountOptionText(rule);
-  if (type === "free") return buildFreeGiftOptionText(rule);
+  if (type === "discount") return buildDiscountOptionText(rule, currency);
+  if (type === "free") return buildFreeGiftOptionText(rule, currency);
   return "None";
 };
 
-const stepLabelForRule = (type, rule) => {
+const stepLabelForRule = (type, rule, currency = "USD") => {
   if (type === "shipping") return getShippingText(rule);
   if (type === "discount") {
-    const formatted = formatDiscountStepLabelValue(rule);
+    const formatted = formatDiscountStepLabelValue(rule, currency);
     return formatted || "Discount";
   }
   if (type === "free") return "Free Product";
@@ -543,6 +902,7 @@ const buildThemeFromStyles = (styles) => {
     cartDrawerHeaderColor: String(s.cartDrawerHeaderColor || "#111827"),
     discountCodeApply: Boolean(Number(s.discountCodeApply ?? 0)),
     cartDrawerImage: s.cartDrawerImage ? String(s.cartDrawerImage) : "",
+    cartIconUrl: s.cartIconUrl ? String(s.cartIconUrl) : "",
     cartDrawerBackgroundMode: String(
       s.cartDrawerBackgroundMode || DEFAULT_STYLE_SETTINGS.cartDrawerBackgroundMode
     ).toLowerCase(),
@@ -567,6 +927,10 @@ const buildThemeFromStyles = (styles) => {
     iconColor: String(
       s.iconColor || DEFAULT_STYLE_SETTINGS.iconColor || s.textColor || "#000000"
     ),
+    drawerAutoOpen: Boolean(s.drawerAutoOpen ?? DEFAULT_STYLE_SETTINGS.drawerAutoOpen),
+    drawerPosition: String(s.drawerPosition || DEFAULT_STYLE_SETTINGS.drawerPosition),
+    stickyCheckout: Boolean(s.stickyCheckout ?? DEFAULT_STYLE_SETTINGS.stickyCheckout),
+    mobileLayout: String(s.mobileLayout || DEFAULT_STYLE_SETTINGS.mobileLayout),
   };
 };
 
@@ -576,7 +940,7 @@ const deriveCartStepsFromRules = (
   freeRules = []
 ) => {
   const assignment = {};
-  const assignSlot = (type, rules) => {
+  const assignSelectedSlot = (type, rules) => {
     (Array.isArray(rules) ? rules : []).forEach((rule) => {
       const slot = normalizeStepSlot(rule?.cartStepName);
       if (!STEP_SLOTS.includes(slot)) return;
@@ -586,15 +950,15 @@ const deriveCartStepsFromRules = (
     });
   };
 
-  assignSlot("shipping", shippingRules);
   const eligibleDiscountRules = (Array.isArray(discountRules) ? discountRules : []).filter(
     (rule) => {
       const type = String(rule?.type ?? "").toLowerCase();
       return type === "automatic";
     }
   );
-  assignSlot("discount", eligibleDiscountRules);
-  assignSlot("free", freeRules);
+  assignSelectedSlot("shipping", shippingRules);
+  assignSelectedSlot("discount", eligibleDiscountRules);
+  assignSelectedSlot("free", freeRules);
   return STEP_SLOTS.map((slot) => assignment[slot] ?? "");
 };
 
@@ -634,6 +998,17 @@ const LOAD_RULES_QUERY = `
       iconChoice
       shopifyRateId
       shopifyMethodDefinitionId
+      startsAt
+      endsAt
+      priority
+      customerTarget
+      customerTags
+      templateKey
+      abTestEnabled
+      abTestVariant
+      translations
+      analyticsImpressions
+      analyticsConversions
     }
 
     discountRules(shop: $shop) {
@@ -643,6 +1018,8 @@ const LOAD_RULES_QUERY = `
       condition
       value
       minPurchase
+      triggerType
+      minQuantity
       iconChoice
       discountCode
       progressTextBefore
@@ -651,6 +1028,17 @@ const LOAD_RULES_QUERY = `
       campaignName
       codeCampaignName
       cartStepName
+      startsAt
+      endsAt
+      priority
+      customerTarget
+      customerTags
+      templateKey
+      abTestEnabled
+      abTestVariant
+      translations
+      analyticsImpressions
+      analyticsConversions
     }
 
     freeGiftRules(shop: $shop) {
@@ -658,6 +1046,8 @@ const LOAD_RULES_QUERY = `
       enabled
       trigger
       minPurchase
+      triggerType
+      minQuantity
       bonus
       qty
       limit
@@ -670,6 +1060,17 @@ const LOAD_RULES_QUERY = `
       progressTextBelow
       campaignName
       cartStepName
+      startsAt
+      endsAt
+      priority
+      customerTarget
+      customerTags
+      templateKey
+      abTestEnabled
+      abTestVariant
+      translations
+      analyticsImpressions
+      analyticsConversions
     }
 
     bxgyRules(shop: $shop) {
@@ -686,6 +1087,17 @@ const LOAD_RULES_QUERY = `
       beforeOfferUnlockMessage
       afterOfferUnlockMessage
       campaignName
+      startsAt
+      endsAt
+      priority
+      customerTarget
+      customerTags
+      templateKey
+      abTestEnabled
+      abTestVariant
+      translations
+      analyticsImpressions
+      analyticsConversions
 
     }
 
@@ -708,6 +1120,10 @@ const LOAD_RULES_QUERY = `
       announcementBarTextColor
       buttonLabelColor
       iconColor
+      drawerAutoOpen
+      drawerPosition
+      stickyCheckout
+      mobileLayout
     }
   }
 `;
@@ -842,7 +1258,10 @@ const createDefaultShippingRule = () => ({
   progressTextAfter: DEFAULT_STYLE_SETTINGS.progressTextAfter,
   progressTextBelow: DEFAULT_STYLE_SETTINGS.progressTextBelow,
   campaignName: "Free Shipping",
-  cartStepName: "",
+  cartStepName: "step1",
+  startsAt: null,
+  endsAt: null,
+  ...normalizeAdvancedRuleFields({}),
 });
 
 const createDefaultShippingRules = () => [createDefaultShippingRule()];
@@ -857,6 +1276,8 @@ const createDefaultDiscountRule = (overrides = {}) => {
     valueType: "percent",
     value: "10",
     minPurchase: "1000",
+    triggerType: "amount",
+    minQuantity: "2",
     iconChoice: "tag",
     scope: "all",
     appliesTo: { products: [], collections: [] },
@@ -872,6 +1293,9 @@ const createDefaultDiscountRule = (overrides = {}) => {
     codeCampaignName:
       normalizedType === "code" ? "Code Discount" : "",
     cartStepName: "",
+    startsAt: null,
+    endsAt: null,
+    ...normalizeAdvancedRuleFields({}),
     ...overrides,
   };
 };
@@ -887,6 +1311,8 @@ const createDefaultFreeRule = () => ({
   enabled: false,
   trigger: "payment_online",
   minPurchase: "3000",
+  triggerType: "amount",
+  minQuantity: "2",
   bonus: "",
   qty: "1",
   limit: "1",
@@ -900,6 +1326,9 @@ const createDefaultFreeRule = () => ({
   campaignName: "Free Product Rule",
   cartStepName: "",
   icon: null,
+  startsAt: null,
+  endsAt: null,
+  ...normalizeAdvancedRuleFields({}),
 });
 
 const createDefaultBxgyRule = () => ({
@@ -918,6 +1347,9 @@ const createDefaultBxgyRule = () => ({
   afterOfferUnlockMessage: DEFAULT_BXGY_CONTENT_TEXT.afterOfferUnlockMessage,
   icon: null,
   campaignName: "Buy X Get Y Rule",
+  startsAt: null,
+  endsAt: null,
+  ...normalizeAdvancedRuleFields({}),
 });
 
 const DEFAULT_MIN_AMOUNT_RULE = {
@@ -930,6 +1362,117 @@ const DEFAULT_MIN_AMOUNT_RULE = {
   minAmountFreeGiftDiscountId: null,
   id: null,
   allProductIds: [],
+};
+
+const DISCOUNT_RULE_SELECT = {
+  id: true,
+  shop: true,
+  type: true,
+  value: true,
+  minPurchase: true,
+  triggerType: true,
+  minQuantity: true,
+  enabled: true,
+  createdAt: true,
+  updatedAt: true,
+  iconChoice: true,
+  shopifyDiscountCodeId: true,
+  shopifyPriceRuleId: true,
+  discountCode: true,
+  progressTextBefore: true,
+  progressTextAfter: true,
+  progressTextBelow: true,
+  campaignName: true,
+  cartStepName: true,
+  codeCampaignName: true,
+  valueType: true,
+  appliesTo: true,
+  codeDiscountId: true,
+  condition: true,
+  rewardType: true,
+  scope: true,
+  startsAt: true,
+  endsAt: true,
+  priority: true,
+  customerTarget: true,
+  customerTags: true,
+  templateKey: true,
+  abTestEnabled: true,
+  abTestVariant: true,
+  translations: true,
+  analyticsImpressions: true,
+  analyticsConversions: true,
+};
+
+const FREE_GIFT_RULE_SELECT = {
+  id: true,
+  shop: true,
+  trigger: true,
+  minPurchase: true,
+  triggerType: true,
+  minQuantity: true,
+  qty: true,
+  limitPerOrder: true,
+  enabled: true,
+  createdAt: true,
+  updatedAt: true,
+  iconChoice: true,
+  bonusProductId: true,
+  freeProductDiscountID: true,
+  minAmountFreeGiftDiscountId: true,
+  minAmountShippingRateId: true,
+  allProductIds: true,
+  progressTextBefore: true,
+  progressTextAfter: true,
+  progressTextBelow: true,
+  campaignName: true,
+  cartStepName: true,
+  startsAt: true,
+  endsAt: true,
+  priority: true,
+  customerTarget: true,
+  customerTags: true,
+  templateKey: true,
+  abTestEnabled: true,
+  abTestVariant: true,
+  translations: true,
+  analyticsImpressions: true,
+  analyticsConversions: true,
+};
+
+const normalizeRawRuleRow = (row) => ({
+  ...row,
+  enabled: Boolean(row.enabled),
+  abTestEnabled: Boolean(row.abTestEnabled),
+  triggerType: row.triggerType ?? "amount",
+});
+
+const fetchDiscountRulesByShop = async (shop) => {
+  const rows = await prisma.$queryRaw`
+    SELECT id, shop, type, value, minPurchase, triggerType, minQuantity, enabled,
+           createdAt, updatedAt, iconChoice, shopifyDiscountCodeId, shopifyPriceRuleId,
+           discountCode, progressTextBefore, progressTextAfter, progressTextBelow,
+           campaignName, cartStepName, codeCampaignName, valueType, appliesTo,
+           codeDiscountId, \`condition\`, rewardType, scope, startsAt, endsAt,
+           priority, customerTarget, customerTags, templateKey, abTestEnabled,
+           abTestVariant, translations, analyticsImpressions, analyticsConversions
+    FROM discountrule WHERE shop = ${shop} ORDER BY id ASC
+  `;
+  return rows.map(normalizeRawRuleRow);
+};
+
+const fetchFreeGiftRulesByShop = async (shop) => {
+  const rows = await prisma.$queryRaw`
+    SELECT id, shop, \`trigger\`, minPurchase, triggerType, minQuantity, qty, limitPerOrder,
+           enabled, createdAt, updatedAt, iconChoice, bonusProductId, freeProductDiscountID,
+           minAmountFreeGiftDiscountId, minAmountShippingRateId, allProductIds,
+           progressTextBefore, progressTextAfter, progressTextBelow,
+           campaignName, cartStepName, startsAt, endsAt,
+           priority, customerTarget, customerTags, templateKey, abTestEnabled,
+           abTestVariant, translations, analyticsImpressions, analyticsConversions
+    FROM freegiftrule WHERE shop = ${shop} ORDER BY id ASC
+  `;
+  return rows.map(normalizeRawRuleRow);
 };
 
 const seedMinAmountRule = (rule) => {
@@ -976,13 +1519,18 @@ const DEFAULT_STYLE_SETTINGS = {
   discountCodeApply: false,
   cartDrawerBackgroundMode: "color",
   cartDrawerImage: "",
+  cartIconUrl: "",
   progressTextBefore: "Add {{goal}} more to get Free Shipping with this order",
-  progressTextAfter: "?? Congratulations! You have unlocked Free Shipping!",
+  progressTextAfter: "🎉🎉 Congratulations! You have unlocked Free Shipping! 🎉🎉",
   checkoutButtonText: "Checkout",
   announcementBarBackgroundColor: "#000000",
   announcementBarTextColor: "#ffffff",
   buttonLabelColor: "#ffffff",
   iconColor: "#000000",
+  drawerAutoOpen: true,
+  drawerPosition: "right",
+  stickyCheckout: true,
+  mobileLayout: "drawer",
 };
 
 const DEFAULT_UPSELL_SETTINGS = {
@@ -1129,6 +1677,179 @@ const parseAppliesToValue = (value) => {
   return { products: [], collections: [] };
 };
 
+const toIsoDateOrNull = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const padDatePart = (value) => String(value).padStart(2, "0");
+
+const toLocalDateInputValue = (value, fallback = null) => {
+  const iso = toIsoDateOrNull(value);
+  const date = iso ? new Date(iso) : fallback;
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return [
+    date.getFullYear(),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate()),
+  ].join("-");
+};
+
+const toLocalTimeInputValue = (value, fallback = null) => {
+  const iso = toIsoDateOrNull(value);
+  const date = iso ? new Date(iso) : fallback;
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+};
+
+const combineLocalDateAndTime = (dateValue, timeValue) => {
+  if (!dateValue || !timeValue) return null;
+  const date = new Date(`${dateValue}T${timeValue}`);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const addDays = (date, days) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const normalizeScheduleFields = (rule = {}) => ({
+  startsAt: toIsoDateOrNull(rule.startsAt),
+  endsAt: toIsoDateOrNull(rule.endsAt),
+});
+
+const parseJsonObject = (value, fallback = {}) => {
+  if (!value) return fallback;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed
+        : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+};
+
+const normalizeAdvancedRuleFields = (rule = {}) => ({
+  priority: Number.isFinite(Number(rule.priority)) ? Number(rule.priority) : 0,
+  customerTarget: String(rule.customerTarget || "all"),
+  customerTags: String(rule.customerTags || ""),
+  templateKey: rule.templateKey || null,
+  abTestEnabled: Boolean(rule.abTestEnabled),
+  abTestVariant: String(rule.abTestVariant || "A"),
+  translations: parseJsonObject(rule.translations, {}),
+  analyticsImpressions: Number(rule.analyticsImpressions || 0),
+  analyticsConversions: Number(rule.analyticsConversions || 0),
+});
+
+const persistAdvancedRuleFields = (rule = {}) => {
+  const advanced = normalizeAdvancedRuleFields(rule);
+  const trans = advanced.translations;
+  const transJson =
+    trans && Object.keys(trans).length > 0
+      ? JSON.stringify(trans)
+      : null;
+  return {
+    priority: advanced.priority,
+    customerTarget: advanced.customerTarget,
+    customerTags: advanced.customerTags || null,
+    templateKey: advanced.templateKey || null,
+    abTestEnabled: Boolean(advanced.abTestEnabled),
+    abTestVariant: advanced.abTestVariant || null,
+    translations: transJson,
+  };
+};
+
+const stripRuleAdminFields = (rule = {}) => {
+  const {
+    priority,
+    customerTarget,
+    customerTags,
+    templateKey,
+    abTestEnabled,
+    abTestVariant,
+    translations,
+    analyticsImpressions,
+    analyticsConversions,
+    _ruleIndex,
+    ...rest
+  } = rule;
+  return rest;
+};
+
+const scheduleInputFields = (rule = {}) => {
+  const fields = {
+    startsAt: toIsoDateOrNull(rule.startsAt) || new Date().toISOString(),
+  };
+  const endsAt = toIsoDateOrNull(rule.endsAt);
+  if (endsAt) fields.endsAt = endsAt;
+  return fields;
+};
+
+const isRuleScheduleActive = (rule = {}, now = new Date()) => {
+  const nowTime = now.getTime();
+  const startsAt = toIsoDateOrNull(rule.startsAt);
+  const endsAt = toIsoDateOrNull(rule.endsAt);
+  if (startsAt && new Date(startsAt).getTime() > nowTime) return false;
+  if (endsAt && new Date(endsAt).getTime() < nowTime) return false;
+  return true;
+};
+
+const ensureStyleCartIconColumn = async () => {
+  try {
+    await prisma.$executeRawUnsafe(
+      "ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL"
+    );
+  } catch (error) {
+    const message = String(error?.message || "");
+    const code = String(error?.code || "");
+    if (
+      code === "P2010" ||
+      message.includes("Duplicate column") ||
+      message.includes("1060")
+    ) {
+      return;
+    }
+    throw error;
+  }
+};
+
+const persistStyleCartIconUrl = async (shop, cartIconUrl) => {
+  await ensureStyleCartIconColumn();
+  await prisma.$executeRaw`
+    UPDATE stylesettings
+    SET cartIconUrl = ${cartIconUrl}
+    WHERE shop = ${shop}
+  `;
+};
+
+const mergeStyleCartIconUrl = async (styleRow) => {
+  if (!styleRow?.shop || styleRow.cartIconUrl) return styleRow;
+
+  try {
+    await ensureStyleCartIconColumn();
+    const rows = await prisma.$queryRaw`
+      SELECT cartIconUrl
+      FROM stylesettings
+      WHERE id = ${styleRow.id}
+      LIMIT 1
+    `;
+    const cartIconUrl = Array.isArray(rows) ? rows[0]?.cartIconUrl : null;
+    return { ...styleRow, cartIconUrl: cartIconUrl || "" };
+  } catch (error) {
+    logger.warn("Failed to load style cart icon URL", error);
+    return styleRow;
+  }
+};
+
 const normalizeBxgyAppliesTo = (rule = {}) => {
   const parsed = parseAppliesToValue(rule.appliesTo);
   const fallbackProducts = parseJsonArray(rule.appliesProductIds);
@@ -1153,12 +1874,15 @@ const normalizeShippingRuleForKey = (rule = {}) => ({
   progressTextAfter: rule.progressTextAfter ?? "",
   progressTextBelow: rule.progressTextBelow ?? "",
   campaignName: rule.campaignName ?? "",
-  cartStepName: rule.cartStepName ?? "",
+  cartStepName: normalizeStepSlot(rule.cartStepName),
   shopifyRateId: rule.shopifyRateId || null,
   shopifyMethodDefinitionId: rule.shopifyMethodDefinitionId || null,
+  ...normalizeScheduleFields(rule),
+  ...normalizeAdvancedRuleFields(rule),
 });
 
 const normalizeDiscountRuleForKey = (rule = {}) => ({
+  id: rule.id ?? null,
   enabled: Boolean(rule.enabled),
   type: rule.type || "automatic",
   condition: rule.type === "code" ? "code" : rule.condition || "all_payments",
@@ -1166,6 +1890,8 @@ const normalizeDiscountRuleForKey = (rule = {}) => ({
   valueType: rule.valueType || "percent",
   value: rule.value ?? "",
   minPurchase: rule.minPurchase ?? "",
+  triggerType: normalizeTriggerType(rule.triggerType),
+  minQuantity: rule.minQuantity ?? "",
   iconChoice: rule.iconChoice || "tag",
   shopifyDiscountCodeId: rule.shopifyDiscountCodeId || null,
   scope: rule.scope || "all",
@@ -1176,13 +1902,18 @@ const normalizeDiscountRuleForKey = (rule = {}) => ({
   progressTextAfter: rule.progressTextAfter ?? "",
   progressTextBelow: rule.progressTextBelow ?? "",
   campaignName: rule.campaignName ?? "",
-  cartStepName: rule.cartStepName ?? "",
+  cartStepName: normalizeStepSlot(rule.cartStepName),
+  ...normalizeScheduleFields(rule),
+  ...normalizeAdvancedRuleFields(rule),
 });
 
 const normalizeFreeRuleForKey = (rule = {}) => ({
+  id: rule.id ?? null,
   enabled: Boolean(rule.enabled),
   trigger: rule.trigger || "payment_online",
   minPurchase: rule.minPurchase ?? "",
+  triggerType: normalizeTriggerType(rule.triggerType),
+  minQuantity: rule.minQuantity ?? "",
   bonus: rule.bonus ?? rule.bonusProductId ?? "",
   qty: rule.qty ?? "",
   limit: rule.limit ?? "",
@@ -1194,7 +1925,9 @@ const normalizeFreeRuleForKey = (rule = {}) => ({
   progressTextAfter: rule.progressTextAfter ?? "",
   progressTextBelow: rule.progressTextBelow ?? "",
   campaignName: rule.campaignName ?? "",
-  cartStepName: rule.cartStepName ?? "",
+  cartStepName: normalizeStepSlot(rule.cartStepName),
+  ...normalizeScheduleFields(rule),
+  ...normalizeAdvancedRuleFields(rule),
 });
 
 const sanitizeHtmlErrorText = (text) => {
@@ -1227,6 +1960,8 @@ const normalizeBxgyRuleForKey = (rule = {}) => ({
   afterOfferUnlockMessage: rule.afterOfferUnlockMessage ?? "",
   id: rule.id ?? null,
   buyxgetyId: rule.buyxgetyId || null,
+  ...normalizeScheduleFields(rule),
+  ...normalizeAdvancedRuleFields(rule),
 });
 
 const dedupeRules = (rules = [], normalizer) => {
@@ -1275,11 +2010,13 @@ const buildRulesPayload = (data = {}) => {
         progressTextBelow:
           rule.progressTextBelow ?? DEFAULT_STYLE_SETTINGS.progressTextBelow,
         campaignName: rule.campaignName || "Free Shipping",
-        cartStepName: rule.cartStepName || "",
+        cartStepName: normalizeStepSlot(rule.cartStepName),
         shopifyRateId: normalizeShopifyRateId(rule.shopifyRateId),
         shopifyMethodDefinitionId: normalizeShopifyRateId(
           rule.shopifyMethodDefinitionId
         ),
+        ...normalizeScheduleFields(rule),
+        ...normalizeAdvancedRuleFields(rule),
         icon: null,
         id: rule.id ?? null,
       }))
@@ -1301,6 +2038,8 @@ const buildRulesPayload = (data = {}) => {
           valueType: rule.valueType || "percent",
           value: rule.value ?? "",
           minPurchase: rule.minPurchase ?? "",
+          triggerType: normalizeTriggerType(rule.triggerType),
+          minQuantity: rule.minQuantity ?? "",
           iconChoice: rule.iconChoice || "tag",
           scope: rule.scope || "all",
           appliesTo: parseAppliesToValue(rule.appliesTo),
@@ -1320,7 +2059,9 @@ const buildRulesPayload = (data = {}) => {
             normalizedType === "code"
               ? rule.codeCampaignName || "Code Discount"
               : rule.codeCampaignName || "",
-          cartStepName: rule.cartStepName || "",
+          cartStepName: normalizeStepSlot(rule.cartStepName),
+          ...normalizeScheduleFields(rule),
+          ...normalizeAdvancedRuleFields(rule),
           id: rule.id ?? null,
         };
       })
@@ -1334,6 +2075,8 @@ const buildRulesPayload = (data = {}) => {
         enabled: Boolean(rule.enabled),
         trigger: rule.trigger || "payment_online",
         minPurchase: rule.minPurchase ?? "",
+        triggerType: normalizeTriggerType(rule.triggerType),
+        minQuantity: rule.minQuantity ?? "",
         bonus: rule.bonus ?? rule.bonusProductId ?? "",
         qty: rule.qty ?? "1",
         limit: rule.limit ?? "1",
@@ -1351,7 +2094,9 @@ const buildRulesPayload = (data = {}) => {
           rule.progressTextBelow ??
           DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextBelow,
         campaignName: rule.campaignName || "Free Product Rule",
-        cartStepName: rule.cartStepName || "",
+        cartStepName: normalizeStepSlot(rule.cartStepName),
+        ...normalizeScheduleFields(rule),
+        ...normalizeAdvancedRuleFields(rule),
         id: rule.id ?? null,
         freeProductDiscountID: rule.freeProductDiscountID ?? null,
         icon: null,
@@ -1384,6 +2129,8 @@ const buildRulesPayload = (data = {}) => {
             DEFAULT_BXGY_CONTENT_TEXT.afterOfferUnlockMessage,
           campaignName: rule.campaignName || "",
           buyxgetyId: rule.buyxgetyId || null,
+          ...normalizeScheduleFields(rule),
+          ...normalizeAdvancedRuleFields(rule),
           icon: null,
         };
       })
@@ -1407,6 +2154,7 @@ const buildRulesPayload = (data = {}) => {
       cartDrawerTextColor: styleRow.cartDrawerTextColor || "",
       cartDrawerHeaderColor: styleRow.cartDrawerHeaderColor || "",
       cartDrawerImage: styleRow.cartDrawerImage || "",
+      cartIconUrl: styleRow.cartIconUrl || "",
       cartDrawerBackgroundMode:
         styleRow.cartDrawerBackgroundMode || DEFAULT_STYLE_SETTINGS.cartDrawerBackgroundMode,
       discountCodeApply: Boolean(styleRow.discountCodeApply),
@@ -1420,6 +2168,13 @@ const buildRulesPayload = (data = {}) => {
       buttonLabelColor:
         styleRow.buttonLabelColor || DEFAULT_STYLE_SETTINGS.buttonLabelColor,
       iconColor: styleRow.iconColor || DEFAULT_STYLE_SETTINGS.iconColor,
+      drawerAutoOpen:
+        styleRow.drawerAutoOpen ?? DEFAULT_STYLE_SETTINGS.drawerAutoOpen,
+      drawerPosition:
+        styleRow.drawerPosition || DEFAULT_STYLE_SETTINGS.drawerPosition,
+      stickyCheckout:
+        styleRow.stickyCheckout ?? DEFAULT_STYLE_SETTINGS.stickyCheckout,
+      mobileLayout: styleRow.mobileLayout || DEFAULT_STYLE_SETTINGS.mobileLayout,
     }
     : DEFAULT_STYLE_SETTINGS;
 
@@ -1440,25 +2195,40 @@ const persistPrismaRules = async ({
   mapRuleData,
 }) => {
   const rowIds = [];
+  const existingById = new Map(
+    existingRows
+      .filter((row) => row?.id)
+      .map((row) => [String(row.id), row])
+  );
+  const keptIds = new Set();
+
   for (let i = 0; i < normalizedRules.length; i += 1) {
     const rule = normalizedRules[i];
-    const data = mapRuleData ? mapRuleData(rule) : rule;
-    const existing = existingRows[i];
+    const rawData = mapRuleData ? mapRuleData(rule) : rule;
+    const { id, shop: _shop, createdAt, updatedAt, ...data } = rawData || {};
+    const incomingId = rule?.id ?? id ?? null;
+    const existing =
+      incomingId && existingById.has(String(incomingId))
+        ? existingById.get(String(incomingId))
+        : existingRows[i];
+
     if (existing?.id) {
       await model.update({
         where: { id: existing.id },
         data,
       });
       rowIds.push(existing.id);
+      keptIds.add(existing.id);
     } else {
       const created = await model.create({
         data: { shop, ...data },
       });
       rowIds.push(created.id);
+      keptIds.add(created.id);
     }
   }
 
-  const removals = existingRows.slice(normalizedRules.length);
+  const removals = existingRows.filter((row) => row?.id && !keptIds.has(row.id));
   const removeIds = removals
     .map((row) => (row?.id ? row.id : null))
     .filter(Boolean);
@@ -1547,18 +2317,12 @@ const loadCurrentRulesForSection = async (
     }
 
     if (section === "discount") {
-      const rows = await prisma.discountRule.findMany({
-        where: { shop },
-        orderBy: { id: "asc" },
-      });
+      const rows = await fetchDiscountRulesByShop(shop);
       return buildRulesPayload({ discountRules: rows })[key] || [];
     }
 
     if (section === "free") {
-      const rows = await prisma.freeGiftRule.findMany({
-        where: { shop },
-        orderBy: { id: "asc" },
-      });
+      const rows = await fetchFreeGiftRulesByShop(shop);
 
       return (
         buildRulesPayload({
@@ -1717,15 +2481,9 @@ export const loader = async ({ request }) => {
             orderBy: { id: "asc" },
           }),
 
-          prisma.discountRule.findMany({
-            where: { shop },
-            orderBy: { id: "asc" },
-          }),
+          fetchDiscountRulesByShop(shop),
 
-          prisma.freeGiftRule.findMany({
-            where: { shop },
-            orderBy: { id: "asc" },
-          }),
+          fetchFreeGiftRulesByShop(shop),
 
           prisma.bxgyRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
           prisma.styleSettings.findFirst({
@@ -1733,6 +2491,7 @@ export const loader = async ({ request }) => {
             orderBy: { id: "desc" },
           }),
         ]);
+      const styleRowWithCartIcon = await mergeStyleCartIconUrl(styleRow);
       let upsellRow = null;
       try {
         upsellRow = await prisma.upsellSettings.findUnique({
@@ -1790,7 +2549,7 @@ export const loader = async ({ request }) => {
 
       payload = buildRulesPayload({
         ...fallbackData,
-        styleSettings: styleRow,
+        styleSettings: styleRowWithCartIcon,
       });
     } catch (dbError) {
       logger.error("Fallback to Prisma failed", dbError);
@@ -1870,6 +2629,31 @@ export const loader = async ({ request }) => {
 
 export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
+  const contentType = request.headers.get("content-type") || "";
+  if (contentType.includes("multipart/form-data")) {
+    try {
+      const formData = await request.formData();
+      const intent = String(formData.get("intent") || "");
+      if (intent !== "uploadCartIcon") {
+        return json({ error: "Unknown upload intent" }, { status: 400 });
+      }
+
+      const cartIconUrl = await uploadCartIconFile(formData.get("cartIcon"));
+      return json({ ok: true, cartIconUrl });
+    } catch (error) {
+      return json(
+        {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unable to upload cart icon.",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   let body;
   try {
     body = await request.json();
@@ -1908,7 +2692,8 @@ export const action = async ({ request }) => {
     ? deleteFreeRuleIdValue
     : null;
 
-  const shop = session.shop || shopFromBody;
+  // Always use session.shop — never trust shop from the request body
+  const shop = session.shop;
 
   if (!shop) {
     const message =
@@ -2037,7 +2822,6 @@ export const action = async ({ request }) => {
               shop,
               OR: [
                 { shopifyDiscountCodeId: discountId },
-                { shopifyDiscountId: discountId },
                 { codeDiscountId: discountId },
               ],
             },
@@ -2389,6 +3173,7 @@ export const action = async ({ request }) => {
         );
 
         const normalizedRules = mergedRules.map((rule, ruleIndex) => ({
+          id: rule.id ?? null,
           enabled: Boolean(rule.enabled),
           rewardType: rule.rewardType || "free",
           rateType: rule.rewardType === "reduced" ? "flat" : rule.rateType ?? "flat",
@@ -2400,9 +3185,11 @@ export const action = async ({ request }) => {
           progressTextAfter: rule.progressTextAfter ?? null,
           progressTextBelow: rule.progressTextBelow ?? null,
           campaignName: rule.campaignName ?? null,
-          cartStepName: rule.cartStepName ?? null,
+          cartStepName: normalizeStepSlot(rule.cartStepName) || null,
           shopifyRateId: rule.shopifyRateId || null,
           shopifyMethodDefinitionId: rule.shopifyMethodDefinitionId || null,
+          ...normalizeScheduleFields(rule),
+          ...normalizeAdvancedRuleFields(rule),
           _ruleIndex: ruleIndex, // preserve original index for partial sync/update
         }));
 
@@ -2412,6 +3199,7 @@ export const action = async ({ request }) => {
               ? rule._ruleIndex
               : null,
           payload: {
+            id: rule.id ?? null,
             enabled: Boolean(rule.enabled),
             rewardType: rule.rewardType || "free",
             rateType: rule.rewardType === "reduced" ? "flat" : rule.rateType ?? "flat",
@@ -2423,18 +3211,21 @@ export const action = async ({ request }) => {
             progressTextAfter: rule.progressTextAfter ?? null,
             progressTextBelow: rule.progressTextBelow ?? null,
             campaignName: rule.campaignName ?? null,
-            cartStepName: rule.cartStepName ?? null,
+            cartStepName: normalizeStepSlot(rule.cartStepName) || null,
             shopifyRateId: normalizeShopifyRateId(rule.shopifyRateId),
             shopifyMethodDefinitionId: normalizeShopifyRateId(
               rule.shopifyMethodDefinitionId
             ),
+            ...normalizeScheduleFields(rule),
+            ...persistAdvancedRuleFields(rule),
           },
         }));
         const normalizedRulesToPersist = normalizedShippingMeta.map(
           (entry) => entry.payload
         );
         const shippingRulesForGraphql = normalizedRulesToPersist.map(
-          ({ shopifyMethodDefinitionId, ...rest }) => rest
+          ({ shopifyMethodDefinitionId, ...rest }) =>
+            stripRuleAdminFields(rest)
         );
         const normalizedExistingRules = (existingShippingRules || []).map(
           normalizeShippingRuleForKey
@@ -2451,10 +3242,17 @@ export const action = async ({ request }) => {
             progressTextAfter: rule.progressTextAfter ?? null,
             progressTextBelow: rule.progressTextBelow ?? null,
             campaignName: rule.campaignName ?? null,
-            cartStepName: rule.cartStepName ?? null,
+            cartStepName: normalizeStepSlot(rule.cartStepName) || null,
             shopifyRateId: rule.shopifyRateId || null,
             shopifyMethodDefinitionId: rule.shopifyMethodDefinitionId || null,
+            startsAt: rule.startsAt ?? null,
+            endsAt: rule.endsAt ?? null,
+            ...persistAdvancedRuleFields(rule),
           }),
+        });
+
+        normalizedRules.forEach((rule, idx) => {
+          rule.id = persistedShippingRuleIds[idx] ?? rule.id ?? null;
         });
 
         logger.log(
@@ -2733,10 +3531,7 @@ export const action = async ({ request }) => {
       }
 
       case "discount": {
-        const existingDiscountRows = await prisma.discountRule.findMany({
-          where: { shop },
-          orderBy: { id: "asc" },
-        });
+        const existingDiscountRows = await fetchDiscountRulesByShop(shop);
 
         const incomingPayload = payload;
 
@@ -2748,10 +3543,13 @@ export const action = async ({ request }) => {
           index
         );
 
-        const normalizedRules = mergedRules.map((rule) => {
+        let normalizedRules = mergedRules.map((rule, ruleIndex) => {
           const normalizedType = rule.type || "automatic";
           const discountDefaults = getDiscountContentDefaults(normalizedType);
+          const tType = normalizeTriggerType(rule.triggerType);
           return {
+            id: rule.id ?? null,
+            __ruleIndex: ruleIndex,
             enabled: Boolean(rule.enabled),
             type: normalizedType,
             condition:
@@ -2760,7 +3558,9 @@ export const action = async ({ request }) => {
             rewardType: rule.rewardType || "percent",
             valueType: rule.valueType || "percent",
             value: rule.value ?? null,
-            minPurchase: rule.minPurchase ?? null,
+            minPurchase: tType === "quantity" ? null : (rule.minPurchase ?? null),
+            triggerType: tType,
+            minQuantity: tType === "quantity" ? (rule.minQuantity ?? null) : null,
             iconChoice: rule.iconChoice || "tag",
             discountCode: rule.discountCode || "Smart123",
             scope: rule.scope || "all",
@@ -2777,11 +3577,14 @@ export const action = async ({ request }) => {
               normalizedType === "code"
                 ? String(rule.codeCampaignName ?? "").trim() || "Code Discount"
                 : rule.codeCampaignName,
-            cartStepName: rule.cartStepName,
+            cartStepName: normalizeStepSlot(rule.cartStepName),
+            ...normalizeScheduleFields(rule),
+            ...normalizeAdvancedRuleFields(rule),
           };
         });
 
         const discountRulesToPersist = normalizedRules.map((rule) => ({
+          id: rule.id ?? null,
           enabled: rule.enabled,
           type: rule.type,
           condition:
@@ -2790,6 +3593,8 @@ export const action = async ({ request }) => {
           valueType: rule.valueType || "percent",
           value: rule.value,
           minPurchase: rule.minPurchase,
+          triggerType: normalizeTriggerType(rule.triggerType),
+          minQuantity: rule.minQuantity,
           iconChoice: rule.iconChoice || "tag",
           discountCode: rule.discountCode || "",
           scope: rule.scope || "all",
@@ -2804,7 +3609,10 @@ export const action = async ({ request }) => {
             rule.type === "code"
               ? String(rule.codeCampaignName ?? "").trim() || "Code Discount"
               : rule.codeCampaignName ?? null,
-          cartStepName: rule.cartStepName ?? null,
+          cartStepName: normalizeStepSlot(rule.cartStepName) || null,
+          startsAt: rule.startsAt ?? null,
+          endsAt: rule.endsAt ?? null,
+          ...persistAdvancedRuleFields(rule),
         }));
 
         const persistDiscountRulesToPrisma = async () =>
@@ -2814,6 +3622,12 @@ export const action = async ({ request }) => {
             normalizedRules: discountRulesToPersist,
             existingRows: existingDiscountRows,
           });
+
+        const persistedDiscountRuleIds = await persistDiscountRulesToPrisma();
+        normalizedRules = normalizedRules.map((rule, idx) => ({
+          ...rule,
+          id: persistedDiscountRuleIds[idx] ?? rule.id ?? null,
+        }));
 
         const normalizedIds = new Set(
           normalizedRules
@@ -2838,6 +3652,8 @@ export const action = async ({ request }) => {
           discountCode: rule.discountCode,
           value: rule.value,
           minPurchase: rule.minPurchase,
+          triggerType: normalizeTriggerType(rule.triggerType),
+          minQuantity: rule.minQuantity,
           iconChoice: rule.iconChoice,
           scope: rule.scope,
           appliesTo: rule.appliesTo,
@@ -2848,15 +3664,23 @@ export const action = async ({ request }) => {
           progressTextBelow: rule.progressTextBelow,
           campaignName: rule.campaignName,
           codeCampaignName: rule.codeCampaignName,
-          cartStepName: rule.cartStepName,
+          cartStepName: normalizeStepSlot(rule.cartStepName),
+          startsAt: rule.startsAt,
+          endsAt: rule.endsAt,
         }));
 
         if (GRAPHQL_ENDPOINT) {
           try {
+            const gqlRulesForRequest =
+              partial && Number.isInteger(index)
+                ? gqlRules[index]
+                  ? [gqlRules[index]]
+                  : []
+                : gqlRules;
             await gqlRequest(
               session,
               SAVE_DISCOUNT_MUTATION,
-              { shop, rules: gqlRules },
+              { shop, rules: gqlRulesForRequest },
               shopAccessToken,
               shopDomain
             );
@@ -2865,10 +3689,7 @@ export const action = async ({ request }) => {
               "GraphQL save discount failed, falling back to Prisma",
               err
             );
-            await persistDiscountRulesToPrisma();
           }
-        } else {
-          await persistDiscountRulesToPrisma();
         }
 
         let shopifyResults = [];
@@ -2896,8 +3717,15 @@ export const action = async ({ request }) => {
         }
 
         try {
+          const shopifySyncRules =
+            partial && Number.isInteger(index)
+              ? normalizedRules[index]
+                ? [normalizedRules[index]]
+                : []
+              : normalizedRules;
+
           shopifyResults = await syncDiscountsToShopify(
-            normalizedRules,
+            shopifySyncRules,
             shopDomain,
             shopAccessToken
           );
@@ -2905,10 +3733,7 @@ export const action = async ({ request }) => {
           // Persist Shopify discount IDs for cleanup/removal later
 
           try {
-            const existing = await prisma.discountRule.findMany({
-              where: { shop },
-              orderBy: { id: "asc" },
-            });
+            const existing = await fetchDiscountRulesByShop(shop);
 
             for (const resultEntry of shopifyResults) {
               if (!resultEntry?.id || !Number.isInteger(resultEntry.ruleIndex)) {
@@ -2920,6 +3745,10 @@ export const action = async ({ request }) => {
                 where: { id: target.id },
                 data: { shopifyDiscountCodeId: resultEntry.id },
               });
+              if (normalizedRules[resultEntry.ruleIndex]) {
+                normalizedRules[resultEntry.ruleIndex].shopifyDiscountCodeId =
+                  resultEntry.id;
+              }
             }
           } catch (persistErr) {
             logger.error("Failed to persist Shopify discount IDs", persistErr);
@@ -2946,10 +3775,15 @@ export const action = async ({ request }) => {
       case "free": {
         const rules = dedupeRules(payload, normalizeFreeRuleForKey);
         const mergedRules = await mergeRulesWithExisting("free", rules, index);
-        const normalizedRules = mergedRules.map((rule) => ({
+        let normalizedRules = mergedRules.map((rule) => {
+          const tType = normalizeTriggerType(rule.triggerType);
+          return {
+          id: rule.id ?? null,
           enabled: Boolean(rule.enabled),
           trigger: rule.trigger || "payment_online",
-          minPurchase: rule.minPurchase ?? null,
+          minPurchase: tType === "quantity" ? null : (rule.minPurchase ?? null),
+          triggerType: tType,
+          minQuantity: tType === "quantity" ? (rule.minQuantity ?? null) : null,
           bonus: rule.bonus ?? null,
           qty: rule.qty ?? null,
           limit: rule.limit ?? null,
@@ -2961,13 +3795,20 @@ export const action = async ({ request }) => {
           progressTextAfter: rule.progressTextAfter ?? null,
           progressTextBelow: rule.progressTextBelow ?? null,
           campaignName: rule.campaignName ?? null,
-          cartStepName: rule.cartStepName ?? null,
-        }));
+          cartStepName: normalizeStepSlot(rule.cartStepName) || null,
+          freeProductDiscountID: rule.freeProductDiscountID ?? null,
+          ...normalizeScheduleFields(rule),
+          ...normalizeAdvancedRuleFields(rule),
+        };
+        });
 
         const normalizedFreeRulesToPersist = normalizedRules.map((rule) => ({
+          id: rule.id ?? null,
           enabled: Boolean(rule.enabled),
           trigger: rule.trigger || "payment_online",
           minPurchase: rule.minPurchase ?? null,
+          triggerType: normalizeTriggerType(rule.triggerType),
+          minQuantity: rule.minQuantity ?? null,
           bonusProductId: rule.bonus ?? null,
           qty: rule.qty ?? null,
           limitPerOrder: rule.limit ?? null,
@@ -2976,13 +3817,13 @@ export const action = async ({ request }) => {
           progressTextAfter: rule.progressTextAfter ?? null,
           progressTextBelow: rule.progressTextBelow ?? null,
           campaignName: rule.campaignName ?? null,
-          cartStepName: rule.cartStepName ?? null,
+          cartStepName: normalizeStepSlot(rule.cartStepName) || null,
+          startsAt: rule.startsAt ?? null,
+          endsAt: rule.endsAt ?? null,
+          ...persistAdvancedRuleFields(rule),
         }));
 
-        const existingFreeGiftRules = await prisma.freeGiftRule.findMany({
-          where: { shop },
-          orderBy: { id: "asc" },
-        });
+        const existingFreeGiftRules = await fetchFreeGiftRulesByShop(shop);
 
         const persistFreeRulesToPrisma = async () =>
           persistPrismaRules({
@@ -2992,12 +3833,18 @@ export const action = async ({ request }) => {
             existingRows: existingFreeGiftRules,
           });
 
+        const persistedFreeRuleIds = await persistFreeRulesToPrisma();
+        normalizedRules = normalizedRules.map((rule, idx) => ({
+          ...rule,
+          id: persistedFreeRuleIds[idx] ?? rule.id ?? null,
+        }));
+
         if (GRAPHQL_ENDPOINT) {
           try {
             await gqlRequest(
               session,
               SAVE_FREE_MUTATION,
-              { shop, rules: normalizedRules },
+              { shop, rules: normalizedRules.map(stripRuleAdminFields) },
               shopAccessToken,
               shopDomain
             );
@@ -3006,10 +3853,7 @@ export const action = async ({ request }) => {
               "GraphQL save free gift failed, falling back to Prisma",
               err
             );
-            await persistFreeRulesToPrisma();
           }
-        } else {
-          await persistFreeRulesToPrisma();
         }
 
         let shopifySyncResults = normalizedRules.map((rule, idx) => ({
@@ -3025,9 +3869,13 @@ export const action = async ({ request }) => {
               rules: normalizedRules.map((rule) => ({
                 bonus: rule.bonus ?? null,
                 minPurchase: rule.minPurchase ?? null,
+                triggerType: normalizeTriggerType(rule.triggerType),
+                minQuantity: rule.minQuantity ?? null,
                 qty: rule.qty ?? null,
                 limit: rule.limit ?? null,
                 enabled: Boolean(rule.enabled),
+                startsAt: rule.startsAt ?? null,
+                endsAt: rule.endsAt ?? null,
               })),
               existingDiscountIds: normalizedRules.map(
                 (_, idx) =>
@@ -3045,10 +3893,7 @@ export const action = async ({ request }) => {
           }
         }
 
-        const persistedFreeGiftRules = await prisma.freeGiftRule.findMany({
-          where: { shop },
-          orderBy: { id: "asc" },
-        });
+        const persistedFreeGiftRules = await fetchFreeGiftRulesByShop(shop);
 
         for (const entry of shopifySyncResults) {
           const target = persistedFreeGiftRules[entry.index];
@@ -3057,6 +3902,11 @@ export const action = async ({ request }) => {
             where: { id: target.id },
             data: { freeProductDiscountID: entry.id ?? null },
           });
+          if (normalizedRules[entry.index]) {
+            normalizedRules[entry.index].id = target.id;
+            normalizedRules[entry.index].freeProductDiscountID =
+              entry.id ?? null;
+          }
         }
         responseMessage = "Free gift rules saved successfully.";
         payloadForLog = normalizedRules;
@@ -3100,6 +3950,8 @@ export const action = async ({ request }) => {
             afterOfferUnlockMessage: rule.afterOfferUnlockMessage ?? null,
             campaignName: rule.campaignName ?? null,
             buyxgetyId,
+            ...normalizeScheduleFields(rule),
+            ...normalizeAdvancedRuleFields(rule),
           };
         });
 
@@ -3187,6 +4039,9 @@ export const action = async ({ request }) => {
                 rule.afterOfferUnlockMessage ?? null,
               campaignName: rule.campaignName ?? null,
               buyxgetyId: rule.buyxgetyId ?? null,
+              startsAt: rule.startsAt ?? null,
+              endsAt: rule.endsAt ?? null,
+              ...persistAdvancedRuleFields(rule),
             };
 
             if (rule.id && existingById.has(String(rule.id))) {
@@ -3218,7 +4073,7 @@ export const action = async ({ request }) => {
         };
 
         const bxgyRulesForGraphql = normalizedRules.map((rule) => ({
-          ...rule,
+          ...stripRuleAdminFields(rule),
         }));
 
         if (GRAPHQL_ENDPOINT) {
@@ -3362,20 +4217,33 @@ export const action = async ({ request }) => {
           cartDrawerHeaderColor: parseText(data.cartDrawerHeaderColor),
           cartDrawerBackgroundMode: mode,
           cartDrawerImage: imageValue,
+          cartIconUrl: parseText(data.cartIconUrl),
           discountCodeApply: Boolean(data.discountCodeApply),
           checkoutButtonText:
             parseText(data.checkoutButtonText) ||
             DEFAULT_STYLE_SETTINGS.checkoutButtonText,
+          drawerAutoOpen: Boolean(data.drawerAutoOpen),
+          drawerPosition:
+            ["right", "left"].includes(String(data.drawerPosition))
+              ? String(data.drawerPosition)
+              : DEFAULT_STYLE_SETTINGS.drawerPosition,
+          stickyCheckout: Boolean(data.stickyCheckout),
+          mobileLayout:
+            ["drawer", "bottom_sheet"].includes(String(data.mobileLayout))
+              ? String(data.mobileLayout)
+              : DEFAULT_STYLE_SETTINGS.mobileLayout,
         };
+        const { cartIconUrl, ...prismaSettings } = settings;
 
         const persistStyle = async () => {
           const updateResult = await prisma.styleSettings.updateMany({
             where: { shop },
-            data: settings,
+            data: prismaSettings,
           });
           if (updateResult.count === 0) {
-            await prisma.styleSettings.create({ data: { shop, ...settings } });
+            await prisma.styleSettings.create({ data: { shop, ...prismaSettings } });
           }
+          await persistStyleCartIconUrl(shop, cartIconUrl);
           return updateResult.count;
         };
 
@@ -3393,6 +4261,7 @@ export const action = async ({ request }) => {
           delete graphqlSettings.announcementBarTextColor;
           delete graphqlSettings.buttonLabelColor;
           delete graphqlSettings.iconColor;
+          delete graphqlSettings.cartIconUrl;
 
           await gqlRequest(
             session,
@@ -3480,15 +4349,23 @@ const normalizeShopifyRateId = (id) => {
 
 /* compact summaries for in-line cards */
 
-const shippingSummary = (r) => {
+const shippingSummary = (r, currency = "USD") => {
   const method = r.method === "express" ? "Express" : "Standard";
-  const reward = r.rewardType === "free" ? "Free shipping" : r.rateType === "flat" ? `Shipping ${formatCurrency(r.amount || 0)}` : `${r.amount || 0}% off shipping`;
-  const threshold = notEmpty(r.minSubtotal) ? `Min ${formatCurrency(r.minSubtotal)}` : "No minimum";
+  const reward = r.rewardType === "free" ? "Free shipping" : r.rateType === "flat" ? `Shipping ${formatCurrency(r.amount || 0, currency)}` : `${r.amount || 0}% off shipping`;
+  const threshold = notEmpty(r.minSubtotal) ? `Min ${formatCurrency(r.minSubtotal, currency)}` : "No minimum";
   return `Summary: ${reward} via ${method}  ${threshold}`;
 };
 
-const discountSummary = (r) => {
-  const min = notEmpty(r.minPurchase) ? `Min ${formatCurrency(r.minPurchase)}` : "No minimum";
+const discountSummary = (r, currency = "USD") => {
+  const triggerType = normalizeTriggerType(r.triggerType);
+  const min =
+    triggerType === "quantity"
+      ? notEmpty(r.minQuantity)
+        ? `Min ${r.minQuantity} qty`
+        : "No minimum"
+      : notEmpty(r.minPurchase)
+        ? `Min ${formatCurrency(r.minPurchase, currency)}`
+        : "No minimum";
   if (r.rewardType === "free_shipping") {
     if (r.type === "code") {
       const code = notEmpty(r.discountCode) ? r.discountCode : "Code";
@@ -3499,18 +4376,18 @@ const discountSummary = (r) => {
 
   if (r.type === "code") {
     const code = notEmpty(r.discountCode) ? r.discountCode : "Code";
-    const formattedValue = formatDiscountValueDisplay(r);
+    const formattedValue = formatDiscountValueDisplay(r, currency);
     const fallbackValue =
       getDiscountValueMode(r) === "amount"
-        ? `${fmtINR(Number(r.value || 0))} off`
+        ? `${fmtMoney(Number(r.value || 0), currency)} off`
         : `${Number(r.value || 0)}% off`;
     return `Summary: Code ${code} -> ${formattedValue || fallbackValue} (${min})`;
   }
 
-  const formattedValue = formatDiscountValueDisplay(r);
+  const formattedValue = formatDiscountValueDisplay(r, currency);
   const fallbackValue =
     getDiscountValueMode(r) === "amount"
-      ? `${fmtINR(Number(r.value || 0))} off`
+      ? `${fmtMoney(Number(r.value || 0), currency)} off`
       : `${Number(r.value || 0)}% off`;
   return `Summary: Automatic -> ${formattedValue || fallbackValue} (${min})`;
 };
@@ -3706,14 +4583,14 @@ const generateDiscountCode = (rule, idx = 0) => {
 };
 
 const discountItemsInput = () => ({ all: true });
-const buildFreeShippingCodeInput = (rule, code, index = null) => {
+const buildFreeShippingCodeInput = (rule, code, currencyCode = "USD", index = null) => {
   const minSubtotal = num(rule.minPurchase);
   const minSubtotalInput = minSubtotal ? minSubtotal.toFixed(2) : null;
-  const baseTitle = `Free shipping ${minSubtotal ? formatCurrency(minSubtotal) : ""}`.trim();
+  const baseTitle = `Free shipping ${minSubtotal ? formatCurrency(minSubtotal, currencyCode) : ""}`.trim();
   return {
     title: appendRuleIndexSuffix(baseTitle, index),
     code,
-    startsAt: new Date().toISOString(),
+    ...scheduleInputFields(rule),
     customerSelection: { all: true },
     destinationSelection: { all: true },
     appliesOncePerCustomer: false,
@@ -3744,12 +4621,12 @@ const buildDiscountValueInput = (rule, currencyCode = "USD") => {
   };
 };
 
-const buildDiscountDisplayTitle = (rule) => {
-  const formatted = formatDiscountValueDisplay(rule);
+const buildDiscountDisplayTitle = (rule, currency = "USD") => {
+  const formatted = formatDiscountValueDisplay(rule, currency);
   if (formatted) return formatted;
   const fallbackValue = Math.max(num(rule.value), 0);
   return getDiscountValueMode(rule) === "amount"
-    ? `${fmtINRPlain(fallbackValue)} off`
+    ? `${fmtMoneyPlain(fallbackValue, currency)} off`
     : `${fallbackValue}% off`;
 };
 
@@ -3760,6 +4637,25 @@ const appendRuleIndexSuffix = (title, index) => {
   return `${title} #${normalized + 1}`;
 };
 
+const buildDiscountMinimumRequirement = (rule = {}) => {
+  const triggerType = normalizeTriggerType(rule.triggerType);
+  if (triggerType === "quantity") {
+    const minQty = Math.max(num(rule.minQuantity), 0);
+    return minQty
+      ? { quantity: { greaterThanOrEqualToQuantity: String(minQty) } }
+      : null;
+  }
+
+  const minSubtotal = num(rule.minPurchase);
+  return minSubtotal
+    ? {
+      subtotal: {
+        greaterThanOrEqualToSubtotal: minSubtotal.toFixed(2),
+      },
+    }
+    : null;
+};
+
 const buildDiscountCodeInput = (
   rule,
   code,
@@ -3767,13 +4663,11 @@ const buildDiscountCodeInput = (
   index = null
 ) => {
   const value = Math.max(num(rule.value), 0);
-  const minSubtotal = num(rule.minPurchase);
-  const minSubtotalInput = minSubtotal ? minSubtotal.toFixed(2) : null;
-  const titleValue = buildDiscountDisplayTitle(rule);
+  const titleValue = buildDiscountDisplayTitle(rule, currencyCode);
   return {
     title: appendRuleIndexSuffix(`CartLift ${titleValue}`, index),
     code,
-    startsAt: new Date().toISOString(),
+    ...scheduleInputFields(rule),
     customerSelection: { all: true },
     customerGets: {
       value: buildDiscountValueInput(rule, currencyCode),
@@ -3782,9 +4676,7 @@ const buildDiscountCodeInput = (
 
     appliesOncePerCustomer: true,
     usageLimit: 100,
-    minimumRequirement: minSubtotalInput
-      ? { subtotal: { greaterThanOrEqualToSubtotal: minSubtotalInput } }
-      : null,
+    minimumRequirement: buildDiscountMinimumRequirement(rule),
     combinesWith: {
       orderDiscounts: true,
       productDiscounts: true,
@@ -3798,21 +4690,17 @@ const buildAutomaticDiscountInput = (
   currencyCode = "USD",
   index = null
 ) => {
-  const minSubtotal = num(rule.minPurchase);
-  const minSubtotalInput = minSubtotal ? minSubtotal.toFixed(2) : null;
-  const titleValue = buildDiscountDisplayTitle(rule);
+  const titleValue = buildDiscountDisplayTitle(rule, currencyCode);
 
   return {
     title: appendRuleIndexSuffix(`CartLift: Cart Drawer & Upsell Auto ${titleValue}`, index),
-    startsAt: new Date().toISOString(),
+    ...scheduleInputFields(rule),
     customerGets: {
       value: buildDiscountValueInput(rule, currencyCode),
       items: discountItemsInput(rule),
     },
 
-    minimumRequirement: minSubtotalInput
-      ? { subtotal: { greaterThanOrEqualToSubtotal: minSubtotalInput } }
-      : null,
+    minimumRequirement: buildDiscountMinimumRequirement(rule),
     combinesWith: {
       orderDiscounts: true,
       productDiscounts: false,
@@ -3918,7 +4806,7 @@ const buildBxgyAutomaticInput = (rule = {}, index = 0) => {
   const payload = {
     title,
 
-    startsAt: new Date().toISOString(),
+    ...scheduleInputFields(rule),
 
     combinesWith: {
       orderDiscounts: true,
@@ -4770,7 +5658,7 @@ const buildAutomaticFreeShippingInput = (rule, index = null) => {
 
   return {
     title: appendRuleIndexSuffix(baseTitle, index),
-    startsAt: new Date().toISOString(),
+    ...scheduleInputFields(rule),
     minimumRequirement: minSubtotalInput
       ? { subtotal: { greaterThanOrEqualToSubtotal: minSubtotalInput } }
       : null,
@@ -4841,9 +5729,21 @@ const AUTOMATIC_BXGY_DISCOUNT_MUTATION = `
     }
   `;
 
+const AUTOMATIC_BXGY_DISCOUNT_UPDATE_MUTATION = `
+    mutation DiscountAutomaticBxgyUpdate($id: ID!, $automaticBxgyDiscount: DiscountAutomaticBxgyInput!) {
+      discountAutomaticBxgyUpdate(id: $id, automaticBxgyDiscount: $automaticBxgyDiscount) {
+        automaticDiscountNode { id }
+        userErrors { field message }
+      }
+    }
+  `;
+
 const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
   const enabled = (rules || [])
-    .map((rule, idx) => ({ rule, idx }))
+    .map((rule, idx) => ({
+      rule,
+      idx: Number.isInteger(rule?.__ruleIndex) ? rule.__ruleIndex : idx,
+    }))
     .filter(({ rule }) => rule && rule.enabled);
 
   const disabled = (rules || []).filter((r) => {
@@ -4851,8 +5751,7 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
     const ruleType =
       typeof r.type === "string" ? r.type.toLowerCase() : "automatic";
     if (ruleType === "code" || ruleType === "code_free_shipping") return false;
-    const discountId =
-      r.shopifyDiscountCodeId || r.shopifyDiscountId || r.id || "";
+    const discountId = r.shopifyDiscountCodeId || r.shopifyDiscountId || "";
     if (!discountId) return false;
     if (typeof discountId === "string" && discountId.includes("DiscountCodeNode")) {
       return false;
@@ -4860,7 +5759,6 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
     return true;
   });
 
-  if (!enabled.length) return [];
   if (!shopDomain || !accessToken) {
     throw new Error("Missing shop domain or access token for Shopify Admin");
   }
@@ -4873,7 +5771,6 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
       const discountId =
         rule.shopifyDiscountCodeId ||
         rule.shopifyDiscountId ||
-        rule.id ||
         null;
       if (!discountId) continue;
       try {
@@ -4889,9 +5786,20 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
     }
   }
 
+  if (!enabled.length) return [];
+
   const codeMutation = `
     mutation DiscountCodeBasicCreate($basicCodeDiscount: DiscountCodeBasicInput!) {
       discountCodeBasicCreate(basicCodeDiscount: $basicCodeDiscount) {
+        codeDiscountNode { id }
+        userErrors { field message }
+      }
+    }
+  `;
+
+  const codeUpdateMutation = `
+    mutation DiscountCodeBasicUpdate($id: ID!, $basicCodeDiscount: DiscountCodeBasicInput!) {
+      discountCodeBasicUpdate(id: $id, basicCodeDiscount: $basicCodeDiscount) {
         codeDiscountNode { id }
         userErrors { field message }
       }
@@ -4907,9 +5815,27 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
     }
   `;
 
+  const freeShipCodeUpdateMutation = `
+    mutation DiscountCodeFreeShippingUpdate($id: ID!, $freeShippingDiscount: DiscountCodeFreeShippingInput!) {
+      discountCodeFreeShippingUpdate(id: $id, freeShippingDiscount: $freeShippingDiscount) {
+        codeDiscountNode { id }
+        userErrors { field message }
+      }
+    }
+  `;
+
   const freeShipAutoMutation = `
     mutation DiscountAutomaticFreeShippingCreate($freeShippingAutomaticDiscount: DiscountAutomaticFreeShippingInput!) {
       discountAutomaticFreeShippingCreate(freeShippingAutomaticDiscount: $freeShippingAutomaticDiscount) {
+        automaticDiscountNode { id }
+        userErrors { field message }
+      }
+    }
+  `;
+
+  const freeShipAutoUpdateMutation = `
+    mutation DiscountAutomaticFreeShippingUpdate($id: ID!, $freeShippingAutomaticDiscount: DiscountAutomaticFreeShippingInput!) {
+      discountAutomaticFreeShippingUpdate(id: $id, freeShippingAutomaticDiscount: $freeShippingAutomaticDiscount) {
         automaticDiscountNode { id }
         userErrors { field message }
       }
@@ -4923,64 +5849,86 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
     const titleIndex =
       Number.isInteger(ruleIndex) && ruleIndex >= 0 ? ruleIndex : i;
     try {
-      // If we already have an ID stored, delete it first so updates don't leave stale discounts
-      if (rule.shopifyDiscountCodeId) {
-        await deleteShopifyDiscountById(
-          shopDomain,
-          accessToken,
-          rule.shopifyDiscountCodeId
-        );
-      }
-
       if (rule.rewardType === "free_shipping" && rule.type === "code") {
         const code = notEmpty(rule.discountCode)
           ? rule.discountCode
           : generateDiscountCode(rule, titleIndex);
 
-        const input = buildFreeShippingCodeInput(rule, code, titleIndex);
+        const input = buildFreeShippingCodeInput(rule, code, currencyCode, titleIndex);
+        const existingId = rule.shopifyDiscountCodeId || null;
         logger.log(
-          "[SHOPIFY DISCOUNT] free-shipping code create input",
+          `[SHOPIFY DISCOUNT] free-shipping code ${existingId ? "update" : "create"} input`,
           input
         );
 
-        const data = await adminGraphql(
-          shopDomain,
-          accessToken,
-          freeShipCodeMutation,
-          {
+        const create = async () =>
+          adminGraphql(shopDomain, accessToken, freeShipCodeMutation, {
             freeShippingDiscount: input,
-          }
-        );
+          });
+        const update = async () =>
+          adminGraphql(shopDomain, accessToken, freeShipCodeUpdateMutation, {
+            id: existingId,
+            freeShippingDiscount: input,
+          });
+        const data = existingId
+          ? await update().catch(async (err) => {
+            logger.warn(
+              "[SHOPIFY DISCOUNT] free-shipping code update failed, creating replacement",
+              err
+            );
+            await deleteShopifyDiscountById(shopDomain, accessToken, existingId);
+            return create();
+          })
+          : await create();
 
         results.push({
           ruleIndex,
           type: "code_free_shipping",
           code,
           id:
-            data?.discountCodeFreeShippingCreate?.codeDiscountNode?.id || null,
+            data?.discountCodeFreeShippingUpdate?.codeDiscountNode?.id ||
+            data?.discountCodeFreeShippingCreate?.codeDiscountNode?.id ||
+            null,
         });
       } else if (rule.rewardType === "free_shipping" && rule.type !== "code") {
         const input = buildAutomaticFreeShippingInput(rule, titleIndex);
+        const existingId = rule.shopifyDiscountCodeId || null;
         logger.log(
-          "[SHOPIFY DISCOUNT] auto free shipping create input",
+          `[SHOPIFY DISCOUNT] auto free shipping ${existingId ? "update" : "create"} input`,
           input
         );
 
-        const data = await adminGraphql(
-          shopDomain,
-          accessToken,
-          freeShipAutoMutation,
-          {
+        const create = async () =>
+          adminGraphql(shopDomain, accessToken, freeShipAutoMutation, {
             freeShippingAutomaticDiscount: input,
-          }
-        );
+          });
+
+        const update = async () =>
+          adminGraphql(shopDomain, accessToken, freeShipAutoUpdateMutation, {
+            id: existingId,
+            freeShippingAutomaticDiscount: input,
+          });
+
+        const data = existingId
+          ? await update().catch(async (err) => {
+            logger.warn(
+              "[SHOPIFY DISCOUNT] auto free shipping update failed, creating replacement",
+              err
+            );
+            await deleteShopifyDiscountById(shopDomain, accessToken, existingId);
+            return create();
+          })
+          : await create();
 
         results.push({
           ruleIndex,
           type: "automatic_free_shipping",
           id:
+            data?.discountAutomaticFreeShippingUpdate?.automaticDiscountNode
+              ?.id ||
             data?.discountAutomaticFreeShippingCreate?.automaticDiscountNode
-              ?.id || null,
+              ?.id ||
+            null,
         });
       } else if (rule.type === "code") {
         const code = notEmpty(rule.discountCode)
@@ -4992,34 +5940,55 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
           currencyCode,
           titleIndex
         );
-        logger.log("[SHOPIFY DISCOUNT] code create input", input);
+        const existingId = rule.shopifyDiscountCodeId || null;
+        logger.log(
+          `[SHOPIFY DISCOUNT] code ${existingId ? "update" : "create"} input`,
+          input
+        );
 
         const create = async () =>
           adminGraphql(shopDomain, accessToken, codeMutation, {
             basicCodeDiscount: input,
           });
+        const update = async () =>
+          adminGraphql(shopDomain, accessToken, codeUpdateMutation, {
+            id: existingId,
+            basicCodeDiscount: input,
+          });
 
-        const data = await create().catch(async (err) => {
-          if (
-            err instanceof Error &&
-            err.message.includes("Title must be unique")
-          ) {
-            await findAndDeleteDiscountByTitle(
-              shopDomain,
-              accessToken,
-              input.title,
-              "code"
+        const data = existingId
+          ? await update().catch(async (err) => {
+            logger.warn(
+              "[SHOPIFY DISCOUNT] code update failed, creating replacement",
+              err
             );
+            await deleteShopifyDiscountById(shopDomain, accessToken, existingId);
             return create();
-          }
-          throw err;
-        });
+          })
+          : await create().catch(async (err) => {
+            if (
+              err instanceof Error &&
+              err.message.includes("Title must be unique")
+            ) {
+              await findAndDeleteDiscountByTitle(
+                shopDomain,
+                accessToken,
+                input.title,
+                "code"
+              );
+              return create();
+            }
+            throw err;
+          });
 
         results.push({
           ruleIndex,
           type: "code",
           code,
-          id: data?.discountCodeBasicCreate?.codeDiscountNode?.id || null,
+          id:
+            data?.discountCodeBasicUpdate?.codeDiscountNode?.id ||
+            data?.discountCodeBasicCreate?.codeDiscountNode?.id ||
+            null,
         });
       } else {
         const input = buildAutomaticDiscountInput(
@@ -5027,32 +5996,56 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
           currencyCode,
           titleIndex
         );
-        logger.log("[SHOPIFY DISCOUNT] automatic create input", input);
+        const existingId = rule.shopifyDiscountCodeId || null;
+        logger.log(
+          `[SHOPIFY DISCOUNT] automatic ${existingId ? "update" : "create"} input`,
+          input
+        );
         const create = async () =>
           adminGraphql(shopDomain, accessToken, AUTOMATIC_DISCOUNT_MUTATION, {
             automaticBasicDiscount: input,
           });
+        const update = async () =>
+          adminGraphql(
+            shopDomain,
+            accessToken,
+            AUTOMATIC_DISCOUNT_UPDATE_MUTATION,
+            {
+              id: existingId,
+              automaticBasicDiscount: input,
+            }
+          );
 
-        const data = await create().catch(async (err) => {
-          if (
-            err instanceof Error &&
-            err.message.includes("Title must be unique")
-          ) {
-            await findAndDeleteDiscountByTitle(
-              shopDomain,
-              accessToken,
-              input.title,
-              "automatic"
+        const data = existingId
+          ? await update().catch(async (err) => {
+            logger.warn(
+              "[SHOPIFY DISCOUNT] automatic update failed, creating replacement",
+              err
             );
+            await deleteShopifyDiscountById(shopDomain, accessToken, existingId);
             return create();
-          }
-          throw err;
-        });
+          })
+          : await create().catch(async (err) => {
+            if (
+              err instanceof Error &&
+              err.message.includes("Title must be unique")
+            ) {
+              await findAndDeleteDiscountByTitle(
+                shopDomain,
+                accessToken,
+                input.title,
+                "automatic"
+              );
+              return create();
+            }
+            throw err;
+          });
 
         results.push({
           ruleIndex,
           type: "automatic",
           id:
+            data?.discountAutomaticBasicUpdate?.automaticDiscountNode?.id ||
             data?.discountAutomaticBasicCreate?.automaticDiscountNode?.id ||
             null,
         });
@@ -5094,22 +6087,6 @@ const syncBxgyRulesToShopify = async (rules = [], shopDomain, accessToken) => {
 
   for (const { rule, idx } of candidates) {
     try {
-      if (rule.buyxgetyId) {
-        await deleteShopifyDiscountById(
-          shopDomain,
-          accessToken,
-          rule.buyxgetyId
-        );
-      }
-    } catch (cleanupErr) {
-      logger.warn(
-        "[SHOPIFY BXGY CLEANUP] failed to delete existing discount",
-
-        { id: rule.buyxgetyId, error: cleanupErr }
-      );
-    }
-
-    try {
       const input = buildBxgyAutomaticInput(rule, idx);
       const create = async () =>
         adminGraphql(
@@ -5120,27 +6097,52 @@ const syncBxgyRulesToShopify = async (rules = [], shopDomain, accessToken) => {
             automaticBxgyDiscount: input,
           }
         );
+      const update = async () =>
+        adminGraphql(
+          shopDomain,
+          accessToken,
+          AUTOMATIC_BXGY_DISCOUNT_UPDATE_MUTATION,
+          {
+            id: rule.buyxgetyId,
+            automaticBxgyDiscount: input,
+          }
+        );
 
-      const data = await create().catch(async (err) => {
-        if (
-          err instanceof Error &&
-          err.message.includes("Title must be unique")
-        ) {
-          await findAndDeleteDiscountByTitle(
+      const data = rule.buyxgetyId
+        ? await update().catch(async (err) => {
+          logger.warn(
+            "[SHOPIFY BXGY] update failed, creating replacement",
+            err
+          );
+          await deleteShopifyDiscountById(
             shopDomain,
             accessToken,
-            input.title,
-            "automatic"
+            rule.buyxgetyId
           );
           return create();
-        }
-        throw err;
-      });
+        })
+        : await create().catch(async (err) => {
+          if (
+            err instanceof Error &&
+            err.message.includes("Title must be unique")
+          ) {
+            await findAndDeleteDiscountByTitle(
+              shopDomain,
+              accessToken,
+              input.title,
+              "automatic"
+            );
+            return create();
+          }
+          throw err;
+        });
 
       results.push({
         index: idx,
         id:
-          data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id || null,
+          data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id ||
+          data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id ||
+          null,
       });
     } catch (err) {
       logger.error("Shopify BXGY discount sync failed", err);
@@ -5158,12 +6160,18 @@ const syncBxgyRulesToShopify = async (rules = [], shopDomain, accessToken) => {
   return results;
 };
 
-const freeSummary = (r, productsById) => {
+const freeSummary = (r, productsById, currency = "USD") => {
   const gift = productsById[r.bonus]?.title || r.bonus || "Gift";
   const quantity = notEmpty(r.qty) ? r.qty : "1";
-  const threshold = notEmpty(r.minPurchase)
-    ? ` when order >= ${formatCurrency(r.minPurchase)}`
-    : "";
+  const triggerType = normalizeTriggerType(r.triggerType);
+  const threshold =
+    triggerType === "quantity"
+      ? notEmpty(r.minQuantity)
+        ? ` when cart qty >= ${r.minQuantity}`
+        : ""
+      : notEmpty(r.minPurchase)
+        ? ` when order >= ${formatCurrency(r.minPurchase, currency)}`
+        : "";
 
   return `Summary: auto-add ${gift} (${quantity})${threshold}`;
 };
@@ -5221,7 +6229,7 @@ const celebrationStyles = `
 .rule-illustration svg {
   width: 100%;
   height: 100%;
-  border-radius: 24px;
+  border-radius: 4px;
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
   background: white;
   padding: 12px;
@@ -5307,7 +6315,7 @@ const celebrationStyles = `
 
 .picker-table {
   border: 1px solid #e6e8ec;
-  border-radius: 12px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -5326,7 +6334,7 @@ const celebrationStyles = `
 .picker-thumb {
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 4px;
   background: #f5f5f7;
   display: flex;
   align-items: center;
@@ -5532,7 +6540,7 @@ function CartDrawerPreview({
         minPurchase !== null && Number.isFinite(minPurchase)
           ? Math.max(0, minPurchase - subtotal)
           : null;
-      const discountValueWithOff = formatDiscountValueDisplay(rule) || "";
+      const discountValueWithOff = formatDiscountValueDisplay(rule, previewCurrency) || "";
       const discountValue =
         discountValueWithOff.replace(/\s*off$/i, "").trim() || discountValueWithOff;
       const discountCode =
@@ -5751,8 +6759,32 @@ function CartDrawerPreview({
             justifyContent: "space-between",
           }}
         >
-          <div style={{ fontSize: theme.headingPx, color: headerText }}>
-            Your Cart
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              minWidth: 0,
+              fontSize: theme.headingPx,
+              color: headerText,
+            }}
+          >
+            {theme.cartIconUrl ? (
+              <img
+                src={theme.cartIconUrl}
+                alt=""
+                style={{ width: 28, height: 28, objectFit: "contain" }}
+              />
+            ) : (
+              <span style={{ color: iconColor, lineHeight: 0 }}>
+                <svg width="28" height="28" viewBox="0 0 28 26" fill="none" aria-hidden="true">
+                  <path d="M8.57235 25C9.26443 25 9.82548 24.4389 9.82548 23.7468C9.82548 23.0548 9.26443 22.4937 8.57235 22.4937C7.88026 22.4937 7.31921 23.0548 7.31921 23.7468C7.31921 24.4389 7.88026 25 8.57235 25Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M22.357 25C23.0491 25 23.6101 24.4389 23.6101 23.7468C23.6101 23.0548 23.0491 22.4937 22.357 22.4937C21.6649 22.4937 21.1039 23.0548 21.1039 23.7468C21.1039 24.4389 21.6649 25 22.357 25Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M1.11658 1H3.62284L6.95618 16.5639C7.07845 17.1339 7.39561 17.6435 7.85306 18.0048C8.3105 18.3662 8.87962 18.5568 9.46244 18.5439H21.7181C22.2885 18.5429 22.8415 18.3475 23.2858 17.9898C23.7301 17.6321 24.0391 17.1335 24.1617 16.5764L26.2294 7.26566H4.96369" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            )}
+            <span>Your Cart</span>
           </div>
           <div
             style={{
@@ -5769,7 +6801,7 @@ function CartDrawerPreview({
             aria-hidden="true"
             title="Close drawer"
           >
-            <span style={{ fontSize: 20, lineHeight: 1 }}>�</span>
+            <span style={{ fontSize: 20, lineHeight: 1 }}>X</span>
           </div>
         </div>
 
@@ -6142,7 +7174,7 @@ function CartDrawerPreview({
                           style={{
                             width: 68,
                             height: 68,
-                            borderRadius: 0,
+                            borderRadius: 4,
                             background: "#EEF2F7",
                             overflow: "hidden",
                             justifySelf: "center",
@@ -6178,7 +7210,7 @@ function CartDrawerPreview({
                             <div
                               style={{
                                 padding: "8px 14px",
-                                borderRadius: 0,
+                                borderRadius: 4,
                                 background: upsellButtonBg,
                                 border: `1px solid ${upsellBorder}`,
                                 color: upsellText,
@@ -6253,22 +7285,27 @@ function RuleShell({
   const [open, setOpen] = React.useState(defaultOpen);
 
   return (
-    <Card>
-      <Box padding="400">
-        <InlineStack align="space-between" blockAlign="center">
-          <InlineStack gap="150" blockAlign="center">
-            {icon ? (
-              <Text as="span" variant="bodyLg" aria-hidden="true">
-                {iconGlyph(icon)}
-              </Text>
-            ) : null}
+    <div className="rules-rule-card">
+      <Card>
+      <Box padding="200">
+        <div className="rules-rule-header">
+          <InlineStack gap="150" blockAlign="center" wrap={false}>
+            <span className="rules-rule-title">
+              {icon ? (
+                <Text as="span" variant="bodyLg" aria-hidden="true">
+                  {iconGlyph(icon)}
+                </Text>
+              ) : null}
+            </span>
 
-            <Text as="h5" variant="headingSm">
-              {title}
-            </Text>
+            <Box style={{ minWidth: 0 }}>
+              <Text as="h5" variant="headingSm" truncate>
+                {title}
+              </Text>
+            </Box>
           </InlineStack>
 
-          <InlineStack gap="200">
+          <div className="rules-rule-actions">
             <Button disclosure onClick={() => setOpen((o) => !o)}>
               {open ? "Hide" : "Show"}
             </Button>
@@ -6277,8 +7314,8 @@ function RuleShell({
             <Button tone="critical" onClick={onRemove} disabled={disableRemove}>
               Remove
             </Button>
-          </InlineStack>
-        </InlineStack>
+          </div>
+        </div>
 
         {!open && summary && (
           <Box paddingBlockStart="200">
@@ -6293,10 +7330,13 @@ function RuleShell({
         <>
           <Divider />
 
-          <Box padding="400">{children}</Box>
+          <Box padding="200">
+            <div className="rules-rule-body">{children}</div>
+          </Box>
         </>
       )}
     </Card>
+    </div>
   );
 }
 
@@ -6329,7 +7369,7 @@ const ColorField = ({ label, value, onChange, compact = false }) => {
             width: 36,
             height: 36,
             border: "none",
-            borderRadius: 12,
+            borderRadius: 4,
             padding: 0,
             background: "transparent",
             cursor: "pointer",
@@ -6345,10 +7385,354 @@ const ColorField = ({ label, value, onChange, compact = false }) => {
           autoComplete="off"
           style={{
             minWidth: compact ? 110 : 140,
-            borderRadius: 12,
+            borderRadius: 4,
           }}
         />
       </div>
+    </Box>
+  );
+};
+
+const RuleScheduleFields = ({
+  startsAt,
+  endsAt,
+  onStartsAtChange,
+  onEndsAtChange,
+  disabled = false,
+}) => {
+  const hasValue = Boolean(startsAt || endsAt);
+  const [open, setOpen] = React.useState(hasValue);
+  const now = React.useMemo(() => new Date(), []);
+  const fallbackStart = startsAt ? null : now;
+  const fallbackEnd = endsAt ? null : addDays(now, 10);
+  const startDateValue = toLocalDateInputValue(startsAt, fallbackStart);
+  const startTimeValue = toLocalTimeInputValue(startsAt, fallbackStart);
+  const endDateValue = toLocalDateInputValue(endsAt, fallbackEnd);
+  const endTimeValue = toLocalTimeInputValue(endsAt, fallbackEnd);
+  const hasEndDate = Boolean(endsAt);
+  const browserTimeZone = React.useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "Local time";
+    } catch {
+      return "Local time";
+    }
+  }, []);
+
+  const updateStartDate = (dateValue) => {
+    onStartsAtChange(combineLocalDateAndTime(dateValue, startTimeValue));
+  };
+
+  const updateStartTime = (timeValue) => {
+    onStartsAtChange(combineLocalDateAndTime(startDateValue, timeValue));
+  };
+
+  const updateEndDate = (dateValue) => {
+    onEndsAtChange(combineLocalDateAndTime(dateValue, endTimeValue));
+  };
+
+  const updateEndTime = (timeValue) => {
+    onEndsAtChange(combineLocalDateAndTime(endDateValue, timeValue));
+  };
+
+  const toggleEndDate = (checked) => {
+    if (!checked) {
+      onEndsAtChange(null);
+      return;
+    }
+    onEndsAtChange(combineLocalDateAndTime(endDateValue, endTimeValue));
+  };
+
+  const dateInputStyle = {
+    width: "100%",
+    minHeight: 40,
+    border: "1px solid #aeb4b9",
+    borderRadius: 8,
+    padding: "7px 12px",
+    background: disabled ? "#f6f6f7" : "#ffffff",
+    color: "#303030",
+    fontSize: 14,
+    fontWeight: 650,
+    lineHeight: 1.4,
+  };
+
+  const scheduleGridStyle = {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+    gap: "10px 18px",
+    alignItems: "end",
+  };
+
+  return (
+    <Box
+      borderWidth="025"
+      borderColor="border"
+      borderRadius="100"
+      background="bg-surface"
+      style={{ background: "#ffffff", border: "1px solid #dcdfe4" }}
+    >
+      <button
+        type="button"
+        className="rule-accordion-btn"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
+          alignItems: "center",
+          columnGap: 12,
+          padding: "10px 12px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          borderRadius: 4,
+          transition: "background 0.15s",
+        }}
+      >
+        <span className="rule-accordion-btn__content">
+          <Text as="span" variant="headingXs" fontWeight="semibold">
+            Schedule
+          </Text>
+        </span>
+        <span className="rule-accordion-btn__icon">
+          <Icon source={open ? MinusCircleIcon : PlusCircleIcon} tone="base" />
+        </span>
+      </button>
+
+      {open && (
+        <Box paddingInline="200" paddingBlockStart="200" paddingBlockEnd="200">
+          <BlockStack gap="100">
+            <Text as="p" tone="subdued" variant="bodySm">
+              Based on your browser&apos;s timezone: {browserTimeZone}
+            </Text>
+
+            <Box
+              padding="200"
+              borderRadius="200"
+            >
+              <BlockStack gap="150">
+                <div style={scheduleGridStyle}>
+                  <label>
+                    <Text as="span" variant="bodySm" fontWeight="semibold">
+                      Start date
+                    </Text>
+                    <input
+                      type="date"
+                      disabled={disabled}
+                      value={startDateValue}
+                      onChange={(event) => updateStartDate(event.target.value)}
+                      style={dateInputStyle}
+                    />
+                  </label>
+
+                  <label>
+                    <Text as="span" variant="bodySm" fontWeight="semibold">
+                      Start time
+                    </Text>
+                    <input
+                      type="time"
+                      disabled={disabled}
+                      value={startTimeValue}
+                      onChange={(event) => updateStartTime(event.target.value)}
+                      style={dateInputStyle}
+                    />
+                  </label>
+                </div>
+
+                <Checkbox
+                  label="Set end date"
+                  disabled={disabled}
+                  checked={hasEndDate}
+                  onChange={toggleEndDate}
+                />
+
+                {hasEndDate && (
+                  <div style={scheduleGridStyle}>
+                    <label>
+                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                        End date
+                      </Text>
+                      <input
+                        type="date"
+                        disabled={disabled}
+                        value={endDateValue}
+                        onChange={(event) => updateEndDate(event.target.value)}
+                        style={dateInputStyle}
+                      />
+                    </label>
+
+                    <label>
+                      <Text as="span" variant="bodySm" fontWeight="semibold">
+                        End time
+                      </Text>
+                      <input
+                        type="time"
+                        disabled={disabled}
+                        value={endTimeValue}
+                        onChange={(event) => updateEndTime(event.target.value)}
+                        style={dateInputStyle}
+                      />
+                    </label>
+                  </div>
+                )}
+              </BlockStack>
+            </Box>
+          </BlockStack>
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+const ScopeResourcePickerControl = ({
+  label,
+  count = 0,
+  onClick,
+  disabled = false,
+  error = "",
+}) => (
+  <BlockStack gap="100">
+    <Text as="span" variant="bodySm" fontWeight="semibold">
+      Apply
+    </Text>
+    <InlineStack gap="200" blockAlign="center" wrap={false}>
+      <Button
+        size="slim"
+        variant="secondary"
+        onClick={onClick}
+        disabled={disabled}
+      >
+        {label}
+      </Button>
+      <Text tone="subdued" variant="bodySm">
+        {count || 0} selected
+      </Text>
+    </InlineStack>
+    {error ? (
+      <Text tone="critical" variant="bodySm">
+        {error}
+      </Text>
+    ) : null}
+  </BlockStack>
+);
+
+const TriggerTypeTabs = ({
+  value = "amount",
+  onChange,
+  disabled = false,
+  amountLabel = "Discount on Amount",
+  quantityLabel = "Discount on Quantity",
+}) => {
+  const selected = normalizeTriggerType(value);
+  return (
+    <InlineStack gap="100" wrap>
+      <Button
+        size="slim"
+        pressed={selected === "amount"}
+        disabled={disabled}
+        onClick={() => onChange("amount")}
+      >
+        {amountLabel}
+      </Button>
+      <Button
+        size="slim"
+        pressed={selected === "quantity"}
+        disabled={disabled}
+        onClick={() => onChange("quantity")}
+      >
+        {quantityLabel}
+      </Button>
+    </InlineStack>
+  );
+};
+
+const AdvancedRuleControls = ({
+  rule,
+  disabled = false,
+  onFieldChange,
+}) => {
+  const impressions = Number(rule?.analyticsImpressions || 0);
+  const conversions = Number(rule?.analyticsConversions || 0);
+  const conversionRate = impressions
+    ? `${((conversions / impressions) * 100).toFixed(1)}%`
+    : "0%";
+
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <Box
+      borderWidth="025"
+      borderColor="border"
+      borderRadius="100"
+      background="bg-surface"
+      style={{ background: "#ffffff", border: "1px solid #dcdfe4" }}
+    >
+      <button
+        type="button"
+        className="rule-accordion-btn"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
+          alignItems: "center",
+          columnGap: 12,
+          padding: "10px 12px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          borderRadius: 4,
+          transition: "background 0.15s",
+        }}
+      >
+        <span className="rule-accordion-btn__content">
+          <Text as="span" variant="headingXs" fontWeight="semibold">
+            Targeting & priority
+          </Text>
+          <InlineStack gap="100" blockAlign="center" wrap>
+            <Badge tone="info">Views {impressions}</Badge>
+            <Badge tone="success">Orders {conversions}</Badge>
+            <Badge>{conversionRate}</Badge>
+          </InlineStack>
+        </span>
+        <span className="rule-accordion-btn__icon">
+          <Icon source={open ? MinusCircleIcon : PlusCircleIcon} tone="base" />
+        </span>
+      </button>
+
+      {open && (
+        <Box paddingInline="200" paddingBlockStart="200" paddingBlockEnd="200">
+          <div className="rules-advanced-grid">
+            <TextField
+              label="Priority"
+              type="number"
+              disabled={disabled}
+              value={String(rule?.priority ?? 0)}
+              onChange={(value) => onFieldChange("priority", value)}
+              autoComplete="off"
+            />
+            <Select
+              label="Customer target"
+              disabled={disabled}
+              options={[
+                { label: "All customers", value: "all" },
+                { label: "Logged-in customers", value: "logged_in" },
+                { label: "Guest customers", value: "guest" },
+                { label: "Customer tags", value: "tags" },
+              ]}
+              value={rule?.customerTarget || "all"}
+              onChange={(value) => onFieldChange("customerTarget", value)}
+            />
+            <TextField
+              label="Customer tags"
+              disabled={disabled || rule?.customerTarget !== "tags"}
+              value={rule?.customerTags || ""}
+              onChange={(value) => onFieldChange("customerTags", value)}
+              placeholder="vip, wholesale"
+              autoComplete="off"
+            />
+          </div>
+        </Box>
+      )}
     </Box>
   );
 };
@@ -6390,13 +7774,19 @@ function ResourcePickerModal({
 }) {
   const [search, setSearch] = React.useState("");
 
-  const [draft, setDraft] = React.useState(ensureArray(selected));
+  const selectedKey = ensureArray(selected).join("|");
+  const normalizedSelected = React.useMemo(
+    () => ensureArray(selected),
+    [selectedKey]
+  );
+
+  const [draft, setDraft] = React.useState(() => normalizedSelected);
 
   React.useEffect(() => {
-    setDraft(ensureArray(selected));
+    setDraft(normalizedSelected);
 
     setSearch("");
-  }, [selected, open]);
+  }, [normalizedSelected, open]);
 
   const filteredItems = React.useMemo(() => {
     if (!search) return items;
@@ -6561,6 +7951,10 @@ export default function AppRules() {
 
   const [selected, setSelected] = React.useState(0);
   const currencyCode = String(loaderCurrencyCode || "USD").toUpperCase();
+  const currencySymbol = React.useMemo(
+    () => getCurrencySymbol(currencyCode),
+    [currencyCode]
+  );
 
   const buildTabContent = (label, polarisIcon) => (
     <span
@@ -7056,6 +8450,10 @@ export default function AppRules() {
   const [cartDrawerImage, setCartDrawerImage] = React.useState(
     styleSeed.cartDrawerImage ?? ""
   );
+  const [cartIconUrl, setCartIconUrl] = React.useState(
+    styleSeed.cartIconUrl ?? ""
+  );
+  const [cartIconUploading, setCartIconUploading] = React.useState(false);
 
   const gradientDefaults = normalizeGradientColors(
     styleSeed.cartDrawerBackground,
@@ -7076,6 +8474,18 @@ export default function AppRules() {
 
   const [discountCodeApply, setDiscountCodeApply] = React.useState(
     Boolean(styleSeed.discountCodeApply)
+  );
+  const [drawerAutoOpen, setDrawerAutoOpen] = React.useState(
+    Boolean(styleSeed.drawerAutoOpen ?? DEFAULT_STYLE_SETTINGS.drawerAutoOpen)
+  );
+  const [drawerPosition, setDrawerPosition] = React.useState(
+    styleSeed.drawerPosition ?? DEFAULT_STYLE_SETTINGS.drawerPosition
+  );
+  const [stickyCheckout, setStickyCheckout] = React.useState(
+    Boolean(styleSeed.stickyCheckout ?? DEFAULT_STYLE_SETTINGS.stickyCheckout)
+  );
+  const [mobileLayout, setMobileLayout] = React.useState(
+    styleSeed.mobileLayout ?? DEFAULT_STYLE_SETTINGS.mobileLayout
   );
 
   const [cartDrawerBackgroundMode, setCartDrawerBackgroundMode] =
@@ -7107,8 +8517,8 @@ export default function AppRules() {
       map[`shipping:${id}`] = {
         type: "shipping",
         threshold: getThreshold(rule),
-        label: buildFullOptionLabel("shipping", rule),
-        stepLabel: stepLabelForRule("shipping", rule),
+        label: buildFullOptionLabel("shipping", rule, currencyCode),
+        stepLabel: stepLabelForRule("shipping", rule, currencyCode),
       };
     });
     discountRules.forEach((rule) => {
@@ -7119,8 +8529,8 @@ export default function AppRules() {
       map[`discount:${id}`] = {
         type: "discount",
         threshold: getThreshold(rule),
-        label: buildFullOptionLabel("discount", rule),
-        stepLabel: stepLabelForRule("discount", rule),
+        label: buildFullOptionLabel("discount", rule, currencyCode),
+        stepLabel: stepLabelForRule("discount", rule, currencyCode),
       };
     });
     freeRules.forEach((rule) => {
@@ -7129,12 +8539,12 @@ export default function AppRules() {
       map[`free:${id}`] = {
         type: "free",
         threshold: getThreshold(rule),
-        label: buildFullOptionLabel("free", rule),
-        stepLabel: stepLabelForRule("free", rule),
+        label: buildFullOptionLabel("free", rule, currencyCode),
+        stepLabel: stepLabelForRule("free", rule, currencyCode),
       };
     });
     return map;
-  }, [shippingRules, discountRules, freeRules]);
+  }, [shippingRules, discountRules, freeRules, currencyCode]);
 
   const cartDrawerBackgroundValue =
     cartDrawerBackgroundMode === "gradient"
@@ -7164,9 +8574,14 @@ export default function AppRules() {
       cartDrawerTextColor,
       cartDrawerHeaderColor,
       cartDrawerImage,
+      cartIconUrl,
       cartDrawerBackgroundMode,
       discountCodeApply,
       checkoutButtonText,
+      drawerAutoOpen,
+      drawerPosition,
+      stickyCheckout,
+      mobileLayout,
     }),
     [
       font,
@@ -7186,9 +8601,14 @@ export default function AppRules() {
       cartDrawerTextColor,
       cartDrawerHeaderColor,
       cartDrawerImage,
+      cartIconUrl,
       cartDrawerBackgroundMode,
       discountCodeApply,
       checkoutButtonText,
+      drawerAutoOpen,
+      drawerPosition,
+      stickyCheckout,
+      mobileLayout,
     ]
   );
 
@@ -7342,6 +8762,26 @@ export default function AppRules() {
     []
   );
 
+  const updateRuleTranslation = React.useCallback(
+    (setter, index, locale, field, value) => {
+      setter((prev) =>
+        prev.map((rule, idx) => {
+          if (idx !== index) return rule;
+          const translations = parseJsonObject(rule.translations, {});
+          const localeEntry = parseJsonObject(translations[locale], {});
+          return {
+            ...rule,
+            translations: {
+              ...translations,
+              [locale]: { ...localeEntry, [field]: value },
+            },
+          };
+        })
+      );
+    },
+    []
+  );
+
   const updatePrimaryShippingRuleField = React.useCallback(
     (field, value) => updateShippingRuleField(0, field, value),
 
@@ -7361,7 +8801,7 @@ export default function AppRules() {
           String(rule?.type ?? "automatic").toLowerCase() === "automatic"
       )
       .map((rule) => {
-        const threshold = getDiscountMinPurchase(rule);
+        const { value: threshold } = getRuleTriggerThreshold(rule);
         return {
           rule,
           threshold:
@@ -7671,6 +9111,44 @@ export default function AppRules() {
     []
   );
 
+  const handleCartIconDrop = React.useCallback(
+    async (_droppedFiles, acceptedFiles) => {
+      const file = acceptedFiles?.[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("intent", "uploadCartIcon");
+      formData.append("cartIcon", file);
+
+      try {
+        setCartIconUploading(true);
+        const res = await fetch("/api/rules", {
+          method: "POST",
+          body: formData,
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok || result?.error) {
+          throw new Error(result?.error || "Unable to upload cart icon.");
+        }
+
+        setCartIconUrl(result.cartIconUrl || "");
+        triggerThemeBurst();
+        showToast("Cart icon uploaded");
+      } catch (error) {
+        showToast(
+          error instanceof Error ? error.message : "Unable to upload cart icon.",
+          "critical"
+        );
+      } finally {
+        setCartIconUploading(false);
+      }
+    },
+    [showToast, triggerThemeBurst]
+  );
+
   const handleToastDismiss = React.useCallback(
     () => setToast((t) => ({ ...t, active: false })),
 
@@ -7787,10 +9265,15 @@ export default function AppRules() {
             cartDrawerBackgroundMode === "image"
               ? cartDrawerImage.trim() || RURAL_DRAWER_IMAGE
               : null,
+          cartIconUrl: cartIconUrl?.trim() || "",
 
           discountCodeApply,
           checkoutButtonText:
             checkoutButtonText?.trim() || DEFAULT_STYLE_SETTINGS.checkoutButtonText,
+          drawerAutoOpen,
+          drawerPosition,
+          stickyCheckout,
+          mobileLayout,
         },
         upsell: {
           enabled: upsellEnabled,
@@ -7976,8 +9459,11 @@ export default function AppRules() {
             const updates = new Map();
 
             shopifyResults.forEach((item) => {
-              if (Number.isInteger(item?.index)) {
-                updates.set(item.index, item.id ?? null);
+              const resultIndex = Number.isInteger(item?.ruleIndex)
+                ? item.ruleIndex
+                : item?.index;
+              if (Number.isInteger(resultIndex)) {
+                updates.set(resultIndex, item.id ?? null);
               }
             });
 
@@ -8009,6 +9495,31 @@ export default function AppRules() {
           }
         }
 
+        if (section === "shipping") {
+          const serverRules = Array.isArray(result?.payload)
+            ? result.payload
+            : null;
+
+          if (serverRules) {
+            setShippingRules((prev) =>
+              prev.map((rule, idx) => {
+                const serverRule = serverRules[idx];
+                if (!serverRule) return rule;
+                return {
+                  ...rule,
+                  id: serverRule.id ?? rule.id ?? null,
+                  shopifyRateId:
+                    serverRule.shopifyRateId ?? rule.shopifyRateId ?? null,
+                  shopifyMethodDefinitionId:
+                    serverRule.shopifyMethodDefinitionId ??
+                    rule.shopifyMethodDefinitionId ??
+                    null,
+                };
+              })
+            );
+          }
+        }
+
         if (section === "discount") {
           const shopifyResults = result?.payload?.shopifyResults;
 
@@ -8016,8 +9527,11 @@ export default function AppRules() {
             const updates = new Map();
 
             shopifyResults.forEach((item) => {
-              if (Number.isInteger(item?.index)) {
-                updates.set(item.index, item.id ?? null);
+              const resultIndex = Number.isInteger(item?.ruleIndex)
+                ? item.ruleIndex
+                : item?.index;
+              if (Number.isInteger(resultIndex)) {
+                updates.set(resultIndex, item.id ?? null);
               }
             });
 
@@ -8031,6 +9545,50 @@ export default function AppRules() {
                 })
               );
             }
+          }
+
+          const serverRules = Array.isArray(result?.payload?.rules)
+            ? result.payload.rules
+            : null;
+
+          if (serverRules) {
+            setDiscountRules((prev) =>
+              prev.map((rule, idx) => {
+                const serverRule = serverRules[idx];
+                if (!serverRule) return rule;
+                return {
+                  ...rule,
+                  id: serverRule.id ?? rule.id ?? null,
+                  shopifyDiscountCodeId:
+                    serverRule.shopifyDiscountCodeId ??
+                    rule.shopifyDiscountCodeId ??
+                    null,
+                };
+              })
+            );
+          }
+        }
+
+        if (section === "free") {
+          const serverRules = Array.isArray(result?.payload)
+            ? result.payload
+            : null;
+
+          if (serverRules) {
+            setFreeRules((prev) =>
+              prev.map((rule, idx) => {
+                const serverRule = serverRules[idx];
+                if (!serverRule) return rule;
+                return {
+                  ...rule,
+                  id: serverRule.id ?? rule.id ?? null,
+                  freeProductDiscountID:
+                    serverRule.freeProductDiscountID ??
+                    rule.freeProductDiscountID ??
+                    null,
+                };
+              })
+            );
           }
         }
 
@@ -8153,9 +9711,16 @@ export default function AppRules() {
 
       cartDrawerImage,
 
+      cartIconUrl,
+
       discountCodeApply,
 
       checkoutButtonText,
+
+      drawerAutoOpen,
+      drawerPosition,
+      stickyCheckout,
+      mobileLayout,
 
       upsellEnabled,
       upsellShowAsSlider,
@@ -8363,6 +9928,7 @@ export default function AppRules() {
           cartDrawerBackgroundMode === "image"
             ? cartDrawerImage.trim() || RURAL_DRAWER_IMAGE
             : null,
+        cartIconUrl: cartIconUrl?.trim() || "",
 
         discountCodeApply,
         checkoutButtonText:
@@ -8405,7 +9971,7 @@ export default function AppRules() {
         progressTextAfter: DEFAULT_STYLE_SETTINGS.progressTextAfter,
         progressTextBelow: DEFAULT_STYLE_SETTINGS.progressTextBelow,
         campaignName: "Free Shipping",
-        cartStepName: "Free Shipping",
+        cartStepName: "",
       },
     ]);
   };
@@ -8529,6 +10095,8 @@ export default function AppRules() {
         enabled: false,
         trigger: "payment_online",
         minPurchase: "",
+        triggerType: "amount",
+        minQuantity: "2",
         bonus: "",
         qty: "1",
         limit: "1",
@@ -8847,8 +10415,8 @@ export default function AppRules() {
   );
 
   const previewTokens = {
-    goal: fmtINR(previewAmountRemaining),
-    current_status: fmtINR(previewCurrentTotal),
+    goal: fmtMoney(previewAmountRemaining, currencyCode),
+    current_status: fmtMoney(previewCurrentTotal, currencyCode),
   };
 
   const previewBeforeTemplate =
@@ -8872,13 +10440,14 @@ export default function AppRules() {
     previewTokens
   );
 
-  const previewRewardLabel = stepLabelForRule("shipping", activeRuleEntry?.rule);
+  const previewRewardLabel = stepLabelForRule("shipping", activeRuleEntry?.rule, currencyCode);
   const previewIsComplete =
     Number.isFinite(activeRuleThreshold) && previewCurrentTotal >= activeRuleThreshold;
   const previewDefaultBefore =
     previewAmountRemaining > 0
-      ? `Add ${fmtINR(
-        previewAmountRemaining
+      ? `Add ${fmtMoney(
+        previewAmountRemaining,
+        currencyCode
       )} more to get ${previewRewardLabel} with this order`
       : `${previewRewardLabel} unlocked!`;
   const previewDefaultAfter = previewIsComplete
@@ -8906,7 +10475,7 @@ export default function AppRules() {
   const freePreviewRules = React.useMemo(() => {
     const normalized = (Array.isArray(freeRules) ? freeRules : [])
       .map((rule) => {
-        const thresholdValue = getFreeGiftMinPurchase(rule);
+        const { value: thresholdValue } = getRuleTriggerThreshold(rule);
         const threshold =
           thresholdValue !== null &&
             Number.isFinite(Number(thresholdValue))
@@ -8953,9 +10522,19 @@ export default function AppRules() {
     0,
     (freeActiveRuleThreshold || freeNormalizedGoal) - freeCurrentTotal
   );
+  const freePreviewGoalText = formatTriggerPreviewValue(
+    freeActiveRuleEntry?.rule,
+    freeAmountRemaining,
+    currencyCode
+  );
+  const freePreviewCurrentText = formatTriggerPreviewValue(
+    freeActiveRuleEntry?.rule,
+    freeCurrentTotal,
+    currencyCode
+  );
   const freePreviewTokens = {
-    goal: fmtINR(freeAmountRemaining),
-    current_status: fmtINR(freeCurrentTotal),
+    goal: freePreviewGoalText,
+    current_status: freePreviewCurrentText,
   };
   const freeBeforeTemplate =
     freeActiveRuleEntry?.rule?.progressTextBefore ??
@@ -8976,15 +10555,13 @@ export default function AppRules() {
     freeBelowTemplate,
     freePreviewTokens
   );
-  const freeStepLabel = stepLabelForRule("free", freeActiveRuleEntry?.rule);
+  const freeStepLabel = stepLabelForRule("free", freeActiveRuleEntry?.rule, currencyCode);
   const freeIsComplete =
     Number.isFinite(freeActiveRuleThreshold) &&
     freeCurrentTotal >= freeActiveRuleThreshold;
   const freeDefaultBefore =
     freeAmountRemaining > 0
-      ? `Add ${fmtINR(
-        freeAmountRemaining
-      )} more to get ${freeStepLabel} with this order`
+      ? `Add ${freePreviewGoalText} more to get ${freeStepLabel} with this order`
       : `${freeStepLabel} unlocked!`;
   const freeDefaultAfter = freeIsComplete
     ? `${freeStepLabel} unlocked!`
@@ -9041,16 +10618,26 @@ export default function AppRules() {
     0,
     (discountActiveRuleThreshold || discountNormalizedGoal) - discountCurrentTotal
   );
+  const discountPreviewGoalText = formatTriggerPreviewValue(
+    discountActiveRuleEntry?.rule,
+    discountAmountRemaining,
+    currencyCode
+  );
+  const discountPreviewCurrentText = formatTriggerPreviewValue(
+    discountActiveRuleEntry?.rule,
+    discountCurrentTotal,
+    currencyCode
+  );
   const discountValueWithOff =
-    formatDiscountValueDisplay(discountActiveRuleEntry?.rule) || "Value";
+    formatDiscountValueDisplay(discountActiveRuleEntry?.rule, currencyCode) || "Value";
   const discountValue =
     discountValueWithOff.replace(/\s*off$/i, "").trim() || discountValueWithOff;
   const discountPreviewTokens = {
-    goal: fmtINR(discountAmountRemaining),
-    current_status: fmtINR(discountCurrentTotal),
+    goal: discountPreviewGoalText,
+    current_status: discountPreviewCurrentText,
     discount:
       discountActiveRuleEntry?.rule?.value !== undefined
-        ? buildFullOptionLabel("discount", discountActiveRuleEntry.rule)
+        ? buildFullOptionLabel("discount", discountActiveRuleEntry.rule, currencyCode)
         : "Discount",
     discount_value: discountValue,
     discount_value_with_off: discountValueWithOff,
@@ -9081,16 +10668,15 @@ export default function AppRules() {
   );
   const discountStepLabel = stepLabelForRule(
     "discount",
-    discountActiveRuleEntry?.rule
+    discountActiveRuleEntry?.rule,
+    currencyCode
   );
   const discountIsComplete =
     Number.isFinite(discountActiveRuleThreshold) &&
     discountCurrentTotal >= discountActiveRuleThreshold;
   const discountDefaultBefore =
     discountAmountRemaining > 0
-      ? `Add ${fmtINR(
-        discountAmountRemaining
-      )} more to get ${discountStepLabel} with this order`
+      ? `Add ${discountPreviewGoalText} more to get ${discountStepLabel} with this order`
       : `${discountStepLabel} unlocked!`;
   const discountDefaultAfter = discountIsComplete
     ? `${discountStepLabel} unlocked!`
@@ -9121,7 +10707,7 @@ export default function AppRules() {
   const shippingReadOnly = false;
 
   const ShippingPanel = (
-    <BlockStack gap="300">
+    <BlockStack gap="200">
       <InlineStack align="space-between" blockAlign="center">
         <Text as="h4" variant="headingSm">
           Shipping Rules
@@ -9155,23 +10741,13 @@ export default function AppRules() {
             title={r.campaignName?.trim() ? r.campaignName : "Shipping Rule"}
             index={i}
             onRemove={() => rmShipping(i)}
-            summary={shippingSummary(r)}
+            summary={shippingSummary(r, currencyCode)}
             icon={r.iconChoice}
             defaultOpen={!r.isNew}
             disableRemove={shippingReadOnly}
           >
-            <BlockStack gap="400">
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  gap: 16,
-                  paddingBottom: 8,
-                  borderBottom: "1px solid rgba(15,23,42,0.08)",
-                  marginBottom: 12,
-                }}
-              >
+            <BlockStack gap="200">
+              <div className="rules-field-panel rules-field-panel--inline">
                 <Checkbox
                   label="Enable"
                   checked={r.enabled}
@@ -9205,7 +10781,7 @@ export default function AppRules() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>
-                    Threshold: Min Subtotal (?)
+                    Threshold: Min Subtotal ({currencySymbol})
                   </div>
                   <TextField
                     size="small"
@@ -9263,15 +10839,32 @@ export default function AppRules() {
                   /> 
                 </div> */}
               </div>
+              <RuleScheduleFields
+                startsAt={r.startsAt}
+                endsAt={r.endsAt}
+                disabled={shippingReadOnly}
+                onStartsAtChange={(value) =>
+                  updateShippingRuleField(i, "startsAt", value)
+                }
+                onEndsAtChange={(value) =>
+                  updateShippingRuleField(i, "endsAt", value)
+                }
+              />
+              <AdvancedRuleControls
+                rule={r}
+                disabled={shippingReadOnly}
+                onFieldChange={(field, value) =>
+                  updateShippingRuleField(i, field, value)
+                }
+                onTranslationChange={(locale, field, value) =>
+                  updateRuleTranslation(setShippingRules, i, locale, field, value)
+                }
+              />
               <Divider />
               <div
                 gap="100"
-                style={{
-                  justifyContent: "flex-start",
-                  alignItems: "center",
-                  display: "flex",
-                  marginBottom: 8,
-                }}
+                style={{ marginBottom: 8 }}
+                className="rules-section-title"
               >
                 <svg
                   viewBox="0 0 20 20"
@@ -9521,7 +11114,7 @@ export default function AppRules() {
                 entry.rule?.progressTextBelow ?? ruleDefaults.progressTextBelow;
               const ruleBelowText =
                 renderProgressText(ruleBelowTemplate, discountPreviewTokens) || "";
-              const ruleCopy = ruleBelowText || stepLabelForRule("discount", entry.rule);
+              const ruleCopy = ruleBelowText || stepLabelForRule("discount", entry.rule, currencyCode);
               const stepComplete =
                 Number.isFinite(entry.threshold) &&
                 discountCurrentTotal >= entry.threshold;
@@ -9627,7 +11220,7 @@ export default function AppRules() {
               const ruleBelowText =
                 renderProgressText(ruleBelowTemplate, freePreviewTokens) || "";
               const ruleCopy =
-                ruleBelowText || stepLabelForRule("free", entry.rule);
+                ruleBelowText || stepLabelForRule("free", entry.rule, currencyCode);
               const stepThreshold = (idx + 1) / freeStepCount;
               const isRuleComplete = freePreviewSliderPercent >= stepThreshold;
               const iconSource =
@@ -9718,7 +11311,7 @@ export default function AppRules() {
       .filter(({ rule }) => filterRule(rule));
 
     return (
-      <BlockStack gap="300">
+      <BlockStack gap="200">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h4" variant="headingSm">
             {title}
@@ -9736,8 +11329,9 @@ export default function AppRules() {
 
         {filteredRules.map(({ rule: r, index }, panelIndex) => {
           const valueType = (r.valueType || "percent").toLowerCase();
+          const triggerType = normalizeTriggerType(r.triggerType);
           const valueLabel =
-            valueType === "amount" ? "Value (Rs)" : "Value (%)";
+            valueType === "amount" ? `Value (${currencySymbol})` : "Value (%)";
           const toggleLabel = r.enabled ? "Deactivate" : "Activate";
           const autoButton =
             r.type !== "code" ? (
@@ -9797,14 +11391,37 @@ export default function AppRules() {
               index={index}
               displayIndex={panelIndex}
               onRemove={() => rmDiscount(index)}
-              summary={discountSummary(r)}
+              summary={discountSummary(r, currencyCode)}
               icon={r.iconChoice}
               actions={actionButton}
               defaultOpen={!r.isNew}
               disableRemove={readOnly}
             >
-              <BlockStack gap="400">
-                <InlineStack gap="400" align="start" wrap>
+              <BlockStack gap="200">
+                <TriggerTypeTabs
+                  value={triggerType}
+                  disabled={readOnly}
+                  onChange={(value) =>
+                    updateDiscountRuleField(index, "triggerType", value)
+                  }
+                />
+
+                <div
+                  className={
+                    showScopeInline
+                      ? "rules-field-panel rules-field-panel--grid"
+                      : "rules-field-panel rules-field-panel--inline"
+                  }
+                  style={
+                    showScopeInline
+                      ? {
+                        gridTemplateColumns:
+                          "max-content 132px 112px 142px",
+                      }
+                      : {
+                      }
+                  }
+                >
                   <Checkbox
                     label="Enable"
                     checked={r.enabled}
@@ -9864,7 +11481,7 @@ export default function AppRules() {
                       disabled={readOnly}
                       options={[
                         { label: "Percentage", value: "percent" },
-                        { label: "Amount (Rs)", value: "amount" },
+                        { label: `Amount (${currencySymbol})`, value: "amount" },
                       ]}
                       value={valueType}
                       onChange={(value) =>
@@ -9900,73 +11517,90 @@ export default function AppRules() {
                     }
                   />
 
-                  <TextField
-                    label="Min purchase (?)"
-                    disabled={readOnly}
-                    value={r.minPurchase}
-                    onChange={(v) =>
-                      setDiscountRules((x) =>
-                        x.map((it, idx) =>
-                          idx === index ? { ...it, minPurchase: v } : it
+                  {triggerType === "quantity" ? (
+                    <TextField
+                      label="Min quantity"
+                      disabled={readOnly}
+                      value={r.minQuantity || ""}
+                      onChange={(v) =>
+                        updateDiscountRuleField(index, "minQuantity", v)
+                      }
+                    />
+                  ) : (
+                    <TextField
+                      label={`Min purchase (${currencySymbol})`}
+                      disabled={readOnly}
+                      value={r.minPurchase}
+                      onChange={(v) =>
+                        setDiscountRules((x) =>
+                          x.map((it, idx) =>
+                            idx === index ? { ...it, minPurchase: v } : it
+                          )
                         )
-                      )
-                    }
-                  />
-                  {showScopeInline && (
-                    <>
-                      <Select
-                        label="Scope"
-                        disabled={readOnly}
-                        options={[
-                          { label: "All products", value: "all" },
-                          { label: "Specific collections", value: "collections" },
-                          { label: "Specific products", value: "products" },
-                        ]}
-                        value={r.scope || "all"}
-                        onChange={(v) =>
-                          setDiscountRules((x) =>
-                            x.map((it, idx) => {
-                              if (idx !== index) return it;
-                              if (v === "collections")
-                                return {
-                                  ...it,
-                                  scope: v,
-                                  appliesTo: { ...it.appliesTo, products: [] },
-                                };
-                              if (v === "products")
-                                return {
-                                  ...it,
-                                  scope: v,
-                                  appliesTo: { ...it.appliesTo, collections: [] },
-                                };
+                      }
+                    />
+                  )}
+                </div>
+
+                {showScopeInline && (
+                  <Box style={{ maxWidth: 180 }}>
+                    <Select
+                      label="Scope"
+                      disabled={readOnly}
+                      options={[
+                        { label: "All products", value: "all" },
+                        { label: "Specific collections", value: "collections" },
+                        { label: "Specific products", value: "products" },
+                      ]}
+                      value={r.scope || "all"}
+                      onChange={(v) =>
+                        setDiscountRules((x) =>
+                          x.map((it, idx) => {
+                            if (idx !== index) return it;
+                            if (v === "collections")
                               return {
                                 ...it,
                                 scope: v,
-                                appliesTo: { products: [], collections: [] },
+                                appliesTo: { ...it.appliesTo, products: [] },
                               };
-                            })
-                          )
-                        }
-                      />
-                      {/* <Select
-                        label="Rule icon"
-                        disabled={readOnly}
-                        options={ICON_OPTIONS}
-                        value={r.iconChoice || "tag"}
-                        onChange={(v) =>
-                          setDiscountRules((x) =>
-                            x.map((it, idx) =>
-                              idx === index ? { ...it, iconChoice: v } : it
-                            )
-                          )
-                        }
-                      /> */}
-                    </>
-                  )}
-                </InlineStack>
+                            if (v === "products")
+                              return {
+                                ...it,
+                                scope: v,
+                                appliesTo: { ...it.appliesTo, collections: [] },
+                              };
+                            return {
+                              ...it,
+                              scope: v,
+                              appliesTo: { products: [], collections: [] },
+                            };
+                          })
+                        )
+                      }
+                    />
+                  </Box>
+                )}
+
+                {showScopeInline && r.scope === "collections" && (
+                  <ScopeResourcePickerControl
+                    label="Select collections"
+                    count={r.appliesTo?.collections?.length || 0}
+                    onClick={() => setDiscountCollectionPickerIndex(index)}
+                    disabled={readOnly}
+                  />
+                )}
+
+                {showScopeInline && r.scope === "products" && (
+                  <ScopeResourcePickerControl
+                    label="Select products"
+                    count={r.appliesTo?.products?.length || 0}
+                    onClick={() => setDiscountProductPickerIndex(index)}
+                    disabled={readOnly}
+                  />
+                )}
 
                 {!showScopeInline && (
-                  <InlineStack gap="300" wrap>
+                  <InlineStack gap="200" wrap>
                     <Select
                       label="Scope"
                       disabled={readOnly}
@@ -10005,6 +11639,24 @@ export default function AppRules() {
                       }
                     />
 
+                    {r.scope === "collections" && (
+                      <ScopeResourcePickerControl
+                        label="Select collections"
+                        count={r.appliesTo?.collections?.length || 0}
+                        onClick={() => setDiscountCollectionPickerIndex(index)}
+                        disabled={readOnly}
+                      />
+                    )}
+
+                    {r.scope === "products" && (
+                      <ScopeResourcePickerControl
+                        label="Select products"
+                        count={r.appliesTo?.products?.length || 0}
+                        onClick={() => setDiscountProductPickerIndex(index)}
+                        disabled={readOnly}
+                      />
+                    )}
+
                     {/* <Select
                       label="Rule icon"
                       disabled={readOnly}
@@ -10019,45 +11671,34 @@ export default function AppRules() {
                   </InlineStack>
                 )}
 
-                {r.scope === "collections" && (
-                  <InlineStack gap="200" blockAlign="center" wrap>
-                    <Button
-                      onClick={() => setDiscountCollectionPickerIndex(index)}
-                      size="slim"
-                      variant="secondary"
-                      disabled={readOnly}
-                    >
-                      Select collections
-                    </Button>
-
-                    <Text tone="subdued" variant="bodySm">
-                      {r.appliesTo?.collections?.length || 0} selected
-                    </Text>
-                  </InlineStack>
-                )}
-
-                {r.scope === "products" && (
-                  <InlineStack gap="200" blockAlign="center" wrap>
-                    <Button
-                      onClick={() => setDiscountProductPickerIndex(index)}
-                      size="slim"
-                      variant="secondary"
-                      disabled={readOnly}
-                    >
-                      Select products
-                    </Button>
-
-                    <Text tone="subdued" variant="bodySm">
-                      {r.appliesTo?.products?.length || 0} selected
-                    </Text>
-                  </InlineStack>
-                )}
+                <RuleScheduleFields
+                  startsAt={r.startsAt}
+                  endsAt={r.endsAt}
+                  disabled={readOnly}
+                  onStartsAtChange={(value) =>
+                    updateDiscountRuleField(index, "startsAt", value)
+                  }
+                  onEndsAtChange={(value) =>
+                    updateDiscountRuleField(index, "endsAt", value)
+                  }
+                />
+                <AdvancedRuleControls
+                  rule={r}
+                  disabled={readOnly}
+                  onFieldChange={(field, value) =>
+                    updateDiscountRuleField(index, field, value)
+                  }
+                  onTranslationChange={(locale, field, value) =>
+                    updateRuleTranslation(setDiscountRules, index, locale, field, value)
+                  }
+                />
 
                 <Divider />
 
                 <InlineStack
                   gap="100"
-                  style={{ justifyContent: "flex-start", alignItems: "center", display: "flex", marginBottom: 8 }}
+                  className="rules-section-title"
+                  style={{ marginBottom: 8 }}
                 >
                   <svg viewBox="0 0 20 20" focusable="false" aria-hidden="true" width="20px" height="20px">
                     <path d="M15.747 2.354c.195-.196.512-.196.707 0l1.06 1.06c.196.195.196.512 0 .707l-.956.957-1.768-1.767.957-.957Z" />
@@ -10186,20 +11827,33 @@ export default function AppRules() {
                       const sliderValue =
                         discountRuleSliderValues[index] ?? 50;
                       const sliderPercent = Math.min(1, Math.max(0, sliderValue / 100));
-                      const previewGoalFromRule = Number(r.minPurchase || 0);
+                      const previewGoalFromRule =
+                        normalizeTriggerType(r.triggerType) === "quantity"
+                          ? Number(r.minQuantity || 0)
+                          : Number(r.minPurchase || 0);
                       const previewGoal = previewGoalFromRule > 0 ? previewGoalFromRule : 500;
                       const previewCurrentTotalFromSlider = sliderPercent * previewGoal;
                       const dynamicRemainingAmount = Math.max(0, previewGoal - previewCurrentTotalFromSlider);
+                      const previewGoalText = formatTriggerPreviewValue(
+                        r,
+                        dynamicRemainingAmount,
+                        currencyCode
+                      );
+                      const previewCurrentText = formatTriggerPreviewValue(
+                        r,
+                        previewCurrentTotalFromSlider,
+                        currencyCode
+                      );
                       const previewDiscountValueWithOff =
-                        formatDiscountValueDisplay(r) || "Value";
+                        formatDiscountValueDisplay(r, currencyCode) || "Value";
                       const previewDiscountValue =
                         previewDiscountValueWithOff
                           .replace(/\s*off$/i, "")
                           .trim() || previewDiscountValueWithOff;
                       const previewTokens = {
-                        goal: fmtINR(dynamicRemainingAmount),
-                        current_status: fmtINR(previewCurrentTotalFromSlider),
-                        discount: formatDiscountValueDisplay(r) || "Value",
+                        goal: previewGoalText,
+                        current_status: previewCurrentText,
+                        discount: formatDiscountValueDisplay(r, currencyCode) || "Value",
                         discount_value: previewDiscountValue,
                         discount_value_with_off: previewDiscountValueWithOff,
                         discount_code: r.discountCode || "CODE",
@@ -10362,7 +12016,7 @@ export default function AppRules() {
   const freeReadOnly = false;
 
   const FreeProductPanel = (
-    <BlockStack gap="300">
+    <BlockStack gap="200">
       <InlineStack align="space-between" blockAlign="center">
         <Text as="h4" variant="headingSm">
           Free Product & Quantity
@@ -10376,6 +12030,7 @@ export default function AppRules() {
       </InlineStack>
 
       {freeRules.map((r, i) => {
+        const triggerType = normalizeTriggerType(r.triggerType);
         const freeToggleLabel = r.enabled ? "Deactivate" : "Activate";
         const freeToggleButton = (
           <Button
@@ -10405,14 +12060,27 @@ export default function AppRules() {
             title={r.campaignName?.trim() ? r.campaignName : "Free Product Rule"}
             index={i}
             onRemove={() => rmFree(i)}
-            summary={freeSummary(r, productsById)}
+            summary={freeSummary(r, productsById, currencyCode)}
             icon={r.iconChoice}
             actions={freeToggleButton}
             defaultOpen={!r.isNew}
             disableRemove={freeReadOnly}
           >
-            <BlockStack gap="400">
-              <InlineStack gap="400" align="start" wrap>
+            <BlockStack gap="200">
+              <TriggerTypeTabs
+                value={triggerType}
+                amountLabel="Free product on Amount"
+                quantityLabel="Free product on Quantity"
+                disabled={freeReadOnly}
+                onChange={(value) => updateFreeRuleField(i, "triggerType", value)}
+              />
+
+              <div
+                className="rules-field-panel rules-field-panel--grid"
+                style={{
+                  gridTemplateColumns: "max-content 132px 76px 112px",
+                }}
+              >
                 <Checkbox
                   label="Enable"
                   checked={r.enabled}
@@ -10437,9 +12105,16 @@ export default function AppRules() {
                   }}
                 />
 
-                <Box style={{ flex: "0 0 180px" }}>
+                {triggerType === "quantity" ? (
                   <TextField
-                    label="Min purchase (Rs)"
+                    label="Min quantity"
+                    disabled={freeReadOnly}
+                    value={r.minQuantity || ""}
+                    onChange={(v) => updateFreeRuleField(i, "minQuantity", v)}
+                  />
+                ) : (
+                  <TextField
+                    label={`Min purchase (${currencySymbol})`}
                     disabled={freeReadOnly}
                     value={r.minPurchase}
                     onChange={(v) =>
@@ -10450,50 +12125,8 @@ export default function AppRules() {
                       )
                     }
                   />
-                </Box>
+                )}
 
-                <Box style={{ minWidth: 260 }}>
-                  <Text as="h6" variant="bodySm">
-                    Gift Product
-                  </Text>
-
-                  <InlineStack gap="200" blockAlign="center">
-                    <Button
-                      onClick={() => setGiftPicker({ open: true, index: i })}
-                      disabled={freeReadOnly}
-                    >
-                      Select product
-                    </Button>
-
-                    {r.bonus ? (
-                      <Badge tone="success">
-                        {productsById[r.bonus]?.title || "Selected product"}
-                      </Badge>
-                    ) : (
-                      <Badge tone="attention">Not selected</Badge>
-                    )}
-
-                    {r.bonus && (
-                      <Button
-                        tone="critical"
-                        variant="plain"
-                        disabled={freeReadOnly}
-                        onClick={() =>
-                          setFreeRules((x) =>
-                            x.map((it, idx) =>
-                              idx === i ? { ...it, bonus: "" } : it
-                            )
-                          )
-                        }
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </InlineStack>
-                </Box>
-              </InlineStack>
-
-              <InlineStack gap="400" align="start" wrap={false}>
                 <TextField
                   label="Qty"
                   disabled={freeReadOnly}
@@ -10505,6 +12138,7 @@ export default function AppRules() {
                   }
                 />
 
+
                 <TextField
                   label="Limit per order"
                   disabled={freeReadOnly}
@@ -10515,31 +12149,76 @@ export default function AppRules() {
                     )
                   }
                 />
-                {/* <Select
-                  label="Rule icon"
-                  disabled={freeReadOnly}
-                  options={ICON_OPTIONS}
-                  value={r.iconChoice || "gift"}
-                  onChange={(v) =>
-                    setFreeRules((x) =>
-                      x.map((it, idx) =>
-                        idx === i ? { ...it, iconChoice: v } : it
-                      )
-                    )
-                  }
-                /> */}
-              </InlineStack>
+              </div>
 
+              <Box className="rules-field-panel" style={{ maxWidth: 420 }}>
+                <Text as="h6" variant="bodySm">
+                  Gift Product
+                </Text>
+
+                <InlineStack gap="200" blockAlign="center">
+                  <Button
+                    onClick={() => setGiftPicker({ open: true, index: i })}
+                    disabled={freeReadOnly}
+                  >
+                    Select product
+                  </Button>
+
+                  {r.bonus ? (
+                    <Badge tone="success">
+                      {productsById[r.bonus]?.title || "Selected product"}
+                    </Badge>
+                  ) : (
+                    <Badge tone="attention">Not selected</Badge>
+                  )}
+
+                  {r.bonus && (
+                    <Button
+                      tone="critical"
+                      variant="plain"
+                      disabled={freeReadOnly}
+                      onClick={() =>
+                        setFreeRules((x) =>
+                          x.map((it, idx) =>
+                            idx === i ? { ...it, bonus: "" } : it
+                          )
+                        )
+                      }
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </InlineStack>
+              </Box>
+              <RuleScheduleFields
+                startsAt={r.startsAt}
+                endsAt={r.endsAt}
+                disabled={freeReadOnly}
+                onStartsAtChange={(value) =>
+                  updateFreeRuleField(i, "startsAt", value)
+                }
+                onEndsAtChange={(value) =>
+                  updateFreeRuleField(i, "endsAt", value)
+                }
+              />
+              <AdvancedRuleControls
+                rule={r}
+                disabled={freeReadOnly}
+                onFieldChange={(field, value) =>
+                  updateFreeRuleField(i, field, value)
+                }
+                onTranslationChange={(locale, field, value) =>
+                  updateRuleTranslation(setFreeRules, i, locale, field, value)
+                }
+              />
               <Divider />
 
               <InlineStack
                 gap="100"
                 style={{
-                  justifyContent: "flex-start",
-                  alignItems: "center",
-                  display: "flex",
                   marginBottom: 8,
                 }}
+                className="rules-section-title"
               >
                 <svg
                   viewBox="0 0 20 20"
@@ -10672,7 +12351,10 @@ export default function AppRules() {
         selected={
           giftPicker.index === null || !freeRules[giftPicker.index]?.bonus
             ? []
-            : [freeRules[giftPicker.index]?.bonus]
+            : [
+              productsById[freeRules[giftPicker.index]?.bonus]?.id ||
+              freeRules[giftPicker.index]?.bonus,
+            ]
         }
         onApply={(value) => {
           if (giftPicker.index === null) return;
@@ -10703,7 +12385,7 @@ export default function AppRules() {
 
   const BxgyPanel = (
     <React.Fragment>
-      <BlockStack gap="300">
+      <BlockStack gap="200">
         <InlineStack align="space-between" blockAlign="center">
           <Text as="h4" variant="headingSm">
             Buy X Get Y (BXGY)
@@ -10767,139 +12449,129 @@ export default function AppRules() {
               defaultOpen={!r.isNew}
               disableRemove={bxgyReadOnly}
             >
-              <BlockStack gap="400">
-                <InlineStack gap="400" align="start" wrap>
-                  <Checkbox
-                    label="Enable"
-                    checked={r.enabled}
-                    disabled={bxgyReadOnly}
-                    onChange={(v) => {
-                      if (bxgyReadOnly) return;
-                      setBxgyRules((x) =>
-                        x.map((it, idx) =>
-                          idx === i ? { ...it, enabled: v } : it
-                        )
-                      );
-                      if (!r.buyxgetyId) {
-                        showToast(
-                          "Save this BXGY rule first to enable Shopify toggles.",
-                          "warning"
-                        );
-                        return;
-                      }
-                      void handleAutomaticDiscountToggle(
-                        { ...r, type: "bxgy" },
-                        v,
-                        r.buyxgetyId
-                      );
-                    }}
-                  />
+              <BlockStack gap="200">
+                <div className="rules-field-panel">
+                  <BlockStack gap="200">
+                    <InlineStack gap="200" align="start" wrap>
+                      <Checkbox
+                        label="Enable"
+                        checked={r.enabled}
+                        disabled={bxgyReadOnly}
+                        onChange={(v) => {
+                          if (bxgyReadOnly) return;
+                          setBxgyRules((x) =>
+                            x.map((it, idx) =>
+                              idx === i ? { ...it, enabled: v } : it
+                            )
+                          );
+                          if (!r.buyxgetyId) {
+                            showToast(
+                              "Save this BXGY rule first to enable Shopify toggles.",
+                              "warning"
+                            );
+                            return;
+                          }
+                          void handleAutomaticDiscountToggle(
+                            { ...r, type: "bxgy" },
+                            v,
+                            r.buyxgetyId
+                          );
+                        }}
+                      />
 
-                  <TextField
-                    label="Buy (X qty)"
-                    disabled={bxgyReadOnly}
-                    value={r.xQty}
-                    onChange={(v) =>
-                      setBxgyRules((x) =>
-                        x.map((it, idx) => (idx === i ? { ...it, xQty: v } : it))
-                      )
-                    }
-                  />
+                      <TextField
+                        label="Buy (X qty)"
+                        disabled={bxgyReadOnly}
+                        value={r.xQty}
+                        onChange={(v) =>
+                          setBxgyRules((x) =>
+                            x.map((it, idx) => (idx === i ? { ...it, xQty: v } : it))
+                          )
+                        }
+                      />
 
-                  <TextField
-                    label="Get (Y qty)"
-                    disabled={bxgyReadOnly}
-                    value={r.yQty}
-                    onChange={(v) =>
-                      setBxgyRules((x) =>
-                        x.map((it, idx) => (idx === i ? { ...it, yQty: v } : it))
-                      )
-                    }
-                  />
+                      <TextField
+                        label="Get (Y qty)"
+                        disabled={bxgyReadOnly}
+                        value={r.yQty}
+                        onChange={(v) =>
+                          setBxgyRules((x) =>
+                            x.map((it, idx) => (idx === i ? { ...it, yQty: v } : it))
+                          )
+                        }
+                      />
 
-                  <TextField
-                    label="Set a maximum number of uses per order"
-                    disabled={bxgyReadOnly}
-                    value={r.maxGifts}
-                    onChange={(v) =>
-                      setBxgyRules((x) =>
-                        x.map((it, idx) =>
-                          idx === i ? { ...it, maxGifts: v } : it
-                        )
-                      )
-                    }
-                  />
-                </InlineStack>
+                      <TextField
+                        label="Set a maximum number of uses per order"
+                        disabled={bxgyReadOnly}
+                        value={r.maxGifts}
+                        onChange={(v) =>
+                          setBxgyRules((x) =>
+                            x.map((it, idx) =>
+                              idx === i ? { ...it, maxGifts: v } : it
+                            )
+                          )
+                        }
+                      />
+                    </InlineStack>
 
-                <InlineStack gap="400" align="start" wrap>
-                  <Select
-                    label="Scope"
-                    disabled={bxgyReadOnly}
-                    options={bxgyScopeOptions}
-                    value={r.scope}
-                    onChange={(v) => {
-                      if (bxgyReadOnly) return;
-                      setBxgyRules((x) =>
-                        x.map((it, idx) =>
-                          idx === i
-                            ? {
-                              ...it,
-                              scope: v,
-                              appliesTo:
-                                v === "product"
-                                  ? { ...it.appliesTo, collections: [] }
-                                  : v === "collection"
-                                    ? { ...it.appliesTo, products: [] }
-                                    : {
-                                      ...it.appliesTo,
-                                      products: allProductIds,
-                                      collections: [],
-                                    },
-                            }
-                            : it
-                        )
-                      );
+                    <InlineStack gap="200" align="start" wrap>
+                      <Select
+                        label="Scope"
+                        disabled={bxgyReadOnly}
+                        options={bxgyScopeOptions}
+                        value={r.scope}
+                        onChange={(v) => {
+                          if (bxgyReadOnly) return;
+                          setBxgyRules((x) =>
+                            x.map((it, idx) =>
+                              idx === i
+                                ? {
+                                  ...it,
+                                  scope: v,
+                                  appliesTo:
+                                    v === "product"
+                                      ? { ...it.appliesTo, collections: [] }
+                                      : v === "collection"
+                                        ? { ...it.appliesTo, products: [] }
+                                        : {
+                                          ...it.appliesTo,
+                                          products: allProductIds,
+                                          collections: [],
+                                        },
+                                }
+                                : it
+                            )
+                          );
 
-                      if (!bxgyScopeValidation[i]) return;
+                          if (!bxgyScopeValidation[i]) return;
 
-                      setBxgyScopeValidation((prev) => {
-                        if (!prev[i]) return prev;
+                          setBxgyScopeValidation((prev) => {
+                            if (!prev[i]) return prev;
 
-                        const next = { ...prev };
+                            const next = { ...prev };
 
-                        delete next[i];
+                            delete next[i];
 
-                        return next;
-                      });
-                    }}
-                    error={bxgyScopeValidation[i]}
-                  />
+                            return next;
+                          });
+                        }}
+                        error={bxgyScopeValidation[i]}
+                      />
 
-                  {showScopePickerControls && (
-                    <BlockStack gap="100">
-                      <text as="label" variant="bodyMd">Apply </text>
-                      <InlineStack gap="100" align="center">
-                        <Button
-                          size="slim"
+                      {showScopePickerControls && (
+                        <ScopeResourcePickerControl
+                          label={
+                            isProductScope
+                              ? "Select products"
+                              : "Select collections"
+                          }
+                          count={scopeSelectionCount}
                           onClick={handleScopePickerOpen}
                           disabled={bxgyReadOnly}
-                        >
-                          {isProductScope ? "Choose products" : "Choose collections"}
-                        </Button>
-                        <Badge tone={scopeSelectionCount ? "success" : "warning"}>
-                          {scopeSelectionCount
-                            ? `${scopeSelectionCount} selected`
-                            : `None selected`}
-                        </Badge>
-                      </InlineStack>
-
-                      {bxgySelectionValidation[i] && (
-                        <Text tone="critical" variant="bodySm">
-                          {bxgySelectionValidation[i]}
-                        </Text>
+                          error={bxgySelectionValidation[i]}
+                        />
                       )}
-                    </BlockStack>
-                  )}
 
                   {/* <Select
                     label="Rule icon"
@@ -10914,14 +12586,31 @@ export default function AppRules() {
                       )
                     }
                   /> */}
-                </InlineStack>
+                    </InlineStack>
+                  </BlockStack>
+                </div>
 
-                {r.scope !== "store" && (
-                  <Text tone="subdued" variant="bodySm">
-                    Select one or more{" "}
-                    {r.scope === "product" ? "products" : "collections"} below.
-                  </Text>
-                )}
+                <RuleScheduleFields
+                  startsAt={r.startsAt}
+                  endsAt={r.endsAt}
+                  disabled={bxgyReadOnly}
+                  onStartsAtChange={(value) =>
+                    updateBxgyRuleField(i, "startsAt", value)
+                  }
+                  onEndsAtChange={(value) =>
+                    updateBxgyRuleField(i, "endsAt", value)
+                  }
+                />
+                <AdvancedRuleControls
+                  rule={r}
+                  disabled={bxgyReadOnly}
+                  onFieldChange={(field, value) =>
+                    updateBxgyRuleField(i, field, value)
+                  }
+                  onTranslationChange={(locale, field, value) =>
+                    updateRuleTranslation(setBxgyRules, i, locale, field, value)
+                  }
+                />
 
                 <Divider />
 
@@ -10942,11 +12631,9 @@ export default function AppRules() {
                 <InlineStack
                   gap="100"
                   style={{
-                    justifyContent: "flex-start",
-                    alignItems: "center",
-                    display: "flex",
                     marginBottom: 8,
                   }}
+                  className="rules-section-title"
                 >
                   <svg
                     viewBox="0 0 20 20"
@@ -11301,8 +12988,8 @@ export default function AppRules() {
         }}
       >
         <Card>
-          <Box padding="300">
-            <BlockStack gap="300">
+          <Box padding="100">
+            <BlockStack gap="200">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h4" variant="headingSm">
                   Upsell Product
@@ -11591,7 +13278,7 @@ export default function AppRules() {
                     <div
                       style={{
                         border: `1px solid ${upsellBorderColor}`,
-                        borderRadius: 12,
+                        borderRadius: 4,
                         background: upsellBgColor,
                         overflow: "hidden",
                       }}
@@ -11634,7 +13321,7 @@ export default function AppRules() {
                               style={{
                                 width: 68,
                                 height: 68,
-                                borderRadius: 0,
+                                borderRadius: 4,
                                 background: "#EEF2F7",
                                 overflow: "hidden",
                                 justifySelf: "center",
@@ -11675,7 +13362,7 @@ export default function AppRules() {
                                 <div
                                   style={{
                                     padding: "8px 14px",
-                                    borderRadius: 0,
+                                    borderRadius: 4,
                                     background: upsellButtonColor,
                                     border: `1px solid ${upsellBorderColor}`,
                                     color: upsellTextColor,
@@ -11743,14 +13430,14 @@ export default function AppRules() {
   );
 
   const StylePanel = (
-    <BlockStack gap="300">
+    <BlockStack gap="200">
       <Text as="h4" variant="headingSm">
         Customize & Preview
       </Text>
 
       <Card>
         <Box
-          padding="400"
+          padding="100"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
@@ -11787,7 +13474,7 @@ export default function AppRules() {
 
 
 
-            <Box paddingBlockStart="300">
+            <Box paddingBlockStart="100">
               <InlineStack gap="400" wrap>
 
                 <ColorField
@@ -11854,8 +13541,49 @@ export default function AppRules() {
               </InlineStack>
             </Box>
 
+            <Box paddingBlockStart="300">
+              <BlockStack gap="150">
+                <Text as="h5" variant="headingXs">
+                  Cart icon
+                </Text>
+                <DropZone
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                  allowMultiple={false}
+                  type="image"
+                  onDrop={handleCartIconDrop}
+                  disabled={cartIconUploading}
+                >
+                  {cartIconUrl ? (
+                    <InlineStack gap="300" align="center" blockAlign="center">
+                      <img
+                        src={cartIconUrl}
+                        alt="Uploaded cart icon"
+                        style={{
+                          width: 48,
+                          height: 48,
+                          objectFit: "contain",
+                          border: "1px solid #dcdfe4",
+                          borderRadius: 4,
+                          padding: 6,
+                          background: "#ffffff",
+                        }}
+                      />
+                      <Text as="p" variant="bodySm">
+                        Drop a new image to replace the current cart icon.
+                      </Text>
+                    </InlineStack>
+                  ) : (
+                    <DropZone.FileUpload
+                      actionTitle={cartIconUploading ? "Uploading..." : "Upload cart icon"}
+                      actionHint="PNG, JPG, WebP, GIF, or SVG up to 2 MB. Default icon is used when empty."
+                    />
+                  )}
+                </DropZone>
+              </BlockStack>
+            </Box>
 
-            <Box paddingBlockStart="400">
+
+            <Box paddingBlockStart="100">
               <Text as="h5" variant="headingXs">
                 Cart drawer
               </Text>
@@ -11934,6 +13662,44 @@ export default function AppRules() {
                     checked={discountCodeApply}
                     onChange={handleDiscountCodeApplyChange}
                   />
+
+                  <InlineStack gap="200" wrap>
+                    <Checkbox
+                      label="Auto-open drawer after add to cart"
+                      checked={drawerAutoOpen}
+                      onChange={setDrawerAutoOpen}
+                    />
+                    <Checkbox
+                      label="Sticky checkout button"
+                      checked={stickyCheckout}
+                      onChange={setStickyCheckout}
+                    />
+                  </InlineStack>
+
+                  <InlineStack gap="200" wrap>
+                    <Box style={{ minWidth: 160 }}>
+                      <Select
+                        label="Drawer position"
+                        options={[
+                          { label: "Right", value: "right" },
+                          { label: "Left", value: "left" },
+                        ]}
+                        value={drawerPosition}
+                        onChange={setDrawerPosition}
+                      />
+                    </Box>
+                    <Box style={{ minWidth: 180 }}>
+                      <Select
+                        label="Mobile layout"
+                        options={[
+                          { label: "Drawer", value: "drawer" },
+                          { label: "Bottom sheet", value: "bottom_sheet" },
+                        ]}
+                        value={mobileLayout}
+                        onChange={setMobileLayout}
+                      />
+                    </Box>
+                  </InlineStack>
                 </BlockStack>
               </Box>
             </Box>
@@ -11999,14 +13765,14 @@ export default function AppRules() {
         </Box>
       </Card>
 
-      <Box paddingBlockStart="400">
+      <Box paddingBlockStart="100">
         <InlineStack align="end">
           <Button
             loading={saving}
             variant="primary"
             onClick={() => handleSectionSave("style")}
           >
-            Save Cusmizations
+            Save Customizations
           </Button>
         </InlineStack>
       </Box>
@@ -12014,11 +13780,20 @@ export default function AppRules() {
   );
 
   const panelConfigs = [
-    { content: ShippingPanel, preview: ShippingPreviewCard },
-    { content: DiscountPanel, preview: DiscountPreviewCard },
-    { content: FreeProductPanel, preview: FreeProductPreviewCard },
-    { content: DiscountCodePanel },
-    { content: BxgyPanel },
+    {
+      content: ShippingPanel,
+      preview: ShippingPreviewCard,
+    },
+    {
+      content: DiscountPanel,
+      preview: DiscountPreviewCard,
+    },
+    {
+      content: FreeProductPanel,
+      preview: FreeProductPreviewCard,
+    },
+    { content: DiscountCodePanel, matchMainColumnWidth: true },
+    { content: BxgyPanel, matchMainColumnWidth: true },
     { content: UpsellPanel },
     { content: StylePanel },
   ];
@@ -12026,15 +13801,10 @@ export default function AppRules() {
   const ActivePanel = activePanelConfig.content;
   const ActivePanelPreview = activePanelConfig.preview;
   const hasPanelPreview = Boolean(ActivePanelPreview);
-  const panelPadding = hasPanelPreview ? "300" : "400";
-  const panelLayoutStyle = hasPanelPreview
-    ? {
-      display: "grid",
-      gap: 16,
-      gridTemplateColumns: "minmax(0, 1fr) minmax(0, 340px)",
-      alignItems: "start",
-    }
-    : undefined;
+  const panelPadding = "100";
+  const panelLayoutClassName = `rules-panel-layout${hasPanelPreview ? " rules-panel-layout--with-preview" : ""
+    }${activePanelConfig.matchMainColumnWidth ? " rules-panel-layout--main-column-width" : ""
+    }`;
   const savingOverlay = saving ? (
     <div
       style={{
@@ -12048,7 +13818,7 @@ export default function AppRules() {
       }}
     >
       <Box
-        padding="400"
+        padding="100"
         borderWidth="1"
         borderColor="border"
         background="bg"
@@ -12072,7 +13842,7 @@ export default function AppRules() {
       }}
     >
       <Box
-        padding="400"
+        padding="100"
         borderWidth="1"
         borderColor="border"
         background="bg"
@@ -12095,8 +13865,12 @@ export default function AppRules() {
       <style>{DISCOUNT_SLIDE_ANIMATION}</style>
       <style>{ANNOUNCEMENT_MARQUEE_ANIMATION}</style>
       <style>{UPSELL_CAROUSEL_ANIMATION}</style>
+      <style>{RULES_PAGE_CSS}</style>
       <style dangerouslySetInnerHTML={{ __html: LEFT_ALIGN_BUTTON_CSS }} />
-      <Page title="Cart Rules Settings" fullWidth>
+      <Page
+        title="Cart Drawer Rules Settings"
+        fullWidth
+      >
         <Modal
           open={payloadModalOpen && Boolean(payloadPreview)}
           onClose={() => setPayloadModalOpen(false)}
@@ -12107,15 +13881,15 @@ export default function AppRules() {
             onAction: () => setPayloadModalOpen(false),
           }}
         >
-          <Box padding="400" maxHeight="70vh" overflowY="auto">
+          <Box padding="100" maxHeight="70vh" overflowY="auto">
             <Text tone="subdued" variant="bodySm">
               Latest configuration snapshot
             </Text>
-            <Box paddingBlockStart="200">
+            <Box paddingBlockStart="100">
               <pre
                 style={{
                   background: "#f4f5f7",
-                  borderRadius: 8,
+                  borderRadius: 4,
                   padding: 16,
                   fontSize: 12,
                   maxHeight: "55vh",
@@ -12139,7 +13913,7 @@ export default function AppRules() {
             onAction: () => setApiModalOpen(false),
           }}
         >
-          <Box padding="400" maxHeight="70vh" overflowY="auto">
+          <Box padding="100" maxHeight="70vh" overflowY="auto">
             <Text tone="subdued" variant="bodySm">
               Data returned from the most recent save call.
             </Text>
@@ -12147,7 +13921,7 @@ export default function AppRules() {
               <pre
                 style={{
                   background: "#f4f5f7",
-                  borderRadius: 8,
+                  borderRadius: 4,
                   padding: 16,
                   fontSize: 12,
                   maxHeight: "55vh",
@@ -12220,78 +13994,52 @@ export default function AppRules() {
         kindLabel="collections"
       />
 
-        <Box paddingBlockStart="300">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "240px 1fr",
-              gap: "18px",
-              alignItems: "start",
-            }}
-          >
-            <BlockStack gap="300">
+        <Box paddingBlockStart="100">
+          <div className="rules-workspace">
+            <aside className="rules-sidebar" aria-label="Rules navigation">
               <Card>
-                <Box padding="300" style={{ minHeight: "auto" }}>
-                  <BlockStack gap="200">
+                <Box padding="200" style={{ minHeight: "auto" }}>
+                  <div className="rules-nav-list">
                     {tabs.map((tab, idx) => (
-                      <Button
+                      <button
                         key={tab.id}
-                        fullWidth
-                        size="large"
+                        type="button"
+                        className={`rules-tab-button${selected === idx ? " rules-tab-button--active" : ""
+                          }`}
                         onClick={() => handleTabSelect(idx)}
-                        tone={selected === idx ? "primary" : undefined}
-                        variant={selected === idx ? "primary" : "secondary"}
+                        aria-current={selected === idx ? "page" : undefined}
                       >
-                        {tab.content}
-                      </Button>
+                        <span className="rules-tab-button__icon" aria-hidden="true">
+                          <Icon source={tab.icon} />
+                        </span>
+                        <span>{tab.label}</span>
+                      </button>
                     ))}
-                  </BlockStack>
+                  </div>
                 </Box>
               </Card>
 
-              <div
-                style={{
-                  padding: "14px",
-                  borderRadius: 12,
-                  background: "#ffffff",
-                  border: "1px solid #000000",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#1e3a5f" }}>
-                    Need Help?
-                  </span>
-                </div>
+              <div className="rules-help-card">
+                <Text as="h3" variant="headingSm">
+                  Need Help?
+                </Text>
 
-                <p style={{ fontSize: 12, color: "#475569", margin: 0, lineHeight: 1.5 }}>
-                  View the step-by-step guide for this tab.
-                </p>
+                <Text as="p" tone="subdued" variant="bodySm">
+                  View the step-by-step guide for the selected rule type.
+                </Text>
 
                 <a
+                  className="rules-help-link"
                   href={tabs[selected]?.guideUrl || "https://cartliftcartdrawerupsell.tawk.help/category/features"}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    padding: "5px 5px",
-                    borderRadius: 8,
-                    background: "#ffffff",
-                    color: "#000000",
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
                 >
                   {tabs[selected]?.label ? `${tabs[selected].label} Guide` : "View Documentation"}
                 </a>
               </div>
-            </BlockStack>
-            <div style={panelLayoutStyle}>
+            </aside>
+
+            <div className={panelLayoutClassName}>
               <Card>
                 <Box padding={panelPadding}>{ActivePanel}</Box>
               </Card>

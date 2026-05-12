@@ -1,1 +1,1 @@
-export { loader, action, headers } from "./app.proxy.smart.jsx";
+export { loader, action } from "./app.proxy.smart.jsx";

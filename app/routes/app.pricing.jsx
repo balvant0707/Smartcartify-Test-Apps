@@ -26,6 +26,27 @@ const PRICING_BADGE_CSS = `
   background-color: #ffffff !important;
   color: #000000 !important;
 }
+.pricing-card {
+  border: 1px solid #dcdfe4;
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+.pricing-card__header {
+  border-bottom: 1px solid #e3e5e8;
+  background: #f9fafb;
+  color: #202223;
+}
+.pricing-feature-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: #008060;
+  display: inline-block;
+  flex-shrink: 0;
+}
 `;
 
 export async function loader({ request }) {
@@ -126,7 +147,9 @@ export async function loader({ request }) {
         billingCurrency: resolvedBillingCurrency,
         subscriptionCreatedAt: resolvedSubscriptionCreatedAt,
       },
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn("Failed to upsert active subscription in pricing loader:", err?.message);
+    });
   }
 
   return {
@@ -224,9 +247,9 @@ export async function action({ request }) {
         isTest,
         prorate: false,
       });
-      await prisma.planSubscription.updateMany({
+      await prisma.planSubscription.upsert({
         where: { shop },
-        data: {
+        update: {
           status: canceled?.status || "CANCELLED",
           shopifySubGid: canceled?.id || activeSub.id,
           planName: canceled?.name || record?.planName,
@@ -240,7 +263,15 @@ export async function action({ request }) {
             ? new Date(canceled.currentPeriodEnd)
             : record?.currentPeriodEnd,
         },
-      }).catch(() => {});
+        create: {
+          shop,
+          status: canceled?.status || "CANCELLED",
+          shopifySubGid: canceled?.id || activeSub.id,
+          planName: canceled?.name || null,
+        },
+      }).catch((err) => {
+        logger.warn("Failed to update cancelled subscription for shop:", shop, err?.message);
+      });
     }
 
     const back = host
@@ -287,7 +318,7 @@ export async function action({ request }) {
         plan.interval === "ANNUAL" ? "ANNUAL" : "EVERY_30_DAYS",
       billingAmount: plan.price,
       billingCurrency: "USD",
-      trialDays: 1,
+      trialDays: plan.trialDays ?? 7,
       isTest,
     },
     create: {
@@ -299,7 +330,7 @@ export async function action({ request }) {
         plan.interval === "ANNUAL" ? "ANNUAL" : "EVERY_30_DAYS",
       billingAmount: plan.price,
       billingCurrency: "USD",
-      trialDays: 1,
+      trialDays: plan.trialDays ?? 7,
       isTest,
     },
   });
@@ -386,56 +417,36 @@ export default function Pricing() {
     },
   };
 
-  const containerStyle = {
-    display: "flex",
-    justifyContent: "center",
-    gap: 10,
-    alignItems: "stretch",
-    marginTop: 24,
-  };
-
   const cardStyle = {
-    borderRadius: 28,
-    background: "#fff",
-    boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
     overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
-    minHeight: 520,
-    flex: "0 0 calc(33.33% - 10px)",
   };
 
   const headerStyle = {
     position: "relative",
-    padding: "34px 26px 80px",
-    height: 170,
-    background: "linear-gradient(180deg, #317e31ff 0%, #017e01 100%)",
-    color: "#fff",
+    padding: "20px",
+    minHeight: 150,
     overflow: "hidden",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
   };
 
   const titleStyle = {
     margin: 0,
-    fontWeight: 800,
-    fontSize: "2.25rem",
-    lineHeight: "1.15",
+    fontWeight: 700,
+    fontSize: "1.25rem",
+    lineHeight: "1.25",
   };
 
   const subtitleStyle = {
     margin: "8px 0 0",
-    fontSize: "1.05rem",
+    fontSize: "0.9rem",
     lineHeight: "1.4",
-    color: "rgba(255, 255, 255, 0.88)",
+    color: "#5c5f62",
     maxWidth: 260,
   };
 
   const priceTextStyle = {
-    marginTop: 14,
-    fontSize: "3.1rem",
-    fontWeight: 900,
-    letterSpacing: "-0.5px",
+    marginTop: 18,
+    fontSize: "2.1rem",
+    fontWeight: 750,
     lineHeight: 1,
   };
 
@@ -452,7 +463,7 @@ export default function Pricing() {
   };
 
   const bodyStyle = {
-    padding: "30px 28px 32px",
+    padding: "20px",
     flex: 1,
     display: "flex",
     flexDirection: "column",
@@ -461,7 +472,7 @@ export default function Pricing() {
   const featuresStyle = {
     listStyle: "none",
     padding: 0,
-    margin: "4px 0 20px",
+    margin: "0 0 20px",
     display: "flex",
     flexDirection: "column",
     gap: 10,
@@ -470,8 +481,9 @@ export default function Pricing() {
   const featureItemStyle = {
     display: "flex",
     alignItems: "center",
-    gap: 10,
-    fontSize: "0.95rem",
+    gap: 8,
+    fontSize: "0.9rem",
+    color: "#303030",
   };
 
   const buttonWrapperStyle = { marginTop: "auto" };
@@ -482,10 +494,7 @@ export default function Pricing() {
     marginTop: 16,
   };
   const toggleButtonStyle = (active) => ({
-    borderRadius: 999,
     padding: "6px 16px",
-    border: active ? "2px solid #017e01" : "1px solid #d0d5dd",
-    background: active ? "#ecfdf3" : "#fff",
     fontWeight: 600,
   });
 
@@ -525,7 +534,10 @@ export default function Pricing() {
   });
 
   return (
-    <Page title="Choose your plan" style={{ padding: 0 }}>
+    <Page
+      title="Choose your plan"
+      subtitle="Pick the plan that matches how many cart rules your store needs."
+    >
       <style
         type="text/css"
         dangerouslySetInnerHTML={{ __html: PRICING_BADGE_CSS }}
@@ -562,7 +574,7 @@ export default function Pricing() {
       </div>
 
       <div style={{ padding: "16px 0" }}>
-        <div style={containerStyle}>
+        <div className="app-pricing-grid">
           {plansToRender.map((plan) => {
             const details = planDetails[plan.id];
             const isCurrent = plan.id === currentPlanId;
@@ -604,8 +616,8 @@ export default function Pricing() {
             }
 
             return (
-              <div key={plan.id} style={cardStyle}>
-                <div style={headerStyle}>
+              <div key={plan.id} className="pricing-card" style={cardStyle}>
+                <div className="pricing-card__header" style={headerStyle}>
                   {plan.id === "yearly" && (
                     <div style={yearlyBadgeWrapStyle}>
                       <Badge tone="info">{yearlyBadgeText}</Badge>
@@ -627,15 +639,7 @@ export default function Pricing() {
                   <ul style={featuresStyle}>
                     {details?.features?.map((feature) => (
                       <li key={feature} style={featureItemStyle}>
-                        <span
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: "50%",
-                            background: "#017e01",
-                            display: "inline-block",
-                          }}
-                        />
+                        <span className="pricing-feature-dot" />
                         {feature}
                       </li>
                     ))}
@@ -662,8 +666,8 @@ export default function Pricing() {
                         style={
                           !disableButton && navigation.state === "idle"
                             ? {
-                              background: "linear-gradient(180deg, #5c1d8f 0%, #b90d2f 85%)",
-                              border: "none",
+                              background: "#1f2937",
+                              borderColor: "#1f2937",
                             }
                             : {}
                         }
@@ -687,7 +691,7 @@ export function ErrorBoundary() {
   const error = useRouteError();
   return (
     <Page title="Error">
-      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
+      <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="100" padding="400">
         <Text as="h2" variant="headingMd">Something went wrong</Text>
         <Text tone="subdued">
           We encountered an error loading the pricing page. Please try refreshing or contact support if the issue persists.

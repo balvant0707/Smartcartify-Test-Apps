@@ -30,7 +30,6 @@ const deleteShopData = async (shop) => {
     db.discountRule,
     db.freeGiftRule,
     db.bxgyRule,
-    db.cartStepConfig,
     db.styleSettings,
     db.upsellSettings,
     db.planSubscription,

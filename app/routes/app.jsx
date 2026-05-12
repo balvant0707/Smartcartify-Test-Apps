@@ -6,9 +6,88 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider as BridgeProvider } from "@shopify/shopify-app-react-router/react";
 import { AppProvider as PolarisProvider, Page, Box, Text } from "@shopify/polaris";
 import en from "@shopify/polaris/locales/en.json";
-import { authenticate } from "../shopify.server";
+import { authenticate, apiVersion } from "../shopify.server";
 import { normalizeShopDomain } from "../lib/shopUtils.server.js";
 import prisma from "../db.server";
+
+const GLOBAL_POLARIS_RADIUS_CSS = `
+:root,
+.Polaris-AppProvider {
+  --p-border-radius-050: 4px;
+  --p-border-radius-100: 4px;
+  --p-border-radius-150: 4px;
+  --p-border-radius-200: 4px;
+  --p-border-radius-300: 4px;
+  --p-border-radius-400: 4px;
+  --p-border-radius-500: 4px;
+  --p-border-radius-750: 4px;
+}
+
+.Polaris-Layout__Section,
+.Polaris-Card,
+.Polaris-LegacyCard,
+.Polaris-Card__Section,
+.Polaris-LegacyCard__Section,
+.Polaris-Box,
+.Polaris-Page__Section,
+.Polaris-Page-Section,
+.Polaris-Modal-Dialog__Modal,
+.Polaris-TextField__Input,
+.Polaris-TextField__Backdrop,
+.Polaris-Select__Input,
+.Polaris-Select__Backdrop,
+.Polaris-ChoiceList,
+.Polaris-OptionList,
+.Polaris-Banner,
+.Polaris-Frame-Toast,
+.Polaris-Popover,
+.Polaris-Popover__Pane,
+.Polaris-ActionList,
+.Polaris-ResourceList,
+.Polaris-IndexTable,
+.Polaris-DataTable,
+.Polaris-Tabs,
+.Polaris-CalloutCard,
+.Polaris-EmptyState,
+.Polaris-ShadowBevel,
+.Polaris-ShadowBevel::before,
+[class^="Polaris-ShadowBevel"],
+[class^="Polaris-ShadowBevel"]::before,
+[class*=" Polaris-ShadowBevel"],
+[class*=" Polaris-ShadowBevel"]::before,
+.Polaris-Bleed,
+.Polaris-InlineGrid,
+s-box,
+s-box::part(base),
+s-box::part(container),
+s-card,
+s-card::part(base),
+s-card::part(container),
+s-section,
+s-section::part(base),
+s-section::part(root),
+s-section::part(section),
+s-section::part(container),
+s-section::part(content) {
+  border-radius: 4px !important;
+  --pc-shadow-bevel-border-radius: 4px !important;
+  --pc-shadow-bevel-border-radius-xs: 4px !important;
+  --pc-shadow-bevel-border-radius-sm: 4px !important;
+  --pc-shadow-bevel-border-radius-md: 4px !important;
+  --pc-shadow-bevel-border-radius-lg: 4px !important;
+  --pc-shadow-bevel-border-radius-xl: 4px !important;
+  --pc-box-border-radius: 4px !important;
+}
+
+.Polaris-Button,
+.Polaris-Button::before,
+.Polaris-Button::after,
+s-button,
+s-button::part(base),
+s-button::part(button) {
+  border-radius: 4px !important;
+}
+`;
 
 // 2) Loader (auth check)
 export const loader = async ({ request }) => {
@@ -22,7 +101,7 @@ export const loader = async ({ request }) => {
     let domain = resolvedShop;
     try {
       const restRes = await fetch(
-        `https://${resolvedShop}/admin/api/2025-01/shop.json`,
+        `https://${resolvedShop}/admin/api/${apiVersion}/shop.json`,
         { headers: { "X-Shopify-Access-Token": accessToken, "Content-Type": "application/json" } },
       );
       if (restRes.ok) {
@@ -63,18 +142,18 @@ export const loader = async ({ request }) => {
           },
         });
       } else {
-        // Existing shop — UPDATE access token + contact fields
+        // Existing shop — UPDATE access token + contact fields (include nulls to clear stale values)
         await prisma.shop.update({
           where: { shop: resolvedShop },
           data: {
             accessToken,
             installed: true,
             appStatus: "active",
-            ...(firstName  ? { firstName }  : {}),
-            ...(lastName   ? { lastName }   : {}),
-            ...(email      ? { email }      : {}),
-            ...(domain     ? { domain }     : {}),
-            ...(contactNumber ? { contactNumber } : {}),
+            firstName:     firstName     ?? existing.firstName,
+            lastName:      lastName      ?? existing.lastName,
+            email:         email         ?? existing.email,
+            domain:        domain        ?? existing.domain,
+            contactNumber: contactNumber ?? existing.contactNumber,
           },
         });
       }
@@ -99,8 +178,9 @@ export default function App() {
   if (!host) {
     return (
       <PolarisProvider i18n={en}>
+        <style>{GLOBAL_POLARIS_RADIUS_CSS}</style>
         <Page title="Open from Shopify admin">
-          <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="0" padding="400">
+          <Box borderWidth="025" borderColor="border" background="bg-surface" borderRadius="100" padding="400">
             <Text as="h2" variant="headingMd">
               Launch this app from Shopify Admin
             </Text>
@@ -116,14 +196,19 @@ export default function App() {
   const docsHref = host
     ? `/app/documents?host=${encodeURIComponent(host)}`
     : "/app/documents";
+  const analyticsHref = host
+    ? `/app/analytics?host=${encodeURIComponent(host)}`
+    : "/app/analytics";
 
   return (
     <BridgeProvider embedded apiKey={apiKey} host={host} forceRedirect>
       <PolarisProvider i18n={en}>
+        <style>{GLOBAL_POLARIS_RADIUS_CSS}</style>
         {/* Old-style menu restored */}
         <s-app-nav>
           {/* <s-link href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</s-link> */}
           <s-link href={host ? `/app/rules?host=${encodeURIComponent(host)}` : "/app/rules"}>Cart Rule</s-link>
+          <s-link href={analyticsHref}>Analytics</s-link>
           <s-link href={docsHref}>Documents</s-link>
         </s-app-nav>
 

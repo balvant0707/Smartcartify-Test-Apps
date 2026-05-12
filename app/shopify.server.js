@@ -258,7 +258,7 @@ const shopify = shopifyApp({
       plan.id,
       {
         name: plan.name,
-        trialDays: 1,
+        trialDays: plan.trialDays ?? 7,
         lineItems: [
           {
             interval:

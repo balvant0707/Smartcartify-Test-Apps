@@ -39,6 +39,34 @@
     proxyPath = `/${proxyPath}`;
   }
   if (proxyPath.endsWith("/")) proxyPath = proxyPath.slice(0, -1);
+  const customerLoggedIn = String(root.dataset.customerLoggedIn || "false") === "true";
+  const customerTags = String(root.dataset.customerTags || "");
+  const storefrontLocale =
+    String(root.dataset.locale || window.Shopify?.locale || navigator.language || "")
+      .trim();
+
+  const buildProxyUrl = (cart = CART) => {
+    const base = new URL(proxyPath, window.location.origin);
+    const subtotalRupees = (Number(cart?.items_subtotal_price || 0) / priceDivisor()) || 0;
+    const quantity = Number(cart?.item_count || 0) || getCartTotalQty();
+    base.searchParams.set("subtotal", String(subtotalRupees));
+    base.searchParams.set("quantity", String(quantity));
+    base.searchParams.set("customer_logged_in", customerLoggedIn ? "true" : "false");
+    if (customerTags) base.searchParams.set("customer_tags", customerTags);
+    if (storefrontLocale) base.searchParams.set("locale", storefrontLocale);
+    base.searchParams.set("_sc_config_ts", String(Date.now()));
+    let abSeed = "";
+    try {
+      abSeed =
+        localStorage.getItem("__SC_AB_SEED__") ||
+        `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      localStorage.setItem("__SC_AB_SEED__", abSeed);
+    } catch {
+      abSeed = String(Date.now());
+    }
+    base.searchParams.set("ab_seed", abSeed);
+    return `${base.pathname}${base.search}`;
+  };
 
   /* =========================================================
    ✅ DISABLE THEME DEFAULT <cart-drawer> (Dawn / OS2 drawers)
@@ -240,6 +268,36 @@
     return s ? s : null;
   };
 
+  const DEFAULT_CART_ICON_SVG =
+    '<svg class="icon icon-cart cart-lift" width="25" height="24" viewBox="0 0 28 26" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M8.57235 25C9.26443 25 9.82548 24.4389 9.82548 23.7468C9.82548 23.0548 9.26443 22.4937 8.57235 22.4937C7.88026 22.4937 7.31921 23.0548 7.31921 23.7468C7.31921 24.4389 7.88026 25 8.57235 25Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
+    '<path d="M22.357 25C23.0491 25 23.6101 24.4389 23.6101 23.7468C23.6101 23.0548 23.0491 22.4937 22.357 22.4937C21.6649 22.4937 21.1039 23.0548 21.1039 23.7468C21.1039 24.4389 21.6649 25 22.357 25Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
+    '<path d="M1.11658 1H3.62284L6.95618 16.5639C7.07845 17.1339 7.39561 17.6435 7.85306 18.0048C8.3105 18.3662 8.87962 18.5568 9.46244 18.5439H21.7181C22.2885 18.5429 22.8415 18.3475 23.2858 17.9898C23.7301 17.6321 24.0391 17.1335 24.1617 16.5764L26.2294 7.26566H4.96369" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
+    "</svg>";
+
+  const getCartIconMarkup = () => {
+    const iconUrl = trimToNull(PROXY?.styleSettings?.cartIconUrl);
+    return iconUrl
+      ? `<img class="sc-cart-icon-img" src="${safe(iconUrl)}" alt="" loading="lazy">`
+      : DEFAULT_CART_ICON_SVG;
+  };
+
+  const setCartIconMarkup = (node) => {
+    if (!node) return;
+    node.innerHTML = getCartIconMarkup();
+  };
+
+  const refreshCartIconMarkup = () => {
+    setCartIconMarkup(drawer?.querySelector?.(".sc-title-icon"));
+    document
+      .querySelectorAll("[data-smart-cartify-open], [data-smart-cartify-fallback-open]")
+      .forEach((btn) => {
+        if (!(btn instanceof HTMLElement)) return;
+        setCartIconMarkup(btn.querySelector(".svg-wrapper") || btn);
+      });
+    syncOpenButtonBadge(Number(CART?.item_count || 0));
+  };
+
   const clamp01 = (n) => Math.max(0, Math.min(1, n));
 
   const to01 = (v) => {
@@ -392,11 +450,22 @@
       "step_label",
     ]);
 
+  // Zero-decimal currencies: Shopify returns prices in the smallest unit (e.g. ¥150 → 150, not 15000)
+  const ZERO_DECIMAL_CURRENCIES = new Set([
+    "BIF","CLP","GNF","ISK","JPY","KMF","KRW","MGA","PYG","RWF","UGX","VND","VUV",
+    "XAF","XOF","XPF","HUF","TWD",
+  ]);
+  const priceDivisor = (currency = null) => {
+    const code = String(
+      currency || window.Shopify?.currency?.active || ""
+    ).toUpperCase().trim();
+    return ZERO_DECIMAL_CURRENCIES.has(code) ? 1 : 100;
+  };
+
   // Currency formatting - uses shop currency from Shopify.locale or defaults to shop's setting
   const formatMoney = (cents, currency = null) => {
-    const amount = (Number(cents) || 0) / 100;
-    // Try to get currency from Shopify global or default to USD
-    const shopCurrency = currency || window.Shopify?.currency?.active || window.Shopify?.currency?.rate || "USD";
+    const shopCurrency = currency || window.Shopify?.currency?.active || "USD";
+    const amount = (Number(cents) || 0) / priceDivisor(shopCurrency);
     const locale = window.Shopify?.locale || navigator.language || "en-US";
     try {
       return new Intl.NumberFormat(locale, {
@@ -448,7 +517,7 @@
 
   const formatMoneyWithCode = (cents, currency = null) => {
     const code = normalizeCurrencyCode(currency);
-    const amount = (Number(cents) || 0) / 100;
+    const amount = (Number(cents) || 0) / priceDivisor(code);
     const locale = window.Shopify?.locale || navigator.language || "en-US";
     try {
       const numberOnly = new Intl.NumberFormat(locale, {
@@ -551,6 +620,12 @@
 
       const m1 = s.match(/^step0*([1-4])$/);
       if (m1) return `step${m1[1]}`;
+
+      const cartStepMatch = s.match(/^cartstep0*([1-4])$/);
+      if (cartStepMatch) return `step${cartStepMatch[1]}`;
+
+      const anyStepMatch = s0.match(/\bstep\s*([1-4])\b/);
+      if (anyStepMatch) return `step${anyStepMatch[1]}`;
 
       const n = Number(s);
       if (Number.isFinite(n) && n >= 1 && n <= 4) return `step${n}`;
@@ -994,7 +1069,7 @@
 
   const buildUpsellItems = (settings) => {
     const items = Array.isArray(CART?.items) ? CART.items : [];
-    const currency = CART?.currency || "INR";
+    const currency = normalizeCurrencyCode();
 
     const mapFromCart = (it) => {
       const qty = Math.max(1, Number(it?.quantity || 1));
@@ -1151,7 +1226,7 @@
     if (!first) return;
     UPSELL_LOADING = true;
     try {
-      const currency = CART?.currency || "INR";
+      const currency = normalizeCurrencyCode();
       const related = await fetchRelatedProducts(first.product_id, currency);
       if (related.length) {
         const unique = [];
@@ -1438,7 +1513,7 @@
         const priceEl = select.closest(".sc-upsell-item")?.querySelector(".sc-upsell-price");
         if (priceEl && picked?.price != null) {
           const nextCents = priceToCentsFromItem(picked.price, item);
-          if (nextCents != null) priceEl.textContent = formatMoney(nextCents, CART?.currency || "INR");
+          if (nextCents != null) priceEl.textContent = formatMoney(nextCents, normalizeCurrencyCode());
         }
       });
     });
@@ -1520,6 +1595,81 @@
       trimToNull(rule?.cartStepName) ||
       "unknown";
     return `${fallbackPrefix}:${a}`;
+  };
+
+  const sentAnalyticsEvents = new Set();
+
+  const getAnalyticsRuleId = (rule) => {
+    const raw =
+      rule?.id ??
+      rule?.ruleId ??
+      rule?.rule_id ??
+      rule?.campaignId ??
+      rule?.campaign_id ??
+      null;
+    const id = Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  };
+
+  const getAnalyticsRules = () => {
+    const rows = [];
+    const addRows = (type, list) => {
+      (Array.isArray(list) ? list : []).forEach((rule) => {
+        if (!isRuleEnabled(rule)) return;
+        const id = getAnalyticsRuleId(rule);
+        if (!id) return;
+        rows.push({ type, id, rule });
+      });
+    };
+
+    addRows("shipping", getProxyArray(PROXY, ["shippingRules", "shippingRule", "shippingrule"]));
+    addRows("discount", getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]));
+    addRows("free", getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]));
+    addRows("bxgy", getProxyArray(PROXY, [
+      "buyxgetyRules",
+      "buyxgetyRule",
+      "buyxgetyrule",
+      "buyXGetYRules",
+      "bxgyrule",
+      "bxgyRules",
+      "bxgyRule",
+    ]));
+    return rows;
+  };
+
+  const sendAnalyticsEvent = (event, type, id) => {
+    if (!event || !type || !id) return;
+    const key = `${event}:${type}:${id}`;
+    if (sentAnalyticsEvents.has(key)) return;
+    sentAnalyticsEvents.add(key);
+
+    try {
+      fetch(buildProxyUrl(CART), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+        keepalive: true,
+        body: JSON.stringify({ event, ruleType: type, ruleId: id }),
+      }).catch(() => {});
+    } catch {}
+  };
+
+  const recordVisibleRuleImpressions = () => {
+    getAnalyticsRules().forEach(({ type, id }) =>
+      sendAnalyticsEvent("impression", type, id)
+    );
+  };
+
+  const recordCompletedRuleConversions = () => {
+    const subtotalCents = Number(CART?.items_subtotal_price || 0);
+    getAnalyticsRules().forEach(({ type, id, rule }) => {
+      const goal = goalToCents(getGoalRupees(type, rule));
+      if (goal != null && subtotalCents < goal) return;
+      sendAnalyticsEvent("conversion", type, id);
+    });
   };
 
   /* =========================================================
@@ -1646,7 +1796,7 @@
   ========================================================= */
   const getBxgyStatus = () => {
     const subtotalRupees =
-      (Number(CART?.items_subtotal_price || 0) / 100) || 0;
+      (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0;
     const cartQty = getCartTotalQty();
 
     let best = null;
@@ -1760,10 +1910,11 @@
     return cartFetchInFlight;
   };
 
-  const fetchProxy = async () => {
-    const r = await fetch(proxyPath, {
+  const fetchProxy = async (cart = CART) => {
+    const r = await fetch(buildProxyUrl(cart), {
       headers: { Accept: "application/json" },
       credentials: "same-origin",
+      cache: "no-store",
     });
 
     const ct = r.headers.get("content-type") || "";
@@ -2167,7 +2318,7 @@
     // Ensure rule caches are populated even if progress UI didn't render
     buildSteps();
 
-    const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / 100) || 0;
+    const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0;
     const msgs = [];
 
     const escapeRegExp = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2593,7 +2744,7 @@
     discountPopupShownForCode = normalized;
     markPopupShown("discount", normalized);
 
-    const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / 100) || 0;
+    const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0;
     const txt = replaceProgressText({
       text: trimToNull(getProgressAfter(applied.rule)) || "",
       type: "discount",
@@ -2739,7 +2890,29 @@
   font-size:var(--sc-base-font-size);
   color:var(--sc-drawer-text-color);
 }
+.sc-drawer.sc-position-left{
+  right:auto;
+  left:0;
+  transform:translateX(-110%);
+}
+.sc-drawer.sc-position-left.open{transform:translateX(0)}
+.sc-drawer.sc-position-right{
+  right:0;
+  left:auto;
+}
+.sc-drawer.sc-mobile-bottom-sheet{
+  top:auto;
+  left:0;
+  right:0;
+  bottom:0;
+  max-width:none;
+  height:min(88vh, 720px);
+  transform:translateY(110%);
+}
+.sc-drawer.sc-mobile-bottom-sheet.open{transform:translateY(0)}
 .sc-drawer.open{transform:translateX(0);pointer-events:auto !important}
+.sc-drawer.sc-position-left.open{transform:translateX(0)}
+.sc-drawer.sc-mobile-bottom-sheet.open{transform:translateY(0)}
 .sc-drawer *{box-sizing:border-box;pointer-events:auto !important;}
   .sc-close svg {
     fill: var(--sc-close-icon-color) !important;
@@ -2793,6 +2966,18 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:block;
   color:var(--sc-icon-color);
 }
+.sc-title-icon .sc-cart-icon-img,
+[data-smart-cartify-open] .sc-cart-icon-img,
+.sc-mobile-open-fallback .sc-cart-icon-img{
+  width:25px;
+  height:24px;
+  display:block;
+  object-fit:contain;
+}
+.sc-title-icon .sc-cart-icon-img{
+  width:20px;
+  height:20px;
+}
 .sc-title{
   font-size:var(--sc-heading-font-size);
   font-weight:700;
@@ -2809,11 +2994,28 @@ body.sc-cartify-open .shopify-section-group-header-group{
   opacity:.9;
 }
 .sc-close{
-  width:36px;height:36px;border-radius:10px;
+  width:40px;height:40px;border-radius:10px;
   border:unset;
   background:var(--sc-close-bg);
   cursor:pointer;font-size:var(--sc-button-font-size);line-height:1;
   color:var(--sc-close-text);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 40px;
+  position:relative;
+  z-index:3;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.sc-close svg{
+  width:22px;
+  height:22px;
+  display:block;
+  pointer-events:none;
+}
+.sc-close svg path{
+  fill:currentColor !important;
 }
 
 /* Announcement */
@@ -3517,6 +3719,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
   bottom:0;
   z-index:8;
 }
+.sc-footer.sc-footer-static{
+  position:relative;
+  bottom:auto;
+}
 .sc-footer .sc-footer-milestones{
   margin:0 12px;
 }
@@ -3583,6 +3789,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
 @media (max-width: 640px){
   .sc-drawer{
     width:100vw;
+  }
+  .sc-drawer.sc-mobile-bottom-sheet{
+    border-radius:16px 16px 0 0;
   }
   .sc-items{
     margin:8px;
@@ -3863,6 +4072,38 @@ body.sc-cartify-open .shopify-section-group-header-group{
 [data-smart-cartify-open]{
   position:relative;
 }
+.sc-mobile-open-fallback{
+  position:fixed;
+  right:14px;
+  bottom:calc(18px + env(safe-area-inset-bottom, 0px));
+  width:48px;
+  height:48px;
+  border:0;
+  border-radius:999px;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:#000000;
+  color:#ffffff;
+  box-shadow:0 10px 28px rgba(0,0,0,.24);
+  z-index:2147483645 !important;
+  cursor:pointer;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+.sc-mobile-open-fallback svg{
+  width:25px;
+  height:24px;
+  display:block;
+}
+body.sc-cartify-open .sc-mobile-open-fallback{
+  display:none !important;
+}
+@media (max-width: 768px){
+  body.sc-no-visible-cart-open:not(.sc-cartify-open) .sc-mobile-open-fallback{
+    display:flex;
+  }
+}
 .sc-open-count{
   position:absolute;
   top: 5px;
@@ -3898,8 +4139,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
         <h3 class="sc-title">Your Cart <span class="sc-title-count" data-cart-title-count>(0)</span></h3>
       </div>
       <button class="sc-close" data-close type="button" aria-label="Close">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="#fff">
-          <path fill-rule="fff" clip-rule="evenodd" d="M5.29289 5.29289C5.68342 4.90237 6.31658 4.90237 6.70711 5.29289L12 10.5858L17.2929 5.29289C17.6834 4.90237 18.3166 4.90237 18.7071 5.29289C19.0976 5.68342 19.0976 6.31658 18.7071 6.70711L13.4142 12L18.7071 17.2929C19.0976 17.6834 19.0976 18.3166 18.7071 18.7071C18.3166 19.0976 17.6834 19.0976 17.2929 18.7071L12 13.4142L6.70711 18.7071C6.31658 19.0976 5.68342 19.0976 5.29289 18.7071C4.90237 18.3166 4.90237 17.6834 5.29289 17.2929L10.5858 12L5.29289 6.70711C4.90237 6.31658 4.90237 5.68342 5.29289 5.29289Z" fill="#0F1729"/>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M6.7 5.3 12 10.6l5.3-5.3a1 1 0 1 1 1.4 1.4L13.4 12l5.3 5.3a1 1 0 0 1-1.4 1.4L12 13.4l-5.3 5.3a1 1 0 0 1-1.4-1.4l5.3-5.3-5.3-5.3a1 1 0 0 1 1.4-1.4Z"/>
         </svg>
       </button>
     </div>
@@ -4224,7 +4465,11 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
     const closeBg = pick(style, ["closeBg", "closeButtonBg"], "transparent");
     const closeBorder = pickColor(style, ["closeBorder", "closeButtonBorder"], borderColor);
-    const closeText = pickColor(style, ["closeText", "closeButtonText"], "#ffffff");
+    const closeText = pickColor(
+      style,
+      ["closeText", "closeButtonText"],
+      iconColor || headerColor || "#111827"
+    );
 
     const footerBg = pickBackground(
       style,
@@ -4355,6 +4600,16 @@ body.sc-cartify-open .shopify-section-group-header-group{
     const checkoutLabelText = trimToNull(style?.checkoutButtonText) || "Checkout";
     const checkoutLabelEl = drawer.querySelector(".sc-checkout-label");
     if (checkoutLabelEl) checkoutLabelEl.textContent = checkoutLabelText;
+    refreshCartIconMarkup();
+    const drawerPosition = String(style?.drawerPosition || "right").toLowerCase();
+    const mobileLayout = String(style?.mobileLayout || "drawer").toLowerCase();
+    drawer.classList.toggle("sc-position-left", drawerPosition === "left");
+    drawer.classList.toggle("sc-position-right", drawerPosition !== "left");
+    drawer.classList.toggle("sc-mobile-bottom-sheet", mobileLayout === "bottom_sheet");
+    const footerEl = drawer.querySelector(".sc-footer");
+    if (footerEl) {
+      footerEl.classList.toggle("sc-footer-static", style?.stickyCheckout === false);
+    }
 
     if (mode === "image") {
       const rawImage =
@@ -4537,12 +4792,19 @@ body.sc-cartify-open .shopify-section-group-header-group{
     const appliedRules = getAppliedDiscountRules();
     if (!appliedRules.length) return;
     const subtotalCents = getCartSubtotalCents();
-    const currency = CART?.currency || "INR";
+    const cartQty = getCartTotalQty();
 
     for (const { rule, code } of appliedRules) {
+      const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount").toLowerCase();
+      const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
+      const minQuantityFail =
+        triggerType === "quantity" &&
+        Number.isFinite(minQuantity) &&
+        minQuantity > 0 &&
+        cartQty < minQuantity;
       const minPurchase = Number(rule?.minPurchase ?? rule?.min_purchase);
       const minCents =
-        Number.isFinite(minPurchase) && minPurchase > 0
+        triggerType !== "quantity" && Number.isFinite(minPurchase) && minPurchase > 0
           ? Math.round(minPurchase * 100)
           : null;
       const meta = getDiscountRuleMeta(rule, subtotalCents);
@@ -4550,7 +4812,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
       const minPurchaseFail = minCents != null && subtotalCents < minCents;
       const discountAmountFail =
         meta && !meta.isPercent && Number.isFinite(meta.cents) && meta.cents > subtotalCents;
-      if (!minPurchaseFail && !discountAmountFail) continue;
+      if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
 
       if (
         LAST_AUTO_REMOVED_CODE &&
@@ -4603,15 +4865,26 @@ body.sc-cartify-open .shopify-section-group-header-group{
     setDiscountMessage("");
 
     const rule = findCodeDiscountRuleByCode(code);
+    const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount").toLowerCase();
+    if (triggerType === "quantity") {
+      const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
+      if (Number.isFinite(minQuantity) && minQuantity > 0) {
+        const cartQty = getCartTotalQty();
+        if (cartQty < minQuantity) {
+          setDiscountMessage(`No. Minimum quantity is ${minQuantity}. Add ${Math.max(0, minQuantity - cartQty)} more item(s).`);
+          return;
+        }
+      }
+    }
     const minPurchase = Number(rule?.minPurchase ?? rule?.min_purchase);
-    if (Number.isFinite(minPurchase) && minPurchase > 0) {
+    if (triggerType !== "quantity" && Number.isFinite(minPurchase) && minPurchase > 0) {
       const subtotalCents = getCartSubtotalCents();
-      const subtotalRupees = subtotalCents / 100;
+      const subtotalRupees = subtotalCents / priceDivisor();
       if (subtotalRupees < minPurchase) {
-        const minCents = Math.round(minPurchase * 100);
-        const remainingCents = Math.max(0, Math.round((minPurchase - subtotalRupees) * 100));
-        const minText = formatMoney(minCents, CART?.currency || "INR");
-        const remainingText = formatMoney(remainingCents, CART?.currency || "INR");
+        const minCents = Math.round(minPurchase * priceDivisor());
+        const remainingCents = Math.max(0, Math.round((minPurchase - subtotalRupees) * priceDivisor()));
+        const minText = formatMoney(minCents, normalizeCurrencyCode());
+        const remainingText = formatMoney(remainingCents, normalizeCurrencyCode());
         setDiscountMessage(`No. Minimum purchase is ${minText}. Add ${remainingText} more.`);
         return;
       }
@@ -4698,7 +4971,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   const buildSteps = () => {
     const assignment = {};
     const subtotalCents = Number(CART?.items_subtotal_price || 0);
-    const subtotalRupees = subtotalCents / 100;
+    const subtotalRupees = subtotalCents / priceDivisor();
 
     CODE_DISCOUNT_RULES = [];
     BXGY_RULES = [];
@@ -4752,9 +5025,15 @@ body.sc-cartify-open .shopify-section-group-header-group{
       }
     });
 
+    const assignedRuleKeys = new Set();
+    const getRuleKey = (type, rule) =>
+      `${type}:${rule?.id ?? rule?.shopifyRateId ?? rule?.campaignName ?? JSON.stringify(rule)}`;
+
     const pushRule = (type, rule) => {
       if (!rule) return;
       if (!isRuleEnabled(rule)) return;
+      const ruleKey = getRuleKey(type, rule);
+      if (assignedRuleKeys.has(ruleKey)) return;
 
       // Filter discount step rules: ONLY automatic (exclude code & bxgy)
       if (type === "discount") {
@@ -4816,6 +5095,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
           useRemainingForGoal: false,
         }),
       };
+      assignedRuleKeys.add(ruleKey);
     };
 
     (Array.isArray(shippingList) ? shippingList : []).forEach((r) => pushRule("shipping", r));
@@ -5145,7 +5425,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     const items = Array.isArray(CART?.items) ? CART.items : [];
     const stepsForFooter = buildSteps();
     console.log("[SmartCartify] cart items:", items);
-    const currency = CART?.currency || "INR";
+    const currency = normalizeCurrencyCode();
     const checkoutLabelBase =
       trimToNull(PROXY?.styleSettings?.checkoutButtonText) || "Checkout";
 
@@ -5669,7 +5949,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
     const state = ensureRewardPopup();
     const qty = getRewardQtyFromRule(kind, rule);
-    const currency = CART?.currency || "INR";
+    const currency = normalizeCurrencyCode();
 
     if (state.iconEl) state.iconEl.textContent = kind === "free" ? "🎁" : "🔥";
     if (state.headerTitleEl) state.headerTitleEl.textContent = kind === "free" ? "Free product unlocked" : "Offer product unlocked";
@@ -5795,15 +6075,20 @@ body.sc-cartify-open .shopify-section-group-header-group{
   let __SC_ENFORCING_REWARDS__ = false;
 
   const computeBxgyCompleteForRule = (rule) => {
-    const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / 100) || 0;
+    const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0;
     const cartQty = getCartTotalQty();
 
+    const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount").toLowerCase();
+    const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
     const minPurchase = Number(rule?.minPurchase ?? rule?.min_purchase);
     const xQty = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy);
 
     const hasMin = Number.isFinite(minPurchase) && minPurchase > 0;
     const hasX = Number.isFinite(xQty) && xQty > 0;
 
+    if (triggerType === "quantity" && Number.isFinite(minQuantity) && minQuantity > 0) {
+      return cartQty >= minQuantity;
+    }
     if (hasMin) return subtotalRupees >= minPurchase;
     if (hasX) return cartQty >= xQty;
     return false;
@@ -5835,8 +6120,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
     const eligibleQty = eligibleItems.reduce((sum, it) => sum + (Number(it?.quantity) || 0), 0);
     const eligibleSubtotalRupees =
-      (eligibleItems.reduce((sum, it) => sum + (Number(it?.final_line_price) || 0), 0) / 100) || 0;
+      (eligibleItems.reduce((sum, it) => sum + (Number(it?.final_line_price) || 0), 0) / priceDivisor()) || 0;
 
+    const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount").toLowerCase();
+    const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
     const minPurchase = Number(rule?.minPurchase ?? rule?.min_purchase);
     const xQty = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy);
 
@@ -5845,6 +6132,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
     if ((scope === "product" || scope === "collection") && eligibleQty <= 0) return false;
 
+    if (triggerType === "quantity" && Number.isFinite(minQuantity) && minQuantity > 0) {
+      return eligibleQty >= minQuantity;
+    }
     if (hasMin) return eligibleSubtotalRupees >= minPurchase;
     if (hasX) return eligibleQty >= xQty;
     return false;
@@ -5929,7 +6219,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
           }
 
           const goal = getGoalRupees("free", rule);
-          const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / 100) || 0;
+          const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0;
 
           if (!(Number.isFinite(Number(goal)) && Number(goal) > 0)) {
             linesToRemove.push(line);
@@ -6330,12 +6620,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
     setDiscountMessage("");
     applyStyleSettings(PROXY?.styleSettings);
     renderCart();
-    renderUpsellSection();
-    renderProgress();
-    refreshAnnouncementFromRules();
-    maybeShowAppliedDiscountCodePopup();
-    void maybeRemoveInvalidDiscountCodes();
-    void maybeRemoveUnapprovedDiscountCodes();
+      renderUpsellSection();
+      renderProgress();
+      refreshAnnouncementFromRules();
+      recordVisibleRuleImpressions();
+      maybeShowAppliedDiscountCodePopup();
+      void maybeRemoveInvalidDiscountCodes();
+      void maybeRemoveUnapprovedDiscountCodes();
     LAST_CART_SIG = getCartSignature(CART);
   };
 
@@ -6345,16 +6636,11 @@ body.sc-cartify-open .shopify-section-group-header-group{
   const preload = async () => {
     try {
       setProgressLoading(true);
-      const [proxyRes, cartRes] = await Promise.allSettled([
-        fetchProxy(),
-        fetchCart(),
-      ]);
-
-      if (cartRes.status !== "fulfilled") {
-        throw cartRes.reason || new Error("Cart preload failed");
-      }
-
-      CART = cartRes.value;
+      CART = await fetchCart();
+      const proxyRes = await Promise.resolve(fetchProxy(CART)).then(
+        (value) => ({ status: "fulfilled", value }),
+        (reason) => ({ status: "rejected", reason })
+      );
       PROXY =
         proxyRes.status === "fulfilled"
           ? proxyRes.value
@@ -6405,7 +6691,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
             text: getProgressAfter(r) || "",
             type: "discount",
             rule: r,
-            subtotalRupees: (Number(CART?.items_subtotal_price || 0) / 100) || 0,
+            subtotalRupees: (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0,
             useRemainingForGoal: false,
           })
           : `Discount applied: ${pendingDiscountCode}`;
@@ -6429,6 +6715,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
         try {
           setProgressLoading(true);
           CART = await fetchCart({ force: true });
+          PROXY = await fetchProxy(CART);
 
           await enforceRewardValidity();
 
@@ -6445,7 +6732,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
   const openAndRefreshDrawer = async () => {
     try {
-      openDrawer();
+      const shouldAutoOpen = PROXY?.styleSettings?.drawerAutoOpen !== false;
+      if (shouldAutoOpen) openDrawer();
       await refreshFromNetwork();
       renderAllFromCache();
       schedulePostCartSync();
@@ -6624,6 +6912,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   });
 
   $("[data-checkout]")?.addEventListener("click", () => {
+    recordCompletedRuleConversions();
     window.location.href = "/checkout";
   });
 
@@ -6631,12 +6920,15 @@ body.sc-cartify-open .shopify-section-group-header-group{
    ✅ OPEN BUTTONS
   ========================================================= */
   const ensureOpenButton = () => {
-    const cartSvg =
-      '<svg class="icon icon-cart cart-lift" width="25" height="24" viewBox="0 0 28 26" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
-      '<path d="M8.57235 25C9.26443 25 9.82548 24.4389 9.82548 23.7468C9.82548 23.0548 9.26443 22.4937 8.57235 22.4937C7.88026 22.4937 7.31921 23.0548 7.31921 23.7468C7.31921 24.4389 7.88026 25 8.57235 25Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
-      '<path d="M22.357 25C23.0491 25 23.6101 24.4389 23.6101 23.7468C23.6101 23.0548 23.0491 22.4937 22.357 22.4937C21.6649 22.4937 21.1039 23.0548 21.1039 23.7468C21.1039 24.4389 21.6649 25 22.357 25Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
-      '<path d="M1.11658 1H3.62284L6.95618 16.5639C7.07845 17.1339 7.39561 17.6435 7.85306 18.0048C8.3105 18.3662 8.87962 18.5568 9.46244 18.5439H21.7181C22.2885 18.5429 22.8415 18.3475 23.2858 17.9898C23.7301 17.6321 24.0391 17.1335 24.1617 16.5764L26.2294 7.26566H4.96369" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
-      "</svg>";
+    if (!document.querySelector("[data-smart-cartify-fallback-open]")) {
+      const fallbackBtn = document.createElement("button");
+      fallbackBtn.type = "button";
+      fallbackBtn.className = "sc-mobile-open-fallback";
+      fallbackBtn.setAttribute("data-smart-cartify-fallback-open", "");
+      fallbackBtn.setAttribute("aria-label", "Open cart");
+      setCartIconMarkup(fallbackBtn);
+      document.body.appendChild(fallbackBtn);
+    }
     const horizonCart = document.querySelector("cart-drawer-component");
     if (horizonCart) {
       const horizonBtn = horizonCart.querySelector(
@@ -6648,8 +6940,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
       if (targetBtn) {
         targetBtn.setAttribute("data-smart-cartify-open", "");
         targetBtn.classList.add("my-cart-icon");
-        if (svgWrap) svgWrap.innerHTML = cartSvg;
-        else targetBtn.innerHTML = cartSvg;
+        if (svgWrap) setCartIconMarkup(svgWrap);
+        else setCartIconMarkup(targetBtn);
         return;
       }
     }
@@ -6672,12 +6964,33 @@ body.sc-cartify-open .shopify-section-group-header-group{
     btn.setAttribute("data-smart-cartify-open", "");
     btn.classList.add("my-cart-icon");
     if (btn.tagName.toLowerCase() === "a") btn.setAttribute("href", "#");
-    btn.innerHTML = cartSvg;
+    setCartIconMarkup(btn);
     if (!cartCandidate) iconWrap.appendChild(btn);
   };
 
+  const syncMobileOpenFallback = () => {
+    const hasVisibleOpenButton = Array.from(
+      document.querySelectorAll("[data-smart-cartify-open]")
+    ).some((btn) => {
+      if (!(btn instanceof HTMLElement)) return false;
+      const style = window.getComputedStyle(btn);
+      if (
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        Number(style.opacity || 1) === 0
+      ) {
+        return false;
+      }
+      const rect = btn.getBoundingClientRect();
+      return rect.width > 4 && rect.height > 4 && rect.bottom > 0 && rect.right > 0;
+    });
+    document.body.classList.toggle("sc-no-visible-cart-open", !hasVisibleOpenButton);
+  };
+
   const bindOpenButtons = () => {
-    document.querySelectorAll("[data-smart-cartify-open]").forEach((btn) => {
+    document
+      .querySelectorAll("[data-smart-cartify-open], [data-smart-cartify-fallback-open]")
+      .forEach((btn) => {
       if (btn.__scBound) return;
       btn.__scBound = true;
       const openFromEvent = async (e, markPointer = false) => {
@@ -6717,6 +7030,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
       bindQueued = false;
       ensureOpenButton();
       bindOpenButtons();
+      syncMobileOpenFallback();
       syncOpenButtonBadge(Number(CART?.item_count || 0));
     });
   }
@@ -6763,6 +7077,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
   window.addEventListener("focus", () => {
     schedulePassiveRefresh(160);
+  });
+
+  window.addEventListener("resize", () => {
+    queueOpenButtonBind();
   });
 
   window.addEventListener("pagehide", () => {

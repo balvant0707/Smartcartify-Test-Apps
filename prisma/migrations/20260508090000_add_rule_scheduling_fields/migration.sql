@@ -1,0 +1,15 @@
+ALTER TABLE `shippingrule`
+  ADD COLUMN `startsAt` DATETIME(3) NULL,
+  ADD COLUMN `endsAt` DATETIME(3) NULL;
+
+ALTER TABLE `discountrule`
+  ADD COLUMN `startsAt` DATETIME(3) NULL,
+  ADD COLUMN `endsAt` DATETIME(3) NULL;
+
+ALTER TABLE `freegiftrule`
+  ADD COLUMN `startsAt` DATETIME(3) NULL,
+  ADD COLUMN `endsAt` DATETIME(3) NULL;
+
+ALTER TABLE `bxgyrule`
+  ADD COLUMN `startsAt` DATETIME(3) NULL,
+  ADD COLUMN `endsAt` DATETIME(3) NULL;

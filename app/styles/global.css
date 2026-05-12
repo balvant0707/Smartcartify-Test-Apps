@@ -1,5 +1,23 @@
+:root,
+.Polaris-AppProvider {
+  --p-border-radius-050: 4px;
+  --p-border-radius-100: 4px;
+  --p-border-radius-150: 4px;
+  --p-border-radius-200: 4px;
+  --p-border-radius-300: 4px;
+  --p-border-radius-400: 4px;
+  --p-border-radius-500: 4px;
+  --p-border-radius-750: 4px;
+}
+
 .Polaris-Card,
 .Polaris-LegacyCard,
+.Polaris-ShadowBevel,
+.Polaris-ShadowBevel::before,
+[class^="Polaris-ShadowBevel"],
+[class^="Polaris-ShadowBevel"]::before,
+[class*=" Polaris-ShadowBevel"],
+[class*=" Polaris-ShadowBevel"]::before,
 s-box,
 s-box::part(base),
 s-box::part(container),
@@ -20,7 +38,14 @@ s-section::part(content),
 .Polaris-Page-Section,
 .Polaris-Card__Section,
 .Polaris-LegacyCard__Section {
-  border-radius: 0 !important;
+  border-radius: 4px !important;
+  --pc-shadow-bevel-border-radius: 4px !important;
+  --pc-shadow-bevel-border-radius-xs: 4px !important;
+  --pc-shadow-bevel-border-radius-sm: 4px !important;
+  --pc-shadow-bevel-border-radius-md: 4px !important;
+  --pc-shadow-bevel-border-radius-lg: 4px !important;
+  --pc-shadow-bevel-border-radius-xl: 4px !important;
+  --pc-box-border-radius: 4px !important;
 }
 
 .Polaris-Button,
@@ -30,4 +55,41 @@ s-button,
 s-button::part(base),
 s-button::part(button) {
   border-radius: 4px !important;
+}
+
+body {
+  background: #f6f6f7;
+}
+
+.app-surface-card {
+  border: 1px solid #dcdfe4;
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.app-muted-card {
+  border: 1px solid #e3e5e8;
+  background: #f9fafb;
+}
+
+.app-dashboard-grid,
+.app-pricing-grid {
+  display: grid;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.app-dashboard-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.app-pricing-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .app-dashboard-grid,
+  .app-pricing-grid {
+    grid-template-columns: 1fr;
+  }
 }
