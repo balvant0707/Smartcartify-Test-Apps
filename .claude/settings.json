@@ -4,7 +4,8 @@
       "mcp__shopify-dev-mcp__learn_shopify_api",
       "Bash(xargs grep:*)",
       "Bash(node -e \"const p = require\\('./package.json'\\); const deps = {...p.dependencies,...p.devDependencies}; ['react-router','@react-router/dev','@shopify/shopify-app-react-router'].forEach\\(k => console.log\\(k, deps[k]\\)\\)\")",
-      "Bash(node -e \"const {Prisma} = require\\('@prisma/client'\\); const fields = Prisma.ShippingRuleScalarFieldEnum; console.log\\(JSON.stringify\\(fields, null, 2\\)\\);\")"
+      "Bash(node -e \"const {Prisma} = require\\('@prisma/client'\\); const fields = Prisma.ShippingRuleScalarFieldEnum; console.log\\(JSON.stringify\\(fields, null, 2\\)\\);\")",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k: d[k] for k in ['scripts', 'dependencies'] if k in d}, indent=2\\)\\)\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\BALVANT\\.claude\\projects\\c--xampp-htdocs-shopifyApps-smart-cartify\\memory"

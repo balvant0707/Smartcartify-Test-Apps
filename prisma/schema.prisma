@@ -28,20 +28,20 @@ model Session {
 }
 
 model shop {
-  id            Int       @id @default(autoincrement())
-  shop          String    @unique @db.VarChar(255)
-  accessToken   String?   @db.Text
-  installed     Boolean   @default(false)
-  uninstalledAt DateTime?
-  onboardedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  firstName     String?   @db.VarChar(255)
-  lastName      String?   @db.VarChar(255)
-  email         String?   @db.VarChar(320)
-  domain        String?   @db.VarChar(255)
-  contactNumber String?   @db.VarChar(50)
-  appStatus     String    @default("active") @db.VarChar(20)
+  id                Int       @id @default(autoincrement())
+  shop              String    @unique @db.VarChar(255)
+  accessToken       String?   @db.Text
+  installed         Boolean   @default(false)
+  uninstalledAt     DateTime?
+  onboardedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  firstName         String?   @db.VarChar(255)
+  lastName          String?   @db.VarChar(255)
+  email             String?   @db.VarChar(320)
+  domain            String?   @db.VarChar(255)
+  contactNumber     String?   @db.VarChar(50)
+  appStatus         String    @default("active") @db.VarChar(20)
   reviewSubmittedAt DateTime?
   reviewRating      Int?
   reviewComment     String?   @db.Text
@@ -50,190 +50,194 @@ model shop {
 }
 
 model ShippingRule {
-  id                        Int      @id @default(autoincrement())
+  id                        Int       @id @default(autoincrement())
   shop                      String
   rewardType                String
   rateType                  String?
   amount                    String?
   minSubtotal               String?
   method                    String
-  enabled                   Boolean  @default(false)
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
-  iconChoice                String?  @default("truck")
-  shopifyRateId             String?  @db.VarChar(255)
-  shopifyMethodDefinitionId String?  @db.VarChar(255)
-  progressTextBefore        String?  @db.Text
-  progressTextAfter         String?  @db.Text
-  progressTextBelow         String?  @db.Text
-  campaignName              String?  @db.VarChar(255)
-  cartStepName              String?  @db.VarChar(255)
+  enabled                   Boolean   @default(false)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  iconChoice                String?   @default("truck")
+  shopifyRateId             String?   @db.VarChar(255)
+  shopifyMethodDefinitionId String?   @db.VarChar(255)
+  progressTextBefore        String?   @db.Text
+  progressTextAfter         String?   @db.Text
+  progressTextBelow         String?   @db.Text
+  campaignName              String?   @db.VarChar(255)
+  cartStepName              String?   @db.VarChar(255)
   startsAt                  DateTime?
   endsAt                    DateTime?
-  priority                  Int      @default(0)
-  customerTarget            String   @default("all") @db.VarChar(32)
-  customerTags              String?  @db.LongText
-  templateKey               String?  @db.VarChar(64)
-  abTestEnabled             Boolean  @default(false)
-  abTestVariant             String?  @db.VarChar(32)
-  translations              String?  @db.LongText
-  analyticsImpressions      Int      @default(0)
-  analyticsConversions      Int      @default(0)
+  priority                  Int       @default(0)
+  customerTarget            String    @default("all") @db.VarChar(32)
+  customerTags              String?   @db.LongText
+  templateKey               String?   @db.VarChar(64)
+  abTestEnabled             Boolean   @default(false)
+  abTestVariant             String?   @db.VarChar(32)
+  translations              String?   @db.LongText
+  analyticsImpressions      Int       @default(0)
+  analyticsConversions      Int       @default(0)
 
   @@index([shop])
   @@map("shippingrule")
 }
 
 model DiscountRule {
-  id                    Int      @id @default(autoincrement())
-  shop                  String
-  type                  String
-  value                 String?
-  minPurchase           String?
-  triggerType           String   @default("amount") @db.VarChar(32)
-  minQuantity           String?
-  enabled               Boolean  @default(false)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  iconChoice            String?  @default("tag")
-  shopifyDiscountCodeId String?  @db.VarChar(255)
-  shopifyPriceRuleId    String?  @db.VarChar(255)
-  discountCode          String?  @db.VarChar(255)
-  progressTextBefore    String?  @db.Text
-  progressTextAfter     String?  @db.Text
-  progressTextBelow     String?  @db.Text
-  campaignName          String?  @db.VarChar(255)
-  cartStepName          String?  @db.VarChar(255)
-  codeCampaignName      String?  @db.VarChar(255)
-  valueType             String   @default("percent")
-  appliesTo             String?  @db.LongText
-  codeDiscountId        String?  @db.VarChar(255)
-  condition             String?  @db.VarChar(255)
-  rewardType            String   @default("percent")
-  scope                 String?  @db.VarChar(255)
-  startsAt              DateTime?
-  endsAt                DateTime?
-  priority              Int      @default(0)
-  customerTarget        String   @default("all") @db.VarChar(32)
-  customerTags          String?  @db.LongText
-  templateKey           String?  @db.VarChar(64)
-  abTestEnabled         Boolean  @default(false)
-  abTestVariant         String?  @db.VarChar(32)
-  translations          String?  @db.LongText
-  analyticsImpressions  Int      @default(0)
-  analyticsConversions  Int      @default(0)
+  id                         Int       @id @default(autoincrement())
+  shop                       String
+  type                       String
+  value                      String?
+  minPurchase                String?
+  triggerType                String    @default("amount") @db.VarChar(32)
+  minQuantity                String?
+  enabled                    Boolean   @default(false)
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+  iconChoice                 String?   @default("tag")
+  shopifyDiscountCodeId      String?   @db.VarChar(255)
+  shopifyPriceRuleId         String?   @db.VarChar(255)
+  discountCode               String?   @db.VarChar(255)
+  progressTextBefore         String?   @db.Text
+  progressTextAfter          String?   @db.Text
+  quantityProgressTextBefore String?   @db.Text
+  quantityProgressTextAfter  String?   @db.Text
+  progressTextBelow          String?   @db.Text
+  campaignName               String?   @db.VarChar(255)
+  cartStepName               String?   @db.VarChar(255)
+  codeCampaignName           String?   @db.VarChar(255)
+  valueType                  String    @default("percent")
+  appliesTo                  String?   @db.LongText
+  codeDiscountId             String?   @db.VarChar(255)
+  condition                  String?   @db.VarChar(255)
+  rewardType                 String    @default("percent")
+  scope                      String?   @db.VarChar(255)
+  startsAt                   DateTime?
+  endsAt                     DateTime?
+  priority                   Int       @default(0)
+  customerTarget             String    @default("all") @db.VarChar(32)
+  customerTags               String?   @db.LongText
+  templateKey                String?   @db.VarChar(64)
+  abTestEnabled              Boolean   @default(false)
+  abTestVariant              String?   @db.VarChar(32)
+  translations               String?   @db.LongText
+  analyticsImpressions       Int       @default(0)
+  analyticsConversions       Int       @default(0)
 
   @@index([shop])
   @@map("discountrule")
 }
 
 model FreeGiftRule {
-  id                          Int      @id @default(autoincrement())
+  id                          Int       @id @default(autoincrement())
   shop                        String
   trigger                     String
   minPurchase                 String?
-  triggerType                 String   @default("amount") @db.VarChar(32)
+  triggerType                 String    @default("amount") @db.VarChar(32)
   minQuantity                 String?
   qty                         String?
   limitPerOrder               String?
-  enabled                     Boolean  @default(false)
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
-  iconChoice                  String?  @default("gift")
-  bonusProductId              String?  @db.VarChar(255)
-  freeProductDiscountID       String?  @db.VarChar(255)
-  minAmountFreeGiftDiscountId String?  @db.VarChar(255)
-  minAmountShippingRateId     String?  @db.VarChar(255)
-  allProductIds               String?  @db.LongText
-  progressTextBefore          String?  @db.Text
-  progressTextAfter           String?  @db.Text
-  progressTextBelow           String?  @db.Text
-  campaignName                String?  @db.VarChar(255)
-  cartStepName                String?  @db.VarChar(255)
+  enabled                     Boolean   @default(false)
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  iconChoice                  String?   @default("gift")
+  bonusProductId              String?   @db.VarChar(255)
+  freeProductDiscountID       String?   @db.VarChar(255)
+  minAmountFreeGiftDiscountId String?   @db.VarChar(255)
+  minAmountShippingRateId     String?   @db.VarChar(255)
+  allProductIds               String?   @db.LongText
+  progressTextBefore          String?   @db.Text
+  progressTextAfter           String?   @db.Text
+  quantityProgressTextBefore  String?   @db.Text
+  quantityProgressTextAfter   String?   @db.Text
+  progressTextBelow           String?   @db.Text
+  campaignName                String?   @db.VarChar(255)
+  cartStepName                String?   @db.VarChar(255)
   startsAt                    DateTime?
   endsAt                      DateTime?
-  priority                    Int      @default(0)
-  customerTarget              String   @default("all") @db.VarChar(32)
-  customerTags                String?  @db.LongText
-  templateKey                 String?  @db.VarChar(64)
-  abTestEnabled               Boolean  @default(false)
-  abTestVariant               String?  @db.VarChar(32)
-  translations                String?  @db.LongText
-  analyticsImpressions        Int      @default(0)
-  analyticsConversions        Int      @default(0)
+  priority                    Int       @default(0)
+  customerTarget              String    @default("all") @db.VarChar(32)
+  customerTags                String?   @db.LongText
+  templateKey                 String?   @db.VarChar(64)
+  abTestEnabled               Boolean   @default(false)
+  abTestVariant               String?   @db.VarChar(32)
+  translations                String?   @db.LongText
+  analyticsImpressions        Int       @default(0)
+  analyticsConversions        Int       @default(0)
 
   @@index([shop])
   @@map("freegiftrule")
 }
 
 model BxgyRule {
-  id                       Int      @id @default(autoincrement())
+  id                       Int       @id @default(autoincrement())
   shop                     String
   xQty                     String
   yQty                     String
   scope                    String
-  appliesTo                String?  @db.LongText
+  appliesTo                String?   @db.LongText
   giftType                 String
   giftSku                  String?
   maxGifts                 String?
-  allowStacking            Boolean  @default(false)
-  enabled                  Boolean  @default(false)
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
-  iconChoice               String?  @default("sparkles")
-  appliesCollectionIds     String?  @db.LongText
-  appliesProductIds        String?  @db.LongText
-  appliesStore             Boolean  @default(false)
-  buyxgetyId               String?  @db.VarChar(255)
+  allowStacking            Boolean   @default(false)
+  enabled                  Boolean   @default(false)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  iconChoice               String?   @default("sparkles")
+  appliesCollectionIds     String?   @db.LongText
+  appliesProductIds        String?   @db.LongText
+  appliesStore             Boolean   @default(false)
+  buyxgetyId               String?   @db.VarChar(255)
   afterOfferUnlockMessage  String?
   beforeOfferUnlockMessage String?
-  campaignName             String?  @db.VarChar(255)
+  campaignName             String?   @db.VarChar(255)
   startsAt                 DateTime?
   endsAt                   DateTime?
-  priority                 Int      @default(0)
-  customerTarget           String   @default("all") @db.VarChar(32)
-  customerTags             String?  @db.LongText
-  templateKey              String?  @db.VarChar(64)
-  abTestEnabled            Boolean  @default(false)
-  abTestVariant            String?  @db.VarChar(32)
-  translations             String?  @db.LongText
-  analyticsImpressions     Int      @default(0)
-  analyticsConversions     Int      @default(0)
+  priority                 Int       @default(0)
+  customerTarget           String    @default("all") @db.VarChar(32)
+  customerTags             String?   @db.LongText
+  templateKey              String?   @db.VarChar(64)
+  abTestEnabled            Boolean   @default(false)
+  abTestVariant            String?   @db.VarChar(32)
+  translations             String?   @db.LongText
+  analyticsImpressions     Int       @default(0)
+  analyticsConversions     Int       @default(0)
 
   @@index([shop])
   @@map("bxgyrule")
 }
 
 model StyleSettings {
-  id                       Int      @id @default(autoincrement())
-  shop                     String
-  font                     String
-  base                     String
-  headingScale             String
-  radius                   String
-  textColor                String
-  bg                       String
-  progress                 String
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
-    cartDrawerBackground     String?
-    cartDrawerTextColor      String?
-    cartDrawerHeaderColor    String?
-    cartIconUrl              String?
-    discountCodeApply        Boolean  @default(false)
-  cartDrawerImage          String?
-  cartDrawerBackgroundMode String   @default("color")
-  borderColor              String?
-  buttonColor              String?
-  checkoutButtonText       String?
+  id                             Int      @id @default(autoincrement())
+  shop                           String
+  font                           String
+  base                           String
+  headingScale                   String
+  radius                         String
+  textColor                      String
+  bg                             String
+  progress                       String
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+  cartDrawerBackground           String?
+  cartDrawerTextColor            String?
+  cartDrawerHeaderColor          String?
+  cartIconUrl                    String?
+  discountCodeApply              Boolean  @default(false)
+  cartDrawerImage                String?
+  cartDrawerBackgroundMode       String   @default("color")
+  borderColor                    String?
+  buttonColor                    String?
+  checkoutButtonText             String?
   announcementBarBackgroundColor String?
   announcementBarTextColor       String?
   buttonLabelColor               String?
   iconColor                      String?
-  drawerAutoOpen                 Boolean @default(true)
-  drawerPosition                 String  @default("right") @db.VarChar(32)
-  stickyCheckout                 Boolean @default(true)
-  mobileLayout                   String  @default("drawer") @db.VarChar(32)
+  drawerAutoOpen                 Boolean  @default(true)
+  drawerPosition                 String   @default("right") @db.VarChar(32)
+  stickyCheckout                 Boolean  @default(true)
+  mobileLayout                   String   @default("drawer") @db.VarChar(32)
 
   @@index([shop])
   @@map("stylesettings")
@@ -259,6 +263,67 @@ model UpsellSettings {
   updatedAt             DateTime @updatedAt
 
   @@map("upsellsettings")
+}
+
+model AddToCartBarSettings {
+  id                            Int      @id @default(autoincrement())
+  shop                          String   @unique @db.VarChar(255)
+  status                        String   @default("active") @db.VarChar(20)
+
+  // Mobile look & feel
+  mobileShowCondition           String   @default("scrollDown") @db.VarChar(64)
+  mobileScrollDepth             Int      @default(380)
+  mobileStickyPosition          String   @default("bottom") @db.VarChar(16)
+  mobileCtaAnimation            String   @default("pulse") @db.VarChar(32)
+  mobileBgColor                 String?  @db.VarChar(32)
+  mobileTextColor               String?  @db.VarChar(32)
+  mobileCtaBgColor              String?  @db.VarChar(32)
+  mobileCtaTextColor            String?  @db.VarChar(32)
+  mobileImageOutlineColor       String?  @db.VarChar(32)
+  mobileShowProductImage        Boolean  @default(true)
+  mobileShowProductTitle        Boolean  @default(true)
+  mobileShowPrice               Boolean  @default(true)
+  mobileShowCompareAtPrice      Boolean  @default(true)
+  mobileShowQuantity            Boolean  @default(true)
+  mobileShowVariantSelector     Boolean  @default(true)
+  mobileShowVariantLabel        Boolean  @default(true)
+  mobileShowPriceOnCta          Boolean  @default(true)
+  mobileShowCompareAtPriceOnCta Boolean  @default(true)
+
+  // Desktop look & feel
+  desktopShowCondition           String   @default("scrollDown") @db.VarChar(64)
+  desktopScrollDepth             Int      @default(380)
+  desktopStickyPosition          String   @default("bottom") @db.VarChar(16)
+  desktopCtaAnimation            String   @default("pulse") @db.VarChar(32)
+  desktopBgColor                 String?  @db.VarChar(32)
+  desktopTextColor               String?  @db.VarChar(32)
+  desktopCtaBgColor              String?  @db.VarChar(32)
+  desktopCtaTextColor            String?  @db.VarChar(32)
+  desktopImageOutlineColor       String?  @db.VarChar(32)
+  desktopShowProductImage        Boolean  @default(true)
+  desktopShowProductTitle        Boolean  @default(true)
+  desktopShowPrice               Boolean  @default(true)
+  desktopShowCompareAtPrice      Boolean  @default(true)
+  desktopShowQuantity            Boolean  @default(true)
+  desktopShowVariantSelector     Boolean  @default(true)
+  desktopShowVariantLabel        Boolean  @default(true)
+  desktopShowPriceOnCta          Boolean  @default(true)
+  desktopShowCompareAtPriceOnCta Boolean  @default(true)
+
+  // General settings
+  ctaBehavior                   String   @default("addToCart") @db.VarChar(32)
+  afterAddToCart                String   @default("openCartWidget") @db.VarChar(64)
+  homepageProductId             String?  @db.VarChar(255)
+  homepageProductTitle          String?  @db.VarChar(255)
+  customCss                     String?  @db.LongText
+  customJs                      String?  @db.LongText
+  desktopZIndex                 Int      @default(5000)
+  mobileZIndex                  Int      @default(5000)
+
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  @@map("addtocartbarsettings")
 }
 
 model PlanSubscription {

@@ -482,7 +482,7 @@ export default function AnalyticsDashboard() {
             <BlockStack gap="300">
               <TypeBreakdown rows={byType} />
               <Card>
-                <Box padding="300">
+                {/* <Box padding="300">
                   <BlockStack gap="200">
                     <Text as="h2" variant="headingMd">
                       Event source
@@ -497,7 +497,7 @@ export default function AnalyticsDashboard() {
                       compare results here.
                     </Text>
                   </BlockStack>
-                </Box>
+                </Box> */}
               </Card>
             </BlockStack>
           </div>

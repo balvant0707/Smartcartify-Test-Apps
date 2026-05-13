@@ -403,9 +403,22 @@ const fmtMoney = (value = 0, currency = "USD") => formatCurrency(value, currency
 const PROGRESS_TOKEN_PATTERN = /\{\{\s*(\w+)\s*\}\}/g;
 const HIGHLIGHT_TOKENS = new Set(["discount", "discount_code"]);
 
+const normalizeDiscountProgressText = (text) => {
+  let out = String(text ?? "");
+  if (!out) return "";
+  out = out.replace(/(\d+(?:\.\d+)?)\s*%\s*off\s*%\s*off\b/gi, "$1% off");
+  out = out.replace(/(\d+(?:\.\d+)?)\s+off\s*%\s*off\b/gi, "$1% off");
+  out = out.replace(/(\d+(?:\.\d+)?)\s*%\s*%\s*off\b/gi, "$1% off");
+  out = out.replace(/(\d+(?:\.\d+)?)\s+off\s*%/gi, "$1%");
+  out = out.replace(/\boff\s+off\b/gi, "off");
+  return out.replace(/\s{2,}/g, " ").trim();
+};
+
 const renderProgressText = (template = "", tokens = {}) => {
   if (!template) return "";
-  return template.replace(PROGRESS_TOKEN_PATTERN, (_, key) => tokens[key] ?? "");
+  return normalizeDiscountProgressText(
+    template.replace(PROGRESS_TOKEN_PATTERN, (_, key) => tokens[key] ?? "")
+  );
 };
 
 const renderProgressRichText = (template = "", tokens = {}) => {
@@ -1024,6 +1037,8 @@ const LOAD_RULES_QUERY = `
       discountCode
       progressTextBefore
       progressTextAfter
+      quantityProgressTextBefore
+      quantityProgressTextAfter
       progressTextBelow
       campaignName
       codeCampaignName
@@ -1057,6 +1072,8 @@ const LOAD_RULES_QUERY = `
       iconChoice
       progressTextBefore
       progressTextAfter
+      quantityProgressTextBefore
+      quantityProgressTextAfter
       progressTextBelow
       campaignName
       cartStepName
@@ -1287,6 +1304,12 @@ const createDefaultDiscountRule = (overrides = {}) => {
       overrides.progressTextBefore ?? contentDefaults.progressTextBefore,
     progressTextAfter:
       overrides.progressTextAfter ?? contentDefaults.progressTextAfter,
+    quantityProgressTextBefore:
+      overrides.quantityProgressTextBefore ??
+      contentDefaults.quantityProgressTextBefore,
+    quantityProgressTextAfter:
+      overrides.quantityProgressTextAfter ??
+      contentDefaults.quantityProgressTextAfter,
     progressTextBelow:
       overrides.progressTextBelow ?? contentDefaults.progressTextBelow,
     campaignName: "Automatic Discount",
@@ -1322,6 +1345,10 @@ const createDefaultFreeRule = () => ({
   iconChoice: "gift",
   progressTextBefore: DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextBefore,
   progressTextAfter: DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextAfter,
+  quantityProgressTextBefore:
+    DEFAULT_FREE_GIFT_CONTENT_TEXT.quantityProgressTextBefore,
+  quantityProgressTextAfter:
+    DEFAULT_FREE_GIFT_CONTENT_TEXT.quantityProgressTextAfter,
   progressTextBelow: DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextBelow,
   campaignName: "Free Product Rule",
   cartStepName: "",
@@ -1381,6 +1408,8 @@ const DISCOUNT_RULE_SELECT = {
   discountCode: true,
   progressTextBefore: true,
   progressTextAfter: true,
+  quantityProgressTextBefore: true,
+  quantityProgressTextAfter: true,
   progressTextBelow: true,
   campaignName: true,
   cartStepName: true,
@@ -1424,6 +1453,8 @@ const FREE_GIFT_RULE_SELECT = {
   allProductIds: true,
   progressTextBefore: true,
   progressTextAfter: true,
+  quantityProgressTextBefore: true,
+  quantityProgressTextAfter: true,
   progressTextBelow: true,
   campaignName: true,
   cartStepName: true,
@@ -1451,7 +1482,8 @@ const fetchDiscountRulesByShop = async (shop) => {
   const rows = await prisma.$queryRaw`
     SELECT id, shop, type, value, minPurchase, triggerType, minQuantity, enabled,
            createdAt, updatedAt, iconChoice, shopifyDiscountCodeId, shopifyPriceRuleId,
-           discountCode, progressTextBefore, progressTextAfter, progressTextBelow,
+           discountCode, progressTextBefore, progressTextAfter,
+           quantityProgressTextBefore, quantityProgressTextAfter, progressTextBelow,
            campaignName, cartStepName, codeCampaignName, valueType, appliesTo,
            codeDiscountId, \`condition\`, rewardType, scope, startsAt, endsAt,
            priority, customerTarget, customerTags, templateKey, abTestEnabled,
@@ -1466,7 +1498,8 @@ const fetchFreeGiftRulesByShop = async (shop) => {
     SELECT id, shop, \`trigger\`, minPurchase, triggerType, minQuantity, qty, limitPerOrder,
            enabled, createdAt, updatedAt, iconChoice, bonusProductId, freeProductDiscountID,
            minAmountFreeGiftDiscountId, minAmountShippingRateId, allProductIds,
-           progressTextBefore, progressTextAfter, progressTextBelow,
+           progressTextBefore, progressTextAfter,
+           quantityProgressTextBefore, quantityProgressTextAfter, progressTextBelow,
            campaignName, cartStepName, startsAt, endsAt,
            priority, customerTarget, customerTags, templateKey, abTestEnabled,
            abTestVariant, translations, analyticsImpressions, analyticsConversions
@@ -1513,7 +1546,7 @@ const DEFAULT_STYLE_SETTINGS = {
   progress: "#000000",
   buttonColor: "#000000",
   borderColor: "#E1E5ED",
-  cartDrawerBackground: "linear-gradient(180deg, #ffffff 0%, #fffffff 100%)",
+  cartDrawerBackground: "linear-gradient(180deg, #ffffff 0%, #f9f9f9 100%)",
   cartDrawerTextColor: "#000000",
   cartDrawerHeaderColor: "#000000",
   discountCodeApply: false,
@@ -1557,14 +1590,18 @@ const DEFAULT_PROGRESS_TEXT = {
 
 const DEFAULT_AUTO_DISCOUNT_CONTENT_TEXT = {
   progressTextBefore: "Add {{goal}} more to unlock {{discount_value_with_off}} Discount!",
-  progressTextAfter: "?? Congratulations! {{discount_value}} off Discount!",
-  progressTextBelow: "{{discount_value}} off Discount!",
+  progressTextAfter: "🎉🎉 Congratulations! {{discount_value_with_off}} Discount!",
+  quantityProgressTextBefore: "Add {{goal}} more to unlock {{discount_value_with_off}} Discount!",
+  quantityProgressTextAfter: "🎉🎉 Congratulations! {{discount_value_with_off}} Discount!",
+  progressTextBelow: "{{discount_value_with_off}} Discount!",
 };
 
 const DEFAULT_CODE_DISCOUNT_CONTENT_TEXT = {
-  progressTextBefore: "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}} off!",
-  progressTextAfter: "?? {{discount_value}} off Discount!",
-  progressTextBelow: "Discount!",
+  progressTextBefore: "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}!",
+  progressTextAfter: "🎉🎉 {{discount_value_with_off}} Discount!",
+  quantityProgressTextBefore: "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}!",
+  quantityProgressTextAfter: "🎉🎉 {{discount_value_with_off}} Discount!",
+  progressTextBelow: "{{discount_value_with_off}} Discount!",
 };
 
 const getDiscountContentDefaults = (ruleType = "automatic") =>
@@ -1572,15 +1609,54 @@ const getDiscountContentDefaults = (ruleType = "automatic") =>
     ? DEFAULT_CODE_DISCOUNT_CONTENT_TEXT
     : DEFAULT_AUTO_DISCOUNT_CONTENT_TEXT;
 
+const getProgressTextFieldForTrigger = (rule, phase) => {
+  const isQuantity = normalizeTriggerType(rule?.triggerType) === "quantity";
+  if (phase === "before") {
+    return isQuantity ? "quantityProgressTextBefore" : "progressTextBefore";
+  }
+  if (phase === "after") {
+    return isQuantity ? "quantityProgressTextAfter" : "progressTextAfter";
+  }
+  return "progressTextBelow";
+};
+
+const getProgressTextDefaultForTrigger = (rule, defaults, phase) => {
+  const field = getProgressTextFieldForTrigger(rule, phase);
+  const fallbackField =
+    phase === "before"
+      ? "progressTextBefore"
+      : phase === "after"
+        ? "progressTextAfter"
+        : "progressTextBelow";
+  return defaults?.[field] ?? defaults?.[fallbackField] ?? "";
+};
+
+const getProgressTextForTrigger = (rule, defaults, phase) => {
+  const field = getProgressTextFieldForTrigger(rule, phase);
+  const fallbackField =
+    phase === "before"
+      ? "progressTextBefore"
+      : phase === "after"
+        ? "progressTextAfter"
+        : "progressTextBelow";
+  return (
+    rule?.[field] ??
+    rule?.[fallbackField] ??
+    getProgressTextDefaultForTrigger(rule, defaults, phase)
+  );
+};
+
 const DEFAULT_FREE_GIFT_CONTENT_TEXT = {
-  progressTextBefore: "Add {{goal}} more to unlock a FREE Product ??",
-  progressTextAfter: "???? Congratulations! Your FREE Product is unlocked",
+  progressTextBefore: "Add {{goal}} more to unlock a Free Product!",
+  progressTextAfter: "🎉🎉 Congratulations! Your Free Product is unlocked",
+  quantityProgressTextBefore: "Add {{goal}} more to unlock a Free Product!",
+  quantityProgressTextAfter: "🎉🎉 Congratulations! Your Free Product is unlocked",
   progressTextBelow: "FREE Product",
 };
 
 const DEFAULT_BXGY_CONTENT_TEXT = {
   beforeOfferUnlockMessage: "Add {{x}} more items to get {{y}} free",
-  afterOfferUnlockMessage: "???? Congratulations! You've earned a free item",
+  afterOfferUnlockMessage: "🎉🎉 Congratulations! You've earned a free item",
 };
 
 
@@ -1704,8 +1780,9 @@ const toLocalTimeInputValue = (value, fallback = null) => {
 };
 
 const combineLocalDateAndTime = (dateValue, timeValue) => {
-  if (!dateValue || !timeValue) return null;
-  const date = new Date(`${dateValue}T${timeValue}`);
+  if (!dateValue) return null;
+  const time = timeValue || "00:00";
+  const date = new Date(`${dateValue}T${time}`);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 };
 
@@ -1785,14 +1862,10 @@ const stripRuleAdminFields = (rule = {}) => {
   return rest;
 };
 
-const scheduleInputFields = (rule = {}) => {
-  const fields = {
-    startsAt: toIsoDateOrNull(rule.startsAt) || new Date().toISOString(),
-  };
-  const endsAt = toIsoDateOrNull(rule.endsAt);
-  if (endsAt) fields.endsAt = endsAt;
-  return fields;
-};
+const scheduleInputFields = (rule = {}) => ({
+  startsAt: toIsoDateOrNull(rule.startsAt) || new Date().toISOString(),
+  endsAt: toIsoDateOrNull(rule.endsAt),
+});
 
 const isRuleScheduleActive = (rule = {}, now = new Date()) => {
   const nowTime = now.getTime();
@@ -1900,6 +1973,8 @@ const normalizeDiscountRuleForKey = (rule = {}) => ({
   codeCampaignName: rule.codeCampaignName || "",
   progressTextBefore: rule.progressTextBefore ?? "",
   progressTextAfter: rule.progressTextAfter ?? "",
+  quantityProgressTextBefore: rule.quantityProgressTextBefore ?? "",
+  quantityProgressTextAfter: rule.quantityProgressTextAfter ?? "",
   progressTextBelow: rule.progressTextBelow ?? "",
   campaignName: rule.campaignName ?? "",
   cartStepName: normalizeStepSlot(rule.cartStepName),
@@ -1923,6 +1998,8 @@ const normalizeFreeRuleForKey = (rule = {}) => ({
   iconChoice: rule.iconChoice || "gift",
   progressTextBefore: rule.progressTextBefore ?? "",
   progressTextAfter: rule.progressTextAfter ?? "",
+  quantityProgressTextBefore: rule.quantityProgressTextBefore ?? "",
+  quantityProgressTextAfter: rule.quantityProgressTextAfter ?? "",
   progressTextBelow: rule.progressTextBelow ?? "",
   campaignName: rule.campaignName ?? "",
   cartStepName: normalizeStepSlot(rule.cartStepName),
@@ -2051,6 +2128,12 @@ const buildRulesPayload = (data = {}) => {
             rule.progressTextBefore ?? discountDefaults.progressTextBefore,
           progressTextAfter:
             rule.progressTextAfter ?? discountDefaults.progressTextAfter,
+          quantityProgressTextBefore:
+            rule.quantityProgressTextBefore ??
+            discountDefaults.quantityProgressTextBefore,
+          quantityProgressTextAfter:
+            rule.quantityProgressTextAfter ??
+            discountDefaults.quantityProgressTextAfter,
           progressTextBelow:
             String(rule.progressTextBelow ?? "").trim() ||
             discountDefaults.progressTextBelow,
@@ -2090,6 +2173,12 @@ const buildRulesPayload = (data = {}) => {
         progressTextAfter:
           rule.progressTextAfter ??
           DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextAfter,
+        quantityProgressTextBefore:
+          rule.quantityProgressTextBefore ??
+          DEFAULT_FREE_GIFT_CONTENT_TEXT.quantityProgressTextBefore,
+        quantityProgressTextAfter:
+          rule.quantityProgressTextAfter ??
+          DEFAULT_FREE_GIFT_CONTENT_TEXT.quantityProgressTextAfter,
         progressTextBelow:
           rule.progressTextBelow ??
           DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextBelow,
@@ -3569,6 +3658,8 @@ export const action = async ({ request }) => {
             appliesTo: parseAppliesToValue(rule.appliesTo),
             progressTextBefore: rule.progressTextBefore,
             progressTextAfter: rule.progressTextAfter,
+            quantityProgressTextBefore: rule.quantityProgressTextBefore,
+            quantityProgressTextAfter: rule.quantityProgressTextAfter,
             progressTextBelow:
               String(rule.progressTextBelow ?? "").trim() ||
               discountDefaults.progressTextBelow,
@@ -3603,6 +3694,8 @@ export const action = async ({ request }) => {
           codeDiscountId: rule.codeDiscountId ?? null,
           progressTextBefore: rule.progressTextBefore ?? null,
           progressTextAfter: rule.progressTextAfter ?? null,
+          quantityProgressTextBefore: rule.quantityProgressTextBefore ?? null,
+          quantityProgressTextAfter: rule.quantityProgressTextAfter ?? null,
           progressTextBelow: rule.progressTextBelow ?? null,
           campaignName: rule.campaignName ?? null,
           codeCampaignName:
@@ -3661,6 +3754,8 @@ export const action = async ({ request }) => {
           shopifyDiscountCodeId: rule.shopifyDiscountCodeId,
           progressTextBefore: rule.progressTextBefore,
           progressTextAfter: rule.progressTextAfter,
+          quantityProgressTextBefore: rule.quantityProgressTextBefore,
+          quantityProgressTextAfter: rule.quantityProgressTextAfter,
           progressTextBelow: rule.progressTextBelow,
           campaignName: rule.campaignName,
           codeCampaignName: rule.codeCampaignName,
@@ -3793,6 +3888,8 @@ export const action = async ({ request }) => {
           iconChoice: rule.iconChoice || "gift",
           progressTextBefore: rule.progressTextBefore ?? null,
           progressTextAfter: rule.progressTextAfter ?? null,
+          quantityProgressTextBefore: rule.quantityProgressTextBefore ?? null,
+          quantityProgressTextAfter: rule.quantityProgressTextAfter ?? null,
           progressTextBelow: rule.progressTextBelow ?? null,
           campaignName: rule.campaignName ?? null,
           cartStepName: normalizeStepSlot(rule.cartStepName) || null,
@@ -3815,6 +3912,8 @@ export const action = async ({ request }) => {
           iconChoice: rule.iconChoice || "gift",
           progressTextBefore: rule.progressTextBefore ?? null,
           progressTextAfter: rule.progressTextAfter ?? null,
+          quantityProgressTextBefore: rule.quantityProgressTextBefore ?? null,
+          quantityProgressTextAfter: rule.quantityProgressTextAfter ?? null,
           progressTextBelow: rule.progressTextBelow ?? null,
           campaignName: rule.campaignName ?? null,
           cartStepName: normalizeStepSlot(rule.cartStepName) || null,
@@ -6449,6 +6548,7 @@ function CartDrawerPreview({
   upsellItems = [],
   upsellSettings = {},
   discountRules = [],
+  freeRules = [],
   bxgyRules = [],
   currencyCode = "USD",
 }) {
@@ -6528,17 +6628,79 @@ function CartDrawerPreview({
   );
   const totalQty = items.reduce((sum, it) => sum + Number(it.qty || 0), 0);
 
+  const appliedDiscounts = (Array.isArray(discountRules) ? discountRules : [])
+    .filter((rule) => String(rule?.type || "").toLowerCase() === "automatic")
+    .filter((rule) => rule?.enabled !== false)
+    .filter((rule) => {
+      const isQty = normalizeTriggerType(rule.triggerType) === "quantity";
+      const threshold = isQty ? getMinQuantity(rule) : getDiscountMinPurchase(rule);
+      if (threshold === null || !Number.isFinite(Number(threshold))) return false;
+      return isQty ? totalQty >= Number(threshold) : subtotal >= Number(threshold);
+    })
+    .map((rule) => {
+      const value = getDiscountValue(rule);
+      const isPercent = getDiscountValueMode(rule) !== "amount";
+      const discountAmount =
+        value !== null && Number.isFinite(Number(value))
+          ? isPercent
+            ? subtotal * (Number(value) / 100)
+            : Number(value)
+          : 0;
+      const label = formatDiscountValueDisplay(rule, previewCurrency) || "";
+      return { label, discountAmount, isPercent, value: Number(value) };
+    });
+
+  const totalDiscount = appliedDiscounts.reduce((sum, d) => sum + d.discountAmount, 0);
+  const discountedSubtotal = Math.max(0, subtotal - totalDiscount);
+
   const normalizeAnnouncementText = (value) =>
     String(value ?? "").replace(/\s{2,}/g, " ").trim();
+
+  const buildAnnouncementGoal = (isQty, remaining) =>
+    isQty
+      ? `${Math.ceil(remaining ?? 0)} ${Math.ceil(remaining ?? 0) === 1 ? "item" : "items"}`
+      : remaining !== null ? formatMoney(remaining) : "";
+
+  const autoDiscountAnnouncementMessages = (Array.isArray(discountRules) ? discountRules : [])
+    .filter((rule) => String(rule?.type || "").toLowerCase() === "automatic")
+    .filter((rule) => rule?.enabled !== false)
+    .map((rule) => {
+      const isQty = normalizeTriggerType(rule.triggerType) === "quantity";
+      const threshold = isQty ? getMinQuantity(rule) : getDiscountMinPurchase(rule);
+      const currentValue = isQty ? totalQty : subtotal;
+      const remaining =
+        threshold !== null && Number.isFinite(threshold)
+          ? Math.max(0, threshold - currentValue)
+          : null;
+      const discountValueWithOff = formatDiscountValueDisplay(rule, previewCurrency) || "";
+      const discountValue =
+        discountValueWithOff.replace(/\s*off$/i, "").trim() || discountValueWithOff;
+      const template = getProgressTextForTrigger(
+        rule,
+        DEFAULT_AUTO_DISCOUNT_CONTENT_TEXT,
+        "before"
+      );
+      const tokens = {
+        goal: buildAnnouncementGoal(isQty, remaining),
+        current_status: isQty ? String(totalQty) : formatMoney(subtotal),
+        discount: discountValue,
+        discount_value: discountValue,
+        discount_value_with_off: discountValueWithOff || discountValue,
+      };
+      return normalizeAnnouncementText(renderProgressText(template, tokens));
+    })
+    .filter(Boolean);
 
   const codeAnnouncementMessages = (Array.isArray(discountRules) ? discountRules : [])
     .filter((rule) => String(rule?.type || "").toLowerCase() === "code")
     .filter((rule) => rule?.enabled !== false)
     .map((rule) => {
-      const minPurchase = getDiscountMinPurchase(rule);
+      const isQty = normalizeTriggerType(rule.triggerType) === "quantity";
+      const threshold = isQty ? getMinQuantity(rule) : getDiscountMinPurchase(rule);
+      const currentValue = isQty ? totalQty : subtotal;
       const remaining =
-        minPurchase !== null && Number.isFinite(minPurchase)
-          ? Math.max(0, minPurchase - subtotal)
+        threshold !== null && Number.isFinite(threshold)
+          ? Math.max(0, threshold - currentValue)
           : null;
       const discountValueWithOff = formatDiscountValueDisplay(rule, previewCurrency) || "";
       const discountValue =
@@ -6550,16 +6712,42 @@ function CartDrawerPreview({
         rawBelow && /^discount!?$/i.test(String(rawBelow).trim());
       const template = pickString(
         isGenericBelow ? "" : rawBelow,
-        rule?.progressTextBefore,
-        DEFAULT_CODE_DISCOUNT_CONTENT_TEXT.progressTextBefore
+        getProgressTextForTrigger(
+          rule,
+          DEFAULT_CODE_DISCOUNT_CONTENT_TEXT,
+          "before"
+        )
       );
       const tokens = {
-        goal: remaining !== null ? formatMoney(remaining) : "",
-        current_status: formatMoney(subtotal),
+        goal: buildAnnouncementGoal(isQty, remaining),
+        current_status: isQty ? String(totalQty) : formatMoney(subtotal),
         discount: discountValue,
         discount_value: discountValue,
         discount_value_with_off: discountValueWithOff || discountValue,
         discount_code: discountCode,
+      };
+      return normalizeAnnouncementText(renderProgressText(template, tokens));
+    })
+    .filter(Boolean);
+
+  const freeGiftAnnouncementMessages = (Array.isArray(freeRules) ? freeRules : [])
+    .filter((rule) => rule?.enabled !== false)
+    .map((rule) => {
+      const isQty = normalizeTriggerType(rule.triggerType) === "quantity";
+      const threshold = isQty ? getMinQuantity(rule) : getFreeGiftMinPurchase(rule);
+      const currentValue = isQty ? totalQty : subtotal;
+      const remaining =
+        threshold !== null && Number.isFinite(threshold)
+          ? Math.max(0, threshold - currentValue)
+          : null;
+      const template = getProgressTextForTrigger(
+        rule,
+        DEFAULT_FREE_GIFT_CONTENT_TEXT,
+        "before"
+      );
+      const tokens = {
+        goal: buildAnnouncementGoal(isQty, remaining),
+        current_status: isQty ? String(totalQty) : formatMoney(subtotal),
       };
       return normalizeAnnouncementText(renderProgressText(template, tokens));
     })
@@ -6587,7 +6775,9 @@ function CartDrawerPreview({
     .filter(Boolean);
 
   const announcementMessages = [
+    ...autoDiscountAnnouncementMessages,
     ...codeAnnouncementMessages,
+    ...freeGiftAnnouncementMessages,
     ...bxgyAnnouncementMessages,
   ];
   const marqueeBaseMessages =
@@ -6601,18 +6791,31 @@ function CartDrawerPreview({
     Number.isFinite(Number(r.threshold)) ? Number(r.threshold) : 0
   );
 
-  const nextThreshold = thresholdsInOrder.filter((t) => t > subtotal).sort((a, b) => a - b)[0];
-  const remaining = nextThreshold ? Math.max(0, nextThreshold - subtotal) : 0;
+  const hasQuantityStep = selected.some((r) => r?.triggerType === "quantity");
+  const progressCurrentValue = hasQuantityStep ? totalQty : subtotal;
+
+  const nextRule = selected.find((r) => {
+    const metric = r?.triggerType === "quantity" ? totalQty : subtotal;
+    const t = Number.isFinite(Number(r.threshold)) ? Number(r.threshold) : 0;
+    return metric < t;
+  });
+  const nextThreshold = nextRule ? Number(nextRule.threshold) : undefined;
+  const isQuantityNext = nextRule?.triggerType === "quantity";
+  const remaining = nextThreshold
+    ? Math.max(0, nextThreshold - (isQuantityNext ? totalQty : subtotal))
+    : 0;
   const rewardText =
-    hasSteps && nextThreshold
-      ? `Spend ${formatMoney(remaining)} more for next reward`
+    hasSteps && nextRule
+      ? isQuantityNext
+        ? `Add ${Math.ceil(remaining)} more ${Math.ceil(remaining) === 1 ? "item" : "items"} for next reward`
+        : `Spend ${formatMoney(remaining)} more for next reward`
       : hasSteps
         ? "All rewards unlocked"
         : "";
 
   const centers = getStepCenters(selected.length);
   const fillPct = hasSteps
-    ? computeSegmentProgressPct(subtotal, thresholdsInOrder, centers)
+    ? computeSegmentProgressPct(progressCurrentValue, thresholdsInOrder, centers)
     : 0;
 
   const footerWrapStyle = {
@@ -6663,7 +6866,7 @@ function CartDrawerPreview({
     position: "relative",
     minHeight: 54,
   };
-  const checkoutLabelWithTotal = `${checkoutLabel} - ${formatMoney(subtotal)}`;
+  const checkoutLabelWithTotal = `${checkoutLabel} - ${formatMoney(discountedSubtotal)}`;
 
   const badgeStyle = {
     position: "absolute",
@@ -7256,6 +7459,55 @@ function CartDrawerPreview({
             </div>
           )}
 
+          {appliedDiscounts.length > 0 && (
+            <div style={{ marginBottom: 10, fontSize: theme.base }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: 6,
+                  color: surfaceText,
+                  opacity: 0.75,
+                }}
+              >
+                <span>Subtotal</span>
+                <span style={{ textDecoration: "line-through" }}>
+                  {formatMoney(subtotal)}
+                </span>
+              </div>
+              {appliedDiscounts.map((d, i) => (
+                <div
+                  key={`disc-badge-${i}`}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      background: "rgba(34,197,94,0.18)",
+                      color: "#15803d",
+                      borderRadius: 4,
+                      padding: "2px 8px",
+                      fontWeight: 600,
+                      fontSize: Math.max(11, theme.base - 1),
+                    }}
+                  >
+                    {d.isPercent ? `${d.value}% off` : d.label}
+                  </span>
+                  <span style={{ color: "#15803d", fontWeight: 600 }}>
+                    -{formatMoney(d.discountAmount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: "grid" }}>
             <div style={checkoutStyle}>
               {checkoutLabelWithTotal}
@@ -7403,6 +7655,7 @@ const RuleScheduleFields = ({
   const hasValue = Boolean(startsAt || endsAt);
   const [open, setOpen] = React.useState(hasValue);
   const now = React.useMemo(() => new Date(), []);
+  const startEditedRef = React.useRef(hasValue);
   const fallbackStart = startsAt ? null : now;
   const fallbackEnd = endsAt ? null : addDays(now, 10);
   const startDateValue = toLocalDateInputValue(startsAt, fallbackStart);
@@ -7418,11 +7671,21 @@ const RuleScheduleFields = ({
     }
   }, []);
 
+  const commitDefaultStart = () => {
+    if (!startsAt) {
+      const d = toLocalDateInputValue(null, now);
+      const t = toLocalTimeInputValue(null, now);
+      onStartsAtChange(combineLocalDateAndTime(d, t));
+    }
+  };
+
   const updateStartDate = (dateValue) => {
+    startEditedRef.current = true;
     onStartsAtChange(combineLocalDateAndTime(dateValue, startTimeValue));
   };
 
   const updateStartTime = (timeValue) => {
+    startEditedRef.current = true;
     onStartsAtChange(combineLocalDateAndTime(startDateValue, timeValue));
   };
 
@@ -7473,7 +7736,15 @@ const RuleScheduleFields = ({
       <button
         type="button"
         className="rule-accordion-btn"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (next) {
+            commitDefaultStart();
+          } else if (!startEditedRef.current) {
+            onStartsAtChange(null);
+          }
+        }}
         style={{
           width: "100%",
           display: "grid",
@@ -8526,9 +8797,14 @@ export default function AppRules() {
       if (!id) return;
       const type = String(rule?.type ?? "").toLowerCase();
       if (type !== "automatic") return;
+      const ruleTriggerType = normalizeTriggerType(rule.triggerType);
       map[`discount:${id}`] = {
         type: "discount",
-        threshold: getThreshold(rule),
+        triggerType: ruleTriggerType,
+        threshold:
+          ruleTriggerType === "quantity"
+            ? getMinQuantity(rule)
+            : getThreshold(rule),
         label: buildFullOptionLabel("discount", rule, currencyCode),
         stepLabel: stepLabelForRule("discount", rule, currencyCode),
       };
@@ -8536,9 +8812,14 @@ export default function AppRules() {
     freeRules.forEach((rule) => {
       const id = rule?.id;
       if (!id) return;
+      const ruleTriggerType = normalizeTriggerType(rule.triggerType);
       map[`free:${id}`] = {
         type: "free",
-        threshold: getThreshold(rule),
+        triggerType: ruleTriggerType,
+        threshold:
+          ruleTriggerType === "quantity"
+            ? getMinQuantity(rule)
+            : getFreeGiftMinPurchase(rule),
         label: buildFullOptionLabel("free", rule, currencyCode),
         stepLabel: stepLabelForRule("free", rule, currencyCode),
       };
@@ -10105,6 +10386,15 @@ export default function AppRules() {
         removeOnCOD: true,
         iconChoice: "gift",
         icon: null,
+        progressTextBefore: DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextBefore,
+        progressTextAfter: DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextAfter,
+        quantityProgressTextBefore:
+          DEFAULT_FREE_GIFT_CONTENT_TEXT.quantityProgressTextBefore,
+        quantityProgressTextAfter:
+          DEFAULT_FREE_GIFT_CONTENT_TEXT.quantityProgressTextAfter,
+        progressTextBelow: DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextBelow,
+        campaignName: "Free Product Rule",
+        cartStepName: "",
       },
     ]);
   };
@@ -10536,12 +10826,16 @@ export default function AppRules() {
     goal: freePreviewGoalText,
     current_status: freePreviewCurrentText,
   };
-  const freeBeforeTemplate =
-    freeActiveRuleEntry?.rule?.progressTextBefore ??
-    DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextBefore;
-  const freeAfterTemplate =
-    freeActiveRuleEntry?.rule?.progressTextAfter ??
-    DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextAfter;
+  const freeBeforeTemplate = getProgressTextForTrigger(
+    freeActiveRuleEntry?.rule,
+    DEFAULT_FREE_GIFT_CONTENT_TEXT,
+    "before"
+  );
+  const freeAfterTemplate = getProgressTextForTrigger(
+    freeActiveRuleEntry?.rule,
+    DEFAULT_FREE_GIFT_CONTENT_TEXT,
+    "after"
+  );
   const freeBelowTemplate =
     freeActiveRuleEntry?.rule?.progressTextBelow ??
     DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextBelow;
@@ -10647,12 +10941,16 @@ export default function AppRules() {
   const discountDefaults = getDiscountContentDefaults(
     discountActiveRuleEntry?.rule?.type
   );
-  const discountBeforeTemplate =
-    discountActiveRuleEntry?.rule?.progressTextBefore ??
-    discountDefaults.progressTextBefore;
-  const discountAfterTemplate =
-    discountActiveRuleEntry?.rule?.progressTextAfter ??
-    discountDefaults.progressTextAfter;
+  const discountBeforeTemplate = getProgressTextForTrigger(
+    discountActiveRuleEntry?.rule,
+    discountDefaults,
+    "before"
+  );
+  const discountAfterTemplate = getProgressTextForTrigger(
+    discountActiveRuleEntry?.rule,
+    discountDefaults,
+    "after"
+  );
   const discountBelowTemplate =
     discountActiveRuleEntry?.rule?.progressTextBelow ??
     discountDefaults.progressTextBelow;
@@ -11330,6 +11628,19 @@ export default function AppRules() {
         {filteredRules.map(({ rule: r, index }, panelIndex) => {
           const valueType = (r.valueType || "percent").toLowerCase();
           const triggerType = normalizeTriggerType(r.triggerType);
+          const contentDefaults = getDiscountContentDefaults(r.type);
+          const beforeContentField = getProgressTextFieldForTrigger(r, "before");
+          const afterContentField = getProgressTextFieldForTrigger(r, "after");
+          const beforeContentValue = getProgressTextForTrigger(
+            r,
+            contentDefaults,
+            "before"
+          );
+          const afterContentValue = getProgressTextForTrigger(
+            r,
+            contentDefaults,
+            "after"
+          );
           const valueLabel =
             valueType === "amount" ? `Value (${currencySymbol})` : "Value (%)";
           const toggleLabel = r.enabled ? "Deactivate" : "Activate";
@@ -11718,11 +12029,11 @@ export default function AppRules() {
                       {renderTokenField(
                         `discount-before-${index}`,
                         "Text above preview (before the goal)",
-                        r.progressTextBefore || "",
+                        beforeContentValue || "",
                         (value) =>
                           updateDiscountRuleField(
                             index,
-                            "progressTextBefore",
+                            beforeContentField,
                             value?.trim() ? value : null
                           ),
                         null,
@@ -11734,11 +12045,11 @@ export default function AppRules() {
                       {renderTokenField(
                         `discount-after-${index}`,
                         "Text above preview (after the goal)",
-                        r.progressTextAfter || "",
+                        afterContentValue || "",
                         (value) =>
                           updateDiscountRuleField(
                             index,
-                            "progressTextAfter",
+                            afterContentField,
                             value?.trim() ? value : null
                           ),
                         null,
@@ -11858,13 +12169,12 @@ export default function AppRules() {
                         discount_value_with_off: previewDiscountValueWithOff,
                         discount_code: r.discountCode || "CODE",
                       };
-                      const previewDefaults = getDiscountContentDefaults(r.type);
                       const previewBeforeTemplate =
-                        r.progressTextBefore ?? previewDefaults.progressTextBefore;
+                        getProgressTextForTrigger(r, contentDefaults, "before");
                       const previewAfterTemplate =
-                        r.progressTextAfter ?? previewDefaults.progressTextAfter;
+                        getProgressTextForTrigger(r, contentDefaults, "after");
                       const previewBelowTemplate =
-                        r.progressTextBelow ?? previewDefaults.progressTextBelow;
+                        r.progressTextBelow ?? contentDefaults.progressTextBelow;
                       const renderedBeforeText = renderProgressText(
                         previewBeforeTemplate,
                         previewTokens
@@ -12031,6 +12341,18 @@ export default function AppRules() {
 
       {freeRules.map((r, i) => {
         const triggerType = normalizeTriggerType(r.triggerType);
+        const beforeContentField = getProgressTextFieldForTrigger(r, "before");
+        const afterContentField = getProgressTextFieldForTrigger(r, "after");
+        const beforeContentValue = getProgressTextForTrigger(
+          r,
+          DEFAULT_FREE_GIFT_CONTENT_TEXT,
+          "before"
+        );
+        const afterContentValue = getProgressTextForTrigger(
+          r,
+          DEFAULT_FREE_GIFT_CONTENT_TEXT,
+          "after"
+        );
         const freeToggleLabel = r.enabled ? "Deactivate" : "Activate";
         const freeToggleButton = (
           <Button
@@ -12247,11 +12569,11 @@ export default function AppRules() {
                   {renderTokenField(
                     `free-before-${i}`,
                     "Text above preview (before the goal)",
-                    r.progressTextBefore || "",
+                    beforeContentValue || "",
                     (value) =>
                       updateFreeRuleField(
                         i,
-                        "progressTextBefore",
+                        beforeContentField,
                         value?.trim() ? value : null
                       ),
                     null,
@@ -12263,11 +12585,11 @@ export default function AppRules() {
                   {renderTokenField(
                     `free-after-${i}`,
                     "Text above preview (after the goal)",
-                    r.progressTextAfter || "",
+                    afterContentValue || "",
                     (value) =>
                       updateFreeRuleField(
                         i,
-                        "progressTextAfter",
+                        afterContentField,
                         value?.trim() ? value : null
                       ),
                     null,
@@ -13738,6 +14060,7 @@ export default function AppRules() {
                     stylesFromDb={stylePreviewSettings}
                     previewItems={previewItems}
                     discountRules={discountRules}
+                    freeRules={freeRules}
                     bxgyRules={bxgyRules}
                     currencyCode={currencyCode}
                     upsellEnabled={upsellEnabled}

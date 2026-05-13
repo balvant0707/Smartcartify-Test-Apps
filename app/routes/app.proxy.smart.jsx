@@ -19,6 +19,50 @@ const jsonResponse = (data, status = 200, extraHeaders = {}) =>
     },
   });
 
+const DEFAULT_ADD_TO_CART_BAR_SETTINGS = {
+  status: "active",
+  mobileShowCondition: "notinview",
+  mobileScrollDepth: 380,
+  mobileStickyPosition: "bottom",
+  mobileCtaAnimation: "pulse",
+  mobileBgColor: "#ffffff",
+  mobileTextColor: "#111827",
+  mobileCtaBgColor: "#111827",
+  mobileCtaTextColor: "#ffffff",
+  mobileImageOutlineColor: "#e5e7eb",
+  mobileShowProductImage: true,
+  mobileShowProductTitle: true,
+  mobileShowPrice: true,
+  mobileShowCompareAtPrice: true,
+  mobileShowQuantity: true,
+  mobileShowVariantSelector: true,
+  mobileShowVariantLabel: true,
+  mobileShowPriceOnCta: true,
+  mobileShowCompareAtPriceOnCta: true,
+  desktopShowCondition: "notinview",
+  desktopScrollDepth: 380,
+  desktopStickyPosition: "bottom",
+  desktopCtaAnimation: "pulse",
+  desktopBgColor: "#ffffff",
+  desktopTextColor: "#111827",
+  desktopCtaBgColor: "#111827",
+  desktopCtaTextColor: "#ffffff",
+  desktopImageOutlineColor: "#e5e7eb",
+  desktopShowProductImage: true,
+  desktopShowProductTitle: true,
+  desktopShowPrice: true,
+  desktopShowCompareAtPrice: true,
+  desktopShowQuantity: true,
+  desktopShowVariantSelector: true,
+  desktopShowVariantLabel: true,
+  desktopShowPriceOnCta: true,
+  desktopShowCompareAtPriceOnCta: true,
+  ctaBehavior: "addToCart",
+  afterAddToCart: "openCartWidget",
+  desktopZIndex: 5000,
+  mobileZIndex: 5000,
+};
+
 const DISCOUNT_RULE_SELECT = {
   id: true,
   shop: true,
@@ -33,6 +77,8 @@ const DISCOUNT_RULE_SELECT = {
   discountCode: true,
   progressTextBefore: true,
   progressTextAfter: true,
+  quantityProgressTextBefore: true,
+  quantityProgressTextAfter: true,
   progressTextBelow: true,
   campaignName: true,
   cartStepName: true,
@@ -71,6 +117,8 @@ const FREE_GIFT_RULE_SELECT = {
   freeProductDiscountID: true,
   progressTextBefore: true,
   progressTextAfter: true,
+  quantityProgressTextBefore: true,
+  quantityProgressTextAfter: true,
   progressTextBelow: true,
   campaignName: true,
   cartStepName: true,
@@ -332,6 +380,7 @@ const mapAdminProducts = (products = []) =>
             id: v?.id ?? null,
             admin_graphql_api_id: v?.admin_graphql_api_id ?? null,
             price: v?.price ?? null,
+            compare_at_price: v?.compare_at_price ?? null,
             title: v?.title ?? null,
             option1: v?.option1 ?? null,
             option2: v?.option2 ?? null,
@@ -512,6 +561,7 @@ export const loader = async ({ request }) => {
       bxgyRules,
       styleSettings,
       upsellSettings,
+      addToCartBarSettings,
     ] = await Promise.all([
       prisma.shop.findUnique({ where: { shop } }),
       prisma.shippingRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
@@ -528,6 +578,7 @@ export const loader = async ({ request }) => {
       prisma.bxgyRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
       prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } }),
       prisma.upsellSettings.findUnique({ where: { shop } }),
+      prisma.addToCartBarSettings.findUnique({ where: { shop } }).catch(() => null),
     ]);
 
     const shopAccessToken = await resolveShopAccessToken(shop, shopRow);
@@ -563,6 +614,14 @@ export const loader = async ({ request }) => {
     const selectedProducts = selectedProductIdsNormalized
       .map((id) => selectedProductsMap.get(String(id)))
       .filter(Boolean);
+
+    const addToCartBarProductId = normalizeProductId(
+      addToCartBarSettings?.homepageProductId
+    );
+    const addToCartBarProducts = isAuthorized && addToCartBarProductId
+      ? await fetchProductsByIds(shop, shopAccessToken, [addToCartBarProductId])
+      : [];
+    const addToCartBarProduct = addToCartBarProducts[0] ?? null;
 
     const selectedCollectionIds = parseJsonArray(
       upsellSettings?.selectedCollectionIds
@@ -632,6 +691,11 @@ export const loader = async ({ request }) => {
         bxgyRules: filterActiveScheduledRules(bxgyRules, scheduleNow, ruleContext),
         styleSettings: styleSettingsWithCartIcon ?? null,
         upsellSettings: upsellSettings ?? null,
+        addToCartBarSettings: {
+          ...DEFAULT_ADD_TO_CART_BAR_SETTINGS,
+          ...(addToCartBarSettings ?? {}),
+        },
+        addToCartBarProduct,
         upsellProducts: bestSellingProducts,
         upsellSelectedProducts: selectedProducts,
         upsellSelectedCollections: selectedCollectionsWithProducts,
@@ -712,4 +776,3 @@ export const action = async ({ request }) => {
     return jsonResponse({ ok: false, error: "Failed to record analytics event" }, 500);
   }
 };
-

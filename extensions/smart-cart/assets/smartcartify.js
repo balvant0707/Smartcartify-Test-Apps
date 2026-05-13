@@ -21,7 +21,19 @@
         "cart-notification",
         "cart-notification-drawer",
       ];
-      if (blocked.includes(name)) return;
+      if (blocked.includes(name)) {
+        // Neutralize all prototype methods so direct `new CartDrawer()` calls don't crash
+        if (constructor?.prototype) {
+          Object.getOwnPropertyNames(constructor.prototype).forEach((key) => {
+            try {
+              if (key !== "constructor" && typeof constructor.prototype[key] === "function") {
+                constructor.prototype[key] = function () {};
+              }
+            } catch (_) {}
+          });
+        }
+        return;
+      }
       return _origDefine(name, constructor, options);
     };
   }
@@ -197,6 +209,14 @@
   let UPSELL_LOADING = false;
   let openButtonsObserver = null;
   let bindQueued = false;
+  let ADD_TO_CART_BAR_STATE = {
+    selectedVariantId: null,
+    qty: 1,
+    messageTimer: null,
+    customJsKey: "",
+    productKey: "",
+  };
+  let addToCartBarRenderTimer = null;
 
   let LAST_DONE = 0;
   let LAST_BXGY_DONE = false;
@@ -212,6 +232,8 @@
   let CODE_DISCOUNT_RULES = []; // discountrule with discountCode/discount_code/code field
   let BXGY_RULES = []; // discountrule type=bxgy OR has beforeOfferUnlockMessage/afterOfferUnlockMessage
   let BUYXGETY_RULES = []; // buyxgety rules list OR discountrule type=buyxgety if present
+  let AUTOMATIC_DISCOUNT_RULES = []; // non-code, non-bxgy discount rules (percentage/fixed automatic)
+  let FREE_GIFT_ANNOUNCEMENT_RULES = []; // free gift rules for announcement bar
 
   let discountPopupShownForCode = null;
   let DISCOUNT_PANEL_STYLE_ENABLED = false;
@@ -221,8 +243,9 @@
   // Disable the free product reward popup when a free milestone completes.
   const DISABLE_FREE_REWARD_POPUP = true;
 
-  // ✅ NEW: Auto-add guard
+  // Auto-add guard + per-key cooldown (prevents retry spam on 429/422)
   let __SC_AUTO_ADDING__ = false;
+  const __SC_AUTO_ADD_COOLDOWNS__ = new Set();
 
   /* =========================================================
    ✅ STORAGE helpers (sessionStorage)
@@ -411,8 +434,18 @@
     return fallback;
   };
 
-  const getProgressBefore = (rule) =>
-    pickTextAny(rule, [
+  const isQuantityTriggerRule = (rule) =>
+    String(rule?.triggerType ?? rule?.trigger_type ?? "amount").trim().toLowerCase() ===
+    "quantity";
+
+  const getProgressBefore = (rule) => {
+    const quantityKeys = [
+      "quantityProgressTextBefore",
+      "quantity_progress_text_before",
+      "progressTextBeforeQuantity",
+      "progress_text_before_quantity",
+    ];
+    const amountKeys = [
       "progressTextBefore",
       "progress_text_before",
       "progressBefore",
@@ -421,10 +454,18 @@
       "before_progress_text",
       "beforeText",
       "before_text",
-    ]);
+    ];
+    return pickTextAny(rule, isQuantityTriggerRule(rule) ? [...quantityKeys, ...amountKeys] : amountKeys);
+  };
 
-  const getProgressAfter = (rule) =>
-    pickTextAny(rule, [
+  const getProgressAfter = (rule) => {
+    const quantityKeys = [
+      "quantityProgressTextAfter",
+      "quantity_progress_text_after",
+      "progressTextAfterQuantity",
+      "progress_text_after_quantity",
+    ];
+    const amountKeys = [
       "progressTextAfter",
       "progress_text_after",
       "progressAfter",
@@ -433,7 +474,9 @@
       "after_progress_text",
       "afterText",
       "after_text",
-    ]);
+    ];
+    return pickTextAny(rule, isQuantityTriggerRule(rule) ? [...quantityKeys, ...amountKeys] : amountKeys);
+  };
 
   const getProgressBelow = (rule) =>
     pickTextAny(rule, [
@@ -667,6 +710,95 @@
     return Number.isFinite(n) ? n : null;
   };
 
+  const getGoalQuantity = (rule) => {
+    const n = Number(rule?.minQuantity ?? rule?.min_quantity ?? rule?.quantityRequired);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  const formatQuantityGoal = (value) => {
+    const qty = Math.max(0, Math.ceil(Number(value) || 0));
+    return `${qty} ${qty === 1 ? "item" : "items"}`;
+  };
+
+  const getRuleProgressMetric = (type, rule) => {
+    if ((type === "discount" || type === "free") && isQuantityTriggerRule(rule)) {
+      const goal = getGoalQuantity(rule);
+      return {
+        metric: "quantity",
+        goal,
+        current: Math.max(0, Number(CART?.item_count || 0) || getCartTotalQty()),
+      };
+    }
+    const goal = getGoalRupees(type, rule);
+    return {
+      metric: "amount",
+      goal,
+      current: (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0,
+    };
+  };
+
+  const getDiscountValueTokens = (rule) => {
+    const raw = trimToNull(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "");
+    if (!raw) return { value: "", valueWithOff: "" };
+
+    const typeHint = String(
+      rule?.valueType ??
+      rule?.discountType ??
+      rule?.discount_type ??
+      rule?.amountType ??
+      rule?.rewardType ??
+      rule?.reward_type ??
+      ""
+    )
+      .trim()
+      .toLowerCase();
+    const numeric = Number(String(raw).replace(/[^0-9.]/g, ""));
+    const hasPercentToken =
+      /%|percent|percentage|rate/.test(String(raw).toLowerCase()) ||
+      /percent|percentage|rate/.test(typeHint);
+    const hasAmountToken = /fixed|flat|amount/.test(typeHint);
+    const isPercent =
+      hasPercentToken ||
+      (!hasAmountToken && Number.isFinite(numeric) && numeric > 0 && numeric <= 100);
+
+    if (isPercent && Number.isFinite(numeric) && numeric > 0) {
+      const percent = String(numeric);
+      return {
+        value: safe(`${percent}%`),
+        valueWithOff: safe(`${percent}% off`),
+      };
+    }
+
+    if (hasAmountToken && Number.isFinite(numeric) && numeric > 0) {
+      const money = formatMoney(
+        Math.round(numeric * priceDivisor(CART?.currency)),
+        CART?.currency
+      );
+      return {
+        value: safe(money),
+        valueWithOff: safe(`${money} off`),
+      };
+    }
+
+    const value = String(raw).replace(/\s*off\b/gi, "").trim();
+    const valueWithOff = /off\b/i.test(raw) ? raw : `${raw} off`;
+    return {
+      value: safe(value),
+      valueWithOff: safe(valueWithOff),
+    };
+  };
+
+  const normalizeDiscountProgressText = (text) => {
+    let out = String(text ?? "");
+    if (!out) return "";
+    out = out.replace(/(\d+(?:\.\d+)?)\s*%\s*off\s*%\s*off\b/gi, "$1% off");
+    out = out.replace(/(\d+(?:\.\d+)?)\s+off\s*%\s*off\b/gi, "$1% off");
+    out = out.replace(/(\d+(?:\.\d+)?)\s*%\s*%\s*off\b/gi, "$1% off");
+    out = out.replace(/(\d+(?:\.\d+)?)\s+off\s*%/gi, "$1%");
+    out = out.replace(/\boff\s+off\b/gi, "off");
+    return out.replace(/\s{2,}/g, " ").trim();
+  };
+
   const goalToCents = (goalRupees) => {
     if (goalRupees == null) return null;
     return Math.max(0, Math.round(Number(goalRupees) * 100));
@@ -703,34 +835,34 @@
     subtotalRupees,
     useRemainingForGoal,
   }) => {
-    const goalRupees = getGoalRupees(type, rule);
-    const goalCents =
-      goalRupees == null ? null : Math.max(0, Math.round(Number(goalRupees) * 100));
-    const remainingCents =
-      goalRupees == null
-        ? null
-        : Math.max(0, Math.round((Number(goalRupees) - (subtotalRupees || 0)) * 100));
+    const progressMetric = getRuleProgressMetric(type, rule);
+    const isQuantity = progressMetric.metric === "quantity";
+    const goalValue = progressMetric.goal;
+    const currentValue = isQuantity
+      ? progressMetric.current
+      : Number(subtotalRupees || progressMetric.current || 0);
+    const remainingValue =
+      goalValue == null ? null : Math.max(0, Number(goalValue) - currentValue);
 
-    const goalText = goalCents == null ? "" : formatMoney(goalCents, CART?.currency);
+    const goalText =
+      goalValue == null
+        ? ""
+        : isQuantity
+          ? formatQuantityGoal(goalValue)
+          : formatMoney(Math.max(0, Math.round(Number(goalValue) * 100)), CART?.currency);
     const remainingText =
-      remainingCents == null ? "" : formatMoney(remainingCents, CART?.currency);
+      remainingValue == null
+        ? ""
+        : isQuantity
+          ? formatQuantityGoal(remainingValue)
+          : formatMoney(Math.max(0, Math.round(Number(remainingValue) * 100)), CART?.currency);
 
     const goalToken = useRemainingForGoal ? remainingText : goalText;
 
-    const discountValRaw =
+    const discountTokens =
       type === "discount"
-        ? safe(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "")
-        : "";
-
-    const makeWithOff = (v) => {
-      const s = String(v ?? "").trim();
-      if (!s) return "";
-      if (/off\b/i.test(s)) return s;
-      return `${s} OFF`;
-    };
-
-    const discountValWithOff =
-      type === "discount" ? makeWithOff(discountValRaw) : "";
+        ? getDiscountValueTokens(rule)
+        : { value: "", valueWithOff: "" };
     const discountCode = safe(
       rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? ""
     );
@@ -740,14 +872,16 @@
 
     const replaced = replaceTokens(text, {
       goal: goalToken,
-      discount: discountValRaw,
-      discount_value: discountValRaw,
-      discount_value_with_off: discountValWithOff,
+      discount: discountTokens.value,
+      discount_value: discountTokens.value,
+      discount_value_with_off: discountTokens.valueWithOff,
       discount_code: discountCode,
       x: xQty,
       y: yQty,
     });
-    return stripCurrencySymbolIfCodePresent(replaced, CART?.currency);
+    const normalized =
+      type === "discount" ? normalizeDiscountProgressText(replaced) : replaced;
+    return stripCurrencySymbolIfCodePresent(normalized, CART?.currency);
   };
 
   const getProxyArray = (proxy, keys) => {
@@ -1429,11 +1563,6 @@
         let variantId = btn.getAttribute("data-upsell-add");
         const key = btn.getAttribute("data-upsell-key");
         const itemForLog = key ? upsellItemMap.get(key) : null;
-        console.log("[SmartCartify] upsell button click", {
-          key,
-          variantId,
-          item: itemForLog || null,
-        });
         if (!variantId) {
           const item = itemForLog;
           const variants = Array.isArray(item?.variants) ? item.variants : [];
@@ -1441,10 +1570,6 @@
           variantId = picked?.id || item?.variantId || null;
         }
         const legacyId = normalizeVariantId(variantId);
-        console.log("[SmartCartify] upsell add resolved", {
-          variantId,
-          legacyId,
-        });
         if (!legacyId) return;
         try {
           setProgressLoading(true);
@@ -2022,6 +2147,11 @@
   drawer.setAttribute("role", "dialog");
   drawer.setAttribute("aria-label", "Cart drawer");
 
+  const addToCartBar = document.createElement("div");
+  addToCartBar.className = "sc-atc-bar";
+  addToCartBar.setAttribute("aria-live", "polite");
+  addToCartBar.hidden = true;
+
   /* =========================================================
    ✅ PAPER EFFECT + CENTER popup
   ========================================================= */
@@ -2067,7 +2197,23 @@
   };
 
   const showCenterCelebratePopup = (title, subtitle, ms = 5000) => {
-    return false;
+    if (!drawer) return false;
+    const backdrop = document.createElement("div");
+    backdrop.className = "sc-celebrate-backdrop";
+    backdrop.innerHTML = `
+      <div class="sc-celebrate-modal">
+        <p class="sc-celebrate-h">${safe(String(title || ""))}</p>
+        ${subtitle ? `<p class="sc-celebrate-p">${safe(String(subtitle || ""))}</p>` : ""}
+      </div>`;
+    const dismiss = () => {
+      backdrop.classList.remove("open");
+      setTimeout(() => { try { backdrop.remove(); } catch (_) {} }, 220);
+    };
+    backdrop.addEventListener("click", dismiss);
+    drawer.appendChild(backdrop);
+    requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add("open")));
+    setTimeout(dismiss, ms);
+    return true;
   };
 
   /* =========================================================
@@ -2405,34 +2551,34 @@
       subtotalRupees,
       useRemainingForGoal,
     }) => {
-      const goalRupees = getGoalRupees(type, rule);
-      const goalCents =
-        goalRupees == null ? null : Math.max(0, Math.round(Number(goalRupees) * 100));
-      const remainingCents =
-        goalRupees == null
-          ? null
-          : Math.max(0, Math.round((Number(goalRupees) - (subtotalRupees || 0)) * 100));
+      const progressMetric = getRuleProgressMetric(type, rule);
+      const isQuantity = progressMetric.metric === "quantity";
+      const goalValue = progressMetric.goal;
+      const currentValue = isQuantity
+        ? progressMetric.current
+        : Number(subtotalRupees || progressMetric.current || 0);
+      const remainingValue =
+        goalValue == null ? null : Math.max(0, Number(goalValue) - currentValue);
 
-      const goalText = goalCents == null ? "" : formatMoney(goalCents, CART?.currency);
+      const goalText =
+        goalValue == null
+          ? ""
+          : isQuantity
+            ? formatQuantityGoal(goalValue)
+            : formatMoney(Math.max(0, Math.round(Number(goalValue) * 100)), CART?.currency);
       const remainingText =
-        remainingCents == null ? "" : formatMoney(remainingCents, CART?.currency);
+        remainingValue == null
+          ? ""
+          : isQuantity
+            ? formatQuantityGoal(remainingValue)
+            : formatMoney(Math.max(0, Math.round(Number(remainingValue) * 100)), CART?.currency);
 
       const goalToken = useRemainingForGoal ? remainingText : goalText;
 
-      const discountValRaw =
+      const discountTokens =
         type === "discount"
-          ? String(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "")
-          : "";
-
-      const makeWithOff = (v) => {
-        const s = String(v ?? "").trim();
-        if (!s) return "";
-        if (/off\b/i.test(s)) return s;
-        return `${s} OFF`;
-      };
-
-      const discountValWithOff =
-        type === "discount" ? makeWithOff(discountValRaw) : "";
+          ? getDiscountValueTokens(rule)
+          : { value: "", valueWithOff: "" };
       const discountCode = String(
         rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? ""
       );
@@ -2440,15 +2586,16 @@
       const xQty = String(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? "");
       const yQty = String(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? "");
 
-      return replaceTokensRaw(text, {
+      const replaced = replaceTokensRaw(text, {
         goal: goalToken,
-        discount: discountValRaw,
-        discount_value: discountValRaw,
-        discount_value_with_off: discountValWithOff,
+        discount: discountTokens.value,
+        discount_value: discountTokens.value,
+        discount_value_with_off: discountTokens.valueWithOff,
         discount_code: discountCode,
         x: xQty,
         y: yQty,
       });
+      return type === "discount" ? normalizeDiscountProgressText(replaced) : replaced;
     };
 
     // (A) Code discount rules (before: progressTextBelow, after: progressTextAfter)
@@ -2466,9 +2613,17 @@
         (c) => String(c).trim().toLowerCase() === ruleCode
       );
 
+      const isQtyTrigger = isQuantityTriggerRule(r);
       const minPurchase = Number(r?.minPurchase ?? r?.min_purchase);
-      const hasMin = Number.isFinite(minPurchase) && minPurchase > 0;
-      const complete = !hasMin || subtotalRupees >= minPurchase;
+      const minQuantity = Number(r?.minQuantity ?? r?.min_quantity);
+      const hasMin = isQtyTrigger
+        ? (Number.isFinite(minQuantity) && minQuantity > 0)
+        : (Number.isFinite(minPurchase) && minPurchase > 0);
+      const currentMetric = isQtyTrigger
+        ? Math.max(0, Number(CART?.item_count || 0) || getCartTotalQty())
+        : subtotalRupees;
+      const threshold = isQtyTrigger ? minQuantity : minPurchase;
+      const complete = !hasMin || currentMetric >= threshold;
 
       const rawBelow = trimToNull(getProgressBelow(r));
       const isGenericDiscount =
@@ -2629,6 +2784,66 @@
         msg = padToken(msg, v);
       });
       msg = emphasizeLabels(msg);
+      if (trimToNull(msg)) msgs.push(msg);
+    });
+
+    // (D) Automatic discount rules
+    const autoDiscountRulesAnn = Array.isArray(AUTOMATIC_DISCOUNT_RULES) ? AUTOMATIC_DISCOUNT_RULES : [];
+    autoDiscountRulesAnn.forEach((r) => {
+      if (!isRuleEnabled(r)) return;
+      const isQtyTrigger = isQuantityTriggerRule(r);
+      const progressMetric = getRuleProgressMetric("discount", r);
+      const { goal, current } = progressMetric;
+      const hasGoal = goal != null && Number.isFinite(Number(goal)) && Number(goal) > 0;
+      const complete = hasGoal && current >= Number(goal);
+
+      const rawBefore = isQtyTrigger
+        ? (trimToNull(r?.quantityProgressTextBefore) || trimToNull(r?.progressTextBefore))
+        : (trimToNull(r?.progressTextBefore) || trimToNull(r?.quantityProgressTextBefore));
+      const rawAfter = isQtyTrigger
+        ? (trimToNull(r?.quantityProgressTextAfter) || trimToNull(r?.progressTextAfter))
+        : (trimToNull(r?.progressTextAfter) || trimToNull(r?.quantityProgressTextAfter));
+
+      if (!rawBefore && !rawAfter) return;
+
+      const msgRaw = replaceProgressTextRaw({
+        text: complete ? (rawAfter || rawBefore) : (rawBefore || rawAfter),
+        type: "discount",
+        rule: r,
+        subtotalRupees,
+        useRemainingForGoal: !complete && hasGoal,
+      });
+      const msg = emphasizeLabels(normalizeOffText(msgRaw));
+      if (trimToNull(msg)) msgs.push(msg);
+    });
+
+    // (E) Free gift rules
+    const freeGiftAnnRules = Array.isArray(FREE_GIFT_ANNOUNCEMENT_RULES) ? FREE_GIFT_ANNOUNCEMENT_RULES : [];
+    freeGiftAnnRules.forEach((r) => {
+      if (!isRuleEnabled(r)) return;
+      const isQtyTrigger = isQuantityTriggerRule(r);
+      const progressMetric = getRuleProgressMetric("free", r);
+      const { goal, current } = progressMetric;
+      const hasGoal = goal != null && Number.isFinite(Number(goal)) && Number(goal) > 0;
+      const complete = hasGoal && current >= Number(goal);
+
+      const rawBefore = isQtyTrigger
+        ? (trimToNull(r?.quantityProgressTextBefore) || trimToNull(r?.progressTextBefore))
+        : (trimToNull(r?.progressTextBefore) || trimToNull(r?.quantityProgressTextBefore));
+      const rawAfter = isQtyTrigger
+        ? (trimToNull(r?.quantityProgressTextAfter) || trimToNull(r?.progressTextAfter))
+        : (trimToNull(r?.progressTextAfter) || trimToNull(r?.quantityProgressTextAfter));
+
+      if (!rawBefore && !rawAfter) return;
+
+      const msgRaw = replaceProgressTextRaw({
+        text: complete ? (rawAfter || rawBefore) : (rawBefore || rawAfter),
+        type: "free",
+        rule: r,
+        subtotalRupees,
+        useRemainingForGoal: !complete && hasGoal,
+      });
+      const msg = emphasizeLabels(msgRaw);
       if (trimToNull(msg)) msgs.push(msg);
     });
 
@@ -4104,6 +4319,287 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     display:flex;
   }
 }
+body.sc-atc-bottom-visible .sc-mobile-open-fallback{
+  bottom:calc(96px + env(safe-area-inset-bottom, 0px));
+}
+.sc-atc-bar{
+  --sc-atc-bg:#ffffff;
+  --sc-atc-text:#111827;
+  --sc-atc-btn-bg:#111827;
+  --sc-atc-btn-text:#ffffff;
+  --sc-atc-image-border:#e5e7eb;
+  position:fixed;
+  left:0;
+  right:0;
+  display:block !important;
+  background:var(--sc-atc-bg);
+  color:var(--sc-atc-text);
+  border:0 solid rgba(17,24,39,.12);
+  box-shadow:0 -12px 36px rgba(15,23,42,.16);
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(110%);
+  transition:opacity .22s ease, transform .22s ease, visibility .22s ease;
+  pointer-events:none !important;
+}
+.sc-atc-bar[hidden]{
+  display:none !important;
+}
+.sc-atc-bar.sc-atc-open{
+  opacity:1;
+  visibility:visible;
+  transform:translateY(0);
+  pointer-events:auto !important;
+}
+.sc-atc-bar.sc-atc-position-top{
+  top:0;
+  bottom:auto;
+  border-bottom-width:1px;
+  box-shadow:0 12px 36px rgba(15,23,42,.12);
+  transform:translateY(-110%);
+}
+.sc-atc-bar.sc-atc-position-top.sc-atc-open{
+  transform:translateY(0);
+}
+.sc-atc-bar.sc-atc-position-bottom{
+  bottom:0;
+  top:auto;
+  border-top-width:1px;
+}
+.sc-atc-inner{
+  width:min(1180px, 100%);
+  margin:0 auto;
+  min-height:74px;
+  display:grid;
+  grid-template-columns:auto minmax(0, 1fr) auto;
+  align-items:center;
+  gap:14px;
+  padding:10px 18px calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.sc-atc-media{
+  width:54px;
+  height:54px;
+  border-radius:0;
+  overflow:hidden;
+  background:rgba(243,244,246,1);
+  border:1px solid var(--sc-atc-image-border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+}
+.sc-atc-media img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.sc-atc-placeholder{
+  font-size:18px;
+  font-weight:800;
+  color:rgba(17,24,39,.55);
+}
+.sc-atc-info{
+  min-width:0;
+  display:grid;
+  gap:4px;
+}
+.sc-atc-title{
+  margin:0;
+  color:var(--sc-atc-text);
+  font-size:14px;
+  font-weight:700;
+  line-height:1.25;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sc-atc-meta{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  min-height:20px;
+}
+.sc-atc-price,
+.sc-atc-btn-price{
+  font-weight:800;
+  color:var(--sc-atc-text);
+  font-size:13px;
+}
+.sc-atc-compare,
+.sc-atc-btn-compare{
+  color:rgba(107,114,128,1);
+  font-size:12px;
+  text-decoration:line-through;
+}
+.sc-atc-variant{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+.sc-atc-variant-label{
+  font-size:12px;
+  color:rgba(107,114,128,1);
+}
+.sc-atc-select{
+  max-width:220px;
+  min-width:138px;
+  height:34px;
+  border:1px solid rgba(209,213,219,1);
+  border-radius:0;
+  background:#ffffff;
+  color:#111827;
+  padding:0 28px 0 9px;
+  font-size:13px;
+}
+.sc-atc-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  justify-self:end;
+}
+.sc-atc-qty{
+  height:38px;
+  display:flex;
+  align-items:center;
+  border:1px solid rgba(209,213,219,1);
+  border-radius:0;
+  overflow:hidden;
+  background:#ffffff;
+}
+.sc-atc-qty button{
+  width:34px;
+  height:38px;
+  border:0;
+  background:#ffffff;
+  color:#111827;
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+}
+.sc-atc-qty input{
+  width:42px;
+  height:38px;
+  border:0;
+  border-left:1px solid rgba(229,231,235,1);
+  border-right:1px solid rgba(229,231,235,1);
+  text-align:center;
+  font-size:13px;
+  color:#111827;
+  background:#ffffff;
+}
+.sc-atc-submit{
+  min-height:40px;
+  width:clamp(190px, 22vw, 260px);
+  border:0;
+  border-radius:0;
+  padding:0 18px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  background:var(--sc-atc-btn-bg);
+  color:var(--sc-atc-btn-text);
+  font-size:14px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.sc-atc-submit .sc-atc-btn-price,
+.sc-atc-submit .sc-atc-btn-compare{
+  color:inherit;
+}
+.sc-atc-submit .sc-atc-btn-compare{
+  opacity:.72;
+}
+.sc-atc-submit:disabled,
+.sc-atc-bar.sc-atc-loading .sc-atc-submit{
+  opacity:.68;
+  cursor:wait;
+}
+.sc-atc-msg{
+  grid-column:1 / -1;
+  display:none;
+  margin:0;
+  padding:8px 10px;
+  border-radius:0;
+  font-size:13px;
+  line-height:1.35;
+  font-weight:650;
+}
+.sc-atc-msg.show{
+  display:block;
+}
+.sc-atc-msg.info{
+  color:#1e3a8a;
+  background:rgba(219,234,254,.9);
+}
+.sc-atc-msg.error{
+  color:#991b1b;
+  background:rgba(254,226,226,.92);
+}
+.sc-atc-anim-pulse .sc-atc-submit{
+  animation:scAtcPulse 1.8s ease-in-out infinite;
+}
+.sc-atc-anim-shake .sc-atc-submit{
+  animation:scAtcShake 2.6s ease-in-out infinite;
+}
+.sc-atc-anim-bounce .sc-atc-submit{
+  animation:scAtcBounce 2.2s ease-in-out infinite;
+}
+@keyframes scAtcPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(17,24,39,.28)}
+  50%{box-shadow:0 0 0 7px rgba(17,24,39,0)}
+}
+@keyframes scAtcShake{
+  0%,88%,100%{transform:translateX(0)}
+  90%{transform:translateX(-2px)}
+  92%{transform:translateX(2px)}
+  94%{transform:translateX(-2px)}
+  96%{transform:translateX(2px)}
+}
+@keyframes scAtcBounce{
+  0%,82%,100%{transform:translateY(0)}
+  88%{transform:translateY(-4px)}
+  94%{transform:translateY(0)}
+}
+@media (max-width: 767px){
+  .sc-atc-inner{
+    min-height:72px;
+    grid-template-columns:auto minmax(0, 1fr);
+    gap:10px;
+    padding:9px 10px calc(9px + env(safe-area-inset-bottom, 0px));
+  }
+  .sc-atc-media{
+    width:46px;
+    height:46px;
+    border-radius:0;
+  }
+  .sc-atc-actions{
+    grid-column:1 / -1;
+    justify-self:stretch;
+    width:100%;
+  }
+  .sc-atc-submit{
+    flex:1;
+    width:100%;
+    min-width:0;
+    padding:0 12px;
+    font-size:13px;
+  }
+  .sc-atc-qty{
+    flex:0 0 auto;
+  }
+  .sc-atc-title{
+    font-size:13px;
+  }
+  .sc-atc-select{
+    min-width:120px;
+    max-width:160px;
+  }
+}
 .sc-open-count{
   position:absolute;
   top: 5px;
@@ -4201,6 +4697,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
 
   document.body.appendChild(overlay);
   document.body.appendChild(drawer);
+  document.body.appendChild(addToCartBar);
 
   function openDrawer() {
     if (drawer.classList.contains("open")) return;
@@ -4209,6 +4706,9 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     overlay.setAttribute("aria-hidden", "false");
     document.documentElement.style.overflow = "hidden";
     document.body.classList.add("sc-cartify-open");
+    addToCartBar.classList.remove("sc-atc-open");
+    addToCartBar.hidden = true;
+    document.body.classList.remove("sc-atc-bottom-visible", "sc-atc-top-visible");
     syncItemsLoading(drawer.classList.contains("sc-refreshing"));
     stopOpenButtonObserver();
   }
@@ -4221,6 +4721,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     document.body.classList.remove("sc-cartify-open");
     startOpenButtonObserver();
     queueOpenButtonBind();
+    scheduleAddToCartBarRender(80);
   }
 
   const $ = (sel) => drawer.querySelector(sel);
@@ -4678,6 +5179,21 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     );
   };
 
+  // Uses original_line_price so Shopify automatic quantity discounts don't
+  // reduce the subtotal below free-gift / shipping thresholds.
+  const getCartOriginalSubtotalCents = () => {
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    if (items.length) {
+      return items.reduce(
+        (sum, it) => sum + Math.max(0, Number(it?.original_line_price) || 0),
+        0
+      );
+    }
+    const raw = Number(CART?.original_total_price);
+    if (Number.isFinite(raw)) return Math.max(0, raw);
+    return Number(CART?.items_subtotal_price || 0);
+  };
+
   const findCodeDiscountRuleByCode = (code) => {
     const needle = String(code || "").trim().toLowerCase();
     if (!needle) return null;
@@ -4963,6 +5479,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     LAST_DONE = 0;
     LAST_BXGY_DONE = false;
     __SC_PRIMED_POPUPS__ = false;
+    hideAddToCartBar();
   };
 
   /* =========================================================
@@ -4976,6 +5493,8 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     CODE_DISCOUNT_RULES = [];
     BXGY_RULES = [];
     BUYXGETY_RULES = [];
+    AUTOMATIC_DISCOUNT_RULES = [];
+    FREE_GIFT_ANNOUNCEMENT_RULES = [];
 
     const shippingList = getProxyArray(PROXY, ["shippingRules", "shippingRule", "shippingrule"]);
     const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
@@ -5012,6 +5531,21 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       BUYXGETY_RULES.push(r);
     });
 
+    // Automatic discount rules (non-code, non-bxgy) for announcement bar
+    (Array.isArray(discountList) ? discountList : []).forEach((r) => {
+      if (!isRuleEnabled(r)) return;
+      const t = normType(r);
+      const hasMsgs = trimToNull(r?.beforeOfferUnlockMessage) || trimToNull(r?.afterOfferUnlockMessage);
+      const looksLikeBxgy = t === "bxgy" || t === "buyxgety" || hasMsgs;
+      if (t !== "code" && !looksLikeBxgy) AUTOMATIC_DISCOUNT_RULES.push(r);
+    });
+
+    // Free gift rules for announcement bar
+    (Array.isArray(freeList) ? freeList : []).forEach((r) => {
+      if (!isRuleEnabled(r)) return;
+      FREE_GIFT_ANNOUNCEMENT_RULES.push(r);
+    });
+
     (Array.isArray(discountList) ? discountList : []).forEach((r) => {
       if (!isRuleEnabled(r)) return;
       const t = normType(r);
@@ -5035,14 +5569,17 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       const ruleKey = getRuleKey(type, rule);
       if (assignedRuleKeys.has(ruleKey)) return;
 
-      // Filter discount step rules: ONLY automatic (exclude code & bxgy)
+      // Filter discount step rules: allow automatic + code discounts, exclude bxgy
       if (type === "discount") {
         const t = normType(rule);
-        const isAutomatic = !t || t === "automatic";
-        if (!isAutomatic) return;
+        const isBxgy = t === "bxgy";
+        if (isBxgy) return;
       }
 
-      const slot = normalizeStepSlotFromAny(rule);
+      const slot =
+        normalizeStepSlotFromAny(rule) ||
+        STEP_SLOTS.find((s) => !assignment[s]) ||
+        null;
       if (!slot) return;
 
       const belowRaw = trimToNull(getProgressBelow(rule));
@@ -5052,8 +5589,13 @@ body.sc-cartify-open .sc-mobile-open-fallback{
         belowRaw ||
         (type === "shipping" ? "Shipping" : type === "discount" ? "Discount" : "Free Product");
 
-      const goalRupees = getGoalRupees(type, rule);
-      const unlockCents = goalToCents(goalRupees);
+      const progressMetric = getRuleProgressMetric(type, rule);
+      const unlockCents =
+        progressMetric.metric === "amount" ? goalToCents(progressMetric.goal) : null;
+      const unlockQuantity =
+        progressMetric.metric === "quantity" && Number.isFinite(Number(progressMetric.goal))
+          ? Number(progressMetric.goal)
+          : null;
 
       const iconKey =
         pickIconKeyFromRule(rule) ||
@@ -5067,7 +5609,9 @@ body.sc-cartify-open .sc-mobile-open-fallback{
         slot,
         type,
         rule,
+        progressMetric: progressMetric.metric,
         unlockCents,
+        unlockQuantity,
         icon,
         title,
 
@@ -5194,7 +5738,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     if (type === "discount") {
       const value = trimToNull(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "");
       if (!value) return "ORDER OFF";
-      return /off\b/i.test(value) ? String(value).toUpperCase() : `${value} OFF`;
+      return /off\b/i.test(value) ? String(value).toUpperCase() : `${value}`;
     }
     if (type === "code") {
       const code = trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
@@ -5302,18 +5846,30 @@ body.sc-cartify-open .sc-mobile-open-fallback{
 
     const rows = [];
 
-    const autoDiscountCents = (Array.isArray(steps) ? steps : [])
-      .filter(
-        (step) =>
-          String(step?.type || "").toLowerCase() === "discount" &&
-          Number.isFinite(step?.unlockCents) &&
-          subtotalCents >= Number(step.unlockCents)
-      )
-      .reduce((sum, step) => {
-        const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
-        if (!Number.isFinite(discountCents) || discountCents <= 0) return sum;
-        return sum + discountCents;
-      }, 0);
+    // Completed automatic (non-code) discount steps → badge rows
+    const completedAutoDiscountSteps = (Array.isArray(steps) ? steps : []).filter((step) => {
+      if (String(step?.type || "").toLowerCase() !== "discount") return false;
+      if (!isProgressStepDone(step, subtotalCents)) return false;
+      const ruleType = String(step?.rule?.type ?? step?.rule?.ruleType ?? "").trim().toLowerCase();
+      return ruleType !== "code";
+    });
+
+    const autoDiscountCents = completedAutoDiscountSteps.reduce((sum, step) => {
+      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
+      return Number.isFinite(discountCents) && discountCents > 0 ? sum + discountCents : sum;
+    }, 0);
+
+    completedAutoDiscountSteps.forEach((step) => {
+      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
+      rows.push({
+        key: `auto:${step?.rule?.id ?? step?.title ?? step?.slot}`,
+        label: "Discounts",
+        tag: trimToNull(step?.title) || "Discount Applied",
+        amount: Number.isFinite(discountCents) && discountCents > 0
+          ? `- ${formatMoney(discountCents, currency)}`
+          : "Applied",
+      });
+    });
 
     const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
     const manualLower = manualCode ? manualCode.toLowerCase() : null;
@@ -5360,12 +5916,10 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       uniqueRows.push({ ...row, tag });
     });
 
-    const totalDiscountCents = hasManualAppliedCode
-      ? Math.max(
-          0,
-          Number(CART?.total_discount || 0) - Number(autoDiscountCents || 0)
-        )
-      : 0;
+    // Use CART.total_discount (actual Shopify-applied amount) when available,
+    // fall back to estimated autoDiscountCents from completed steps
+    const cartTotalDiscount = Math.max(0, Number(CART?.total_discount || 0));
+    const totalDiscountCents = cartTotalDiscount > 0 ? cartTotalDiscount : autoDiscountCents;
 
     if (!uniqueRows.length && totalDiscountCents <= 0) {
       host.hidden = true;
@@ -5424,7 +5978,6 @@ body.sc-cartify-open .sc-mobile-open-fallback{
 
     const items = Array.isArray(CART?.items) ? CART.items : [];
     const stepsForFooter = buildSteps();
-    console.log("[SmartCartify] cart items:", items);
     const currency = normalizeCurrencyCode();
     const checkoutLabelBase =
       trimToNull(PROXY?.styleSettings?.checkoutButtonText) || "Checkout";
@@ -5583,9 +6136,9 @@ body.sc-cartify-open .sc-mobile-open-fallback{
               </div>
             </div>
 
-            <button type="button" class="sc-remove-x" data-remove="1" aria-label="Remove">
+            ${isReward ? "" : `<button type="button" class="sc-remove-x" data-remove="1" aria-label="Remove">
               <span class="sc-remove-char" aria-hidden="true">&times;</span>
-            </button>
+            </button>`}
           </div>
         `;
       })
@@ -5636,7 +6189,11 @@ body.sc-cartify-open .sc-mobile-open-fallback{
         body,
       });
 
-      if (!res.ok) throw new Error("Reward add failed");
+      if (!res.ok) {
+        const err = new Error("Reward add failed");
+        err.httpStatus = res.status;
+        throw err;
+      }
 
       if (markAutoAdded && guardKey) scStore.set(keyAutoAdded(kind, guardKey), "1");
 
@@ -5646,7 +6203,9 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       return true;
     } catch (err) {
       console.error("[SmartCartify] reward add failed:", err);
-      return false;
+      // Surface httpStatus so callers can decide retry strategy
+      err._httpStatus = err._httpStatus || err.httpStatus || 0;
+      throw err;
     } finally {
       setProgressLoading(false);
     }
@@ -5703,7 +6262,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
         { headers: { Accept: "application/json" }, credentials: "same-origin" }
       );
       if (!res.ok) {
-        rewardVariantByProductCache.set(productId, null);
+        // Transient server error — do not cache so the next call can retry.
         return null;
       }
 
@@ -5713,6 +6272,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       const firstVariant = variants[0] || null;
       const legacyId = trimToNull(firstVariant?.id);
       if (!legacyId) {
+        // Product exists but has no variants — cache null so we don't hammer the API.
         rewardVariantByProductCache.set(productId, null);
         return null;
       }
@@ -5738,7 +6298,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       return resolved;
     } catch (err) {
       console.error("[SmartCartify] product->variant resolve failed:", err);
-      rewardVariantByProductCache.set(productId, null);
+      // Network error — do not cache so the next call can retry.
       return null;
     }
   };
@@ -6033,7 +6593,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     return true;
   };
 
-  // ✅ FIX-3: AUTO ADD reward when needed (buyxgety/free)
+  // AUTO ADD reward when needed (buyxgety/free)
   const autoAddRewardIfNeeded = async ({ kind, rule, ruleKey, slot }) => {
     if (__SC_AUTO_ADDING__) return false;
 
@@ -6045,6 +6605,10 @@ body.sc-cartify-open .sc-mobile-open-fallback{
 
     // Already auto-added once (for this eligibility)
     if (trimToNull(scStore.get(keyAutoAdded(kind, guardKey)))) return true;
+
+    // In cooldown from a previous failed attempt — skip to avoid 429 spam
+    const cdKey = `${kind}:${guardKey}`;
+    if (__SC_AUTO_ADD_COOLDOWNS__.has(cdKey)) return false;
 
     const variant = getRewardVariantFromRule(kind, rule);
     if (!variant) return false;
@@ -6062,7 +6626,15 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       });
       return ok;
     } catch (e) {
-      console.error("[SC] autoAddReward failed:", e);
+      const status = Number(e?._httpStatus || e?.httpStatus || 0);
+      if (status === 422) {
+        // Unprocessable (invalid variant / out of stock) — mark permanently so we never retry
+        scStore.set(keyAutoAdded(kind, guardKey), "1");
+      } else {
+        // Rate-limited or transient error — cooldown for 30s then allow one retry
+        __SC_AUTO_ADD_COOLDOWNS__.add(cdKey);
+        setTimeout(() => __SC_AUTO_ADD_COOLDOWNS__.delete(cdKey), 30_000);
+      }
       return false;
     } finally {
       __SC_AUTO_ADDING__ = false;
@@ -6148,6 +6720,15 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       const items = Array.isArray(CART?.items) ? CART.items : [];
       if (!items.length) return;
 
+      // Non-reward item count (excludes free gifts and BXGY gifts from quantity threshold checks)
+      const nonRewardQty = items.reduce((sum, it) => {
+        const p = it?.properties || {};
+        const isReward =
+          String(p?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() === "true" ||
+          String(p?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
+        return sum + (isReward ? 0 : (Number(it.quantity) || 0));
+      }, 0);
+
       const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
       const freeList = getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]);
       const buyxgetyList = getProxyArray(PROXY, [
@@ -6218,16 +6799,24 @@ body.sc-cartify-open .sc-mobile-open-fallback{
             continue;
           }
 
-          const goal = getGoalRupees("free", rule);
-          const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0;
-
-          if (!(Number.isFinite(Number(goal)) && Number(goal) > 0)) {
-            linesToRemove.push(line);
-            continue;
+          const isQtyTrigger = isQuantityTriggerRule(rule);
+          if (isQtyTrigger) {
+            const goalQty = getGoalQuantity(rule);
+            if (!(Number.isFinite(Number(goalQty)) && Number(goalQty) > 0)) {
+              linesToRemove.push(line);
+            } else {
+              if (nonRewardQty < Number(goalQty)) linesToRemove.push(line);
+            }
+          } else {
+            const goal = getGoalRupees("free", rule);
+            const subtotalRupees = (getCartOriginalSubtotalCents() / priceDivisor()) || 0;
+            if (!(Number.isFinite(Number(goal)) && Number(goal) > 0)) {
+              linesToRemove.push(line);
+            } else {
+              const eligible = subtotalRupees >= Number(goal);
+              if (!eligible) linesToRemove.push(line);
+            }
           }
-
-          const eligible = subtotalRupees >= Number(goal);
-          if (!eligible) linesToRemove.push(line);
           continue;
         }
 
@@ -6318,6 +6907,75 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     return Math.min(100, Math.max(0, fillPercent));
   };
 
+  const getProgressStepThreshold = (step) =>
+    step?.progressMetric === "quantity"
+      ? Number(step?.unlockQuantity)
+      : Number(step?.unlockCents);
+
+  // Returns cart qty excluding free-gift and BXGY reward items
+  const getNonRewardItemQty = () => {
+    const cartItems = Array.isArray(CART?.items) ? CART.items : [];
+    if (!cartItems.length) return Math.max(0, Number(CART?.item_count || 0));
+    return cartItems.reduce((sum, it) => {
+      const p = it?.properties || {};
+      const isReward =
+        String(p?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() === "true" ||
+        String(p?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
+      return sum + (isReward ? 0 : (Number(it.quantity) || 0));
+    }, 0);
+  };
+
+  const getProgressStepCurrent = (step, subtotalCents) =>
+    step?.progressMetric === "quantity"
+      ? Math.max(0, getNonRewardItemQty())
+      : Math.max(0, Number(subtotalCents) || 0);
+
+  const isProgressStepConfigured = (step) =>
+    Number.isFinite(getProgressStepThreshold(step)) &&
+    getProgressStepThreshold(step) > 0;
+
+  const isProgressStepDone = (step, subtotalCents) =>
+    isProgressStepConfigured(step) &&
+    getProgressStepCurrent(step, subtotalCents) >= getProgressStepThreshold(step);
+
+  const computeMixedFillPercent = (steps, subtotalCents) => {
+    const stepCount = Array.isArray(steps) ? steps.length : 0;
+    if (!stepCount) return 0;
+    const stepPercent = 100 / stepCount;
+    let fillPercent = 0;
+
+    for (let i = 0; i < stepCount; i += 1) {
+      const step = steps[i];
+      const threshold = getProgressStepThreshold(step);
+      if (!Number.isFinite(threshold) || threshold <= 0) break;
+
+      const current = getProgressStepCurrent(step, subtotalCents);
+      if (current >= threshold) {
+        fillPercent += stepPercent;
+        continue;
+      }
+
+      const prevSameMetric = steps
+        .slice(0, i)
+        .reverse()
+        .find(
+          (candidate) =>
+            candidate?.progressMetric === step?.progressMetric &&
+            isProgressStepConfigured(candidate)
+        );
+      const previousThreshold = prevSameMetric
+        ? getProgressStepThreshold(prevSameMetric)
+        : 0;
+      const span = threshold - previousThreshold;
+      if (span > 0) {
+        fillPercent += clamp01((current - previousThreshold) / span) * stepPercent;
+      }
+      break;
+    }
+
+    return Math.min(100, Math.max(0, fillPercent));
+  };
+
   const renderProgress = () => {
     const label = $(".sc-label");
     const fill = $(".sc-fill");
@@ -6335,7 +6993,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     };
 
     const stepsAll = buildSteps();
-    const subtotal = Number(CART?.items_subtotal_price || 0);
+    const subtotal = getCartOriginalSubtotalCents();
 
     // ✅ ALWAYS refresh announcement regardless of steps
     refreshAnnouncementFromRules();
@@ -6380,14 +7038,9 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       return;
     }
 
-    setProgressVisible(true);
-    const stepCount = stepsAll.length;
-    document.documentElement.style.setProperty("--sc-stepcount", String(stepCount));
+    const configuredSteps = stepsAll.filter(isProgressStepConfigured);
 
-    const thresholds = stepsAll.map((ss) => (typeof ss.unlockCents === "number" ? ss.unlockCents : Infinity));
-    const numericThresholds = thresholds.filter((x) => Number.isFinite(x));
-
-    if (!numericThresholds.length) {
+    if (!configuredSteps.length) {
       setProgressVisible(false);
       label.textContent = "Milestones not configured yet.";
       fill.style.width = "0%";
@@ -6405,18 +7058,24 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       return;
     }
 
-    const doneSteps = stepsAll.filter((ss) => typeof ss.unlockCents === "number" && subtotal >= ss.unlockCents);
+    setProgressVisible(true);
+    const stepCount = stepsAll.length;
+    document.documentElement.style.setProperty("--sc-stepcount", String(stepCount));
+
+    const doneSteps = stepsAll.filter((ss) => isProgressStepDone(ss, subtotal));
     const doneCount = doneSteps.length;
-    const nextPending = stepsAll.find((ss) => typeof ss.unlockCents === "number" && subtotal < ss.unlockCents);
+    const nextPending = stepsAll.find(
+      (ss) => isProgressStepConfigured(ss) && !isProgressStepDone(ss, subtotal)
+    );
 
     let labelText = trimToNull(nextPending?.progressTextBefore) || "";
     if (!labelText) {
-      const allDone = !nextPending && doneCount >= numericThresholds.length;
+      const allDone = !nextPending && doneCount >= configuredSteps.length;
       labelText = allDone ? "🎉 Congrats! All rewards are unlocked!" : "Milestones in progress";
     }
     label.textContent = labelText || "Milestones in progress";
 
-    const fillPct = computeFillPercent(subtotal, thresholds, stepCount);
+    const fillPct = computeMixedFillPercent(stepsAll, subtotal);
     fill.style.width = `${fillPct}%`;
 
     const isDrawerOpen = drawer.classList.contains("open");
@@ -6576,7 +7235,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
         const leftPct = ((i + 1) / stepCount) * 100;
         const isLast = i === stepCount - 1;
 
-        const isDone = typeof ss.unlockCents === "number" ? subtotal >= ss.unlockCents : false;
+        const isDone = isProgressStepDone(ss, subtotal);
         const isActive = !isDone && nextPending?.slot === ss.slot;
         const cls = isDone ? "done" : isActive ? "active" : "";
         const icon = ss.icon;
@@ -6603,7 +7262,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     stepsAll.forEach((st) => {
       const stepSlot = trimToNull(st?.slot);
       const stepGuardKey = stepSlot ? `step:${stepSlot}` : null;
-      const isDone = typeof st.unlockCents === "number" ? subtotal >= st.unlockCents : false;
+      const isDone = isProgressStepDone(st, subtotal);
       if (!isDone && stepGuardKey) clearPopupShown("step", stepGuardKey);
       if (st.type === "free") {
         const slot = st.slot;
@@ -6615,6 +7274,746 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     });
   };
 
+  /* =========================================================
+   ADD-TO-CART BAR
+  ========================================================= */
+  const ATC_DEFAULT_SETTINGS = {
+    status: "active",
+    mobileShowCondition: "notinview",
+    mobileScrollDepth: 380,
+    mobileStickyPosition: "bottom",
+    mobileCtaAnimation: "pulse",
+    mobileBgColor: "#ffffff",
+    mobileTextColor: "#111827",
+    mobileCtaBgColor: "#111827",
+    mobileCtaTextColor: "#ffffff",
+    mobileImageOutlineColor: "#e5e7eb",
+    mobileShowProductImage: true,
+    mobileShowProductTitle: true,
+    mobileShowPrice: true,
+    mobileShowCompareAtPrice: true,
+    mobileShowQuantity: true,
+    mobileShowVariantSelector: true,
+    mobileShowVariantLabel: true,
+    mobileShowPriceOnCta: true,
+    mobileShowCompareAtPriceOnCta: true,
+    desktopShowCondition: "notinview",
+    desktopScrollDepth: 380,
+    desktopStickyPosition: "bottom",
+    desktopCtaAnimation: "pulse",
+    desktopBgColor: "#ffffff",
+    desktopTextColor: "#111827",
+    desktopCtaBgColor: "#111827",
+    desktopCtaTextColor: "#ffffff",
+    desktopImageOutlineColor: "#e5e7eb",
+    desktopShowProductImage: true,
+    desktopShowProductTitle: true,
+    desktopShowPrice: true,
+    desktopShowCompareAtPrice: true,
+    desktopShowQuantity: true,
+    desktopShowVariantSelector: true,
+    desktopShowVariantLabel: true,
+    desktopShowPriceOnCta: true,
+    desktopShowCompareAtPriceOnCta: true,
+    ctaBehavior: "addToCart",
+    afterAddToCart: "openCartWidget",
+    desktopZIndex: 5000,
+    mobileZIndex: 5000,
+  };
+
+  const isMobileViewport = () =>
+    window.matchMedia?.("(max-width: 767px)")?.matches || window.innerWidth <= 767;
+
+  const getAtcSettings = () => {
+    const rawSettings = PROXY?.addToCartBarSettings || {};
+    const settings = { ...ATC_DEFAULT_SETTINGS, ...rawSettings };
+    if (String(settings.status || "active").toLowerCase() !== "active") return null;
+    return settings;
+  };
+
+  const getAtcDeviceSettings = (settings) => {
+    const mobile = isMobileViewport();
+    const prefix = mobile ? "mobile" : "desktop";
+    const bool = (key, fallback = true) =>
+      settings?.[`${prefix}${key}`] == null
+        ? fallback
+        : to01(settings?.[`${prefix}${key}`]) === 1;
+    const color = (key, fallback) => {
+      const raw = settings?.[`${prefix}${key}`];
+      return isValidCssColor(raw) ? raw : fallback;
+    };
+
+    return {
+      mobile,
+      showCondition: String(settings?.[`${prefix}ShowCondition`] || "scrollDown"),
+      scrollDepth: Math.max(0, Number(settings?.[`${prefix}ScrollDepth`]) || 380),
+      stickyPosition:
+        String(settings?.[`${prefix}StickyPosition`] || "bottom").toLowerCase() === "top"
+          ? "top"
+          : "bottom",
+      ctaAnimation: String(settings?.[`${prefix}CtaAnimation`] || "none").toLowerCase(),
+      bgColor: color("BgColor", "#ffffff"),
+      textColor: color("TextColor", "#111827"),
+      ctaBgColor: color("CtaBgColor", "#111827"),
+      ctaTextColor: color("CtaTextColor", "#ffffff"),
+      imageOutlineColor: color("ImageOutlineColor", "#e5e7eb"),
+      showProductImage: bool("ShowProductImage"),
+      showProductTitle: bool("ShowProductTitle"),
+      showPrice: bool("ShowPrice"),
+      showCompareAtPrice: bool("ShowCompareAtPrice"),
+      showQuantity: bool("ShowQuantity"),
+      showVariantSelector: bool("ShowVariantSelector"),
+      showVariantLabel: bool("ShowVariantLabel"),
+      showPriceOnCta: bool("ShowPriceOnCta"),
+      showCompareAtPriceOnCta: bool("ShowCompareAtPriceOnCta"),
+      zIndex: Math.max(1, Number(settings?.[`${prefix}ZIndex`]) || 5000),
+    };
+  };
+
+  const normalizeAtcImageUrl = (value) => {
+    const raw = trimToNull(normalizeImage(value));
+    if (!raw) return "";
+    if (raw.startsWith("//")) return `${window.location.protocol}${raw}`;
+    return raw;
+  };
+
+  const isHomePage = () => {
+    const path = window.location.pathname.replace(/\/+$/, "") || "/";
+    const bodyClass = String(document.body?.className || "");
+    return path === "/" || /\btemplate-index\b|\bindex-template\b/i.test(bodyClass);
+  };
+
+  const isCartAddAction = (action) => {
+    const raw = trimToNull(action);
+    if (!raw) return false;
+    try {
+      const url = new URL(raw, window.location.origin);
+      const path = url.pathname.replace(/\/+$/, "").toLowerCase();
+      return path.endsWith("/cart/add") || path.endsWith("/cart/add.js");
+    } catch {
+      const path = raw.split("?")[0].replace(/\/+$/, "").toLowerCase();
+      return path.endsWith("/cart/add") || path.endsWith("/cart/add.js");
+    }
+  };
+
+  const isAtcFormElement = (form) => {
+    if (!(form instanceof HTMLFormElement)) return false;
+    if (isCartAddAction(form.getAttribute("action") || form.action)) return true;
+    // Dawn 2.0+ wraps forms in a <product-form> custom element
+    if (form.closest("product-form, [data-product-form]")) return true;
+    return Boolean(
+      form.querySelector('[name="id"]') &&
+        form.querySelector(
+          'button[name="add"], input[name="add"], [data-add-to-cart], [data-ajax-cart-request-button], button[type="submit"]'
+        )
+    );
+  };
+
+  const getAtcProductForm = () => {
+    const forms = Array.from(document.querySelectorAll("form")).filter(isAtcFormElement);
+    return (
+      forms.find((form) => {
+        if (addToCartBar.contains(form)) return false;
+        if (!form.querySelector('[name="id"]')) return false;
+        const rect = form.getBoundingClientRect();
+        const style = window.getComputedStyle(form);
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      }) ||
+      forms.find((form) => form instanceof HTMLFormElement && !addToCartBar.contains(form) && form.querySelector('[name="id"]')) ||
+      null
+    );
+  };
+
+  const getAtcFormVariantId = () => {
+    const form = getAtcProductForm();
+    const field = form?.querySelector('[name="id"]');
+    return trimToNull(field?.value);
+  };
+
+  const getAtcProductAddButton = () => {
+    const form = getAtcProductForm();
+    return (
+      form?.querySelector('button[name="add"], input[name="add"], button[type="submit"], input[type="submit"]') ||
+      document.querySelector('[data-add-to-cart], [data-ajax-cart-request-button]') ||
+      null
+    );
+  };
+
+  const isElementInViewport = (el) => {
+    if (!(el instanceof Element)) return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
+  };
+
+  const getAtcVariantId = (variant) =>
+    normalizeVariantId(
+      variant?.id ||
+        variant?.variantId ||
+        variant?.admin_graphql_api_id ||
+        variant?.adminGraphqlApiId ||
+        variant?.legacyResourceId
+    );
+
+  const getAtcVariantLabel = (variant, fallback = "Default") => {
+    const raw =
+      trimToNull(variant?.public_title) ||
+      trimToNull(variant?.title) ||
+      trimToNull(variant?.name) ||
+      "";
+    const label = raw.includes(" - ") ? raw.split(" - ").slice(1).join(" - ") : raw;
+    if (label && label.toLowerCase() !== "default title") return label;
+    const opts = Array.isArray(variant?.variantOptions) ? variant.variantOptions : [];
+    const optText = opts
+      .map((opt) => trimToNull(opt?.value))
+      .filter(Boolean)
+      .join(" / ");
+    return optText || fallback;
+  };
+
+  const getAtcVariantPriceCents = (variant) => {
+    if (variant?.priceCents != null) return normalizeCents(variant.priceCents);
+    return priceToCents(variant?.price ?? variant?.variantPrice ?? variant?.price_amount);
+  };
+
+  const getAtcVariantCompareCents = (variant) => {
+    const raw =
+      variant?.compare_at_price ??
+      variant?.compareAtPrice ??
+      variant?.compareAtPriceAmount ??
+      variant?.compare_at_price_amount;
+    return priceToCents(raw);
+  };
+
+  const mapAtcVariant = (variant, product = null) => {
+    const opts = Array.isArray(variant?.variantOptions) ? variant.variantOptions : [];
+    const out = { ...variant, variantOptions: opts };
+    opts.forEach((opt, idx) => {
+      const key = `option${idx + 1}`;
+      if (out[key] == null && opt?.value != null) out[key] = opt.value;
+    });
+    out.available = isVariantAvailable(out, product);
+    return out;
+  };
+
+  const buildAtcProductFromProxy = () => {
+    const product = PROXY?.addToCartBarProduct;
+    if (!product) return null;
+    const variants = normalizeProxyVariants(product.variants || []).map((variant) =>
+      mapAtcVariant(variant, product)
+    );
+    const firstVariant = variants[0] || null;
+    return {
+      key: `proxy:${product.id || product.title || "home"}`,
+      source: "proxy",
+      title: trimToNull(product.title) || trimToNull(PROXY?.addToCartBarSettings?.homepageProductTitle) || "Product",
+      image: normalizeAtcImageUrl(product.image || product.featured_image || product.images?.[0]),
+      variants,
+      defaultVariantId: getAtcVariantId(firstVariant),
+      hasVariants: variants.length > 1 && !Boolean(product.has_only_default_variant),
+    };
+  };
+
+  // Cache for product data fetched by handle (async fallback for themes without ShopifyAnalytics)
+  const ATC_PAGE_PRODUCT_CACHE = { handle: null, product: null };
+
+  const preloadAtcProductFromHandle = async () => {
+    const m = window.location.pathname.match(/\/products\/([^/?#]+)/i);
+    if (!m) return;
+    const handle = m[1];
+    if (ATC_PAGE_PRODUCT_CACHE.handle === handle) return;
+    try {
+      const res = await fetch(`/products/${encodeURIComponent(handle)}.js`, {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      });
+      if (!res.ok) return;
+      const product = await res.json();
+      if (product?.id && Array.isArray(product?.variants) && product.variants.length) {
+        ATC_PAGE_PRODUCT_CACHE.handle = handle;
+        ATC_PAGE_PRODUCT_CACHE.product = product;
+        scheduleAddToCartBarRender(50);
+      }
+    } catch {}
+  };
+
+  const getShopifyAnalyticsProduct = () => {
+    // Primary: standard ShopifyAnalytics / legacy meta object
+    const fromAnalytics = window.ShopifyAnalytics?.meta?.product || window.meta?.product || null;
+    if (fromAnalytics?.id && Array.isArray(fromAnalytics?.variants)) return fromAnalytics;
+    if (fromAnalytics?.id) return fromAnalytics; // keep even without variants array
+
+    // Fallback: embedded product JSON scripts (Dawn 2.0, Craft, etc.)
+    const jsonSelectors = [
+      '#product-json[type="application/json"]',
+      '[data-product-json][type="application/json"]',
+      'script[type="application/json"][id*="product"]',
+    ];
+    for (const sel of jsonSelectors) {
+      try {
+        const el = document.querySelector(sel);
+        if (!el) continue;
+        const parsed = JSON.parse(el.textContent || "{}");
+        if (parsed?.id && Array.isArray(parsed?.variants)) return parsed;
+      } catch {}
+    }
+
+    // Last resort: pre-loaded handle cache (populated by preloadAtcProductFromHandle)
+    if (ATC_PAGE_PRODUCT_CACHE.product) return ATC_PAGE_PRODUCT_CACHE.product;
+
+    return null;
+  };
+
+  const buildAtcProductFromPage = () => {
+    const pathLooksProduct = /\/products\//i.test(window.location.pathname);
+    const bodyLooksProduct = /\btemplate-product\b|\bproduct-template\b/i.test(
+      String(document.body?.className || "")
+    );
+    const metaProduct = getShopifyAnalyticsProduct();
+    const formVariantId = getAtcFormVariantId();
+
+    if (!pathLooksProduct && !bodyLooksProduct && !metaProduct?.id) return null;
+    if (!formVariantId && !Array.isArray(metaProduct?.variants)) return null;
+
+    const metaVariants = Array.isArray(metaProduct?.variants) ? metaProduct.variants : [];
+    const variants = metaVariants.map((variant) =>
+      mapAtcVariant(
+        {
+          id: variant.id,
+          title: variant.title || variant.public_title || variant.name,
+          public_title: variant.public_title,
+          price: variant.price,
+          compare_at_price: variant.compare_at_price,
+          option1: variant.option1,
+          option2: variant.option2,
+          option3: variant.option3,
+          available: variant.available,
+        },
+        metaProduct
+      )
+    );
+
+    if (formVariantId && !variants.some((variant) => getAtcVariantId(variant) === normalizeVariantId(formVariantId))) {
+      variants.unshift(mapAtcVariant({ id: formVariantId, title: "Default Title" }, metaProduct));
+    }
+
+    const title =
+      trimToNull(metaProduct?.title) ||
+      trimToNull(document.querySelector('meta[property="og:title"]')?.getAttribute("content")) ||
+      trimToNull(document.querySelector("h1")?.textContent) ||
+      "Product";
+    const image =
+      normalizeAtcImageUrl(metaProduct?.featured_image) ||
+      normalizeAtcImageUrl(document.querySelector('meta[property="og:image"]')?.getAttribute("content"));
+
+    return {
+      key: `page:${metaProduct?.id || title}`,
+      source: "page",
+      title,
+      image,
+      variants,
+      defaultVariantId: normalizeVariantId(formVariantId) || getAtcVariantId(variants[0]),
+      hasVariants: variants.length > 1,
+    };
+  };
+
+  const getAtcProduct = () => {
+    const pageProduct = buildAtcProductFromPage();
+    if (pageProduct) return pageProduct;
+    if (isHomePage()) return buildAtcProductFromProxy();
+    return null;
+  };
+
+  const getAtcSelectedVariant = (product) => {
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    if (!variants.length) return null;
+
+    const formVariantId = product?.source === "page" ? getAtcFormVariantId() : null;
+    const desired =
+      normalizeVariantId(formVariantId) ||
+      normalizeVariantId(ADD_TO_CART_BAR_STATE.selectedVariantId) ||
+      normalizeVariantId(product.defaultVariantId);
+    const selected =
+      variants.find((variant) => getAtcVariantId(variant) === desired) ||
+      variants.find((variant) => isVariantAvailable(variant, product)) ||
+      variants[0];
+
+    ADD_TO_CART_BAR_STATE.selectedVariantId = getAtcVariantId(selected);
+    return selected;
+  };
+
+  const shouldShowAtcBar = (deviceSettings, product) => {
+    if (!product) return false;
+    if (drawer.classList.contains("open")) return false;
+    const condition = String(deviceSettings.showCondition || "scrollDown").toLowerCase();
+    if (condition === "never") return false;
+    if (condition === "always") return true;
+    if (condition === "notinview") {
+      if (product?.source !== "page") return true;
+      const button = getAtcProductAddButton();
+      return button ? !isElementInViewport(button) : true;
+    }
+    return window.scrollY >= Number(deviceSettings.scrollDepth || 0);
+  };
+
+  const hideAddToCartBar = () => {
+    addToCartBar.classList.remove("sc-atc-open");
+    addToCartBar.hidden = true;
+    document.body.classList.remove("sc-atc-bottom-visible", "sc-atc-top-visible");
+  };
+
+  const setAddToCartBarMessage = (message, tone = "info", ttl = 3200) => {
+    const msg = addToCartBar.querySelector("[data-sc-atc-msg]");
+    if (!msg) return;
+    msg.textContent = message || "";
+    msg.className = `sc-atc-msg${message ? " show" : ""} ${tone === "error" ? "error" : "info"}`;
+    if (ADD_TO_CART_BAR_STATE.messageTimer) clearTimeout(ADD_TO_CART_BAR_STATE.messageTimer);
+    if (message && ttl > 0) {
+      ADD_TO_CART_BAR_STATE.messageTimer = setTimeout(() => {
+        msg.textContent = "";
+        msg.className = "sc-atc-msg";
+      }, ttl);
+    }
+  };
+
+  const applyAtcCustomizations = (settings, product, variant) => {
+    let style = document.getElementById("smartcartify-add-to-cart-bar-custom-css");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "smartcartify-add-to-cart-bar-custom-css";
+      document.head.appendChild(style);
+    }
+    style.textContent = trimToNull(settings?.customCss) || "";
+
+    const code = trimToNull(settings?.customJs);
+    if (!code) {
+      ADD_TO_CART_BAR_STATE.customJsKey = "";
+      return;
+    }
+    const key = `${code}:${product?.key || ""}:${getAtcVariantId(variant) || ""}`;
+    if (ADD_TO_CART_BAR_STATE.customJsKey === key) return;
+    ADD_TO_CART_BAR_STATE.customJsKey = key;
+    try {
+      new Function("bar", "product", "variant", "settings", "cart", "proxy", code)(
+        addToCartBar,
+        product,
+        variant,
+        settings,
+        CART,
+        PROXY
+      );
+    } catch (err) {
+      console.error("[SmartCartify] add-to-cart bar custom JS failed:", err);
+    }
+  };
+
+  const buildAtcBarHtml = ({ product, variant, settings, deviceSettings }) => {
+    const currency = normalizeCurrencyCode();
+    const qty = Math.max(1, Number(ADD_TO_CART_BAR_STATE.qty) || 1);
+    const priceCents = getAtcVariantPriceCents(variant);
+    const compareCents = getAtcVariantCompareCents(variant);
+    const hasCompare =
+      Number.isFinite(compareCents) &&
+      Number.isFinite(priceCents) &&
+      compareCents > priceCents;
+    const totalPrice = Number.isFinite(priceCents) ? priceCents * qty : null;
+    const totalCompare = hasCompare ? compareCents * qty : null;
+    const ctaBase =
+      String(settings?.ctaBehavior || "addToCart") === "buyNow" ? "Buy now" : "Add to cart";
+    const ctaPrice =
+      deviceSettings.showPriceOnCta && Number.isFinite(totalPrice)
+        ? `<span class="sc-atc-btn-price">${safe(formatMoney(totalPrice, currency))}</span>`
+        : "";
+    const ctaCompare =
+      deviceSettings.showCompareAtPriceOnCta && Number.isFinite(totalCompare)
+        ? `<span class="sc-atc-btn-compare">${safe(formatMoney(totalCompare, currency))}</span>`
+        : "";
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const selectedId = getAtcVariantId(variant);
+    const showVariantSelector =
+      deviceSettings.showVariantSelector && product.hasVariants && variants.length > 1;
+
+    const imageHtml = deviceSettings.showProductImage
+      ? `<div class="sc-atc-media">${
+          product.image
+            ? `<img src="${safe(product.image)}" alt="${safe(product.title)}" loading="lazy">`
+            : `<span class="sc-atc-placeholder">${safe(String(product.title || "P").charAt(0).toUpperCase())}</span>`
+        }</div>`
+      : "";
+
+    const variantHtml = showVariantSelector
+      ? `<label class="sc-atc-variant">
+          ${deviceSettings.showVariantLabel ? `<span class="sc-atc-variant-label">Variant</span>` : ""}
+          <select class="sc-atc-select" data-sc-atc-variant>
+            ${variants
+              .map((item) => {
+                const id = getAtcVariantId(item);
+                const disabled = isVariantAvailable(item, product) ? "" : " disabled";
+                const selected = id === selectedId ? " selected" : "";
+                return `<option value="${safe(id || "")}"${selected}${disabled}>${safe(getAtcVariantLabel(item))}</option>`;
+              })
+              .join("")}
+          </select>
+        </label>`
+      : "";
+
+    return `
+      <div class="sc-atc-inner">
+        ${imageHtml}
+        <div class="sc-atc-info">
+          ${deviceSettings.showProductTitle ? `<p class="sc-atc-title">${safe(product.title)}</p>` : ""}
+          <div class="sc-atc-meta">
+            ${
+              deviceSettings.showCompareAtPrice && hasCompare
+                ? `<span class="sc-atc-compare">${safe(formatMoney(compareCents, currency))}</span>`
+                : ""
+            }
+            ${
+              deviceSettings.showPrice && Number.isFinite(priceCents)
+                ? `<span class="sc-atc-price">${safe(formatMoney(priceCents, currency))}</span>`
+                : ""
+            }
+            ${variantHtml}
+          </div>
+        </div>
+        <div class="sc-atc-actions">
+          ${
+            deviceSettings.showQuantity
+              ? `<div class="sc-atc-qty" aria-label="Quantity">
+                  <button type="button" data-sc-atc-qty="dec" aria-label="Decrease quantity">-</button>
+                  <input type="number" min="1" inputmode="numeric" value="${qty}" data-sc-atc-qty-input aria-label="Quantity">
+                  <button type="button" data-sc-atc-qty="inc" aria-label="Increase quantity">+</button>
+                </div>`
+              : ""
+          }
+          <button type="button" class="sc-atc-submit" data-sc-atc-submit>
+            <span>${safe(ctaBase)}</span>
+            ${ctaCompare}
+            ${ctaPrice}
+          </button>
+        </div>
+        <p class="sc-atc-msg" data-sc-atc-msg></p>
+      </div>
+    `;
+  };
+
+  const renderAddToCartBar = () => {
+    const settings = getAtcSettings();
+    if (!settings) {
+      hideAddToCartBar();
+      return;
+    }
+
+    const deviceSettings = getAtcDeviceSettings(settings);
+    const product = getAtcProduct();
+    const variant = getAtcSelectedVariant(product);
+    if (!product || !variant || !getAtcVariantId(variant)) {
+      hideAddToCartBar();
+      return;
+    }
+
+    const shouldShow = shouldShowAtcBar(deviceSettings, product);
+    const position = deviceSettings.stickyPosition;
+    const animation = ["pulse", "shake", "bounce"].includes(deviceSettings.ctaAnimation)
+      ? deviceSettings.ctaAnimation
+      : "none";
+
+    addToCartBar.style.setProperty("--sc-atc-bg", deviceSettings.bgColor);
+    addToCartBar.style.setProperty("--sc-atc-text", deviceSettings.textColor);
+    addToCartBar.style.setProperty("--sc-atc-btn-bg", deviceSettings.ctaBgColor);
+    addToCartBar.style.setProperty("--sc-atc-btn-text", deviceSettings.ctaTextColor);
+    addToCartBar.style.setProperty("--sc-atc-image-border", deviceSettings.imageOutlineColor);
+    addToCartBar.style.zIndex = String(deviceSettings.zIndex);
+    addToCartBar.dataset.ctaAnimation = animation;
+    addToCartBar.classList.toggle("sc-atc-position-top", position === "top");
+    addToCartBar.classList.toggle("sc-atc-position-bottom", position !== "top");
+    ["pulse", "shake", "bounce"].forEach((name) => {
+      addToCartBar.classList.toggle(`sc-atc-anim-${name}`, animation === name);
+    });
+
+    const renderKey = JSON.stringify({
+      product: product.key,
+      variant: getAtcVariantId(variant),
+      qty: ADD_TO_CART_BAR_STATE.qty,
+      device: deviceSettings.mobile ? "mobile" : "desktop",
+      position,
+      animation,
+      settingsUpdatedAt: settings.updatedAt || "",
+      flags: [
+        deviceSettings.showProductImage,
+        deviceSettings.showProductTitle,
+        deviceSettings.showPrice,
+        deviceSettings.showCompareAtPrice,
+        deviceSettings.showQuantity,
+        deviceSettings.showVariantSelector,
+        deviceSettings.showVariantLabel,
+        deviceSettings.showPriceOnCta,
+        deviceSettings.showCompareAtPriceOnCta,
+      ].join("|"),
+    });
+    if (addToCartBar.dataset.renderKey !== renderKey) {
+      addToCartBar.innerHTML = buildAtcBarHtml({ product, variant, settings, deviceSettings });
+      addToCartBar.dataset.renderKey = renderKey;
+    }
+
+    ADD_TO_CART_BAR_STATE.productKey = product.key;
+    ADD_TO_CART_BAR_STATE.product = product;
+    ADD_TO_CART_BAR_STATE.variant = variant;
+    ADD_TO_CART_BAR_STATE.settings = settings;
+    ADD_TO_CART_BAR_STATE.deviceSettings = deviceSettings;
+
+    applyAtcCustomizations(settings, product, variant);
+
+    addToCartBar.hidden = !shouldShow;
+    requestAnimationFrame(() => {
+      addToCartBar.classList.toggle("sc-atc-open", shouldShow);
+      document.body.classList.toggle("sc-atc-bottom-visible", shouldShow && position !== "top");
+      document.body.classList.toggle("sc-atc-top-visible", shouldShow && position === "top");
+    });
+  };
+
+  const scheduleAddToCartBarRender = (delay = 40) => {
+    if (addToCartBarRenderTimer) clearTimeout(addToCartBarRenderTimer);
+    addToCartBarRenderTimer = setTimeout(() => {
+      addToCartBarRenderTimer = null;
+      renderAddToCartBar();
+    }, Math.max(0, Number(delay) || 0));
+  };
+
+  const addProductToCartFromBar = async () => {
+    const product = ADD_TO_CART_BAR_STATE.product;
+    const variant = ADD_TO_CART_BAR_STATE.variant;
+    const settings = ADD_TO_CART_BAR_STATE.settings || getAtcSettings();
+    const legacyId = getAtcVariantId(variant);
+    if (!legacyId) {
+      setAddToCartBarMessage("Select an available product option.", "error");
+      return;
+    }
+
+    const qty = Math.max(1, Number(ADD_TO_CART_BAR_STATE.qty) || 1);
+    addToCartBar.classList.add("sc-atc-loading");
+    const submitBtn = addToCartBar.querySelector("[data-sc-atc-submit]");
+    if (submitBtn) submitBtn.disabled = true;
+    setAddToCartBarMessage("");
+
+    try {
+      invalidateCartCache();
+      const body = new URLSearchParams();
+      body.set("id", legacyId);
+      body.set("quantity", String(qty));
+
+      const res = await fetch("/cart/add.js", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        },
+        body,
+        credentials: "same-origin",
+      });
+
+      if (!res.ok) {
+        let payload = null;
+        let text = "";
+        try {
+          payload = await res.json();
+        } catch {
+          try {
+            text = await res.text();
+          } catch { }
+        }
+        const message =
+          trimToNull(payload?.description) ||
+          trimToNull(payload?.message) ||
+          trimToNull(payload?.error) ||
+          trimToNull(text) ||
+          "Add to cart failed";
+        throw new Error(message);
+      }
+
+      CART = await fetchCart({ force: true });
+      PROXY = await fetchProxy(CART);
+      renderAllFromCache();
+
+      if (String(settings?.ctaBehavior || "addToCart") === "buyNow") {
+        window.location.href = "/checkout";
+        return;
+      }
+
+      const after = String(settings?.afterAddToCart || "openCartWidget");
+      if (after === "goToCheckout") {
+        window.location.href = "/checkout";
+        return;
+      }
+      if (after === "openCartWidget") {
+        openDrawer();
+        renderAllFromCache();
+        schedulePostCartSync();
+        return;
+      }
+      if (after === "showNotification") {
+        setAddToCartBarMessage(`${product?.title || "Item"} added to cart.`, "info");
+      }
+    } catch (err) {
+      const message = trimToNull(err?.message) || "Add to cart failed";
+      setAddToCartBarMessage(message, isQuantityLimitMessage(message) ? "info" : "error", 4200);
+      console.error("[SmartCartify] add-to-cart bar add failed:", err);
+    } finally {
+      addToCartBar.classList.remove("sc-atc-loading");
+      if (submitBtn) submitBtn.disabled = false;
+      scheduleAddToCartBarRender(120);
+    }
+  };
+
+  addToCartBar.addEventListener("click", (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest("[data-sc-atc-submit]")) {
+      e.preventDefault();
+      void addProductToCartFromBar();
+      return;
+    }
+    const qtyAction = target.closest("[data-sc-atc-qty]");
+    if (qtyAction) {
+      const action = qtyAction.getAttribute("data-sc-atc-qty");
+      const current = Math.max(1, Number(ADD_TO_CART_BAR_STATE.qty) || 1);
+      ADD_TO_CART_BAR_STATE.qty = action === "dec" ? Math.max(1, current - 1) : current + 1;
+      renderAddToCartBar();
+    }
+  });
+
+  addToCartBar.addEventListener("change", (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (target.matches("[data-sc-atc-variant]")) {
+      ADD_TO_CART_BAR_STATE.selectedVariantId = target.value;
+      renderAddToCartBar();
+      return;
+    }
+    if (target.matches("[data-sc-atc-qty-input]")) {
+      ADD_TO_CART_BAR_STATE.qty = Math.max(1, Number(target.value) || 1);
+      renderAddToCartBar();
+    }
+  });
+
+  addToCartBar.addEventListener("input", (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (target.matches("[data-sc-atc-qty-input]")) {
+      ADD_TO_CART_BAR_STATE.qty = Math.max(1, Number(target.value) || 1);
+    }
+  });
+
+  window.addEventListener("scroll", () => scheduleAddToCartBarRender(20), { passive: true });
+  window.addEventListener("resize", () => scheduleAddToCartBarRender(80));
+  ["variant:change", "variantChange", "product:variant-change", "cart:updated", "cart:change"].forEach((eventName) => {
+    document.addEventListener(eventName, () => scheduleAddToCartBarRender(60), true);
+  });
+  document.addEventListener("change", (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (isAtcFormElement(target.closest("form"))) scheduleAddToCartBarRender(60);
+  }, true);
+
   const renderAllFromCache = () => {
     if (!PROXY || !CART) return;
     setDiscountMessage("");
@@ -6623,6 +8022,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
       renderUpsellSection();
       renderProgress();
       refreshAnnouncementFromRules();
+      renderAddToCartBar();
       recordVisibleRuleImpressions();
       maybeShowAppliedDiscountCodePopup();
       void maybeRemoveInvalidDiscountCodes();
@@ -6635,6 +8035,7 @@ body.sc-cartify-open .sc-mobile-open-fallback{
   ========================================================= */
   const preload = async () => {
     try {
+      void preloadAtcProductFromHandle(); // fire-and-forget; result used by getShopifyAnalyticsProduct fallback
       setProgressLoading(true);
       CART = await fetchCart();
       const proxyRes = await Promise.resolve(fetchProxy(CART)).then(
@@ -6645,10 +8046,6 @@ body.sc-cartify-open .sc-mobile-open-fallback{
         proxyRes.status === "fulfilled"
           ? proxyRes.value
           : { ok: true, _proxyError: proxyRes.reason };
-
-      console.groupCollapsed("[SmartCartify] Proxy payload");
-      console.log(PROXY);
-      console.groupEnd();
 
       if (proxyRes.status !== "fulfilled") {
         console.warn(
@@ -6747,9 +8144,9 @@ body.sc-cartify-open .sc-mobile-open-fallback{
   ========================================================= */
   function isAddToCartForm(el) {
     if (!el) return false;
-    if (el.matches?.('form[action^="/cart/add"]')) return true;
-    const f = el.closest?.('form[action^="/cart/add"]');
-    return !!f;
+    if (isAtcFormElement(el)) return true;
+    const f = el.closest?.("form");
+    return isAtcFormElement(f);
   }
 
   function isAddToCartBtn(el) {
@@ -6877,6 +8274,15 @@ body.sc-cartify-open .sc-mobile-open-fallback{
     if (!item) return;
     const line = Number(item.getAttribute("data-line"));
     if (!line) return;
+
+    // Prevent qty/remove actions on reward items (free gifts, BXGY gifts)
+    const cartItem = Array.isArray(CART?.items) ? CART.items[line - 1] : null;
+    const itemProps = cartItem?.properties || {};
+    const isRewardItem =
+      String(itemProps?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() === "true" ||
+      String(itemProps?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
+    if (isRewardItem) return;
+
     const input = item.querySelector('input[data-qty="input"]');
     const current = Number(input?.value || 0);
     try {
