@@ -55,6 +55,7 @@ import {
   syncFreeProductDiscountsToShopify,
   resolveAllProductsCollectionId,
 } from "../lib/minAmountFreeGift.server.js";
+import { invalidateShopCache } from "./app.proxy.smart.jsx";
 const logger = { log: console.log.bind(console), warn: console.warn.bind(console), error: console.error.bind(console) };
 
 // Client-side conditional logging: window is defined in browser, not on server
@@ -570,6 +571,283 @@ const normalizeStepSlot = (value) => {
   return "";
 };
 const ALLOWED_TYPES = new Set(["shipping", "discount", "free"]);
+const CART_STEP_LABELS = {
+  step1: "Cart Step 1",
+  step2: "Cart Step 2",
+  step3: "Cart Step 3",
+  step4: "Cart Step 4",
+};
+
+const getCartStepLabel = (slot) =>
+  CART_STEP_LABELS[normalizeStepSlot(slot)] || "Cart Step";
+
+const isCartStepEligibleRule = (section, rule = {}) => {
+  if (section !== "discount") return true;
+  return String(rule?.type || "automatic").toLowerCase() !== "code";
+};
+
+const getPreviousSelectedCartStepIndex = (entries = [], targetEntryIndex = -1) => {
+  if (targetEntryIndex <= 0) return -1;
+
+  return entries
+    .slice(0, targetEntryIndex)
+    .reduce((maxIndex, entry) => {
+      const slotIndex = STEP_SLOTS.indexOf(
+        normalizeStepSlot(entry.rule?.cartStepName)
+      );
+      return slotIndex > maxIndex ? slotIndex : maxIndex;
+    }, -1);
+};
+
+const getSequentialCartStepOptions = ({
+  shippingRules = [],
+  discountRules = [],
+  freeRules = [],
+  section,
+  index,
+}) => {
+  const entries = getCartStepRuleEntries(
+    shippingRules,
+    discountRules,
+    freeRules
+  );
+  const targetEntryIndex = entries.findIndex(
+    (entry) => entry.section === section && entry.index === index
+  );
+
+  if (targetEntryIndex === -1) return CART_STEP_OPTIONS;
+
+  const previousSelectedIndex = getPreviousSelectedCartStepIndex(
+    entries,
+    targetEntryIndex
+  );
+
+  return CART_STEP_OPTIONS.map((option) => {
+    const optionIndex = STEP_SLOTS.indexOf(normalizeStepSlot(option.value));
+    return {
+      ...option,
+      disabled: optionIndex >= 0 && optionIndex <= previousSelectedIndex,
+    };
+  });
+};
+
+const parseCartStepNumber = (value) => {
+  if (value === undefined || value === null || value === "") return null;
+  const number =
+    typeof value === "number"
+      ? value
+      : Number(String(value).replace(/,/g, "").trim());
+  return Number.isFinite(number) ? number : null;
+};
+
+const getCartStepRuleEntries = (
+  shippingRules = [],
+  discountRules = [],
+  freeRules = []
+) => {
+  const entries = [];
+  const addEntries = (section, rules) => {
+    (Array.isArray(rules) ? rules : []).forEach((rule, index) => {
+      if (!isCartStepEligibleRule(section, rule)) return;
+      const slot = normalizeStepSlot(rule?.cartStepName);
+      entries.push({
+        section,
+        index,
+        key: `${section}:${index}`,
+        rule,
+        slot,
+        slotIndex: STEP_SLOTS.indexOf(slot),
+      });
+    });
+  };
+
+  addEntries("shipping", shippingRules);
+  addEntries("discount", discountRules);
+  addEntries("free", freeRules);
+  return entries;
+};
+
+const cloneCartStepRuleCollections = (
+  shippingRules = [],
+  discountRules = [],
+  freeRules = []
+) => ({
+  shippingRules: (Array.isArray(shippingRules) ? shippingRules : []).map(
+    (rule) => ({ ...rule })
+  ),
+  discountRules: (Array.isArray(discountRules) ? discountRules : []).map(
+    (rule) => ({ ...rule })
+  ),
+  freeRules: (Array.isArray(freeRules) ? freeRules : []).map((rule) => ({
+    ...rule,
+  })),
+});
+
+const getNextAvailableCartStepSlot = (
+  shippingRules = [],
+  discountRules = [],
+  freeRules = []
+) => {
+  const highestSelectedIndex = getCartStepRuleEntries(
+    shippingRules,
+    discountRules,
+    freeRules
+  ).reduce(
+    (maxIndex, entry) =>
+      Math.max(
+        maxIndex,
+        STEP_SLOTS.indexOf(normalizeStepSlot(entry.rule?.cartStepName))
+      ),
+    -1
+  );
+  const nextSlotIndex = highestSelectedIndex + 1;
+
+  return nextSlotIndex < STEP_SLOTS.length ? STEP_SLOTS[nextSlotIndex] : "";
+};
+
+const applySequentialCartStepChange = ({
+  shippingRules = [],
+  discountRules = [],
+  freeRules = [],
+  section,
+  index,
+  value,
+}) => {
+  const collections = cloneCartStepRuleCollections(
+    shippingRules,
+    discountRules,
+    freeRules
+  );
+  const entries = getCartStepRuleEntries(
+    collections.shippingRules,
+    collections.discountRules,
+    collections.freeRules
+  );
+  const targetEntryIndex = entries.findIndex(
+    (entry) => entry.section === section && entry.index === index
+  );
+
+  if (targetEntryIndex === -1) return collections;
+
+  const selectedSlot = normalizeStepSlot(value);
+  const selectedSlotIndex = STEP_SLOTS.indexOf(selectedSlot);
+  const previousSelectedIndex = getPreviousSelectedCartStepIndex(
+    entries,
+    targetEntryIndex
+  );
+
+  if (selectedSlot && selectedSlotIndex <= previousSelectedIndex) {
+    return collections;
+  }
+
+  entries[targetEntryIndex].rule.cartStepName = selectedSlot;
+
+  if (!selectedSlot) return collections;
+
+  entries.forEach((entry, entryIndex) => {
+    if (
+      entryIndex !== targetEntryIndex &&
+      normalizeStepSlot(entry.rule?.cartStepName) === selectedSlot
+    ) {
+      entry.rule.cartStepName = "";
+    }
+  });
+
+  let nextSlotIndex = selectedSlotIndex + 1;
+  for (
+    let entryIndex = targetEntryIndex + 1;
+    entryIndex < entries.length;
+    entryIndex += 1
+  ) {
+    entries[entryIndex].rule.cartStepName =
+      nextSlotIndex < STEP_SLOTS.length ? STEP_SLOTS[nextSlotIndex] : "";
+    nextSlotIndex += 1;
+  }
+
+  return collections;
+};
+
+const fillMissingSequentialCartSteps = (
+  shippingRules = [],
+  discountRules = [],
+  freeRules = []
+) => {
+  const collections = cloneCartStepRuleCollections(
+    shippingRules,
+    discountRules,
+    freeRules
+  );
+  const entries = getCartStepRuleEntries(
+    collections.shippingRules,
+    collections.discountRules,
+    collections.freeRules
+  );
+  const firstSelectedIndex = entries.findIndex(
+    (entry) => STEP_SLOTS.includes(normalizeStepSlot(entry.rule?.cartStepName))
+  );
+
+  if (firstSelectedIndex === -1) return { ...collections, changed: false };
+
+  let changed = false;
+  let nextSlotIndex =
+    STEP_SLOTS.indexOf(normalizeStepSlot(entries[firstSelectedIndex].rule?.cartStepName)) +
+    1;
+
+  for (
+    let entryIndex = firstSelectedIndex + 1;
+    entryIndex < entries.length && nextSlotIndex < STEP_SLOTS.length;
+    entryIndex += 1
+  ) {
+    const currentSlot = normalizeStepSlot(entries[entryIndex].rule?.cartStepName);
+    if (!currentSlot) {
+      entries[entryIndex].rule.cartStepName = STEP_SLOTS[nextSlotIndex];
+      changed = true;
+      nextSlotIndex += 1;
+      continue;
+    }
+
+    const currentSlotIndex = STEP_SLOTS.indexOf(currentSlot);
+    nextSlotIndex =
+      currentSlotIndex >= nextSlotIndex
+        ? currentSlotIndex + 1
+        : nextSlotIndex + 1;
+  }
+
+  return { ...collections, changed };
+};
+
+const getCartStepRuleThreshold = (section, rule = {}) => {
+  if (section === "shipping") {
+    return {
+      metric: "amount",
+      value: parseCartStepNumber(rule.minSubtotal),
+    };
+  }
+
+  const triggerType = normalizeTriggerType(rule.triggerType);
+  if (triggerType === "quantity") {
+    return {
+      metric: "quantity",
+      value: parseCartStepNumber(rule.minQuantity),
+    };
+  }
+
+  return {
+    metric: "amount",
+    value: parseCartStepNumber(rule.minPurchase),
+  };
+};
+
+const getCartStepMetricLabel = (metric) =>
+  metric === "quantity" ? "quantity" : "amount";
+
+const joinCartStepLabels = (entries) => {
+  const labels = entries.map((entry) => getCartStepLabel(entry.slot));
+  if (labels.length <= 1) return labels[0] || "";
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+};
+
 
 const normalizeHex = (hex) => {
   if (!hex || typeof hex !== "string") return null;
@@ -1265,7 +1543,7 @@ const createDefaultShippingRule = () => ({
   rewardType: "free",
   rateType: "flat",
   amount: "0",
-  minSubtotal: "2000",
+  minSubtotal: "300",
   method: "standard",
   iconChoice: "truck",
   icon: null,
@@ -1287,12 +1565,12 @@ const createDefaultDiscountRule = (overrides = {}) => {
   const contentDefaults = getDiscountContentDefaults(normalizedType);
 
   return {
-    enabled: false,
+    enabled: true,
     type: "automatic",
     rewardType: "percent",
     valueType: "percent",
     value: "10",
-    minPurchase: "1000",
+    minPurchase: "500",
     triggerType: "amount",
     minQuantity: "2",
     iconChoice: "tag",
@@ -1331,9 +1609,9 @@ const createDefaultCodeDiscountRule = () =>
   });
 
 const createDefaultFreeRule = () => ({
-  enabled: false,
+  enabled: true,
   trigger: "payment_online",
-  minPurchase: "3000",
+  minPurchase: "1000",
   triggerType: "amount",
   minQuantity: "2",
   bonus: "",
@@ -1359,7 +1637,7 @@ const createDefaultFreeRule = () => ({
 });
 
 const createDefaultBxgyRule = () => ({
-  enabled: false,
+  enabled: true,
   xQty: "3",
   yQty: "1",
   scope: "product",
@@ -1384,7 +1662,7 @@ const DEFAULT_MIN_AMOUNT_RULE = {
   bonusProductId: "",
   qty: "1",
   limitPerOrder: "1",
-  enabled: false,
+  enabled: true,
   freeProductDiscountID: null,
   minAmountFreeGiftDiscountId: null,
   id: null,
@@ -1479,33 +1757,73 @@ const normalizeRawRuleRow = (row) => ({
 });
 
 const fetchDiscountRulesByShop = async (shop) => {
-  const rows = await prisma.$queryRaw`
-    SELECT id, shop, type, value, minPurchase, triggerType, minQuantity, enabled,
-           createdAt, updatedAt, iconChoice, shopifyDiscountCodeId, shopifyPriceRuleId,
-           discountCode, progressTextBefore, progressTextAfter,
-           quantityProgressTextBefore, quantityProgressTextAfter, progressTextBelow,
-           campaignName, cartStepName, codeCampaignName, valueType, appliesTo,
-           codeDiscountId, \`condition\`, rewardType, scope, startsAt, endsAt,
-           priority, customerTarget, customerTags, templateKey, abTestEnabled,
-           abTestVariant, translations, analyticsImpressions, analyticsConversions
-    FROM discountrule WHERE shop = ${shop} ORDER BY id ASC
-  `;
-  return rows.map(normalizeRawRuleRow);
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT id, shop, type, value, minPurchase, triggerType, minQuantity, enabled,
+             createdAt, updatedAt, iconChoice, shopifyDiscountCodeId, shopifyPriceRuleId,
+             discountCode, progressTextBefore, progressTextAfter,
+             quantityProgressTextBefore, quantityProgressTextAfter, progressTextBelow,
+             campaignName, cartStepName, codeCampaignName, valueType, appliesTo,
+             codeDiscountId, \`condition\`, rewardType, scope, startsAt, endsAt,
+             priority, customerTarget, customerTags, templateKey, abTestEnabled,
+             abTestVariant, translations, analyticsImpressions, analyticsConversions
+      FROM discountrule WHERE shop = ${shop} ORDER BY id ASC
+    `;
+    return rows.map(normalizeRawRuleRow);
+  } catch (err) {
+    // Migration not yet applied on this DB — retry without the new optional columns
+    if (/Unknown column/i.test(String(err?.message))) {
+      logger.warn("fetchDiscountRulesByShop: quantityProgressText columns missing, using fallback query");
+      const rows = await prisma.$queryRaw`
+        SELECT id, shop, type, value, minPurchase, triggerType, minQuantity, enabled,
+               createdAt, updatedAt, iconChoice, shopifyDiscountCodeId, shopifyPriceRuleId,
+               discountCode, progressTextBefore, progressTextAfter,
+               NULL AS quantityProgressTextBefore, NULL AS quantityProgressTextAfter,
+               progressTextBelow, campaignName, cartStepName, codeCampaignName,
+               valueType, appliesTo, codeDiscountId, \`condition\`, rewardType, scope,
+               startsAt, endsAt, priority, customerTarget, customerTags, templateKey,
+               abTestEnabled, abTestVariant, translations,
+               analyticsImpressions, analyticsConversions
+        FROM discountrule WHERE shop = ${shop} ORDER BY id ASC
+      `;
+      return rows.map(normalizeRawRuleRow);
+    }
+    throw err;
+  }
 };
 
 const fetchFreeGiftRulesByShop = async (shop) => {
-  const rows = await prisma.$queryRaw`
-    SELECT id, shop, \`trigger\`, minPurchase, triggerType, minQuantity, qty, limitPerOrder,
-           enabled, createdAt, updatedAt, iconChoice, bonusProductId, freeProductDiscountID,
-           minAmountFreeGiftDiscountId, minAmountShippingRateId, allProductIds,
-           progressTextBefore, progressTextAfter,
-           quantityProgressTextBefore, quantityProgressTextAfter, progressTextBelow,
-           campaignName, cartStepName, startsAt, endsAt,
-           priority, customerTarget, customerTags, templateKey, abTestEnabled,
-           abTestVariant, translations, analyticsImpressions, analyticsConversions
-    FROM freegiftrule WHERE shop = ${shop} ORDER BY id ASC
-  `;
-  return rows.map(normalizeRawRuleRow);
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT id, shop, \`trigger\`, minPurchase, triggerType, minQuantity, qty, limitPerOrder,
+             enabled, createdAt, updatedAt, iconChoice, bonusProductId, freeProductDiscountID,
+             minAmountFreeGiftDiscountId, minAmountShippingRateId, allProductIds,
+             progressTextBefore, progressTextAfter,
+             quantityProgressTextBefore, quantityProgressTextAfter, progressTextBelow,
+             campaignName, cartStepName, startsAt, endsAt,
+             priority, customerTarget, customerTags, templateKey, abTestEnabled,
+             abTestVariant, translations, analyticsImpressions, analyticsConversions
+      FROM freegiftrule WHERE shop = ${shop} ORDER BY id ASC
+    `;
+    return rows.map(normalizeRawRuleRow);
+  } catch (err) {
+    if (/Unknown column/i.test(String(err?.message))) {
+      logger.warn("fetchFreeGiftRulesByShop: quantityProgressText columns missing, using fallback query");
+      const rows = await prisma.$queryRaw`
+        SELECT id, shop, \`trigger\`, minPurchase, triggerType, minQuantity, qty, limitPerOrder,
+               enabled, createdAt, updatedAt, iconChoice, bonusProductId, freeProductDiscountID,
+               minAmountFreeGiftDiscountId, minAmountShippingRateId, allProductIds,
+               progressTextBefore, progressTextAfter,
+               NULL AS quantityProgressTextBefore, NULL AS quantityProgressTextAfter,
+               progressTextBelow, campaignName, cartStepName, startsAt, endsAt,
+               priority, customerTarget, customerTags, templateKey, abTestEnabled,
+               abTestVariant, translations, analyticsImpressions, analyticsConversions
+        FROM freegiftrule WHERE shop = ${shop} ORDER BY id ASC
+      `;
+      return rows.map(normalizeRawRuleRow);
+    }
+    throw err;
+  }
 };
 
 const seedMinAmountRule = (rule) => {
@@ -2035,6 +2353,7 @@ const normalizeBxgyRuleForKey = (rule = {}) => ({
   iconChoice: rule.iconChoice || "sparkles",
   beforeOfferUnlockMessage: rule.beforeOfferUnlockMessage ?? "",
   afterOfferUnlockMessage: rule.afterOfferUnlockMessage ?? "",
+  campaignName: rule.campaignName ?? "",
   id: rule.id ?? null,
   buyxgetyId: rule.buyxgetyId || null,
   ...normalizeScheduleFields(rule),
@@ -2451,6 +2770,7 @@ const loadCurrentRulesForSection = async (
   return [];
 };
 
+
 const loadMinAmountRuleForShop = async (shop) => {
   if (!shop) return null;
 
@@ -2492,7 +2812,6 @@ const ICON_OPTIONS = [
 ];
 
 const CART_STEP_OPTIONS = [
-  { label: "None", value: "" },
   { label: "Cart Step 1", value: "step1" },
   { label: "Cart Step 2", value: "step2" },
   { label: "Cart Step 3", value: "step3" },
@@ -2794,6 +3113,9 @@ export const action = async ({ request }) => {
 
     return json({ error: message }, { status: 400 });
   }
+
+  // Bust the proxy cache so storefront sees updated rules immediately after save
+  invalidateShopCache(shop);
 
   if (
     !section &&
@@ -4892,7 +5214,7 @@ const buildBxgyCustomerGets = (rule = {}, selection) => {
 const buildBxgyAutomaticInput = (rule = {}, index = 0) => {
   const selection = buildBxgySelection(rule);
   const usageLimit = Math.max(num(rule.maxGifts), 0);
-  const baseTitle = rule.title || `CartLift: Cart Drawer & Upsell BXGY ${rule.xQty || "X"} ? ${rule.yQty || "Y"}`;
+  const baseTitle = rule.campaignName?.trim() || rule.title || `CartLift: Cart Drawer & Upsell BXGY ${rule.xQty || "X"} x ${rule.yQty || "Y"}`;
   const suffix = typeof index === "number" ? ` (#${index + 1})` : "";
   const title = `${baseTitle}${suffix}`;
   const customerGets = buildBxgyCustomerGets(rule, selection);
@@ -5865,7 +6187,6 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
   const currencyCode = await fetchShopCurrency(shopDomain, accessToken);
 
   if (disabled.length) {
-    const expiresAt = new Date().toISOString();
     for (const rule of disabled) {
       const discountId =
         rule.shopifyDiscountCodeId ||
@@ -5873,14 +6194,11 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
         null;
       if (!discountId) continue;
       try {
-        await adminGraphql(shopDomain, accessToken, AUTOMATIC_DISCOUNT_UPDATE_MUTATION, {
+        await adminGraphql(shopDomain, accessToken, AUTOMATIC_DISCOUNT_DEACTIVATE_MUTATION, {
           id: discountId,
-          automaticBasicDiscount: {
-            endsAt: expiresAt,
-          },
         });
       } catch (err) {
-        logger.error("Shopify discount expire failed", err);
+        logger.error("Shopify discount deactivate failed", err);
       }
     }
   }
@@ -7921,12 +8239,6 @@ const AdvancedRuleControls = ({
   disabled = false,
   onFieldChange,
 }) => {
-  const impressions = Number(rule?.analyticsImpressions || 0);
-  const conversions = Number(rule?.analyticsConversions || 0);
-  const conversionRate = impressions
-    ? `${((conversions / impressions) * 100).toFixed(1)}%`
-    : "0%";
-
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -7959,11 +8271,6 @@ const AdvancedRuleControls = ({
           <Text as="span" variant="headingXs" fontWeight="semibold">
             Targeting & priority
           </Text>
-          <InlineStack gap="100" blockAlign="center" wrap>
-            <Badge tone="info">Views {impressions}</Badge>
-            <Badge tone="success">Orders {conversions}</Badge>
-            <Badge>{conversionRate}</Badge>
-          </InlineStack>
         </span>
         <span className="rule-accordion-btn__icon">
           <Icon source={open ? MinusCircleIcon : PlusCircleIcon} tone="base" />
@@ -8497,43 +8804,36 @@ export default function AppRules() {
     index: null,
   });
 
-  const isCartStepTakenByOtherRule = React.useCallback(
-    (section, index, value) => {
-      if (!value) return false;
-
-      const collections = [
-        { key: "shipping", rules: shippingRules },
-        { key: "discount", rules: discountRules },
-        { key: "free", rules: freeRules },
-      ];
-
-      const normalizedValue = normalizeStepSlot(value);
-      for (const entry of collections) {
-        const { key, rules } = entry;
-        for (let i = 0; i < (rules?.length || 0); i += 1) {
-          if (key === section && i === index) continue;
-          const slot = normalizeStepSlot(rules[i]?.cartStepName);
-          if (slot && slot === normalizedValue) {
-            return true;
-          }
-        }
-      }
-
-      return false;
-    },
+  const getCartStepOptions = React.useCallback(
+    (section, index) =>
+      getSequentialCartStepOptions({
+        shippingRules,
+        discountRules,
+        freeRules,
+        section,
+        index,
+      }),
     [shippingRules, discountRules, freeRules]
   );
 
-  const getCartStepOptions = React.useCallback(
-    (section, index) =>
-      CART_STEP_OPTIONS.map((option) => ({
-        ...option,
-        disabled:
-          Boolean(option.value) &&
-          isCartStepTakenByOtherRule(section, index, option.value),
-      })),
-    [isCartStepTakenByOtherRule]
-  );
+  const didAutoFillInitialCartSteps = React.useRef(false);
+
+  React.useEffect(() => {
+    if (didAutoFillInitialCartSteps.current) return;
+    didAutoFillInitialCartSteps.current = true;
+
+    const nextCollections = fillMissingSequentialCartSteps(
+      shippingRules,
+      discountRules,
+      freeRules
+    );
+
+    if (!nextCollections.changed) return;
+
+    setShippingRules(nextCollections.shippingRules);
+    setDiscountRules(nextCollections.discountRules);
+    setFreeRules(nextCollections.freeRules);
+  }, [shippingRules, discountRules, freeRules]);
 
   const [bxgyProductPickerIndex, setBxgyProductPickerIndex] =
     React.useState(null);
@@ -8911,6 +9211,7 @@ export default function AppRules() {
     tone: "success",
   });
 
+
   const [lastApiSnapshot, setLastApiSnapshot] = React.useState(null);
 
   const [lastApiSection, setLastApiSection] = React.useState("");
@@ -9019,6 +9320,24 @@ export default function AppRules() {
     },
 
     []
+  );
+
+  const updateCartStepField = React.useCallback(
+    (section, index, value) => {
+      const nextCollections = applySequentialCartStepChange({
+        shippingRules,
+        discountRules,
+        freeRules,
+        section,
+        index,
+        value,
+      });
+
+      setShippingRules(nextCollections.shippingRules);
+      setDiscountRules(nextCollections.discountRules);
+      setFreeRules(nextCollections.freeRules);
+    },
+    [shippingRules, discountRules, freeRules]
   );
 
   const updateBxgyRuleField = React.useCallback(
@@ -10056,7 +10375,7 @@ export default function AppRules() {
             ? String(discountIdValue).trim()
             : "";
       if (!discountId) {
-        showToast("Cannot toggle discount: missing Shopify discount ID", "critical");
+        showToast("Save this rule first to sync it with Shopify, then use the Activate button.", "warning");
         return;
       }
 
@@ -10235,6 +10554,11 @@ export default function AppRules() {
   /* add/remove handlers */
 
   const addShipping = () => {
+    const cartStepName = getNextAvailableCartStepSlot(
+      shippingRules,
+      discountRules,
+      freeRules
+    );
     setShippingRules((r) => [
       ...r,
       {
@@ -10252,7 +10576,7 @@ export default function AppRules() {
         progressTextAfter: DEFAULT_STYLE_SETTINGS.progressTextAfter,
         progressTextBelow: DEFAULT_STYLE_SETTINGS.progressTextBelow,
         campaignName: "Free Shipping",
-        cartStepName: "",
+        cartStepName,
       },
     ]);
   };
@@ -10262,20 +10586,23 @@ export default function AppRules() {
       const next = r.filter((_, idx) => idx !== i);
 
       // Persist removal immediately (DB + Shopify) using updated list
-
       handleSectionSave("shipping", null, next);
 
-      return next;
+      return next.length ? next : createDefaultShippingRules().map((r) => ({ ...r, isNew: true }));
     });
 
   const addDiscount = (type = "automatic") => {
-    const normalizedType = String(type || "automatic").toLowerCase();
+    const cartStepName =
+      type === "code"
+        ? ""
+        : getNextAvailableCartStepSlot(shippingRules, discountRules, freeRules);
     setDiscountRules((r) => [
       ...r,
       createDefaultDiscountRule({
         isNew: true,
         type,
         condition: type === "code" ? "code" : "all_payments",
+        cartStepName,
       }),
     ]);
   };
@@ -10289,7 +10616,7 @@ export default function AppRules() {
       const nextRules = discountRules.filter((_, idx) => idx !== i);
 
       if (!rule.shopifyDiscountCodeId) {
-        setDiscountRules(nextRules);
+        setDiscountRules(nextRules.length ? nextRules : [{ ...createDefaultDiscountRule({ type: rule.type || "automatic" }), isNew: true }]);
 
         handleSectionSave("discount", null, nextRules);
 
@@ -10359,7 +10686,7 @@ export default function AppRules() {
       }
 
       if (deleted) {
-        setDiscountRules(nextRules);
+        setDiscountRules(nextRules.length ? nextRules : [{ ...createDefaultDiscountRule({ type: rule.type || "automatic" }), isNew: true }]);
 
         handleSectionSave("discount", null, nextRules);
       }
@@ -10369,6 +10696,11 @@ export default function AppRules() {
   );
 
   const addFree = () => {
+    const cartStepName = getNextAvailableCartStepSlot(
+      shippingRules,
+      discountRules,
+      freeRules
+    );
     setFreeRules((r) => [
       ...r,
       {
@@ -10394,7 +10726,7 @@ export default function AppRules() {
           DEFAULT_FREE_GIFT_CONTENT_TEXT.quantityProgressTextAfter,
         progressTextBelow: DEFAULT_FREE_GIFT_CONTENT_TEXT.progressTextBelow,
         campaignName: "Free Product Rule",
-        cartStepName: "",
+        cartStepName,
       },
     ]);
   };
@@ -10411,7 +10743,7 @@ export default function AppRules() {
         Boolean(rule.id) || Boolean(rule.freeProductDiscountID);
 
       if (!needsRemoteCleanup) {
-        setFreeRules(nextRules);
+        setFreeRules(nextRules.length ? nextRules : [{ ...createDefaultFreeRule(), isNew: true }]);
 
         handleSectionSave("free", null, nextRules);
 
@@ -10491,7 +10823,7 @@ export default function AppRules() {
       }
 
       if (deleted) {
-        setFreeRules(nextRules);
+        setFreeRules(nextRules.length ? nextRules : [{ ...createDefaultFreeRule(), isNew: true }]);
       }
     },
 
@@ -10513,20 +10845,7 @@ export default function AppRules() {
   const addBxgy = () => {
     setBxgyRules((r) => [
       ...r,
-      {
-        isNew: true,
-        enabled: false,
-        xQty: "3",
-        yQty: "1",
-        scope: "product",
-        appliesTo: { products: [], collections: [] },
-        giftType: "same",
-        giftSku: "",
-        maxGifts: "1",
-        allowStacking: false,
-        iconChoice: "sparkles",
-        icon: null,
-      },
+      { ...createDefaultBxgyRule(), isNew: true },
     ]);
   };
 
@@ -10537,7 +10856,10 @@ export default function AppRules() {
       if (!rule) return;
 
       if (!rule.buyxgetyId && !rule.id) {
-        setBxgyRules((prev) => prev.filter((_, idx) => idx !== i));
+        setBxgyRules((prev) => {
+          const next = prev.filter((_, idx) => idx !== i);
+          return next.length ? next : [{ ...createDefaultBxgyRule(), isNew: true }];
+        });
 
         return;
       }
@@ -10564,7 +10886,10 @@ export default function AppRules() {
         return false;
       };
 
-      setBxgyRules((prev) => prev.filter((item) => !matchesRule(item)));
+      setBxgyRules((prev) => {
+        const next = prev.filter((item) => !matchesRule(item));
+        return next.length ? next : [{ ...createDefaultBxgyRule(), isNew: true }];
+      });
 
       setDeleting(true);
 
@@ -11033,6 +11358,24 @@ export default function AppRules() {
           </InlineStack>
         );
 
+        const shippingToggleLabel = r.enabled ? "Deactivate" : "Activate";
+        const shippingToggleButton = (
+          <Button
+            plain
+            disabled={shippingReadOnly}
+            onClick={() => {
+              if (shippingReadOnly) return;
+              const nextEnabled = !r.enabled;
+              const updatedRules = shippingRules.map((it, idx) =>
+                idx === i ? { ...it, enabled: nextEnabled } : it
+              );
+              setShippingRules(updatedRules);
+              handleSectionSave("shipping", null, updatedRules);
+            }}
+          >
+            {shippingToggleLabel}
+          </Button>
+        );
         return (
           <RuleShell
             key={i}
@@ -11041,21 +11384,12 @@ export default function AppRules() {
             onRemove={() => rmShipping(i)}
             summary={shippingSummary(r, currencyCode)}
             icon={r.iconChoice}
+            actions={shippingToggleButton}
             defaultOpen={!r.isNew}
             disableRemove={shippingReadOnly}
           >
             <BlockStack gap="200">
               <div className="rules-field-panel rules-field-panel--inline">
-                <Checkbox
-                  label="Enable"
-                  checked={r.enabled}
-                  disabled={shippingReadOnly}
-                  onChange={(v) =>
-                    setShippingRules((x) =>
-                      x.map((it, idx) => (idx === i ? { ...it, enabled: v } : it))
-                    )
-                  }
-                />
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>Reward Type</span>
                   <Select
@@ -11255,7 +11589,7 @@ export default function AppRules() {
                     options={getCartStepOptions("shipping", i)}
                     value={r.cartStepName || ""}
                     onChange={(value) =>
-                      updateShippingRuleField(i, "cartStepName", value)
+                      updateCartStepField("shipping", i, value)
                     }
                   />
                 </Box>
@@ -11671,7 +12005,7 @@ export default function AppRules() {
             r.type === "code" ? (
               <Button
                 plain
-                disabled={readOnly || !r.shopifyDiscountCodeId}
+                disabled={readOnly}
                 onClick={() => {
                   if (readOnly) return;
                   const nextEnabled = !r.enabled;
@@ -11727,33 +12061,12 @@ export default function AppRules() {
                     showScopeInline
                       ? {
                         gridTemplateColumns:
-                          "max-content 132px 112px 142px",
+                          "132px 112px 142px",
                       }
                       : {
                       }
                   }
                 >
-                  <Checkbox
-                    label="Enable"
-                    checked={r.enabled}
-                    disabled={readOnly}
-                    onChange={(v) => {
-                      if (readOnly) return;
-                      setDiscountRules((x) =>
-                        x.map((it, idx) =>
-                          idx === index ? { ...it, enabled: v } : it
-                        )
-                      );
-                      if (!r.shopifyDiscountCodeId) {
-                        showToast(
-                          "Finalize this rule before toggling its Shopify discount.",
-                          "warning"
-                        );
-                        return;
-                      }
-                      void handleAutomaticDiscountToggle(r, v, r.shopifyDiscountCodeId);
-                    }}
-                  />
 
 
                   {showTypeSelect && (
@@ -12099,7 +12412,7 @@ export default function AppRules() {
                           options={getCartStepOptions("discount", index)}
                           value={r.cartStepName || ""}
                           onChange={(value) =>
-                            updateDiscountRuleField(index, "cartStepName", value)
+                            updateCartStepField("discount", index, value)
                           }
                         />
                       </Box>
@@ -12357,7 +12670,7 @@ export default function AppRules() {
         const freeToggleButton = (
           <Button
             plain
-            disabled={freeReadOnly || !r.freeProductDiscountID}
+            disabled={freeReadOnly}
             onClick={() => {
               if (freeReadOnly) return;
               const nextEnabled = !r.enabled;
@@ -12400,32 +12713,9 @@ export default function AppRules() {
               <div
                 className="rules-field-panel rules-field-panel--grid"
                 style={{
-                  gridTemplateColumns: "max-content 132px 76px 112px",
+                  gridTemplateColumns: "132px 76px 112px",
                 }}
               >
-                <Checkbox
-                  label="Enable"
-                  checked={r.enabled}
-                  disabled={freeReadOnly}
-                  onChange={(v) => {
-                    if (freeReadOnly) return;
-                    const nextRules = (x) =>
-                      x.map((it, idx) => (idx === i ? { ...it, enabled: v } : it));
-                    setFreeRules(nextRules);
-                    if (!r.freeProductDiscountID) {
-                      showToast(
-                        "Finalize this rule first so it can be toggled via Shopify.",
-                        "warning"
-                      );
-                      return;
-                    }
-                    void handleAutomaticDiscountToggle(
-                      r,
-                      v,
-                      r.freeProductDiscountID
-                    );
-                  }}
-                />
 
                 {triggerType === "quantity" ? (
                   <TextField
@@ -12636,7 +12926,7 @@ export default function AppRules() {
                       options={getCartStepOptions("free", i)}
                       value={r.cartStepName || ""}
                       onChange={(value) =>
-                        updateFreeRuleField(i, "cartStepName", value)
+                        updateCartStepField("free", i, value)
                       }
                     />
                   </Box>
@@ -12737,10 +13027,10 @@ export default function AppRules() {
             }
           };
           const bxgyToggleLabel = r.enabled ? "Deactivate" : "Activate";
-          const bxgyToggleButton = r.buyxgetyId ? (
+          const bxgyToggleButton = (
             <Button
               plain
-              disabled={bxgyReadOnly || !r.buyxgetyId}
+              disabled={bxgyReadOnly}
               onClick={() => {
                 if (bxgyReadOnly) return;
                 const nextEnabled = !r.enabled;
@@ -12758,7 +13048,7 @@ export default function AppRules() {
             >
               {bxgyToggleLabel}
             </Button>
-          ) : null;
+          );
           return (
             <RuleShell
               key={i}
@@ -12774,32 +13064,13 @@ export default function AppRules() {
               <BlockStack gap="200">
                 <div className="rules-field-panel">
                   <BlockStack gap="200">
-                    <InlineStack gap="200" align="start" wrap>
-                      <Checkbox
-                        label="Enable"
-                        checked={r.enabled}
-                        disabled={bxgyReadOnly}
-                        onChange={(v) => {
-                          if (bxgyReadOnly) return;
-                          setBxgyRules((x) =>
-                            x.map((it, idx) =>
-                              idx === i ? { ...it, enabled: v } : it
-                            )
-                          );
-                          if (!r.buyxgetyId) {
-                            showToast(
-                              "Save this BXGY rule first to enable Shopify toggles.",
-                              "warning"
-                            );
-                            return;
-                          }
-                          void handleAutomaticDiscountToggle(
-                            { ...r, type: "bxgy" },
-                            v,
-                            r.buyxgetyId
-                          );
-                        }}
-                      />
+                    <div
+                      className="rules-field-panel--grid"
+                      style={{
+                        gridTemplateColumns:
+                          "minmax(130px, 200px) minmax(130px, 200px) minmax(140px, 300px)",
+                      }}
+                    >
 
                       <TextField
                         label="Buy (X qty)"
@@ -12822,20 +13093,19 @@ export default function AppRules() {
                           )
                         }
                       />
-
-                      <TextField
-                        label="Set a maximum number of uses per order"
-                        disabled={bxgyReadOnly}
-                        value={r.maxGifts}
-                        onChange={(v) =>
-                          setBxgyRules((x) =>
-                            x.map((it, idx) =>
-                              idx === i ? { ...it, maxGifts: v } : it
+                       <TextField
+                          label="Max Uses Per Order"
+                          disabled={bxgyReadOnly}
+                          value={r.maxGifts}
+                          onChange={(v) =>
+                            setBxgyRules((x) =>
+                              x.map((it, idx) =>
+                                idx === i ? { ...it, maxGifts: v } : it
+                              )
                             )
-                          )
-                        }
-                      />
-                    </InlineStack>
+                          }
+                        />
+                    </div>
 
                     <InlineStack gap="200" align="start" wrap>
                       <Select

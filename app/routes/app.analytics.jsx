@@ -1,16 +1,13 @@
-import React, { useState } from "react";
-import { useFetcher, useLoaderData, useRouteError } from "react-router";
+import React from "react";
+import { useLoaderData, useRevalidator, useRouteError } from "react-router";
 import {
   Badge,
   BlockStack,
   Box,
   Card,
-  Divider,
   InlineStack,
-  Modal,
   Page,
   Text,
-  Toast,
   Frame,
 } from "@shopify/polaris";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -374,70 +371,20 @@ const RulesTable = ({ rules = [] }) => (
 
 export default function AnalyticsDashboard() {
   const { summary, byType, topRule, rules, error } = useLoaderData();
-  const fetcher = useFetcher();
-
-  const [toastActive, setToastActive] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const [toastError, setToastError] = useState(false);
-  const [resetModalOpen, setResetModalOpen] = useState(false);
-
-  const isResetting = fetcher.state !== "idle";
+  const revalidator = useRevalidator();
 
   React.useEffect(() => {
-    if (fetcher.data && fetcher.state === "idle") {
-      setToastMessage(fetcher.data.message || "Done.");
-      setToastError(!fetcher.data.ok);
-      setToastActive(true);
-    }
-  }, [fetcher.data, fetcher.state]);
-
-  const handleReset = () => setResetModalOpen(true);
-
-  const confirmReset = () => {
-    setResetModalOpen(false);
-    fetcher.submit({ intent: "reset_analytics" }, { method: "post" });
-  };
+    revalidator.revalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Frame>
       <style>{ANALYTICS_CSS}</style>
-      <Modal
-        open={resetModalOpen}
-        onClose={() => setResetModalOpen(false)}
-        title="Reset all analytics?"
-        primaryAction={{
-          content: "Reset",
-          destructive: true,
-          loading: isResetting,
-          onAction: confirmReset,
-        }}
-        secondaryActions={[{ content: "Cancel", onAction: () => setResetModalOpen(false) }]}
-      >
-        <Modal.Section>
-          <Text as="p">
-            This will zero all impression and conversion counters for every rule. This cannot be undone.
-          </Text>
-        </Modal.Section>
-      </Modal>
-      {toastActive && (
-        <Toast
-          content={toastMessage}
-          error={toastError}
-          onDismiss={() => setToastActive(false)}
-          duration={3000}
-        />
-      )}
       <Page
         title="Analytics Dashboard"
         subtitle="Track rule views, conversions, and performance by offer type."
         fullWidth
-        primaryAction={{
-          content: "Reset Analytics",
-          destructive: true,
-          loading: isResetting,
-          disabled: isResetting,
-          onAction: handleReset,
-        }}
       >
         <BlockStack gap="400">
           {error && (

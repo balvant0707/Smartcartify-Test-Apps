@@ -24,6 +24,7 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 
+  @@index([shop])
   @@map("session")
 }
 
@@ -57,7 +58,7 @@ model ShippingRule {
   amount                    String?
   minSubtotal               String?
   method                    String
-  enabled                   Boolean   @default(false)
+  enabled                   Boolean   @default(true)
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
   iconChoice                String?   @default("truck")
@@ -92,7 +93,7 @@ model DiscountRule {
   minPurchase                String?
   triggerType                String    @default("amount") @db.VarChar(32)
   minQuantity                String?
-  enabled                    Boolean   @default(false)
+  enabled                    Boolean   @default(true)
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
   iconChoice                 String?   @default("tag")
@@ -138,7 +139,7 @@ model FreeGiftRule {
   minQuantity                 String?
   qty                         String?
   limitPerOrder               String?
-  enabled                     Boolean   @default(false)
+  enabled                     Boolean   @default(true)
   createdAt                   DateTime  @default(now())
   updatedAt                   DateTime  @updatedAt
   iconChoice                  String?   @default("gift")
@@ -181,7 +182,7 @@ model BxgyRule {
   giftSku                  String?
   maxGifts                 String?
   allowStacking            Boolean   @default(false)
-  enabled                  Boolean   @default(false)
+  enabled                  Boolean   @default(true)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   iconChoice               String?   @default("sparkles")

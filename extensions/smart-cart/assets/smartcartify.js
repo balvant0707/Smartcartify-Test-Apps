@@ -66,7 +66,8 @@
     base.searchParams.set("customer_logged_in", customerLoggedIn ? "true" : "false");
     if (customerTags) base.searchParams.set("customer_tags", customerTags);
     if (storefrontLocale) base.searchParams.set("locale", storefrontLocale);
-    base.searchParams.set("_sc_config_ts", String(Date.now()));
+    // Round to 30-second buckets so the browser reuses its HTTP cache within the same window
+    base.searchParams.set("_sc_config_ts", String(Math.floor(Date.now() / 30000) * 30000));
     let abSeed = "";
     try {
       abSeed =
@@ -232,8 +233,6 @@
   let CODE_DISCOUNT_RULES = []; // discountrule with discountCode/discount_code/code field
   let BXGY_RULES = []; // discountrule type=bxgy OR has beforeOfferUnlockMessage/afterOfferUnlockMessage
   let BUYXGETY_RULES = []; // buyxgety rules list OR discountrule type=buyxgety if present
-  let AUTOMATIC_DISCOUNT_RULES = []; // non-code, non-bxgy discount rules (percentage/fixed automatic)
-  let FREE_GIFT_ANNOUNCEMENT_RULES = []; // free gift rules for announcement bar
 
   let discountPopupShownForCode = null;
   let DISCOUNT_PANEL_STYLE_ENABLED = false;
@@ -272,6 +271,7 @@
 
   const keyShown = (kind, guardKey) => `__SC_SHOWN_POPUP__:${kind}:${guardKey}`;
   const keyAutoAdded = (kind, guardKey) => `__SC_AUTO_ADDED__:${kind}:${guardKey}`;
+  const keyPermFailed = (kind, guardKey) => `__SC_PERM_FAILED__:${kind}:${guardKey}`;
 
   /* =========================================================
    HELPERS
@@ -799,9 +799,12 @@
     return out.replace(/\s{2,}/g, " ").trim();
   };
 
+  const amountToCurrencyMinorUnits = (amount, currency = CART?.currency) =>
+    Math.max(0, Math.round(Number(amount || 0) * priceDivisor(currency)));
+
   const goalToCents = (goalRupees) => {
     if (goalRupees == null) return null;
-    return Math.max(0, Math.round(Number(goalRupees) * 100));
+    return amountToCurrencyMinorUnits(goalRupees);
   };
 
   const replaceTokens = (text, map) => {
@@ -849,13 +852,13 @@
         ? ""
         : isQuantity
           ? formatQuantityGoal(goalValue)
-          : formatMoney(Math.max(0, Math.round(Number(goalValue) * 100)), CART?.currency);
+          : formatMoney(amountToCurrencyMinorUnits(goalValue), CART?.currency);
     const remainingText =
       remainingValue == null
         ? ""
         : isQuantity
           ? formatQuantityGoal(remainingValue)
-          : formatMoney(Math.max(0, Math.round(Number(remainingValue) * 100)), CART?.currency);
+          : formatMoney(amountToCurrencyMinorUnits(remainingValue), CART?.currency);
 
     const goalToken = useRemainingForGoal ? remainingText : goalText;
 
@@ -1711,6 +1714,9 @@
       trimToNull(rule?._id) ||
       trimToNull(rule?.campaignId) ||
       trimToNull(rule?.campaign_id) ||
+      trimToNull(rule?.freeProductDiscountID) ||
+      trimToNull(rule?.freeProductDiscountId) ||
+      trimToNull(rule?.free_product_discount_id) ||
       null;
     if (raw) return String(raw);
     const slot = normalizeStepSlotFromAny(rule);
@@ -2039,7 +2045,6 @@
     const r = await fetch(buildProxyUrl(cart), {
       headers: { Accept: "application/json" },
       credentials: "same-origin",
-      cache: "no-store",
     });
 
     const ct = r.headers.get("content-type") || "";
@@ -2464,7 +2469,7 @@
     // Ensure rule caches are populated even if progress UI didn't render
     buildSteps();
 
-    const subtotalRupees = (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0;
+    const subtotalRupees = (getCartOriginalSubtotalCents() / priceDivisor(CART?.currency)) || 0;
     const msgs = [];
 
     const escapeRegExp = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2565,13 +2570,13 @@
           ? ""
           : isQuantity
             ? formatQuantityGoal(goalValue)
-            : formatMoney(Math.max(0, Math.round(Number(goalValue) * 100)), CART?.currency);
+            : formatMoney(amountToCurrencyMinorUnits(goalValue), CART?.currency);
       const remainingText =
         remainingValue == null
           ? ""
           : isQuantity
             ? formatQuantityGoal(remainingValue)
-            : formatMoney(Math.max(0, Math.round(Number(remainingValue) * 100)), CART?.currency);
+            : formatMoney(amountToCurrencyMinorUnits(remainingValue), CART?.currency);
 
       const goalToken = useRemainingForGoal ? remainingText : goalText;
 
@@ -2598,7 +2603,8 @@
       return type === "discount" ? normalizeDiscountProgressText(replaced) : replaced;
     };
 
-    // (A) Code discount rules (before: progressTextBelow, after: progressTextAfter)
+    // (A) Code discount rules (before/after announcement text comes from the
+    // preview-above fields, not the progress-below label).
     const appliedCodes = getAppliedDiscountCodes();
 
     const codeRules = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
@@ -2625,26 +2631,20 @@
       const threshold = isQtyTrigger ? minQuantity : minPurchase;
       const complete = !hasMin || currentMetric >= threshold;
 
-      const rawBelow = trimToNull(getProgressBelow(r));
-      const isGenericDiscount =
-        !!rawBelow && /^discount!?$/i.test(String(rawBelow).trim());
-      const rawBefore =
-        rawBelow && !isGenericDiscount
-          ? rawBelow
-          : trimToNull(getProgressBefore(r));
+      const rawBefore = trimToNull(getProgressBefore(r));
       const rawAfter = trimToNull(getProgressAfter(r));
       const fallbackBefore =
         "Use code {{discount_code}} to get {{discount_value_with_off}}";
       const fallbackAfter =
         "Discount Code {{discount_code}} applied • Discount {{discount_value_with_off}}";
 
-      const useAfter = ruleApplied && complete;
+      const useAfter = hasMin ? complete : ruleApplied;
       const msgBaseRaw = replaceProgressTextRaw({
         text: useAfter ? rawAfter || fallbackAfter : rawBefore || fallbackBefore,
         type: "discount",
         rule: r,
         subtotalRupees,
-        useRemainingForGoal: !useAfter && hasMin && !complete,
+        useRemainingForGoal: false,
       });
       let msgBase = normalizeOffText(msgBaseRaw);
 
@@ -2663,14 +2663,8 @@
       const hasCodeInMsg =
         !!discountCode &&
         new RegExp(escapeRegExp(discountCode), "i").test(msgBase);
-      const hasValueInMsg =
-        !!discountValueForEm &&
-        new RegExp(escapeRegExp(discountValueForEm), "i").test(msgBase);
       if (discountCode && !hasCodeInMsg) {
         msgBase = `${msgBase} Discount Code ${discountCode}`;
-      }
-      if (discountValueForEm && !hasValueInMsg) {
-        msgBase = `${msgBase} Discount Value ${discountValueForEm}`;
       }
       msgBase = msgBase.replace(/\s{2,}/g, " ").trim();
 
@@ -2720,7 +2714,7 @@
       });
 
       const msgBase = replaceProgressTextRaw({
-        text: afterMsg,
+        text: bx.complete ? (afterMsg || fallbackAfter) : (beforeMsg || fallbackBefore),
         type: "bxgy",
         rule: r,
         subtotalRupees,
@@ -2738,12 +2732,10 @@
 
     // (C) BuyXGetY (bxgyrule)
     const buyStatuses = getBuyXGetYStatuses();
+    // (C) BuyXGetY (bxgyrule) — show before-message while pending, after-message once complete
     buyStatuses.forEach((st) => {
       const r = st?.rule;
       if (!r) return;
-      if (!st.complete) return;
-      const minPurchase = Number(r?.minPurchase ?? r?.min_purchase);
-      const hasMin = Number.isFinite(minPurchase) && minPurchase > 0;
       const xQty = Number(st?.xQty ?? r?.xQty ?? r?.x_qty ?? r?.x);
       const yQty = Number(st?.yQty ?? r?.yQty ?? r?.y_qty ?? r?.y);
       const eligibleQty = Number(st?.eligibleQty ?? 0);
@@ -2756,7 +2748,7 @@
         "";
       const afterRaw =
         r?.afterOfferUnlockMessage ?? r?.afterMessage ?? r?.after_message ?? "";
-      const fallbackBefore = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
+      const fallbackBefore = "Buy X Get Y: Add {{x}} more to unlock the offer";
       const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
 
       const beforeMsg = replaceTokensRaw(beforeRaw || fallbackBefore, {
@@ -2771,7 +2763,7 @@
       });
 
       const msgBase = replaceProgressTextRaw({
-        text: afterMsg,
+        text: st.complete ? (afterMsg || fallbackAfter) : (beforeMsg || fallbackBefore),
         type: "bxgy",
         rule: r,
         subtotalRupees,
@@ -2787,65 +2779,8 @@
       if (trimToNull(msg)) msgs.push(msg);
     });
 
-    // (D) Automatic discount rules
-    const autoDiscountRulesAnn = Array.isArray(AUTOMATIC_DISCOUNT_RULES) ? AUTOMATIC_DISCOUNT_RULES : [];
-    autoDiscountRulesAnn.forEach((r) => {
-      if (!isRuleEnabled(r)) return;
-      const isQtyTrigger = isQuantityTriggerRule(r);
-      const progressMetric = getRuleProgressMetric("discount", r);
-      const { goal, current } = progressMetric;
-      const hasGoal = goal != null && Number.isFinite(Number(goal)) && Number(goal) > 0;
-      const complete = hasGoal && current >= Number(goal);
-
-      const rawBefore = isQtyTrigger
-        ? (trimToNull(r?.quantityProgressTextBefore) || trimToNull(r?.progressTextBefore))
-        : (trimToNull(r?.progressTextBefore) || trimToNull(r?.quantityProgressTextBefore));
-      const rawAfter = isQtyTrigger
-        ? (trimToNull(r?.quantityProgressTextAfter) || trimToNull(r?.progressTextAfter))
-        : (trimToNull(r?.progressTextAfter) || trimToNull(r?.quantityProgressTextAfter));
-
-      if (!rawBefore && !rawAfter) return;
-
-      const msgRaw = replaceProgressTextRaw({
-        text: complete ? (rawAfter || rawBefore) : (rawBefore || rawAfter),
-        type: "discount",
-        rule: r,
-        subtotalRupees,
-        useRemainingForGoal: !complete && hasGoal,
-      });
-      const msg = emphasizeLabels(normalizeOffText(msgRaw));
-      if (trimToNull(msg)) msgs.push(msg);
-    });
-
-    // (E) Free gift rules
-    const freeGiftAnnRules = Array.isArray(FREE_GIFT_ANNOUNCEMENT_RULES) ? FREE_GIFT_ANNOUNCEMENT_RULES : [];
-    freeGiftAnnRules.forEach((r) => {
-      if (!isRuleEnabled(r)) return;
-      const isQtyTrigger = isQuantityTriggerRule(r);
-      const progressMetric = getRuleProgressMetric("free", r);
-      const { goal, current } = progressMetric;
-      const hasGoal = goal != null && Number.isFinite(Number(goal)) && Number(goal) > 0;
-      const complete = hasGoal && current >= Number(goal);
-
-      const rawBefore = isQtyTrigger
-        ? (trimToNull(r?.quantityProgressTextBefore) || trimToNull(r?.progressTextBefore))
-        : (trimToNull(r?.progressTextBefore) || trimToNull(r?.quantityProgressTextBefore));
-      const rawAfter = isQtyTrigger
-        ? (trimToNull(r?.quantityProgressTextAfter) || trimToNull(r?.progressTextAfter))
-        : (trimToNull(r?.progressTextAfter) || trimToNull(r?.quantityProgressTextAfter));
-
-      if (!rawBefore && !rawAfter) return;
-
-      const msgRaw = replaceProgressTextRaw({
-        text: complete ? (rawAfter || rawBefore) : (rawBefore || rawAfter),
-        type: "free",
-        rule: r,
-        subtotalRupees,
-        useRemainingForGoal: !complete && hasGoal,
-      });
-      const msg = emphasizeLabels(msgRaw);
-      if (trimToNull(msg)) msgs.push(msg);
-    });
+    // NOTE: Sections D (automatic discount) and E (free gift) are intentionally omitted.
+    // Those rule types appear as progress bar steps, not in the announcement bar.
 
     // de-dup
     const unique = [];
@@ -3120,7 +3055,8 @@
   left:0;
   right:0;
   bottom:0;
-  max-width:none;
+  max-width:800px !important;
+  margin:0 auto;
   height:min(88vh, 720px);
   transform:translateY(110%);
 }
@@ -3266,6 +3202,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-size:var(--sc-small-font-size);
   width:200%;
   display:flex;
+  gap:32px;
   animation: marquee 25s linear infinite running;
 }
 .marquee-text .top-info-bar:hover{animation-play-state: paused;}
@@ -3275,6 +3212,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:inline-flex;
   align-items:center;
   justify-content:center;
+  gap:.25em;
   transition: all .2s ease;
   color:var(--sc-announce-text);
   font-size:var(--sc-base-font-size);
@@ -3282,6 +3220,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .marquee-text .top-info-bar .info-text .sc-announce-em{
   font-weight:700;
   font-size:calc(var(--sc-base-font-size) + 1px);
+  margin:0 .15em;
 }
 .marquee-text .top-info-bar .info-text .sc-announce-code{
   cursor:pointer;
@@ -4731,6 +4670,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const FREE_GIFT_VARIANT_PROPERTY = "_sc_free_gift_variant";
   const FREE_GIFT_RULE_PROPERTY = "_sc_free_gift_rule";
   const FREE_GIFT_RULE_KEY_PROPERTY = "_sc_free_gift_rule_key";
+  const FREE_GIFT_DISCOUNT_PROPERTY = "_sc_free_product_discount_id";
 
   // ✅ Buy X Get Y / BXGY reward properties
   const BXGY_GIFT_PROPERTY = "_sc_bxgy_gift";
@@ -5109,7 +5049,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     drawer.classList.toggle("sc-mobile-bottom-sheet", mobileLayout === "bottom_sheet");
     const footerEl = drawer.querySelector(".sc-footer");
     if (footerEl) {
-      footerEl.classList.toggle("sc-footer-static", style?.stickyCheckout === false);
+      footerEl.classList.toggle("sc-footer-static", !(style?.stickyCheckout ?? true));
     }
 
     if (mode === "image") {
@@ -5493,8 +5433,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     CODE_DISCOUNT_RULES = [];
     BXGY_RULES = [];
     BUYXGETY_RULES = [];
-    AUTOMATIC_DISCOUNT_RULES = [];
-    FREE_GIFT_ANNOUNCEMENT_RULES = [];
 
     const shippingList = getProxyArray(PROXY, ["shippingRules", "shippingRule", "shippingrule"]);
     const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
@@ -5531,21 +5469,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       BUYXGETY_RULES.push(r);
     });
 
-    // Automatic discount rules (non-code, non-bxgy) for announcement bar
-    (Array.isArray(discountList) ? discountList : []).forEach((r) => {
-      if (!isRuleEnabled(r)) return;
-      const t = normType(r);
-      const hasMsgs = trimToNull(r?.beforeOfferUnlockMessage) || trimToNull(r?.afterOfferUnlockMessage);
-      const looksLikeBxgy = t === "bxgy" || t === "buyxgety" || hasMsgs;
-      if (t !== "code" && !looksLikeBxgy) AUTOMATIC_DISCOUNT_RULES.push(r);
-    });
-
-    // Free gift rules for announcement bar
-    (Array.isArray(freeList) ? freeList : []).forEach((r) => {
-      if (!isRuleEnabled(r)) return;
-      FREE_GIFT_ANNOUNCEMENT_RULES.push(r);
-    });
-
     (Array.isArray(discountList) ? discountList : []).forEach((r) => {
       if (!isRuleEnabled(r)) return;
       const t = normType(r);
@@ -5569,17 +5492,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const ruleKey = getRuleKey(type, rule);
       if (assignedRuleKeys.has(ruleKey)) return;
 
-      // Filter discount step rules: allow automatic + code discounts, exclude bxgy
-      if (type === "discount") {
-        const t = normType(rule);
-        const isBxgy = t === "bxgy";
-        if (isBxgy) return;
-      }
-
-      const slot =
-        normalizeStepSlotFromAny(rule) ||
-        STEP_SLOTS.find((s) => !assignment[s]) ||
-        null;
+      // Only show rules that have an explicit cartStepName / step slot configured.
+      // Rules without a step assignment should not appear in the progress bar.
+      // Code discount and BXGY rules are included when they have a cartStepName set.
+      const slot = normalizeStepSlotFromAny(rule) || null;
       if (!slot) return;
 
       const belowRaw = trimToNull(getProgressBelow(rule));
@@ -6154,10 +6070,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   let rewardPopupCache = null;
   let rewardPopupTimer = null;
 
+  const getFreeGiftDiscountId = (rule) =>
+    trimToNull(
+      rule?.freeProductDiscountID ??
+      rule?.freeProductDiscountId ??
+      rule?.free_product_discount_id ??
+      rule?.minAmountFreeGiftDiscountId ??
+      rule?.shopifyDiscountId ??
+      null
+    );
+
   const addRewardToCart = async ({ kind, rule, ruleKey, slot, variant, qty, markAutoAdded }) => {
     const variantToAdd = await resolveRewardVariantForAdd(rule, variant);
     const legacyId = getVariantLegacyId(variantToAdd);
-    if (!legacyId) return false;
+    // Guard: legacyId must be a pure numeric string — GIDs or empty strings will 422 immediately
+    if (!legacyId || !/^\d+$/.test(String(legacyId))) return false;
 
     const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
     if (guardKey && cartHasRewardForKey(kind, guardKey)) return false;
@@ -6175,6 +6102,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (variantToAdd?.id) body.set(`properties[${FREE_GIFT_VARIANT_PROPERTY}]`, String(variantToAdd.id));
         const freeRuleKey = getRuleKey(rule, "free");
         if (freeRuleKey) body.set(`properties[${FREE_GIFT_RULE_KEY_PROPERTY}]`, freeRuleKey);
+        const freeDiscountId = getFreeGiftDiscountId(rule);
+        if (freeDiscountId) body.set(`properties[${FREE_GIFT_DISCOUNT_PROPERTY}]`, freeDiscountId);
       } else {
         body.set(`properties[${BXGY_GIFT_PROPERTY}]`, "true");
         body.set(`properties[${BXGY_GIFT_KIND_PROPERTY}]`, String(kind || "bxgy"));
@@ -6190,7 +6119,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
 
       if (!res.ok) {
-        const err = new Error("Reward add failed");
+        // Read Shopify's error body so we know the real reason (out of stock, invalid, etc.)
+        let shopifyMsg = "";
+        try {
+          const errBody = await res.json();
+          shopifyMsg = errBody?.description || errBody?.message || JSON.stringify(errBody);
+        } catch { /* non-JSON body — ignore */ }
+        const err = new Error(shopifyMsg || "Reward add failed");
         err.httpStatus = res.status;
         throw err;
       }
@@ -6202,9 +6137,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       schedulePostCartSync();
       return true;
     } catch (err) {
-      console.error("[SmartCartify] reward add failed:", err);
-      // Surface httpStatus so callers can decide retry strategy
       err._httpStatus = err._httpStatus || err.httpStatus || 0;
+      const st = Number(err._httpStatus);
+      // 422 / 404 are expected (out of stock, deleted variant) — warn, not error
+      if (st === 422 || st === 404) {
+        console.warn(`[SmartCartify] reward not added (HTTP ${st}):`, err.message);
+      } else {
+        console.error("[SmartCartify] reward add failed:", err.message || err);
+      }
       throw err;
     } finally {
       setProgressLoading(false);
@@ -6305,10 +6245,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const resolveRewardVariantForAdd = async (rule, variant) => {
     if (getVariantLegacyId(variant)) return variant;
+    const giftType = String(rule?.giftType || "").toLowerCase();
+    const giftSkuRaw = trimToNull(rule?.giftSku);
     const productIdCandidate =
       trimToNull(variant?.productId) ||
       trimToNull(rule?.bonusProductId) ||
       trimToNull(rule?.bonus) ||
+      (giftType === "specific" && giftSkuRaw
+        ? normalizeProductNumericId(giftSkuRaw) || gidToId(giftSkuRaw) || giftSkuRaw
+        : null) ||
       null;
     if (!productIdCandidate) return variant;
     const resolved = await resolveVariantFromProductId(productIdCandidate);
@@ -6341,7 +6286,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         null
       );
     }
-    return (
+
+    // Standard variant fields (FreeGiftRule / legacy BXGY formats)
+    const fromStandard =
       rule?.bonusProductVariant ||
       rule?.yProductVariant ||
       rule?.getProductVariant ||
@@ -6352,8 +6299,62 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       rule?.productVariant ||
       rule?.freeVariant ||
       fromBonusId() ||
-      null
-    );
+      null;
+    if (fromStandard) return fromStandard;
+
+    // BxgyRule: giftType "specific" — giftSku stores the reward product ID
+    const giftType = String(rule?.giftType || "same").toLowerCase();
+    const giftSkuRaw = trimToNull(rule?.giftSku);
+    if (giftType === "specific" && giftSkuRaw) {
+      const productId = normalizeProductNumericId(giftSkuRaw) || gidToId(giftSkuRaw) || giftSkuRaw;
+      return { productId: String(productId) };
+    }
+
+    // BxgyRule: giftType "same" — gift is the same product that was purchased
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    const scope = String(rule?.scope || "store").toLowerCase();
+    let qualifyingItem = null;
+
+    if (scope === "product") {
+      // Parse appliesTo to find which products qualify
+      const appliesToRaw = rule?.appliesTo;
+      const appliesToObj = appliesToRaw && typeof appliesToRaw === "object"
+        ? appliesToRaw
+        : (() => { try { return JSON.parse(appliesToRaw || "{}"); } catch { return {}; } })();
+      const applyProducts = Array.isArray(appliesToObj?.products) ? appliesToObj.products : [];
+      let fallbackIds = [];
+      try { const p = JSON.parse(rule?.appliesProductIds || "[]"); fallbackIds = Array.isArray(p) ? p : []; } catch {}
+      const allProductRefs = [...applyProducts, ...fallbackIds];
+      const allowed = new Set(
+        allProductRefs.map((p) => gidToId(p) || (p ? String(p) : null)).filter(Boolean)
+      );
+      qualifyingItem = items.find((it) => {
+        const props = it?.properties || {};
+        const isReward =
+          String(props?.[BXGY_GIFT_PROPERTY] || "").toLowerCase() === "true" ||
+          String(props?.[FREE_GIFT_PROPERTY] || "").toLowerCase() === "true";
+        return !isReward && (allowed.size === 0 || allowed.has(String(it?.product_id || "")));
+      });
+    } else {
+      // Store / collection scope: any non-reward item qualifies
+      qualifyingItem = items.find((it) => {
+        const props = it?.properties || {};
+        return (
+          String(props?.[BXGY_GIFT_PROPERTY] || "").toLowerCase() !== "true" &&
+          String(props?.[FREE_GIFT_PROPERTY] || "").toLowerCase() !== "true"
+        );
+      });
+    }
+
+    if (qualifyingItem?.variant_id) {
+      return {
+        id: `gid://shopify/ProductVariant/${qualifyingItem.variant_id}`,
+        legacyResourceId: String(qualifyingItem.variant_id),
+        productId: String(qualifyingItem.product_id || ""),
+      };
+    }
+
+    return null;
   };
 
   const getRewardQtyFromRule = (kind, rule) => {
@@ -6436,10 +6437,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             qty: cur.qty,
             markAutoAdded: false,
           });
-          if (!ok) throw new Error("Reward add failed");
-          closeRewardPopup();
+          if (ok) {
+            closeRewardPopup();
+          } else {
+            // Silent failure (variant not resolved, already in cart, etc.) — no throw, just notify
+            showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
+          }
         } catch (err) {
-          console.error("[SmartCartify] reward add failed:", err);
+          // addRewardToCart already logged this — show user-facing message only
           showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
         } finally {
           addBtn.disabled = false;
@@ -6459,7 +6464,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (!isFree) continue;
         const slot = String(p?.[FREE_GIFT_RULE_PROPERTY] || "").trim();
         const ruleKey = String(p?.[FREE_GIFT_RULE_KEY_PROPERTY] || "").trim();
-        if (keyOrSlot && (String(keyOrSlot) === slot || String(keyOrSlot) === ruleKey)) return true;
+        const discountId = String(p?.[FREE_GIFT_DISCOUNT_PROPERTY] || "").trim();
+        if (
+          keyOrSlot &&
+          (String(keyOrSlot) === slot ||
+            String(keyOrSlot) === ruleKey ||
+            String(keyOrSlot) === discountId)
+        ) return true;
       } else {
         const isBxgy = String(p?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
         if (!isBxgy) continue;
@@ -6603,15 +6614,25 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     // Already in cart
     if (cartHasRewardForKey(kind, guardKey)) return true;
 
-    // Already auto-added once (for this eligibility)
-    if (trimToNull(scStore.get(keyAutoAdded(kind, guardKey)))) return true;
+    // Permanently failed (out-of-stock / invalid variant) — skip until step resets
+    if (trimToNull(scStore.get(keyPermFailed(kind, guardKey)))) return true;
+
+    // Previously auto-added — if the product is still in cart we're done.
+    // If it's gone (e.g. removed by enforceRewardValidity), clear the stale flag and retry.
+    if (trimToNull(scStore.get(keyAutoAdded(kind, guardKey)))) {
+      if (cartHasRewardForKey(kind, guardKey)) return true;
+      scStore.del(keyAutoAdded(kind, guardKey));
+    }
 
     // In cooldown from a previous failed attempt — skip to avoid 429 spam
     const cdKey = `${kind}:${guardKey}`;
     if (__SC_AUTO_ADD_COOLDOWNS__.has(cdKey)) return false;
 
     const variant = getRewardVariantFromRule(kind, rule);
-    if (!variant) return false;
+    if (!variant) {
+      console.warn(`[SmartCartify] reward variant not found for ${kind} rule (guardKey=${guardKey}). Check bonusProductId is set on the rule.`);
+      return false;
+    }
 
     __SC_AUTO_ADDING__ = true;
     try {
@@ -6627,9 +6648,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return ok;
     } catch (e) {
       const status = Number(e?._httpStatus || e?.httpStatus || 0);
-      if (status === 422) {
-        // Unprocessable (invalid variant / out of stock) — mark permanently so we never retry
-        scStore.set(keyAutoAdded(kind, guardKey), "1");
+      if (status === 422 || status === 404) {
+        // Variant unavailable / deleted — mark permanently so we don't spam retries
+        scStore.set(keyPermFailed(kind, guardKey), "1");
       } else {
         // Rate-limited or transient error — cooldown for 30s then allow one retry
         __SC_AUTO_ADD_COOLDOWNS__.add(cdKey);
@@ -6729,6 +6750,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         return sum + (isReward ? 0 : (Number(it.quantity) || 0));
       }, 0);
 
+      // If proxy data failed to load, skip enforcement to avoid wrongfully removing rewards
+      if (PROXY?._proxyError) return;
+
       const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
       const freeList = getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]);
       const buyxgetyList = getProxyArray(PROXY, [
@@ -6745,12 +6769,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const freeBySlot = new Map();
       const freeByRuleKey = new Map();
+      const freeByDiscountId = new Map();
       (Array.isArray(freeList) ? freeList : []).forEach((r) => {
         if (!isRuleEnabled(r)) return;
         const slot = normalizeStepSlotFromAny(r);
         if (slot) freeBySlot.set(String(slot), r);
         const ruleKey = getRuleKey(r, "free");
         if (ruleKey) freeByRuleKey.set(String(ruleKey), r);
+        const discountId = getFreeGiftDiscountId(r);
+        if (discountId) freeByDiscountId.set(String(discountId), r);
       });
 
       const bxgyMap = new Map();
@@ -6791,8 +6818,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (isFree) {
           const slot = String(p?.[FREE_GIFT_RULE_PROPERTY] || "").trim();
           const ruleKey = String(p?.[FREE_GIFT_RULE_KEY_PROPERTY] || "").trim();
+          const discountId = String(p?.[FREE_GIFT_DISCOUNT_PROPERTY] || "").trim();
           let rule = slot ? freeBySlot.get(slot) : null;
           if (!rule && ruleKey) rule = freeByRuleKey.get(ruleKey);
+          if (!rule && discountId) rule = freeByDiscountId.get(discountId);
 
           if (!rule) {
             linesToRemove.push(line);
@@ -7010,11 +7039,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (!st.complete) {
         clearPopupShown("buyxgety", st.ruleKey);
         scStore.del(keyAutoAdded("buyxgety", st.ruleKey));
+        scStore.del(keyPermFailed("buyxgety", st.ruleKey));
       }
     });
     if (bxgyNow?.ruleKey && !bxgyCompleteNow) {
       clearPopupShown("bxgy", bxgyNow.ruleKey);
       scStore.del(keyAutoAdded("bxgy", bxgyNow.ruleKey));
+      scStore.del(keyPermFailed("bxgy", bxgyNow.ruleKey));
     }
 
     // ✅ If no steps configured, don't blank announcement anymore
@@ -7068,12 +7099,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       (ss) => isProgressStepConfigured(ss) && !isProgressStepDone(ss, subtotal)
     );
 
-    let labelText = trimToNull(nextPending?.progressTextBefore) || "";
-    if (!labelText) {
-      const allDone = !nextPending && doneCount >= configuredSteps.length;
-      labelText = allDone ? "🎉 Congrats! All rewards are unlocked!" : "Milestones in progress";
+    let labelText = "";
+    if (nextPending) {
+      // Step pending: show its before message. Never bleed after-messages from completed steps.
+      labelText = trimToNull(nextPending.progressTextBefore) || "";
+    } else if (doneCount > 0) {
+      // All steps done: show the last completed step's after message.
+      const lastDone = doneSteps[doneCount - 1];
+      labelText = trimToNull(lastDone.progressTextAfter) || "🎉 Congrats! All rewards are unlocked!";
     }
-    label.textContent = labelText || "Milestones in progress";
+    if (!labelText) {
+      labelText = doneCount >= configuredSteps.length && !nextPending
+        ? "🎉 Congrats! All rewards are unlocked!"
+        : "Milestones in progress";
+    }
+    label.textContent = labelText;
 
     const fillPct = computeMixedFillPercent(stepsAll, subtotal);
     fill.style.width = `${fillPct}%`;
@@ -7097,36 +7137,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       if (firstCompleted && !wasBuyCompletedBefore) {
         drawer.__sc_buy_completed_before = true;
-
-        // ? FIX-3: if xQty <= 1 -> auto add reward so it shows in cart drawer
-        const x = Number(firstCompleted?.xQty || 0);
-        if (Number.isFinite(x) && x <= 1) {
-          // auto add and do not spam popup
-          void autoAddRewardIfNeeded({
-            kind: "buyxgety",
-            rule: firstCompleted.rule,
-            ruleKey: firstCompleted.ruleKey,
-          });
-          // mark shown so refresh/open doesn't repeat
-          if (firstCompleted?.ruleKey) markPopupShown("buyxgety", firstCompleted.ruleKey);
-        } else {
-          const popupShown = openRewardPopupFor({
-            kind: "buyxgety",
-            rule: firstCompleted.rule,
-            ruleKey: firstCompleted.ruleKey,
-            title: trimToNull(firstCompleted.afterMsg) || "Offer unlocked",
-          });
-
-          if (!popupShown) {
-            firePaperEffect(2800);
-            showCenterCelebratePopup(
-              "🎉 Congratulations!",
-              trimToNull(firstCompleted.afterMsg) || "Offer unlocked",
-              5000
-            );
-          }
-          rewardPopupShown = true;
-        }
+        // Auto-add the Y reward product for all scopes and any xQty.
+        void autoAddRewardIfNeeded({
+          kind: "buyxgety",
+          rule: firstCompleted.rule,
+          ruleKey: firstCompleted.ruleKey,
+        });
+        if (firstCompleted?.ruleKey) markPopupShown("buyxgety", firstCompleted.ruleKey);
+        firePaperEffect(2800);
       } else if (bxgyCompleteNow && !LAST_BXGY_DONE) {
         const popupShown = bxgyNow
           ? openRewardPopupFor({
@@ -7164,6 +7182,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           slot: trimToNull(freeStepToAutoAdd.slot),
         });
       }
+
+      // Persistent auto-add for all currently complete buyxgety rules.
+      // Handles cases where the drawer was closed when the threshold was reached,
+      // and ensures all completed rules (not just the first) get their reward added.
+      buyStatuses.forEach((st) => {
+        if (!st.complete || !st.rule) return;
+        if (cartHasRewardForKey("buyxgety", st.ruleKey)) return;
+        void autoAddRewardIfNeeded({ kind: "buyxgety", rule: st.rule, ruleKey: st.ruleKey });
+      });
     }
 
     const stepCompletedNow = !priming && doneCount > LAST_DONE;
@@ -7269,6 +7296,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (!isDone && slot) {
           clearPopupShown("free", slot);
           scStore.del(keyAutoAdded("free", slot));
+          scStore.del(keyPermFailed("free", slot));
         }
       }
     });
@@ -8019,15 +8047,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     setDiscountMessage("");
     applyStyleSettings(PROXY?.styleSettings);
     renderCart();
-      renderUpsellSection();
-      renderProgress();
-      refreshAnnouncementFromRules();
-      renderAddToCartBar();
+    renderUpsellSection();
+    renderProgress();
+    refreshAnnouncementFromRules();
+    renderAddToCartBar();
+    LAST_CART_SIG = getCartSignature(CART);
+    // Defer analytics + cleanup so they don't block the visible paint
+    const deferred = () => {
       recordVisibleRuleImpressions();
       maybeShowAppliedDiscountCodePopup();
       void maybeRemoveInvalidDiscountCodes();
       void maybeRemoveUnapprovedDiscountCodes();
-    LAST_CART_SIG = getCartSignature(CART);
+    };
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(deferred, { timeout: 2000 });
+    } else {
+      setTimeout(deferred, 100);
+    }
   };
 
   /* =========================================================
@@ -8037,11 +8073,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     try {
       void preloadAtcProductFromHandle(); // fire-and-forget; result used by getShopifyAnalyticsProduct fallback
       setProgressLoading(true);
-      CART = await fetchCart();
-      const proxyRes = await Promise.resolve(fetchProxy(CART)).then(
-        (value) => ({ status: "fulfilled", value }),
-        (reason) => ({ status: "rejected", reason })
-      );
+      // Fire cart + proxy simultaneously — proxy server ignores subtotal/quantity,
+      // so passing an empty cart is fine and saves one full sequential round-trip.
+      const [cartRes, proxyRes] = await Promise.allSettled([
+        fetchCart(),
+        fetchProxy(),
+      ]);
+      CART = cartRes.status === "fulfilled" ? cartRes.value : (CART || null);
       PROXY =
         proxyRes.status === "fulfilled"
           ? proxyRes.value

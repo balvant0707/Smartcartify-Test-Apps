@@ -9,6 +9,30 @@ import { getShopFromRequest } from "../lib/shopUtils.server.js";
 const ADMIN_API_VERSION = apiVersion;
 const APP_PROXY_HMAC_TOLERANCE_SEC = 300;
 
+// Short-lived per-shop in-memory cache to avoid hitting DB + Shopify APIs on every storefront page load.
+// Rules are stored raw; per-request filtering (customer/schedule/ab-test) still happens at response time.
+const SHOP_DATA_CACHE = new Map();
+const SHOP_DATA_TTL_MS = 30_000; // 30 seconds
+
+const getShopCache = (shop) => {
+  const entry = SHOP_DATA_CACHE.get(shop);
+  if (entry && Date.now() < entry.expiry) return entry.data;
+  SHOP_DATA_CACHE.delete(shop);
+  return null;
+};
+
+const setShopCache = (shop, data) => {
+  if (SHOP_DATA_CACHE.size >= 500) {
+    SHOP_DATA_CACHE.delete(SHOP_DATA_CACHE.keys().next().value);
+  }
+  SHOP_DATA_CACHE.set(shop, { data, expiry: Date.now() + SHOP_DATA_TTL_MS });
+};
+
+// Call this whenever a merchant saves settings so the cache is immediately invalidated.
+export const invalidateShopCache = (shop) => {
+  SHOP_DATA_CACHE.delete(shop);
+};
+
 const jsonResponse = (data, status = 200, extraHeaders = {}) =>
   new Response(JSON.stringify(data), {
     status,
@@ -277,6 +301,7 @@ const applyRuleTranslations = (rule = {}, locale = "") => {
 
 const filterActiveScheduledRules = (rules = [], now = new Date(), context = {}) =>
   (Array.isArray(rules) ? rules : [])
+    .filter((rule) => rule?.enabled !== false && rule?.enabled !== 0)
     .filter((rule) => isRuleScheduleActive(rule, now))
     .filter((rule) => ruleMatchesCustomer(rule, context))
     .filter((rule) => ruleMatchesAbTest(rule, context))
@@ -553,142 +578,165 @@ export const loader = async ({ request }) => {
   }
 
   try {
-    const [
-      shopRow,
-      shippingRules,
-      discountRules,
-      freeGiftRules,
-      bxgyRules,
-      styleSettings,
-      upsellSettings,
-      addToCartBarSettings,
-    ] = await Promise.all([
-      prisma.shop.findUnique({ where: { shop } }),
-      prisma.shippingRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
-      prisma.discountRule.findMany({
-        where: { shop },
-        orderBy: { id: "asc" },
-        select: DISCOUNT_RULE_SELECT,
-      }),
-      prisma.freeGiftRule.findMany({
-        where: { shop },
-        orderBy: { id: "asc" },
-        select: FREE_GIFT_RULE_SELECT,
-      }),
-      prisma.bxgyRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
-      prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } }),
-      prisma.upsellSettings.findUnique({ where: { shop } }),
-      prisma.addToCartBarSettings.findUnique({ where: { shop } }).catch(() => null),
-    ]);
+    let shopData = getShopCache(shop);
 
-    const shopAccessToken = await resolveShopAccessToken(shop, shopRow);
-    const isAuthorized = Boolean(shopAccessToken);
-    const styleSettingsWithCartIcon = await mergeStyleCartIconUrl(styleSettings);
+    if (!shopData) {
+      // Build the select objects, stripping columns that don't exist yet if the
+      // migration hasn't been applied (avoids a crash on the very first deploy).
+      const discountSelect = { ...DISCOUNT_RULE_SELECT };
+      const freeSelect = { ...FREE_GIFT_RULE_SELECT };
 
-    if (!isAuthorized) {
-      logger.warn("Proxy request without shop token; returning DB-only config", {
-        shop,
-      });
-    }
+      const safeDiscountRules = () =>
+        prisma.discountRule
+          .findMany({ where: { shop }, orderBy: { id: "asc" }, select: discountSelect })
+          .catch(async (err) => {
+            if (/Unknown column|Unknown field/i.test(String(err?.message))) {
+              delete discountSelect.quantityProgressTextBefore;
+              delete discountSelect.quantityProgressTextAfter;
+              return prisma.discountRule.findMany({
+                where: { shop },
+                orderBy: { id: "asc" },
+                select: discountSelect,
+              });
+            }
+            throw err;
+          });
 
-    const bestSellingProducts = isAuthorized
-      ? await fetchBestSellingProducts(shop, shopAccessToken)
-      : [];
+      const safeFreeGiftRules = () =>
+        prisma.freeGiftRule
+          .findMany({ where: { shop }, orderBy: { id: "asc" }, select: freeSelect })
+          .catch(async (err) => {
+            if (/Unknown column|Unknown field/i.test(String(err?.message))) {
+              delete freeSelect.quantityProgressTextBefore;
+              delete freeSelect.quantityProgressTextAfter;
+              return prisma.freeGiftRule.findMany({
+                where: { shop },
+                orderBy: { id: "asc" },
+                select: freeSelect,
+              });
+            }
+            throw err;
+          });
 
-    const selectedProductIds = parseJsonArray(
-      upsellSettings?.selectedProductIds
-    );
-    const selectedProductIdsNormalized = selectedProductIds
-      .map(normalizeProductId)
-      .filter(Boolean);
-    const selectedProductsRaw = isAuthorized && selectedProductIdsNormalized.length
-      ? await fetchProductsByIds(
+      // prisma.addToCartBarSettings may not exist if prisma generate hasn't run yet
+      const safeCartBarSettings = () => {
+        try {
+          return prisma.addToCartBarSettings.findUnique({ where: { shop } }).catch(() => null);
+        } catch {
+          return Promise.resolve(null);
+        }
+      };
+
+      const [
+        shopRow,
+        shippingRules,
+        discountRules,
+        freeGiftRules,
+        bxgyRules,
+        styleSettings,
+        upsellSettings,
+        addToCartBarSettings,
+      ] = await Promise.all([
+        prisma.shop.findUnique({ where: { shop } }),
+        prisma.shippingRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
+        safeDiscountRules(),
+        safeFreeGiftRules(),
+        prisma.bxgyRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
+        prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } }),
+        prisma.upsellSettings.findUnique({ where: { shop } }),
+        safeCartBarSettings(),
+      ]);
+
+      const shopAccessToken = await resolveShopAccessToken(shop, shopRow);
+      const isAuthorized = Boolean(shopAccessToken);
+      const styleSettingsWithCartIcon = await mergeStyleCartIconUrl(styleSettings);
+
+      if (!isAuthorized) {
+        logger.warn("Proxy request without shop token; returning DB-only config", {
           shop,
-          shopAccessToken,
-          selectedProductIdsNormalized
-        )
-      : [];
-    const selectedProductsMap = new Map(
-      selectedProductsRaw.map((p) => [String(p?.id || ""), p])
-    );
-    const selectedProducts = selectedProductIdsNormalized
-      .map((id) => selectedProductsMap.get(String(id)))
-      .filter(Boolean);
+        });
+      }
 
-    const addToCartBarProductId = normalizeProductId(
-      addToCartBarSettings?.homepageProductId
-    );
-    const addToCartBarProducts = isAuthorized && addToCartBarProductId
-      ? await fetchProductsByIds(shop, shopAccessToken, [addToCartBarProductId])
-      : [];
-    const addToCartBarProduct = addToCartBarProducts[0] ?? null;
+      const bestSellingProducts = isAuthorized
+        ? await fetchBestSellingProducts(shop, shopAccessToken)
+        : [];
 
-    const selectedCollectionIds = parseJsonArray(
-      upsellSettings?.selectedCollectionIds
-    );
-    const selectedCollectionIdsNormalized = selectedCollectionIds
-      .map(normalizeCollectionId)
-      .filter(Boolean);
-    const selectedCollectionsRaw = isAuthorized && selectedCollectionIdsNormalized.length
-      ? await fetchCollectionsByIds(
-          shop,
-          shopAccessToken,
-          selectedCollectionIdsNormalized
-        )
-      : [];
-    const selectedCollectionsMap = new Map(
-      selectedCollectionsRaw.map((c) => [String(c?.id || ""), c])
-    );
-    const selectedCollectionsOrdered = selectedCollectionIdsNormalized
-      .map((id) => selectedCollectionsMap.get(String(id)))
-      .filter(Boolean);
-
-    // Batch API calls to avoid rate limiting (max 3 concurrent requests)
-    const BATCH_SIZE = 3;
-    const selectedCollectionsWithProducts = [];
-    for (let i = 0; i < selectedCollectionsOrdered.length; i += BATCH_SIZE) {
-      const batch = selectedCollectionsOrdered.slice(i, i + BATCH_SIZE);
-      const batchResults = await Promise.all(
-        batch.map(async (col) => {
-          const products =
-            isAuthorized && col?.id
-              ? await fetchProductsForCollection(shop, shopAccessToken, col?.id)
-              : [];
-          return {
-            id: col?.id ?? null,
-            title: col?.title ?? "",
-            products,
-          };
-        })
+      const selectedProductIds = parseJsonArray(
+        upsellSettings?.selectedProductIds
       );
-      selectedCollectionsWithProducts.push(...batchResults);
-    }
+      const selectedProductIdsNormalized = selectedProductIds
+        .map(normalizeProductId)
+        .filter(Boolean);
+      const selectedProductsRaw = isAuthorized && selectedProductIdsNormalized.length
+        ? await fetchProductsByIds(
+            shop,
+            shopAccessToken,
+            selectedProductIdsNormalized
+          )
+        : [];
+      const selectedProductsMap = new Map(
+        selectedProductsRaw.map((p) => [String(p?.id || ""), p])
+      );
+      const selectedProducts = selectedProductIdsNormalized
+        .map((id) => selectedProductsMap.get(String(id)))
+        .filter(Boolean);
 
-    const scheduleNow = new Date();
-    const ruleContext = getRequestContext(request);
+      const addToCartBarProductId = normalizeProductId(
+        addToCartBarSettings?.homepageProductId
+      );
+      const addToCartBarProducts = isAuthorized && addToCartBarProductId
+        ? await fetchProductsByIds(shop, shopAccessToken, [addToCartBarProductId])
+        : [];
+      const addToCartBarProduct = addToCartBarProducts[0] ?? null;
 
-    return jsonResponse(
-      {
-        ok: true,
-        shop,
+      const selectedCollectionIds = parseJsonArray(
+        upsellSettings?.selectedCollectionIds
+      );
+      const selectedCollectionIdsNormalized = selectedCollectionIds
+        .map(normalizeCollectionId)
+        .filter(Boolean);
+      const selectedCollectionsRaw = isAuthorized && selectedCollectionIdsNormalized.length
+        ? await fetchCollectionsByIds(
+            shop,
+            shopAccessToken,
+            selectedCollectionIdsNormalized
+          )
+        : [];
+      const selectedCollectionsMap = new Map(
+        selectedCollectionsRaw.map((c) => [String(c?.id || ""), c])
+      );
+      const selectedCollectionsOrdered = selectedCollectionIdsNormalized
+        .map((id) => selectedCollectionsMap.get(String(id)))
+        .filter(Boolean);
+
+      // Batch API calls to avoid rate limiting (max 3 concurrent requests)
+      const BATCH_SIZE = 3;
+      const selectedCollectionsWithProducts = [];
+      for (let i = 0; i < selectedCollectionsOrdered.length; i += BATCH_SIZE) {
+        const batch = selectedCollectionsOrdered.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map(async (col) => {
+            const products =
+              isAuthorized && col?.id
+                ? await fetchProductsForCollection(shop, shopAccessToken, col?.id)
+                : [];
+            return {
+              id: col?.id ?? null,
+              title: col?.title ?? "",
+              products,
+            };
+          })
+        );
+        selectedCollectionsWithProducts.push(...batchResults);
+      }
+
+      shopData = {
         authorized: isAuthorized,
         metadata: buildShopMetadata(shopRow),
-        shippingRules: filterActiveScheduledRules(
-          shippingRules,
-          scheduleNow,
-          ruleContext
-        ),
-        discountRules: filterActiveScheduledRules(
-          discountRules,
-          scheduleNow,
-          ruleContext
-        ),
-        freeGiftRules: filterActiveScheduledRules(
-          freeGiftRules,
-          scheduleNow,
-          ruleContext
-        ),
-        bxgyRules: filterActiveScheduledRules(bxgyRules, scheduleNow, ruleContext),
+        _rawShippingRules: shippingRules,
+        _rawDiscountRules: discountRules,
+        _rawFreeGiftRules: freeGiftRules,
+        _rawBxgyRules: bxgyRules,
         styleSettings: styleSettingsWithCartIcon ?? null,
         upsellSettings: upsellSettings ?? null,
         addToCartBarSettings: {
@@ -699,13 +747,47 @@ export const loader = async ({ request }) => {
         upsellProducts: bestSellingProducts,
         upsellSelectedProducts: selectedProducts,
         upsellSelectedCollections: selectedCollectionsWithProducts,
+      };
+      setShopCache(shop, shopData);
+    }
+
+    const scheduleNow = new Date();
+    const ruleContext = getRequestContext(request);
+
+    return jsonResponse(
+      {
+        ok: true,
+        shop,
+        authorized: shopData.authorized,
+        metadata: shopData.metadata,
+        shippingRules: filterActiveScheduledRules(
+          shopData._rawShippingRules,
+          scheduleNow,
+          ruleContext
+        ),
+        discountRules: filterActiveScheduledRules(
+          shopData._rawDiscountRules,
+          scheduleNow,
+          ruleContext
+        ),
+        freeGiftRules: filterActiveScheduledRules(
+          shopData._rawFreeGiftRules,
+          scheduleNow,
+          ruleContext
+        ),
+        bxgyRules: filterActiveScheduledRules(shopData._rawBxgyRules, scheduleNow, ruleContext),
+        styleSettings: shopData.styleSettings,
+        upsellSettings: shopData.upsellSettings,
+        addToCartBarSettings: shopData.addToCartBarSettings,
+        addToCartBarProduct: shopData.addToCartBarProduct,
+        upsellProducts: shopData.upsellProducts,
+        upsellSelectedProducts: shopData.upsellSelectedProducts,
+        upsellSelectedCollections: shopData.upsellSelectedCollections,
         fetchedAt: new Date().toISOString(),
       },
       200,
       {
-        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        Pragma: "no-cache",
-        Expires: "0",
+        "Cache-Control": "private, max-age=30",
       }
     );
   } catch (error) {

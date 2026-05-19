@@ -21,6 +21,7 @@
     var script = document.createElement("script");
     script.src = "{{ 'smartcartify.js' | asset_url }}";
     script.async = true;
+    script.fetchPriority = "low";
 
     (document.head || document.body).appendChild(script);
   })();

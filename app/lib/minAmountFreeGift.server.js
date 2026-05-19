@@ -177,43 +177,58 @@ const normalizeToGid = (rawId, defaultType = "Product") => {
   return s;
 };
 
+const getGiftVariantLookupIds = (giftId) => {
+  const raw = String(giftId || "").trim();
+  if (!raw) return [];
+  if (raw.startsWith("gid://shopify/")) return [raw];
+  if (/^\d+$/.test(raw)) {
+    return [
+      normalizeToGid(raw, "ProductVariant"),
+      normalizeToGid(raw, "Product"),
+    ];
+  }
+  return [raw];
+};
+
 const resolveGiftVariantId = async (shopDomain, accessToken, giftId) => {
   if (!giftId) return null;
 
-  const normalizedId = normalizeToGid(giftId);
-
-  // If it's already a variant GID, just use it
-  if (normalizedId.startsWith("gid://shopify/ProductVariant/")) {
-    return normalizedId;
+  const rawGiftId = String(giftId || "").trim();
+  if (rawGiftId.startsWith("gid://shopify/ProductVariant/")) {
+    return rawGiftId;
   }
 
+  const lookupIds = getGiftVariantLookupIds(giftId);
   const normalizedShop = cleanShopDomain(shopDomain);
-  const cacheKey = `${normalizedShop}:${normalizedId}`;
+  const cacheKey = `${normalizedShop}:${lookupIds.join("|")}`;
 
   if (giftVariantCache.has(cacheKey)) {
     return giftVariantCache.get(cacheKey);
   }
 
-  const data = await adminGraphql(shopDomain, accessToken, GIFT_VARIANT_QUERY, {
-    id: normalizedId,
-  });
+  for (const lookupId of lookupIds) {
+    const data = await adminGraphql(shopDomain, accessToken, GIFT_VARIANT_QUERY, {
+      id: lookupId,
+    });
 
-  const node = data?.node;
-  let resolvedId = null;
+    const node = data?.node;
+    let resolvedId = null;
 
-  if (node?.__typename === "ProductVariant" && node.id) {
-    resolvedId = node.id;
-  } else if (node?.__typename === "Product") {
-    const variantEdge = node.variants?.edges?.[0];
-    const variantId = variantEdge?.node?.id;
-    resolvedId = variantId ?? null;
+    if (node?.__typename === "ProductVariant" && node.id) {
+      resolvedId = node.id;
+    } else if (node?.__typename === "Product") {
+      const variantEdge = node.variants?.edges?.[0];
+      const variantId = variantEdge?.node?.id;
+      resolvedId = variantId ?? null;
+    }
+
+    if (resolvedId) {
+      giftVariantCache.set(cacheKey, resolvedId);
+      return resolvedId;
+    }
   }
 
-  if (resolvedId) {
-    giftVariantCache.set(cacheKey, resolvedId);
-  }
-
-  return resolvedId;
+  return null;
 };
 
 export const resolveAllProductsCollectionId = async (

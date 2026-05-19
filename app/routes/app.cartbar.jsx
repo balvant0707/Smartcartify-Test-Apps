@@ -5,6 +5,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { normalizeShopDomain } from "../lib/shopUtils.server.js";
 import prisma from "../db.server";
+import { invalidateShopCache } from "./app.proxy.smart.jsx";
 import {
   Page,
   Layout,
@@ -228,6 +229,7 @@ export async function loader({ request }) {
 export async function action({ request }) {
   const { session } = await authenticate.admin(request);
   const shop = normalizeShopDomain(session?.shop);
+  if (shop) invalidateShopCache(shop);
   const form = await request.formData();
 
   const s = (key, fallback = "") => String(form.get(key) ?? fallback);
@@ -356,13 +358,11 @@ export default function AddToCartBarPage() {
   const [homepageProductId, setHomepageProductId] = useState(init.homepageProductId);
   const [homepageProductTitle, setHomepageProductTitle] = useState(init.homepageProductTitle);
   const [customCss, setCustomCss] = useState(init.customCss);
-  const [customJs, setCustomJs] = useState(init.customJs);
+  const customJs = init.customJs;
   const [desktopZIndex, setDesktopZIndex] = useState(String(init.desktopZIndex));
   const [mobileZIndex, setMobileZIndex] = useState(String(init.mobileZIndex));
 
   // UI
-  const [jsEditorOpen, setJsEditorOpen] = useState(false);
-  const [jsEditorDraft, setJsEditorDraft] = useState(init.customJs);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -470,17 +470,6 @@ export default function AddToCartBarPage() {
     }
   }, [products]);
 
-  // ── JS editor commit ──
-  const handleJsDone = useCallback(() => {
-    setCustomJs(jsEditorDraft);
-    setJsEditorOpen(false);
-  }, [jsEditorDraft]);
-
-  const handleJsUndo = useCallback(() => {
-    setJsEditorDraft(customJs);
-    setJsEditorOpen(false);
-  }, [customJs]);
-
   // ── Render ──
   return (
     <Frame>
@@ -504,7 +493,6 @@ export default function AddToCartBarPage() {
           onAction: handleSave,
           loading: isSaving,
         }}
-        backAction={{ content: "Rules", url: "/app/rules" }}
       >
         <Layout>
           {/* ── Main content ── */}
@@ -810,25 +798,6 @@ export default function AddToCartBarPage() {
 
                       <Divider />
 
-                      {/* Custom JavaScript */}
-                      <BlockStack gap="200">
-                        <Text as="p" variant="bodyMd" fontWeight="semibold">
-                          Add custom JavaScript
-                        </Text>
-                        <Box>
-                          <Button
-                            onClick={() => {
-                              setJsEditorDraft(customJs);
-                              setJsEditorOpen(true);
-                            }}
-                          >
-                            {"</>"} Open script editor
-                          </Button>
-                        </Box>
-                      </BlockStack>
-
-                      <Divider />
-
                       {/* Z-index */}
                       <BlockStack gap="200">
                         <Text as="p" variant="bodyMd" fontWeight="semibold">
@@ -889,16 +858,31 @@ export default function AddToCartBarPage() {
               <Card>
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">
-                    <Box
-                      background="bg-fill-info"
-                      paddingBlock="100"
-                      paddingInline="200"
-                      borderRadius="100"
+                    <Text as="h3" variant="headingSm" fontWeight="semibold">
+                      {activeDevice === "mobile" ? "Mobile preview" : "Desktop preview"}
+                    </Text>
+                    <button
+                      onClick={() => setActiveDevice(activeDevice === "mobile" ? "desktop" : "mobile")}
+                      title={activeDevice === "mobile" ? "Switch to desktop preview" : "Switch to mobile preview"}
+                      style={{
+                        background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8,
+                        width: 36, height: 36, display: "flex", alignItems: "center",
+                        justifyContent: "center", cursor: "pointer", flexShrink: 0,
+                      }}
                     >
-                      <Text as="span" variant="bodySm" fontWeight="semibold" tone="info">
-                        {activeDevice === "mobile" ? "Mobile preview" : "Desktop preview"}
-                      </Text>
-                    </Box>
+                      {activeDevice === "mobile" ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="2" y="3" width="20" height="14" rx="2"/>
+                          <line x1="8" y1="21" x2="16" y2="21"/>
+                          <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="5" y="2" width="14" height="20" rx="2"/>
+                          <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                      )}
+                    </button>
                   </InlineStack>
                   <CartBarPreview
                     isMobile={isMobile}
@@ -926,43 +910,6 @@ export default function AddToCartBarPage() {
           </Layout.Section>
         </Layout>
       </Page>
-
-      {/* JS editor modal */}
-      <Modal
-        open={jsEditorOpen}
-        onClose={handleJsUndo}
-        title="Add custom JavaScript"
-        primaryAction={{ content: "Done", onAction: handleJsDone }}
-        secondaryActions={[
-          { content: "Close & Undo Changes", onAction: handleJsUndo },
-        ]}
-      >
-        <Modal.Section>
-          <BlockStack gap="300">
-            <Box
-              background="bg-surface-secondary"
-              padding="300"
-              borderRadius="200"
-            >
-              <InlineStack gap="200" blockAlign="start">
-                <Text as="p" variant="bodySm">
-                 ℹ This JavaScript code will be executed while the Cart Widget is rendering — no
-                  need for <code>&lt;script&gt;</code> tags.
-                </Text>
-              </InlineStack>
-            </Box>
-            <TextField
-              label="Custom JavaScript"
-              labelHidden
-              value={jsEditorDraft}
-              onChange={setJsEditorDraft}
-              multiline={12}
-              autoComplete="off"
-              placeholder={"!! HOW IT WORKS !!\nThis JavaScript code will be executed while Cart Widget is rendering — no need for <script> tags."}
-            />
-          </BlockStack>
-        </Modal.Section>
-      </Modal>
 
       {/* Product picker modal */}
       <Modal
@@ -1048,261 +995,146 @@ function CartBarPreview({
   showPriceOnCta,
   showCompareAtPriceOnCta,
 }) {
-  const price = formatPreviewMoney(2999, currencyCode);
-  const comparePrice = formatPreviewMoney(3999, currencyCode);
+  const price = formatPreviewMoney(300, currencyCode);
+  const comparePrice = formatPreviewMoney(500, currencyCode);
   const tc = textColor || "#111827";
   const isBottom = stickyPosition !== "top";
 
-  const barEl = (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 7,
-        background: bgColor || "#ffffff",
-        padding: "9px 12px",
-        boxShadow: isBottom
-          ? "0 -3px 12px rgba(0,0,0,.12)"
-          : "0 3px 12px rgba(0,0,0,.12)",
-        borderTop: isBottom ? "1px solid rgba(0,0,0,.08)" : "none",
-        borderBottom: !isBottom ? "1px solid rgba(0,0,0,.08)" : "none",
-        minWidth: 0,
-      }}
-    >
-      {/* Product image */}
-      {showProductImage && (
-        <div
-          style={{
-            width: 38, height: 38, flexShrink: 0,
-            borderRadius: 6, overflow: "hidden",
-            border: `1.5px solid ${imageOutlineColor || "#e5e7eb"}`,
-            background: "#f3f4f6",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 20,
-          }}
-        >
-          👟
-        </div>
-      )}
+  const ShoeIcon = (
+    <svg viewBox="0 0 60 40" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: 28, height: 20, display: "block" }}>
+      <rect x="0" y="29" width="60" height="9" rx="4" fill="#4c1d95"/>
+      <path d="M1 29 Q1 12 15 8 L29 6 Q38 5 46 10 L55 16 Q59 20 59 26 L59 29 Z" fill="#7c3aed"/>
+      <path d="M1 29 Q1 19 8 16 L15 14 L15 29 Z" fill="#5b21b6"/>
+      <path d="M19 8 L19 27 Q22.5 25 26 27 L26 8 Z" fill="#a78bfa"/>
+      <line x1="20" y1="12" x2="25" y2="12" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+      <line x1="20" y1="16" x2="25" y2="16" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+      <line x1="20" y1="20" x2="25" y2="20" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+    </svg>
+  );
 
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-        {showProductTitle && (
+  const barEl = (
+    <div style={{
+      background: bgColor || "#ffffff",
+      borderTop: isBottom ? "1px solid rgba(0,0,0,.08)" : "none",
+      borderBottom: !isBottom ? "1px solid rgba(0,0,0,.08)" : "none",
+      boxShadow: isBottom ? "0 -2px 10px rgba(0,0,0,.10)" : "0 2px 10px rgba(0,0,0,.10)",
+      flexShrink: 0,
+    }}>
+      {/* Row 1: product image + info + variant */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px 4px" }}>
+        {showProductImage && (
           <div style={{
-            fontSize: 11, fontWeight: 700, color: tc, marginBottom: 2,
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-            lineHeight: 1.2,
+            width: 44, height: 44, flexShrink: 0, borderRadius: 8,
+            border: `1.5px solid ${imageOutlineColor || "#e5e7eb"}`,
+            background: "#f9fafb",
+            display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            Sample Product
+            {ShoeIcon}
           </div>
         )}
-        {(showCompareAtPrice || showPrice) && (
-          <div style={{ display: "flex", gap: 4, alignItems: "baseline", flexWrap: "nowrap", overflow: "hidden" }}>
-            {showCompareAtPrice && (
-              <span style={{
-                fontSize: 10, color: "#9ca3af", textDecoration: "line-through",
-                whiteSpace: "nowrap", flexShrink: 0,
-              }}>
-                {comparePrice}
-              </span>
-            )}
-            {showPrice && (
-              <span style={{
-                fontSize: 11, color: tc, fontWeight: 700,
-                whiteSpace: "nowrap", flexShrink: 0,
-              }}>
-                {price}
-              </span>
-            )}
-          </div>
-        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {showProductTitle && (
+            <div style={{ fontSize: 13, fontWeight: 700, color: tc, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              Sample Product
+            </div>
+          )}
+          {(showPrice || showCompareAtPrice) && (
+            <div style={{ display: "flex", gap: 4, alignItems: "baseline", marginTop: 2 }}>
+              {showCompareAtPrice && (
+                <span style={{ fontSize: 10, color: "#9ca3af", textDecoration: "line-through" }}>{comparePrice}</span>
+              )}
+              {showPrice && (
+                <span style={{ fontSize: 11, color: tc }}>{price}</span>
+              )}
+            </div>
+          )}
+        </div>
         {showVariantSelector && (
-          <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 3 }}>
+          <div style={{ flexShrink: 0, textAlign: "right" }}>
             {showVariantLabel && (
-              <span style={{ fontSize: 9, color: "#9ca3af", flexShrink: 0 }}>Size:</span>
+              <div style={{ fontSize: 9, color: "#9ca3af", marginBottom: 2 }}>Size</div>
             )}
-            <div style={{
-              fontSize: 9, background: "rgba(255,255,255,0.15)",
-              border: `1px solid ${tc}33`, borderRadius: 3,
-              padding: "1px 5px", color: tc, whiteSpace: "nowrap",
-            }}>
-              M ▾
+            <div style={{ fontSize: 10, border: `1px solid ${tc}33`, borderRadius: 4, padding: "3px 8px", color: tc }}>
+              Small
             </div>
           </div>
         )}
       </div>
-
-      {/* Quantity */}
-      {showQuantity && (
-        <div style={{
-          display: "flex", alignItems: "center",
-          border: `1px solid ${tc}44`, borderRadius: 4, overflow: "hidden",
-          flexShrink: 0,
-        }}>
-          {["−", "1", "+"].map((v, i) => (
-            <div key={i} style={{
-              width: i === 1 ? 18 : 20, height: 26,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 11, color: tc,
-              background: i === 1 ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.5)",
-              borderLeft: i > 0 ? `1px solid ${tc}33` : "none",
-              fontWeight: i === 1 ? 600 : 400,
-            }}>{v}</div>
-          ))}
-        </div>
-      )}
-
-      {/* CTA */}
-      <div style={{
-        background: ctaBgColor || "#111827",
-        color: ctaTextColor || "#fff",
-        borderRadius: 5,
-        padding: showPriceOnCta || showCompareAtPriceOnCta ? "5px 10px" : "8px 12px",
-        fontSize: 10, fontWeight: 700,
-        whiteSpace: "nowrap", flexShrink: 0,
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
-        lineHeight: 1.3,
-        boxShadow: "0 1px 4px rgba(0,0,0,.2)",
-      }}>
-        <span style={{ fontSize: 11 }}>Add to cart</span>
-        {(showPriceOnCta || showCompareAtPriceOnCta) && (
-          <span style={{ display: "flex", gap: 3, alignItems: "center" }}>
-            {showCompareAtPriceOnCta && (
-              <span style={{ fontSize: 8, opacity: 0.6, textDecoration: "line-through" }}>
-                {comparePrice}
-              </span>
-            )}
-            {showPriceOnCta && <span style={{ fontSize: 9, fontWeight: 600 }}>{price}</span>}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-
-  // Phone frame outer shell
-  const phoneShellStyle = isMobile ? {
-    width: "100%",
-    maxWidth: 300,
-    margin: "0 auto",
-    background: "#1c1c1e",
-    borderRadius: 36,
-    padding: "10px 8px",
-    boxShadow: "0 8px 32px rgba(0,0,0,.28), 0 0 0 1px rgba(255,255,255,.06) inset",
-  } : null;
-
-  const screenStyle = isMobile ? {
-    borderRadius: 28,
-    overflow: "hidden",
-    background: "#f9fafb",
-    display: "flex",
-    flexDirection: "column",
-    minHeight: 360,
-  } : {
-    width: "100%",
-    maxWidth: 420,
-    margin: "0 auto",
-    border: "1.5px solid #c9ccd0",
-    borderRadius: 10,
-    overflow: "hidden",
-    background: "#f9fafb",
-    display: "flex",
-    flexDirection: "column",
-    minHeight: 270,
-    boxShadow: "0 4px 16px rgba(0,0,0,.10)",
-  };
-
-  const screen = (
-    <div style={screenStyle}>
-      {/* Mobile status bar */}
-      {isMobile && (
-        <div style={{
-          height: 32, background: "#f9fafb",
-          display: "flex", alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 14px",
-        }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: "#111" }}>9:41</span>
-          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            <div style={{ fontSize: 9, color: "#111" }}>●●●</div>
+      {/* Row 2: qty stepper + CTA button */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 10px 8px" }}>
+        {showQuantity && (
+          <div style={{ display: "flex", alignItems: "center", border: `1px solid ${tc}44`, borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
+            {["-", "1", "+"].map((v, i) => (
+              <div key={i} style={{
+                width: i === 1 ? 24 : 26, height: 30,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13, color: tc,
+                background: i === 1 ? "rgba(255,255,255,0.9)" : "transparent",
+                borderLeft: i > 0 ? `1px solid ${tc}33` : "none",
+                fontWeight: i === 1 ? 600 : 500,
+              }}>{v}</div>
+            ))}
           </div>
-        </div>
-      )}
-      {/* Desktop browser chrome */}
-      {!isMobile && (
+        )}
         <div style={{
-          height: 26, background: "#f0f0f0",
-          display: "flex", alignItems: "center", gap: 5, padding: "0 10px",
-          borderBottom: "1px solid #d1d5db", flexShrink: 0,
+          flex: 1,
+          background: ctaBgColor || "#2563eb",
+          color: ctaTextColor || "#ffffff",
+          borderRadius: 6,
+          padding: "8px 12px",
+          fontSize: 12, fontWeight: 700,
+          textAlign: "center",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>
-          {["#ef4444", "#f59e0b", "#22c55e"].map((c) => (
-            <div key={c} style={{ width: 9, height: 9, borderRadius: "50%", background: c }} />
-          ))}
-          <div style={{
-            flex: 1, height: 14, background: "#fff",
-            borderRadius: 3, border: "1px solid #d1d5db",
-            marginLeft: 6, marginRight: 4,
-          }} />
+          Buy Now{showPriceOnCta ? ` ( ${price} )` : ""}
+          {!showPriceOnCta && showCompareAtPriceOnCta ? ` ( ${comparePrice} )` : ""}
         </div>
-      )}
-
-      {!isBottom && barEl}
-
-      {/* Page content mock (product page) */}
-      <div style={{ flex: 1, padding: "10px 12px", overflow: "hidden", background: "#fff" }}>
-        {/* Product image placeholder */}
-        <div style={{
-          width: "100%", height: isMobile ? 110 : 140,
-          background: "linear-gradient(135deg,#e2e8f0 60%,#cbd5e1)",
-          borderRadius: 8, marginBottom: 10,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <span style={{ fontSize: isMobile ? 36 : 48, opacity: 0.3 }}>🖼</span>
-        </div>
-        {/* Product title lines */}
-        <div style={{ width: "70%", height: 8, background: "#94a3b8", borderRadius: 3, marginBottom: 5 }} />
-        <div style={{ width: "45%", height: 7, background: "#cbd5e1", borderRadius: 3, marginBottom: 10 }} />
-        {/* ATC button placeholder */}
-        <div style={{ width: "100%", height: 28, background: "#334155", borderRadius: 5, marginBottom: 10, opacity: 0.18 }} />
-        {/* Description lines */}
-        {[88, 72, 80].map((w, i) => (
-          <div key={i} style={{ width: `${w}%`, height: 5, background: "#e2e8f0", borderRadius: 2, marginBottom: 5 }} />
-        ))}
       </div>
-
-      {isBottom && barEl}
-
-      {/* Mobile home bar */}
-      {isMobile && (
-        <div style={{
-          height: 20, background: "#f9fafb",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <div style={{ width: 60, height: 4, background: "#c9ccd0", borderRadius: 3 }} />
-        </div>
-      )}
     </div>
   );
 
-  if (isMobile) {
-    return (
-      <div style={phoneShellStyle}>
-        {/* Notch pill */}
-        <div style={{
-          display: "flex", justifyContent: "center",
-          marginBottom: 4,
-        }}>
-          <div style={{ width: 80, height: 6, background: "#3a3a3c", borderRadius: 4 }} />
+  // Scrollable page content mock
+  const pageMock = (
+    <div style={{ flex: 1, overflow: "hidden", background: "#f5f5f5" }}>
+      {/* Top banner/header strip */}
+      <div style={{ height: 52, background: "#e5e7eb", flexShrink: 0 }} />
+      {/* White content area */}
+      <div style={{ background: "#ffffff", padding: "14px 16px 20px" }}>
+        {/* Large product image placeholder */}
+        <div style={{ width: "100%", aspectRatio: "1 / 1", background: "#e5e7eb", borderRadius: 12, marginBottom: 18 }} />
+        {/* Swatch / variant circles */}
+        <div style={{ display: "flex", gap: 16, justifyContent: "center", marginBottom: 16 }}>
+          <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#e5e7eb" }} />
+          <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#e5e7eb" }} />
         </div>
-        {screen}
-        {/* Home indicator inside shell */}
-        <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
-          <div style={{ width: 60, height: 4, background: "#3a3a3c", borderRadius: 3 }} />
+        {/* More option circles */}
+        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#e5e7eb" }} />
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#e5e7eb" }} />
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  return screen;
+  return (
+    <div style={{
+      width: "100%",
+      maxWidth: isMobile ? 320 : 520,
+      margin: "0 auto",
+      border: "1.5px solid #e5e7eb",
+      borderRadius: 14,
+      overflow: "hidden",
+      background: "#fff",
+      display: "flex",
+      flexDirection: "column",
+      height: isMobile ? 480 : 360,
+      boxShadow: "0 2px 16px rgba(0,0,0,.08)",
+    }}>
+      {!isBottom && barEl}
+      {pageMock}
+      {isBottom && barEl}
+    </div>
+  );
 }
 
 export function ErrorBoundary() {
