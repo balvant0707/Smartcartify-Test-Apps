@@ -1,3 +1,3 @@
 -- AlterTable
 ALTER TABLE stylesettings
-  ADD COLUMN checkoutButtonText VARCHAR(255) NULL;
+  ADD COLUMN checkoutButtonText VARCHAR(191) NULL;

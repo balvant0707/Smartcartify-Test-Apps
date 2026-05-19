@@ -1,8 +1,5 @@
-/*
-  Warnings:
-
-  - You are about to alter the column `checkoutButtonText` on the `stylesettings` table. The data in that column could be lost. The data in that column will be cast from `VarChar(255)` to `VarChar(191)`.
-
-*/
--- AlterTable
-ALTER TABLE `stylesettings` MODIFY `checkoutButtonText` VARCHAR(191) NULL;
+-- No-op.
+-- `checkoutButtonText` is introduced by the later
+-- 20260104100000_add_style_checkout_button_text migration. This migration
+-- previously tried to modify that column before it existed, which caused
+-- Prisma P3018 / MySQL 1054 on databases applying the history in order.

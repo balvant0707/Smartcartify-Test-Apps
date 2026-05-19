@@ -1,3 +1,4 @@
--- AlterTable
-ALTER TABLE upsellsettings
-  ADD COLUMN buttonColor VARCHAR(32) NULL;
+-- No-op.
+-- `upsellsettings` is created later by
+-- 20260319000000_create_upsellsettings_table, and that migration already
+-- includes `buttonColor`.
