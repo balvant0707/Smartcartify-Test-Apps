@@ -435,8 +435,13 @@ export default function CampaignSelector() {
     if (first) setSelectedId(first.id);
   };
 
+  const CAMPAIGN_ROUTES = {
+    "cart-goals": "/app/cart-goals",
+  };
+
   const handleCreate = () => {
-    navigate(`/app/rules?create=true&type=${selectedId}`);
+    const route = CAMPAIGN_ROUTES[selectedId] ?? `/app/rules?create=true&type=${selectedId}`;
+    navigate(route);
   };
 
   return (
