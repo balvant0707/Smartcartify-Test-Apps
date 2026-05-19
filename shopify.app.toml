@@ -2,7 +2,7 @@
 
 client_id = "b55a28208623440fd6a8987892e4aec3"
 name = "CartLift: Cart Drawer & Upsell"
-application_url = "https://cartmilestone.smartreminder.in/"
+application_url = "https://smartcartify-test-apps.vercel.app/"
 embedded = true
 
 handle = "cartlift-cart-drawer-upsell"
@@ -35,15 +35,15 @@ scopes = "read_discounts,write_discounts,read_products,write_products,read_shipp
 
 [auth]
 redirect_urls = [
-  "https://cartmilestone.smartreminder.in/auth/callback",
-  "https://cartmilestone.smartreminder.in/auth/shopify/callback",
-  "https://cartmilestone.smartreminder.in/api/auth/callback"
+  "https://smartcartify-test-apps.vercel.app/auth/callback",
+  "https://smartcartify-test-apps.vercel.app/auth/shopify/callback",
+  "https://smartcartify-test-apps.vercel.app/api/auth/callback"
 ]
 
 [app_proxy]
 prefix = "apps"
 subpath = "smart"
-url = "https://cartmilestone.smartreminder.in/proxy/smart"
+url = "https://smartcartify-test-apps.vercel.app/proxy/smart"
 
 [pos]
 embedded = true
