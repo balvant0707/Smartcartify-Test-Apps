@@ -3,11 +3,13 @@ import { useNavigate, useSearchParams } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button, TextField,
   Select, Checkbox, Collapsible, Divider, Icon, RadioButton, Banner,
+  Popover, ActionList,
 } from "@shopify/polaris";
 import {
   AutomationIcon, SettingsIcon, EditIcon, MinimizeIcon, MaximizeIcon,
   DeleteIcon, PauseCircleIcon, PersonFilledIcon, CalendarIcon, ClockIcon,
-  SearchIcon, LinkIcon, CartIcon, RefreshIcon,
+  SearchIcon, LinkIcon, CartIcon, RefreshIcon, PlusIcon,
+  PackageIcon, CollectionIcon, ProductIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 
@@ -67,15 +69,49 @@ export default function CartAutomationCreate() {
   const [campaignName, setCampaignName] = useState("Cart Automation");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Trigger
-  const [triggerType, setTriggerType] = useState("item_added");
-  const [triggerProducts, setTriggerProducts] = useState([]);
-  const [triggerProductSearch, setTriggerProductSearch] = useState("");
-  const [triggerCollections, setTriggerCollections] = useState([]);
-  const [triggerCollectionSearch, setTriggerCollectionSearch] = useState("");
-  const [triggerCartValue, setTriggerCartValue] = useState("");
-  const [triggerQty, setTriggerQty] = useState("");
-  const [triggerScope, setTriggerScope] = useState("specific_products");
+  // Trigger rules
+  const [triggerRules, setTriggerRules] = useState([]);
+  const [triggerMatch, setTriggerMatch] = useState("any");
+  const [showRulePopover, setShowRulePopover] = useState(false);
+
+  const RULE_GROUPS = [
+    {
+      title: "Rules based on items in cart",
+      items: [
+        { id: "qty_product", label: "Quantity of a product", icon: PackageIcon },
+        { id: "subtotal_product", label: "Subtotal of a product", icon: PackageIcon },
+        { id: "no_product", label: "Does not contain a product", icon: PackageIcon },
+        { id: "qty_variant", label: "Quantity of a specific variant", icon: ProductIcon },
+        { id: "subtotal_variant", label: "Subtotal of a specific variant", icon: ProductIcon },
+        { id: "no_variant", label: "Does not contain a specific variant", icon: ProductIcon },
+        { id: "qty_collection", label: "Quantity of items from a collection", icon: CollectionIcon },
+        { id: "subtotal_collection", label: "Subtotal of items from a collection", icon: CollectionIcon },
+        { id: "no_collection", label: "Does not contain an item from a collection", icon: CollectionIcon },
+      ],
+    },
+    {
+      title: "Cart based values",
+      items: [
+        { id: "order_value", label: "Order Value" },
+        { id: "item_count", label: "Number of items in cart", icon: CartIcon },
+        { id: "cart_weight", label: "Weight of cart" },
+      ],
+    },
+  ];
+
+  const RULE_LABELS = Object.fromEntries(
+    RULE_GROUPS.flatMap(g => g.items.map(i => [i.id, i.label]))
+  );
+
+  const addTriggerRule = (ruleId) => {
+    setTriggerRules(prev => [...prev, { uid: Date.now(), type: ruleId, operator: "gte", value: "", search: "" }]);
+    setShowRulePopover(false);
+  };
+
+  const removeTriggerRule = (uid) => setTriggerRules(prev => prev.filter(r => r.uid !== uid));
+
+  const updateTriggerRule = (uid, field, val) =>
+    setTriggerRules(prev => prev.map(r => r.uid === uid ? { ...r, [field]: val } : r));
 
   // Conditions (optional extra)
   const [hasConditions, setHasConditions] = useState(false);
@@ -109,25 +145,6 @@ export default function CartAutomationCreate() {
     setTimeout(() => { setIsSaving(false); navigate(withHost("/app/campaigns")); }, 800);
   };
 
-  const addTag = (list, setList, search, setSearch) => {
-    if (search.trim()) { setList(p => [...new Set([...p, search.trim()])]); setSearch(""); }
-  };
-
-  const removeTag = (list, setList, val) => setList(p => p.filter(x => x !== val));
-
-  const TagList = ({ tags, onRemove }) => (
-    tags.length > 0 ? (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-        {tags.map(t => (
-          <div key={t} style={{ background: "#f1f1f1", borderRadius: "6px", padding: "4px 10px", display: "flex", gap: "6px", alignItems: "center" }}>
-            <Text variant="bodySm" as="span">{t}</Text>
-            <button onClick={() => onRemove(t)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "14px", color: "#6d7175", padding: 0 }}>×</button>
-          </div>
-        ))}
-      </div>
-    ) : null
-  );
-
   return (
     <Page
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
@@ -147,7 +164,7 @@ export default function CartAutomationCreate() {
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                   <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "8px 14px" }}>
                     <Text variant="bodySm" fontWeight="semibold" as="span">WHEN</Text>
-                    <Text variant="bodySm" as="span"> · {triggerType === "item_added" ? "Item added to cart" : triggerType === "cart_value" ? "Cart value reached" : "Item quantity reached"}</Text>
+                    <Text variant="bodySm" as="span"> · {triggerRules.length === 0 ? "No rules set" : `${triggerRules.length} rule${triggerRules.length > 1 ? "s" : ""} (match ${triggerMatch === "any" ? "any" : "all"})`}</Text>
                   </div>
                   <Text variant="headingMd" tone="subdued" as="span">→</Text>
                   <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "8px 14px" }}>
@@ -161,62 +178,119 @@ export default function CartAutomationCreate() {
             {/* Trigger */}
             <SectionCard icon={CartIcon} title="When (Trigger)">
               <BlockStack gap="400">
-                <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold" as="p">Trigger type</Text>
-                  <BlockStack gap="100">
-                    <RadioButton label="Item is added to the cart" helpText="Fires when any matching product is added" checked={triggerType === "item_added"} id="trig-item" name="triggerType" onChange={() => setTriggerType("item_added")} />
-                    <RadioButton label="Cart value reaches a threshold" helpText="Fires when cart subtotal crosses a dollar amount" checked={triggerType === "cart_value"} id="trig-value" name="triggerType" onChange={() => setTriggerType("cart_value")} />
-                    <RadioButton label="Item quantity reaches a threshold" helpText="Fires when total cart quantity crosses a number" checked={triggerType === "item_qty"} id="trig-qty" name="triggerType" onChange={() => setTriggerType("item_qty")} />
-                  </BlockStack>
-                </BlockStack>
 
-                {triggerType === "item_added" && (
-                  <BlockStack gap="300">
-                    <BlockStack gap="100">
-                      <RadioButton label="Specific products" checked={triggerScope === "specific_products"} id="ts-products" name="triggerScope" onChange={() => setTriggerScope("specific_products")} />
-                      <RadioButton label="Specific collections" checked={triggerScope === "collections"} id="ts-collections" name="triggerScope" onChange={() => setTriggerScope("collections")} />
-                      <RadioButton label="Any product" checked={triggerScope === "any"} id="ts-any" name="triggerScope" onChange={() => setTriggerScope("any")} />
-                    </BlockStack>
+                {triggerRules.length > 1 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <Text variant="bodySm" as="p">Cart must match</Text>
+                    <Select
+                      label=""
+                      labelHidden
+                      options={[
+                        { label: "at least one rule", value: "any" },
+                        { label: "all rules", value: "all" },
+                      ]}
+                      value={triggerMatch}
+                      onChange={setTriggerMatch}
+                    />
+                  </div>
+                )}
 
-                    {triggerScope === "specific_products" && (
-                      <>
+                {triggerRules.length === 0 && (
+                  <div style={{ border: "1px dashed #c9cccf", borderRadius: "8px", padding: "16px", textAlign: "center" }}>
+                    <Text variant="bodySm" tone="subdued" as="p">No trigger rules added yet. Add at least one rule below.</Text>
+                  </div>
+                )}
+
+                {triggerRules.map((rule) => {
+                  const isContainment = rule.type.startsWith("no_");
+                  const isSubtotalOrValue = rule.type.includes("subtotal") || rule.type === "order_value";
+                  const isWeight = rule.type === "cart_weight";
+                  const needsSearch = rule.type.includes("product") || rule.type.includes("variant") || rule.type.includes("collection");
+                  const searchLabel = rule.type.includes("variant") ? "Variant" : rule.type.includes("collection") ? "Collection" : "Product";
+                  const valueLabel = isSubtotalOrValue ? "Amount" : isWeight ? "Weight" : "Quantity";
+
+                  return (
+                    <div key={rule.uid} style={{ border: "1px solid #e1e3e5", borderRadius: "8px", padding: "14px 16px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                        <Text variant="bodySm" fontWeight="semibold" as="p">{RULE_LABELS[rule.type]}</Text>
+                        <Button variant="plain" icon={DeleteIcon} tone="critical" onClick={() => removeTriggerRule(rule.uid)} accessibilityLabel="Remove rule" />
+                      </div>
+
+                      {isContainment ? (
                         <TextField
-                          label="Trigger products"
-                          value={triggerProductSearch}
-                          onChange={setTriggerProductSearch}
+                          label={`${searchLabel} name or SKU`}
+                          value={rule.search}
+                          onChange={v => updateTriggerRule(rule.uid, "search", v)}
                           autoComplete="off"
                           prefix={<Icon source={SearchIcon} />}
-                          placeholder="Search by product name or SKU…"
-                          connectedRight={<Button onClick={() => addTag(triggerProducts, setTriggerProducts, triggerProductSearch, setTriggerProductSearch)}>Add</Button>}
+                          placeholder={`Search ${searchLabel.toLowerCase()}…`}
                         />
-                        <TagList tags={triggerProducts} onRemove={v => removeTag(triggerProducts, setTriggerProducts, v)} />
-                      </>
-                    )}
+                      ) : (
+                        <BlockStack gap="200">
+                          {needsSearch && (
+                            <TextField
+                              label={`${searchLabel} name or SKU`}
+                              value={rule.search}
+                              onChange={v => updateTriggerRule(rule.uid, "search", v)}
+                              autoComplete="off"
+                              prefix={<Icon source={SearchIcon} />}
+                              placeholder={`Search ${searchLabel.toLowerCase()}…`}
+                            />
+                          )}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            <Select
+                              label="Operator"
+                              options={[
+                                { label: "is greater than", value: "gt" },
+                                { label: "is less than", value: "lt" },
+                                { label: "is equal to", value: "eq" },
+                                { label: "is at least", value: "gte" },
+                                { label: "is at most", value: "lte" },
+                              ]}
+                              value={rule.operator}
+                              onChange={v => updateTriggerRule(rule.uid, "operator", v)}
+                            />
+                            <TextField
+                              label={valueLabel}
+                              type="number"
+                              value={rule.value}
+                              onChange={v => updateTriggerRule(rule.uid, "value", v)}
+                              autoComplete="off"
+                              prefix={isSubtotalOrValue ? "$" : undefined}
+                              suffix={isWeight ? "kg" : undefined}
+                              placeholder="0"
+                            />
+                          </div>
+                        </BlockStack>
+                      )}
+                    </div>
+                  );
+                })}
 
-                    {triggerScope === "collections" && (
-                      <>
-                        <TextField
-                          label="Trigger collections"
-                          value={triggerCollectionSearch}
-                          onChange={setTriggerCollectionSearch}
-                          autoComplete="off"
-                          prefix={<Icon source={SearchIcon} />}
-                          placeholder="Search collection name…"
-                          connectedRight={<Button onClick={() => addTag(triggerCollections, setTriggerCollections, triggerCollectionSearch, setTriggerCollectionSearch)}>Add</Button>}
-                        />
-                        <TagList tags={triggerCollections} onRemove={v => removeTag(triggerCollections, setTriggerCollections, v)} />
-                      </>
-                    )}
-                  </BlockStack>
-                )}
+                <Popover
+                  active={showRulePopover}
+                  activator={
+                    <Button icon={PlusIcon} onClick={() => setShowRulePopover(v => !v)}>
+                      Add a trigger rule
+                    </Button>
+                  }
+                  onClose={() => setShowRulePopover(false)}
+                  preferredAlignment="left"
+                >
+                  <div style={{ maxHeight: "340px", overflowY: "auto" }}>
+                    <ActionList
+                      sections={RULE_GROUPS.map(group => ({
+                        title: group.title,
+                        items: group.items.map(item => ({
+                          content: item.label,
+                          prefix: item.icon ? <Icon source={item.icon} /> : undefined,
+                          onAction: () => addTriggerRule(item.id),
+                        })),
+                      }))}
+                    />
+                  </div>
+                </Popover>
 
-                {triggerType === "cart_value" && (
-                  <TextField label="Cart value threshold" type="number" value={triggerCartValue} onChange={setTriggerCartValue} autoComplete="off" prefix="$" placeholder="e.g. 50" helpText="Automation fires when cart subtotal reaches or exceeds this value." />
-                )}
-
-                {triggerType === "item_qty" && (
-                  <TextField label="Item quantity threshold" type="number" value={triggerQty} onChange={setTriggerQty} autoComplete="off" suffix="items" placeholder="e.g. 3" helpText="Automation fires when total cart quantity reaches or exceeds this number." />
-                )}
               </BlockStack>
             </SectionCard>
 
@@ -412,7 +486,11 @@ export default function CartAutomationCreate() {
                 <BlockStack gap="100">
                   <div style={{ background: "#eff6ff", borderRadius: "8px", padding: "10px 12px" }}>
                     <Text variant="bodySm" fontWeight="semibold" as="p">WHEN</Text>
-                    <Text variant="bodySm" as="p">{triggerType === "item_added" ? "Item is added to cart" : triggerType === "cart_value" ? `Cart value ≥ $${triggerCartValue || "—"}` : `Item qty ≥ ${triggerQty || "—"}`}</Text>
+                    <Text variant="bodySm" as="p">
+                      {triggerRules.length === 0
+                        ? "No trigger rules set"
+                        : triggerRules.map(r => RULE_LABELS[r.type]).join(triggerMatch === "any" ? " OR " : " AND ")}
+                    </Text>
                   </div>
                   <div style={{ display: "flex", justifyContent: "center", padding: "2px" }}>
                     <Text variant="headingMd" tone="subdued" as="p">↓</Text>
