@@ -15,6 +15,22 @@ import {
 import { sendEmail } from "./lib/email.server.js";
 import logger from "./lib/logger.server.js";
 
+const positiveIntegerEnv = (name, fallback) => {
+  const value = Number.parseInt(process.env[name] || "", 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+};
+
+const prismaSessionStorage = new PrismaSessionStorage(prisma, {
+  connectionRetries: positiveIntegerEnv(
+    "PRISMA_SESSION_CONNECTION_RETRIES",
+    process.env.NODE_ENV === "production" ? 12 : 4,
+  ),
+  connectionRetryIntervalMs: positiveIntegerEnv(
+    "PRISMA_SESSION_RETRY_INTERVAL_MS",
+    5000,
+  ),
+});
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
@@ -22,7 +38,7 @@ const shopify = shopifyApp({
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
-  sessionStorage: new PrismaSessionStorage(prisma),
+  sessionStorage: prismaSessionStorage,
   distribution: AppDistribution.AppStore,
   hooks: {
     afterAuth: async ({ session, admin }) => {

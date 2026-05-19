@@ -11,7 +11,8 @@
       "Bash(npm run:*)",
       "Bash(node -e \"const icons = require\\(''@shopify/polaris-icons''\\); [''DeliveryIcon'',''DiscountIcon'',''GiftCardIcon'',''CodeIcon'',''TransferInternalIcon'',''ProductIcon'',''ThemeIcon''].forEach\\(n => console.log\\(n, !!icons[n]\\)\\)\")",
       "Bash(node -e \"const { Prisma } = require\\('@prisma/client'\\); const fields = Prisma.DiscountRuleScalarFieldEnum; console.log\\(JSON.stringify\\(Object.keys\\(fields\\), null, 2\\)\\);\")",
-      "Bash(grep -v \"normalizeScheduleFields\\\\|persistScheduleFields\\\\|normalizeAdvancedRuleFields\\\\|scheduleInputFields\\\\|isRuleScheduleActive\\\\|filterActiveScheduled\\\\|toIsoDateOrNull\\\\|startsAt: null\\\\|endsAt: null\\\\|startsAt:$\\\\|endsAt:$\\\\|rule\\\\.startsAt\\\\|rule\\\\.endsAt\\\\|\\\\.startsAt\\\\|\\\\.endsAt\")"
+      "Bash(grep -v \"normalizeScheduleFields\\\\|persistScheduleFields\\\\|normalizeAdvancedRuleFields\\\\|scheduleInputFields\\\\|isRuleScheduleActive\\\\|filterActiveScheduled\\\\|toIsoDateOrNull\\\\|startsAt: null\\\\|endsAt: null\\\\|startsAt:$\\\\|endsAt:$\\\\|rule\\\\.startsAt\\\\|rule\\\\.endsAt\\\\|\\\\.startsAt\\\\|\\\\.endsAt\")",
+      "Bash(timeout 5 bash -c 'cat < /dev/null > /dev/tcp/192.250.231.31/3306')"
     ]
   }
 }
