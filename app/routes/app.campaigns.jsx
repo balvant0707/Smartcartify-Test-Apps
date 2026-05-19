@@ -436,6 +436,7 @@ export default function CampaignSelector() {
 
   const CAMPAIGN_ROUTES = {
     "cart-goals": "/app/cart-goals",
+    "buy-x-get-y": "/app/buy-x-get-y",
   };
 
   const handleCreate = () => {
