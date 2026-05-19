@@ -1,0 +1,337 @@
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import {
+  Page, Text, Box, BlockStack, InlineStack, Button, TextField,
+  Select, Checkbox, Collapsible, Divider, Icon, RadioButton,
+} from "@shopify/polaris";
+import {
+  ClockIcon, SettingsIcon, EditIcon, MinimizeIcon, MaximizeIcon,
+  PauseCircleIcon, PersonFilledIcon, CalendarIcon, AlertCircleIcon,
+} from "@shopify/polaris-icons";
+import { authenticate } from "../shopify.server";
+
+export const loader = async ({ request }) => {
+  await authenticate.admin(request);
+  return {};
+};
+
+function SectionCard({ icon, title, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: open ? "1px solid #e1e3e5" : "none" }}>
+        <InlineStack gap="200" blockAlign="center">
+          <Icon source={icon} />
+          <Text variant="headingSm" as="h3" fontWeight="semibold">{title}</Text>
+        </InlineStack>
+        <Button variant="plain" icon={open ? MinimizeIcon : MaximizeIcon} onClick={() => setOpen(v => !v)}>
+          {open ? "Collapse" : "Expand"}
+        </Button>
+      </div>
+      <Collapsible open={open} id={`sc-${title}`}>
+        <Box padding="400">{children}</Box>
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 18px 12px" }}>
+          <Button variant="plain" icon={MinimizeIcon} onClick={() => setOpen(false)}>Collapse</Button>
+        </div>
+      </Collapsible>
+    </div>
+  );
+}
+
+function TimerDisplay({ hours, minutes, seconds, bgColor, textColor, messageText, labelAbove }) {
+  return (
+    <div style={{ background: bgColor, borderRadius: "8px", padding: "12px 14px" }}>
+      {labelAbove && (
+        <Text variant="bodySm" fontWeight="semibold" as="p" alignment="center">
+          <span style={{ color: textColor }}>{messageText || "Limited time offer — order soon!"}</span>
+        </Text>
+      )}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginTop: labelAbove ? "8px" : "0" }}>
+        {[{ v: hours, l: "HH" }, { v: minutes, l: "MM" }, { v: seconds, l: "SS" }].map((seg, i) => (
+          <>
+            <div key={seg.l} style={{ background: textColor, color: bgColor, borderRadius: "6px", padding: "8px 12px", minWidth: "40px", textAlign: "center" }}>
+              <div style={{ fontSize: "18px", fontWeight: "700", fontFamily: "monospace", lineHeight: 1 }}>{seg.v || "00"}</div>
+              <div style={{ fontSize: "10px", marginTop: "2px", opacity: 0.8 }}>{seg.l}</div>
+            </div>
+            {i < 2 && <span style={{ color: textColor, fontSize: "18px", fontWeight: "700" }}>:</span>}
+          </>
+        ))}
+      </div>
+      {!labelAbove && (
+        <Box paddingBlockStart="100">
+          <Text variant="bodySm" as="p" alignment="center">
+            <span style={{ color: textColor, opacity: 0.8 }}>{messageText || "Limited time offer — order soon!"}</span>
+          </Text>
+        </Box>
+      )}
+    </div>
+  );
+}
+
+export default function CartTimerCreate() {
+  const navigate = useNavigate();
+  const [status, setStatus] = useState("draft");
+  const [campaignName, setCampaignName] = useState("Cart Timer");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Timer
+  const [timerType, setTimerType] = useState("fixed");
+  const [durationHours, setDurationHours] = useState("0");
+  const [durationMinutes, setDurationMinutes] = useState("30");
+  const [durationSeconds, setDurationSeconds] = useState("00");
+  const [resetOnReopen, setResetOnReopen] = useState(false);
+  const [countdownDate, setCountdownDate] = useState("");
+  const [countdownTime, setCountdownTime] = useState("23:59");
+
+  // Message
+  const [messageText, setMessageText] = useState("");
+  const [expiredText, setExpiredText] = useState("");
+  const [labelPosition, setLabelPosition] = useState("above");
+
+  // Expiry behaviour
+  const [expiryBehaviour, setExpiryBehaviour] = useState("show_message");
+  const [redirectUrl, setRedirectUrl] = useState("");
+
+  // Style
+  const [bgColor, setBgColor] = useState("#1e1e2e");
+  const [textColor, setTextColor] = useState("#ffffff");
+  const [position, setPosition] = useState("top");
+
+  // Conditions
+  const [showWhen, setShowWhen] = useState("always");
+  const [minCartValue, setMinCartValue] = useState("");
+
+  // Settings
+  const today = new Date().toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState(today);
+  const [startTime, setStartTime] = useState("00:00");
+  const [hasEndDate, setHasEndDate] = useState(false);
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("23:59");
+
+  const isPaused = status !== "active";
+
+  const handleSave = () => {
+    setIsSaving(true);
+    setTimeout(() => { setIsSaving(false); navigate("/app/campaigns"); }, 800);
+  };
+
+  return (
+    <Page
+      backAction={{ content: "Campaigns", onAction: () => navigate("/app/campaigns") }}
+      title={campaignName || "Cart Timer"}
+      primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
+      secondaryActions={[{ content: status === "active" ? "Pause" : "Activate", onAction: () => setStatus(s => s === "active" ? "draft" : "active") }]}
+    >
+      <style>{`.ct-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.ct-layout{grid-template-columns:1fr}}`}</style>
+      <Box paddingBlockEnd="800">
+        <div className="ct-layout">
+          <BlockStack gap="400">
+
+            {/* Timer */}
+            <SectionCard icon={ClockIcon} title="Timer settings">
+              <BlockStack gap="400">
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Timer type</Text>
+                  <BlockStack gap="100">
+                    <RadioButton label="Fixed countdown duration" helpText="Timer counts down from a set duration for each customer session" checked={timerType === "fixed"} id="tt-fixed" name="timerType" onChange={() => setTimerType("fixed")} />
+                    <RadioButton label="Countdown to a specific date & time" helpText="All customers see the same deadline" checked={timerType === "date"} id="tt-date" name="timerType" onChange={() => setTimerType("date")} />
+                  </BlockStack>
+                </BlockStack>
+
+                {timerType === "fixed" && (
+                  <BlockStack gap="200">
+                    <Text variant="bodyMd" fontWeight="semibold" as="p">Duration</Text>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                      <TextField label="Hours" type="number" value={durationHours} onChange={setDurationHours} autoComplete="off" min="0" max="23" suffix="hr" />
+                      <TextField label="Minutes" type="number" value={durationMinutes} onChange={setDurationMinutes} autoComplete="off" min="0" max="59" suffix="min" />
+                      <TextField label="Seconds" type="number" value={durationSeconds} onChange={setDurationSeconds} autoComplete="off" min="0" max="59" suffix="sec" />
+                    </div>
+                    <Checkbox label="Reset timer each time the cart is reopened" checked={resetOnReopen} onChange={setResetOnReopen} helpText="If unchecked, the timer persists across cart opens in the same session." />
+                  </BlockStack>
+                )}
+
+                {timerType === "date" && (
+                  <BlockStack gap="200">
+                    <Text variant="bodyMd" fontWeight="semibold" as="p">Countdown deadline</Text>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <TextField label="End date" type="date" value={countdownDate} onChange={setCountdownDate} prefix={<Icon source={CalendarIcon} />} autoComplete="off" />
+                      <TextField label="End time" type="time" value={countdownTime} onChange={setCountdownTime} prefix={<Icon source={ClockIcon} />} autoComplete="off" />
+                    </div>
+                  </BlockStack>
+                )}
+              </BlockStack>
+            </SectionCard>
+
+            {/* Message */}
+            <SectionCard icon={EditIcon} title="Messages">
+              <BlockStack gap="300">
+                <TextField
+                  label="Timer message"
+                  value={messageText}
+                  onChange={setMessageText}
+                  autoComplete="off"
+                  placeholder="e.g. ⚡ Hurry! Limited time offer ends in:"
+                  helpText="Shown while the timer is counting down."
+                />
+                <TextField
+                  label="Expired message"
+                  value={expiredText}
+                  onChange={setExpiredText}
+                  autoComplete="off"
+                  placeholder="e.g. ⏰ Offer has expired."
+                  helpText="Shown when the timer reaches zero (if expiry action is 'show message')."
+                />
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Message position relative to timer</Text>
+                  <BlockStack gap="100">
+                    <RadioButton label="Above the countdown" checked={labelPosition === "above"} id="lp-above" name="labelPos" onChange={() => setLabelPosition("above")} />
+                    <RadioButton label="Below the countdown" checked={labelPosition === "below"} id="lp-below" name="labelPos" onChange={() => setLabelPosition("below")} />
+                  </BlockStack>
+                </BlockStack>
+              </BlockStack>
+            </SectionCard>
+
+            {/* Expiry behaviour */}
+            <SectionCard icon={AlertCircleIcon} title="When timer expires">
+              <BlockStack gap="300">
+                <BlockStack gap="100">
+                  <RadioButton label="Show expired message" helpText="Replace the timer with the expired text" checked={expiryBehaviour === "show_message"} id="eb-message" name="expiryBehaviour" onChange={() => setExpiryBehaviour("show_message")} />
+                  <RadioButton label="Clear the cart" helpText="Remove all items from the cart" checked={expiryBehaviour === "clear_cart"} id="eb-clear" name="expiryBehaviour" onChange={() => setExpiryBehaviour("clear_cart")} />
+                  <RadioButton label="Redirect to a URL" helpText="Send the customer to a specific page" checked={expiryBehaviour === "redirect"} id="eb-redirect" name="expiryBehaviour" onChange={() => setExpiryBehaviour("redirect")} />
+                  <RadioButton label="Hide the timer" helpText="Remove the timer block when it reaches zero" checked={expiryBehaviour === "hide"} id="eb-hide" name="expiryBehaviour" onChange={() => setExpiryBehaviour("hide")} />
+                </BlockStack>
+                {expiryBehaviour === "redirect" && (
+                  <TextField label="Redirect URL" value={redirectUrl} onChange={setRedirectUrl} autoComplete="off" placeholder="https://…" helpText="Customer is redirected here when the timer reaches zero." />
+                )}
+              </BlockStack>
+            </SectionCard>
+
+            {/* Style */}
+            <SectionCard icon={EditIcon} title="Style">
+              <BlockStack gap="400">
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Position in cart</Text>
+                  <BlockStack gap="100">
+                    <RadioButton label="Top of cart" checked={position === "top"} id="pos-top" name="pos" onChange={() => setPosition("top")} />
+                    <RadioButton label="Below cart items" checked={position === "below_items"} id="pos-below" name="pos" onChange={() => setPosition("below_items")} />
+                    <RadioButton label="Above checkout button" checked={position === "above_checkout"} id="pos-checkout" name="pos" onChange={() => setPosition("above_checkout")} />
+                  </BlockStack>
+                </BlockStack>
+                <Divider />
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Colors</Text>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <Text variant="bodySm" as="p" tone="subdued">Background</Text>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                        <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} style={{ width: "36px", height: "36px", border: "1px solid #e1e3e5", borderRadius: "6px", cursor: "pointer", padding: "2px" }} />
+                        <Text variant="bodySm" as="p">{bgColor}</Text>
+                      </div>
+                    </div>
+                    <div>
+                      <Text variant="bodySm" as="p" tone="subdued">Text & digits</Text>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                        <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} style={{ width: "36px", height: "36px", border: "1px solid #e1e3e5", borderRadius: "6px", cursor: "pointer", padding: "2px" }} />
+                        <Text variant="bodySm" as="p">{textColor}</Text>
+                      </div>
+                    </div>
+                  </div>
+                </BlockStack>
+              </BlockStack>
+            </SectionCard>
+
+            {/* Conditions */}
+            <SectionCard icon={ClockIcon} title="Display conditions">
+              <BlockStack gap="300">
+                <BlockStack gap="100">
+                  <RadioButton label="Always show" checked={showWhen === "always"} id="cond-always" name="showWhen" onChange={() => setShowWhen("always")} />
+                  <RadioButton label="Cart value is above a minimum" checked={showWhen === "cart_value"} id="cond-value" name="showWhen" onChange={() => setShowWhen("cart_value")} />
+                </BlockStack>
+                {showWhen === "cart_value" && (
+                  <TextField label="Minimum cart value" type="number" value={minCartValue} onChange={setMinCartValue} autoComplete="off" prefix="$" placeholder="e.g. 25" />
+                )}
+              </BlockStack>
+            </SectionCard>
+
+            {/* Settings */}
+            <SectionCard icon={SettingsIcon} title="Settings">
+              <BlockStack gap="400">
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Active dates</Text>
+                  <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", padding: "16px" }}>
+                    <BlockStack gap="300">
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <TextField label="Start date" type="date" value={startDate} onChange={setStartDate} prefix={<Icon source={CalendarIcon} />} autoComplete="off" />
+                        <TextField label="Start time" type="time" value={startTime} onChange={setStartTime} prefix={<Icon source={ClockIcon} />} autoComplete="off" />
+                      </div>
+                      <Checkbox label="Set end date" checked={hasEndDate} onChange={setHasEndDate} />
+                      {hasEndDate && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                          <TextField label="End date" type="date" value={endDate} onChange={setEndDate} prefix={<Icon source={CalendarIcon} />} autoComplete="off" />
+                          <TextField label="End time" type="time" value={endTime} onChange={setEndTime} prefix={<Icon source={ClockIcon} />} autoComplete="off" />
+                        </div>
+                      )}
+                    </BlockStack>
+                  </div>
+                </BlockStack>
+                <Divider />
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Target an audience</Text>
+                  <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "14px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#7c3aed" }}>
+                      <Icon source={PersonFilledIcon} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <Text variant="bodyMd" fontWeight="semibold" as="p">Targeting everyone</Text>
+                      <Text variant="bodySm" tone="subdued" as="p">Add a rule to target a specific group.</Text>
+                    </div>
+                    <Button size="slim">Add rule</Button>
+                  </div>
+                </BlockStack>
+              </BlockStack>
+            </SectionCard>
+
+          </BlockStack>
+
+          {/* Sidebar */}
+          <BlockStack gap="300">
+            {isPaused && (
+              <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: "10px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ color: "#92400e" }}><Icon source={PauseCircleIcon} /></span>
+                <Text variant="bodyMd" fontWeight="semibold" as="p">This campaign is paused</Text>
+              </div>
+            )}
+            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", padding: "16px" }}>
+              <BlockStack gap="300">
+                <Select label="Status" options={[{ label: "Draft", value: "draft" }, { label: "Active", value: "active" }, { label: "Paused", value: "paused" }]} value={status} onChange={setStatus} />
+                <TextField label="Campaign name" value={campaignName} onChange={setCampaignName} autoComplete="off" />
+              </BlockStack>
+            </div>
+
+            {/* Timer preview */}
+            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", overflow: "hidden" }}>
+              <Box padding="300" borderBlockEndWidth="025" borderColor="border">
+                <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
+              </Box>
+              <Box padding="300">
+                <TimerDisplay
+                  hours={durationHours.padStart(2, "0")}
+                  minutes={durationMinutes.padStart(2, "0")}
+                  seconds={durationSeconds.padStart(2, "0")}
+                  bgColor={bgColor}
+                  textColor={textColor}
+                  messageText={messageText}
+                  labelAbove={labelPosition === "above"}
+                />
+                <Box paddingBlockStart="200">
+                  <Text variant="bodySm" tone="subdued" as="p">Live preview based on your style settings.</Text>
+                </Box>
+              </Box>
+            </div>
+          </BlockStack>
+        </div>
+      </Box>
+    </Page>
+  );
+}

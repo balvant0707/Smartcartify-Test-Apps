@@ -1,0 +1,309 @@
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import {
+  Page, Text, Box, BlockStack, InlineStack, Button, TextField,
+  Select, Checkbox, Collapsible, Divider, Icon, Banner, RadioButton,
+} from "@shopify/polaris";
+import {
+  DiscountIcon, SettingsIcon, EditIcon, MinimizeIcon, MaximizeIcon,
+  ClipboardIcon, PauseCircleIcon, PersonFilledIcon, CalendarIcon, ClockIcon,
+} from "@shopify/polaris-icons";
+import { authenticate } from "../shopify.server";
+
+export const loader = async ({ request }) => {
+  await authenticate.admin(request);
+  return {};
+};
+
+function SectionCard({ icon, title, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: open ? "1px solid #e1e3e5" : "none" }}>
+        <InlineStack gap="200" blockAlign="center">
+          <Icon source={icon} />
+          <Text variant="headingSm" as="h3" fontWeight="semibold">{title}</Text>
+        </InlineStack>
+        <Button variant="plain" icon={open ? MinimizeIcon : MaximizeIcon} onClick={() => setOpen(v => !v)}>
+          {open ? "Collapse" : "Expand"}
+        </Button>
+      </div>
+      <Collapsible open={open} id={`sc-${title}`}>
+        <Box padding="400">{children}</Box>
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 18px 12px" }}>
+          <Button variant="plain" icon={MinimizeIcon} onClick={() => setOpen(false)}>Collapse</Button>
+        </div>
+      </Collapsible>
+    </div>
+  );
+}
+
+export default function DiscountCodeCreate() {
+  const navigate = useNavigate();
+  const [status, setStatus] = useState("draft");
+  const [campaignName, setCampaignName] = useState("Discount Code");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Code settings
+  const [discountCode, setDiscountCode] = useState("");
+  const [displayStyle, setDisplayStyle] = useState("banner");
+  const [allowCopy, setAllowCopy] = useState(true);
+  const [autoApply, setAutoApply] = useState(false);
+
+  // Message
+  const [headline, setHeadline] = useState("");
+  const [description, setDescription] = useState("");
+  const [ctaText, setCtaText] = useState("");
+
+  // Style
+  const [bgColor, setBgColor] = useState("#fff7ed");
+  const [textColor, setTextColor] = useState("#92400e");
+  const [codeBoxBg, setCodeBoxBg] = useState("#fef3c7");
+  const [position, setPosition] = useState("top");
+  const [isDismissible, setIsDismissible] = useState(false);
+
+  // Conditions
+  const [showWhen, setShowWhen] = useState("always");
+  const [minCartValue, setMinCartValue] = useState("");
+
+  // Settings
+  const today = new Date().toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState(today);
+  const [startTime, setStartTime] = useState("00:00");
+  const [hasEndDate, setHasEndDate] = useState(false);
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("23:59");
+
+  const isPaused = status !== "active";
+
+  const handleSave = () => {
+    setIsSaving(true);
+    setTimeout(() => { setIsSaving(false); navigate("/app/campaigns"); }, 800);
+  };
+
+  return (
+    <Page
+      backAction={{ content: "Campaigns", onAction: () => navigate("/app/campaigns") }}
+      title={campaignName || "Discount Code"}
+      primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
+      secondaryActions={[{ content: status === "active" ? "Pause" : "Activate", onAction: () => setStatus(s => s === "active" ? "draft" : "active") }]}
+    >
+      <style>{`.dc-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.dc-layout{grid-template-columns:1fr}}`}</style>
+      <Box paddingBlockEnd="800">
+        <div className="dc-layout">
+          <BlockStack gap="400">
+
+            {/* Discount Code */}
+            <SectionCard icon={DiscountIcon} title="Discount code">
+              <BlockStack gap="400">
+                <TextField
+                  label="Discount code"
+                  value={discountCode}
+                  onChange={setDiscountCode}
+                  autoComplete="off"
+                  placeholder="e.g. SAVE15"
+                  helpText="Enter the exact Shopify discount code customers will use at checkout."
+                  prefix={<Icon source={ClipboardIcon} />}
+                />
+
+                <Divider />
+
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Display style</Text>
+                  <BlockStack gap="100">
+                    <RadioButton label="Banner with code box" helpText="Shows a prominent banner with the code highlighted" checked={displayStyle === "banner"} id="ds-banner" name="displayStyle" onChange={() => setDisplayStyle("banner")} />
+                    <RadioButton label="Inline code chip" helpText="Shows a compact clickable code tag inline" checked={displayStyle === "inline"} id="ds-inline" name="displayStyle" onChange={() => setDisplayStyle("inline")} />
+                    <RadioButton label="Sticky bar" helpText="Appears as a sticky notification bar at the top of the cart" checked={displayStyle === "sticky"} id="ds-sticky" name="displayStyle" onChange={() => setDisplayStyle("sticky")} />
+                  </BlockStack>
+                </BlockStack>
+
+                <Divider />
+
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Code behaviour</Text>
+                  <Checkbox label="Allow customers to copy code with one click" checked={allowCopy} onChange={setAllowCopy} helpText="A copy icon appears next to the code." />
+                  <Checkbox label="Auto-apply code when customer clicks it" checked={autoApply} onChange={setAutoApply} helpText="Automatically applies the discount code to the cart." />
+                </BlockStack>
+              </BlockStack>
+            </SectionCard>
+
+            {/* Message */}
+            <SectionCard icon={EditIcon} title="Message content">
+              <BlockStack gap="300">
+                <TextField
+                  label="Headline"
+                  value={headline}
+                  onChange={setHeadline}
+                  autoComplete="off"
+                  placeholder="e.g. Exclusive discount just for you!"
+                  helpText="Main attention-grabbing title shown above the code."
+                />
+                <TextField
+                  label="Description"
+                  value={description}
+                  onChange={setDescription}
+                  autoComplete="off"
+                  placeholder="e.g. Use code SAVE15 at checkout for 15% off your entire order."
+                  multiline={2}
+                />
+                <TextField
+                  label="Call-to-action text (optional)"
+                  value={ctaText}
+                  onChange={setCtaText}
+                  autoComplete="off"
+                  placeholder="e.g. Copy code"
+                />
+              </BlockStack>
+            </SectionCard>
+
+            {/* Style */}
+            <SectionCard icon={EditIcon} title="Style">
+              <BlockStack gap="400">
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Position in cart</Text>
+                  <BlockStack gap="100">
+                    <RadioButton label="Top of cart" checked={position === "top"} id="pos-top" name="posn" onChange={() => setPosition("top")} />
+                    <RadioButton label="Below cart items" checked={position === "below_items"} id="pos-below" name="posn" onChange={() => setPosition("below_items")} />
+                    <RadioButton label="Above checkout button" checked={position === "above_checkout"} id="pos-checkout" name="posn" onChange={() => setPosition("above_checkout")} />
+                  </BlockStack>
+                </BlockStack>
+
+                <Divider />
+
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Colors</Text>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <Text variant="bodySm" as="p" tone="subdued">Background color</Text>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                        <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} style={{ width: "36px", height: "36px", border: "1px solid #e1e3e5", borderRadius: "6px", cursor: "pointer", padding: "2px" }} />
+                        <Text variant="bodySm" as="p">{bgColor}</Text>
+                      </div>
+                    </div>
+                    <div>
+                      <Text variant="bodySm" as="p" tone="subdued">Text color</Text>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                        <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} style={{ width: "36px", height: "36px", border: "1px solid #e1e3e5", borderRadius: "6px", cursor: "pointer", padding: "2px" }} />
+                        <Text variant="bodySm" as="p">{textColor}</Text>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Text variant="bodySm" as="p" tone="subdued">Code box background</Text>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                      <input type="color" value={codeBoxBg} onChange={e => setCodeBoxBg(e.target.value)} style={{ width: "36px", height: "36px", border: "1px solid #e1e3e5", borderRadius: "6px", cursor: "pointer", padding: "2px" }} />
+                      <Text variant="bodySm" as="p">{codeBoxBg}</Text>
+                    </div>
+                  </div>
+                </BlockStack>
+
+                <Divider />
+
+                <Checkbox label="Allow customers to dismiss / close this banner" checked={isDismissible} onChange={setIsDismissible} helpText="Shows an × button to hide the banner." />
+              </BlockStack>
+            </SectionCard>
+
+            {/* Conditions */}
+            <SectionCard icon={DiscountIcon} title="Display conditions">
+              <BlockStack gap="300">
+                <Text variant="bodyMd" fontWeight="semibold" as="p">Show this banner when</Text>
+                <BlockStack gap="100">
+                  <RadioButton label="Always show" checked={showWhen === "always"} id="cond-always" name="showWhen" onChange={() => setShowWhen("always")} />
+                  <RadioButton label="Cart value is above a minimum" checked={showWhen === "cart_value"} id="cond-value" name="showWhen" onChange={() => setShowWhen("cart_value")} helpText="Show only when the cart total exceeds a threshold." />
+                </BlockStack>
+                {showWhen === "cart_value" && (
+                  <TextField label="Minimum cart value" type="number" value={minCartValue} onChange={setMinCartValue} autoComplete="off" prefix="$" placeholder="e.g. 25" />
+                )}
+              </BlockStack>
+            </SectionCard>
+
+            {/* Settings */}
+            <SectionCard icon={SettingsIcon} title="Settings">
+              <BlockStack gap="400">
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Active dates</Text>
+                  <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", padding: "16px" }}>
+                    <BlockStack gap="300">
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <TextField label="Start date" type="date" value={startDate} onChange={setStartDate} prefix={<Icon source={CalendarIcon} />} autoComplete="off" />
+                        <TextField label="Start time" type="time" value={startTime} onChange={setStartTime} prefix={<Icon source={ClockIcon} />} autoComplete="off" />
+                      </div>
+                      <Checkbox label="Set end date" checked={hasEndDate} onChange={setHasEndDate} />
+                      {hasEndDate && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                          <TextField label="End date" type="date" value={endDate} onChange={setEndDate} prefix={<Icon source={CalendarIcon} />} autoComplete="off" />
+                          <TextField label="End time" type="time" value={endTime} onChange={setEndTime} prefix={<Icon source={ClockIcon} />} autoComplete="off" />
+                        </div>
+                      )}
+                    </BlockStack>
+                  </div>
+                </BlockStack>
+                <Divider />
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Target an audience</Text>
+                  <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "14px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#ede9fe", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#7c3aed" }}>
+                      <Icon source={PersonFilledIcon} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <Text variant="bodyMd" fontWeight="semibold" as="p">Targeting everyone</Text>
+                      <Text variant="bodySm" tone="subdued" as="p">Add a rule to target a specific group.</Text>
+                    </div>
+                    <Button size="slim">Add rule</Button>
+                  </div>
+                </BlockStack>
+              </BlockStack>
+            </SectionCard>
+
+          </BlockStack>
+
+          {/* Sidebar */}
+          <BlockStack gap="300">
+            {isPaused && (
+              <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: "10px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ color: "#92400e" }}><Icon source={PauseCircleIcon} /></span>
+                <Text variant="bodyMd" fontWeight="semibold" as="p">This campaign is paused</Text>
+              </div>
+            )}
+            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", padding: "16px" }}>
+              <BlockStack gap="300">
+                <Select label="Status" options={[{ label: "Draft", value: "draft" }, { label: "Active", value: "active" }, { label: "Paused", value: "paused" }]} value={status} onChange={setStatus} />
+                <TextField label="Campaign name" value={campaignName} onChange={setCampaignName} autoComplete="off" />
+              </BlockStack>
+            </div>
+
+            {/* Live preview */}
+            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", overflow: "hidden" }}>
+              <Box padding="300" borderBlockEndWidth="025" borderColor="border">
+                <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
+              </Box>
+              <Box padding="300">
+                <div style={{ borderRadius: "8px", background: bgColor, padding: "14px 16px" }}>
+                  <Text variant="bodySm" fontWeight="semibold" as="p" >
+                    {headline || "Exclusive discount just for you!"}
+                  </Text>
+                  {description && (
+                    <Box paddingBlockStart="100">
+                      <Text variant="bodySm" as="p">{description}</Text>
+                    </Box>
+                  )}
+                  {discountCode && (
+                    <Box paddingBlockStart="200">
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: codeBoxBg, border: "1.5px dashed #d97706", borderRadius: "6px", padding: "6px 12px" }}>
+                        <Text variant="bodyMd" fontWeight="bold" as="span">{discountCode}</Text>
+                        {allowCopy && <span style={{ fontSize: "13px", cursor: "pointer" }}>📋</span>}
+                      </div>
+                    </Box>
+                  )}
+                </div>
+                <Box paddingBlockStart="200">
+                  <Text variant="bodySm" tone="subdued" as="p">Live preview based on your settings.</Text>
+                </Box>
+              </Box>
+            </div>
+          </BlockStack>
+        </div>
+      </Box>
+    </Page>
+  );
+}

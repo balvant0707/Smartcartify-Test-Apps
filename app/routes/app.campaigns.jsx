@@ -437,6 +437,13 @@ export default function CampaignSelector() {
   const CAMPAIGN_ROUTES = {
     "cart-goals": "/app/cart-goals",
     "buy-x-get-y": "/app/buy-x-get-y",
+    "one-click-upsell": "/app/one-click-upsell",
+    "discount-code": "/app/discount-code",
+    "volume-discount": "/app/volume-discount",
+    "cart-announcement-bar": "/app/cart-announcement-bar",
+    "cart-timer": "/app/cart-timer",
+    "line-item-messaging": "/app/line-item-messaging",
+    "cart-automation": "/app/cart-automation",
   };
 
   const handleCreate = () => {
