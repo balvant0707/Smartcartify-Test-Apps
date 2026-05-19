@@ -1,11 +1,11 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "b55a28208623440fd6a8987892e4aec3"
+client_id = "7a85831b0c4fec1f323dc285f026c1fd"
 name = "CartLift: Cart Drawer & Upsell"
 application_url = "https://smartcartify-test-apps.vercel.app/"
 embedded = true
 
-handle = "cartlift-cart-drawer-upsell"
+handle = "smartcartify-test-app"
 
 [build]
 automatically_update_urls_on_dev = true
