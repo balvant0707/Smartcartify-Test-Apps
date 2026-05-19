@@ -40,6 +40,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { upsertFreeShipping, upsertAutomaticBasic } from "../shopify-discount.server";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -47,22 +48,70 @@ export const loader = async ({ request }) => {
   const id = url.searchParams.get("id");
   let record = null;
   if (id) {
-    record = await prisma.cartGoal.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+    const raw = await prisma.campaign.findFirst({
+      where: { id: parseInt(id), shop: session.shop, type: "cart-goals" },
+    });
+    if (raw) {
+      const s = JSON.parse(raw.settings || "{}");
+      record = { ...raw, ...s };
+    }
   }
   return { record };
 };
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const body = await request.json();
-  const { id, ...fields } = body;
+  const { id, name, status, startsAt, endsAt, ...settings } = body;
+
+  let shopifyDiscountId = settings.shopifyDiscountId || null;
+  const milestones = JSON.parse(settings.milestones || "[]");
+  for (const m of milestones) {
+    if (!m.shopifyDiscountId) {
+      if (m.rewardType === "free_shipping") {
+        m.shopifyDiscountId = await upsertFreeShipping(admin, {
+          existingId: null,
+          title: `${name || "Cart Goals"} – Free Shipping`,
+          startsAt,
+          endsAt,
+          minSubtotal: m.targetValue,
+        }).catch(() => null);
+      } else if (m.rewardType === "order_discount") {
+        m.shopifyDiscountId = await upsertAutomaticBasic(admin, {
+          existingId: null,
+          title: `${name || "Cart Goals"} – ${m.discountValue}${m.discountType === "percentage" ? "%" : "$"} Off`,
+          startsAt,
+          endsAt,
+          minSubtotal: m.targetValue,
+          isPercentage: m.discountType === "percentage",
+          discountValue: m.discountValue,
+        }).catch(() => null);
+      }
+    }
+  }
+  settings.milestones = JSON.stringify(milestones);
+  shopifyDiscountId = milestones.find(m => m.shopifyDiscountId)?.shopifyDiscountId || null;
+  settings.shopifyDiscountId = shopifyDiscountId;
+
+  const dbData = {
+    shop,
+    type: "cart-goals",
+    name: name || "Cart Goals",
+    status: status || "draft",
+    settings: JSON.stringify(settings),
+    shopifyDiscountId: settings.shopifyDiscountId || null,
+    shopifyDiscountCode: settings.shopifyDiscountCode || null,
+    startsAt: startsAt ? new Date(startsAt) : null,
+    endsAt: endsAt ? new Date(endsAt) : null,
+  };
+
   try {
     let record;
     if (id) {
-      record = await prisma.cartGoal.update({ where: { id: parseInt(id), shop }, data: fields });
+      record = await prisma.campaign.update({ where: { id: parseInt(id), shop }, data: dbData });
     } else {
-      record = await prisma.cartGoal.create({ data: { shop, ...fields } });
+      record = await prisma.campaign.create({ data: dbData });
     }
     return { success: true, id: record.id };
   } catch (err) {

@@ -16,7 +16,7 @@ if (process.env.NODE_ENV === "production") {
   // Bump SCHEMA_VER whenever you run `prisma generate` after a schema change.
   // The new tag causes hot-reload to instantiate a fresh client from the
   // newly-generated code without requiring a full server restart.
-  const SCHEMA_VER = 10;
+  const SCHEMA_VER = 11;
   const tag = `__prisma_v${SCHEMA_VER}__`;
   if (!globalThis[tag]) {
     globalThis[tag] = createClient();

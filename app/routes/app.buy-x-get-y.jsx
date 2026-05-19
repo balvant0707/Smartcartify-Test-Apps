@@ -41,6 +41,7 @@ import {
   PackageIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import { upsertBxgy } from "../shopify-discount.server";
 import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
@@ -49,7 +50,13 @@ export const loader = async ({ request }) => {
   const id = url.searchParams.get("id");
   let record = null;
   if (id) {
-    record = await prisma.campaignBuyXGetY.findFirst({ where: { uid: parseInt(id), shop: session.shop } });
+    const raw = await prisma.campaign.findFirst({
+      where: { id: parseInt(id), shop: session.shop, type: "buy-x-get-y" },
+    });
+    if (raw) {
+      const s = JSON.parse(raw.settings || "{}");
+      record = { ...raw, ...s };
+    }
   }
   return { record };
 };
@@ -58,72 +65,42 @@ export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const body = await request.json();
-  const { id, ...fields } = body;
+  const { id, name, status, startsAt, endsAt, ...settings } = body;
+
+  const shopifyDiscountId = await upsertBxgy(admin, {
+    existingId: id ? (await prisma.campaign.findFirst({ where: { id: parseInt(id), shop } }))?.shopifyDiscountId : null,
+    title: name || "Buy X Get Y",
+    startsAt,
+    endsAt,
+    minReqType: settings.minReqType,
+    minQty: settings.minQty,
+    minSpend: settings.minSpend,
+    rewardQty: settings.rewardQty,
+    rewardType: settings.rewardType,
+    rewardDiscount: settings.rewardDiscount,
+  }).catch(() => null);
+  settings.shopifyDiscountId = shopifyDiscountId;
+
+  const dbData = {
+    shop,
+    type: "buy-x-get-y",
+    name: name || "Buy X Get Y",
+    status: status || "draft",
+    settings: JSON.stringify(settings),
+    shopifyDiscountId: settings.shopifyDiscountId || null,
+    shopifyDiscountCode: settings.shopifyDiscountCode || null,
+    startsAt: startsAt ? new Date(startsAt) : null,
+    endsAt: endsAt ? new Date(endsAt) : null,
+  };
+
   try {
-    // Build Shopify BXGY discount
-    const startsAtIso = fields.startsAt || new Date().toISOString();
-    const bxgyInput = {
-      title: fields.name,
-      startsAt: startsAtIso,
-      endsAt: fields.endsAt || null,
-      customerBuys: {
-        items: { all: true },
-        value: fields.minReqType === "spend"
-          ? { subtotalAmount: { amount: fields.minSpend || "0", currencyCode: "USD" } }
-          : { quantity: { quantity: parseInt(fields.minQty || "1") } },
-      },
-      customerGets: {
-        items: { all: true },
-        value: {
-          discountOnQuantity: {
-            quantity: parseInt(fields.rewardQty || "1"),
-            effect: fields.rewardType === "free_product"
-              ? { percentage: 1.0 }
-              : { percentage: parseFloat(fields.rewardDiscount || "0") / 100 },
-          },
-        },
-      },
-    };
-
-    let shopifyDiscountId = fields.shopifyDiscountId || null;
-    if (id && shopifyDiscountId) {
-      // Update existing discount
-      const res = await admin.graphql(
-        `#graphql
-        mutation discountAutomaticBxgyUpdate($id: ID!, $input: DiscountAutomaticBxgyInput!) {
-          discountAutomaticBxgyUpdate(id: $id, bxgyAutomaticDiscount: $input) {
-            automaticDiscountNode { id }
-            userErrors { field message }
-          }
-        }`,
-        { variables: { id: shopifyDiscountId, input: bxgyInput } }
-      );
-      const resJson = await res.json();
-      shopifyDiscountId = resJson?.data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id || shopifyDiscountId;
-    } else {
-      // Create new discount
-      const res = await admin.graphql(
-        `#graphql
-        mutation discountAutomaticBxgyCreate($input: DiscountAutomaticBxgyInput!) {
-          discountAutomaticBxgyCreate(bxgyAutomaticDiscount: $input) {
-            automaticDiscountNode { id }
-            userErrors { field message }
-          }
-        }`,
-        { variables: { input: bxgyInput } }
-      );
-      const resJson = await res.json();
-      shopifyDiscountId = resJson?.data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id || null;
-    }
-    fields.shopifyDiscountId = shopifyDiscountId;
-
     let record;
     if (id) {
-      record = await prisma.campaignBuyXGetY.update({ where: { uid: parseInt(id), shop }, data: fields });
+      record = await prisma.campaign.update({ where: { id: parseInt(id), shop }, data: dbData });
     } else {
-      record = await prisma.campaignBuyXGetY.create({ data: { shop, ...fields } });
+      record = await prisma.campaign.create({ data: dbData });
     }
-    return { success: true, id: record.uid };
+    return { success: true, id: record.id };
   } catch (err) {
     return { error: err.message };
   }
@@ -962,7 +939,7 @@ export default function BuyXGetYCreate() {
   const actionData = useActionData();
   const navigation = useNavigation();
   const submit = useSubmit();
-  const recordId = loaderData?.record?.uid || null;
+  const recordId = loaderData?.record?.id || null;
   const r = loaderData?.record;
 
   const [status, setStatus] = useState(r?.status ?? "draft");

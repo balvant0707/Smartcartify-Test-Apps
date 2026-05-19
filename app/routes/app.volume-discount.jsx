@@ -10,6 +10,7 @@ import {
   ClockIcon, SearchIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import { upsertDiscountCode } from "../shopify-discount.server";
 import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
@@ -18,7 +19,13 @@ export const loader = async ({ request }) => {
   const id = url.searchParams.get("id");
   let record = null;
   if (id) {
-    record = await prisma.campaignVolumeDiscount.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+    const raw = await prisma.campaign.findFirst({
+      where: { id: parseInt(id), shop: session.shop, type: "volume-discount" },
+    });
+    if (raw) {
+      const s = JSON.parse(raw.settings || "{}");
+      record = { ...raw, ...s };
+    }
   }
   return { record };
 };
@@ -27,79 +34,45 @@ export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const body = await request.json();
-  const { id, ...fields } = body;
-  try {
-    // Build Shopify discount code for volume discount (lowest tier threshold)
-    const lowestTier = (JSON.parse(fields.tiers || "[]")).sort((a, b) => parseInt(a.minQty) - parseInt(b.minQty))[0];
-    if (lowestTier && fields.shopifyDiscountCode) {
-      const discountValue = fields.discountType === "percentage"
-        ? { percentage: parseFloat(lowestTier.discount) / 100 }
-        : { amount: { amount: lowestTier.discount, currencyCode: "USD" } };
+  const { id, name, status, startsAt, endsAt, ...settings } = body;
 
-      let shopifyDiscountId = fields.shopifyDiscountId || null;
-      if (id && shopifyDiscountId) {
-        await admin.graphql(
-          `#graphql
-          mutation discountCodeBasicUpdate($id: ID!, $input: DiscountCodeBasicInput!) {
-            discountCodeBasicUpdate(id: $id, basicCodeDiscount: $input) {
-              codeDiscountNode { id }
-              userErrors { field message }
-            }
-          }`,
-          {
-            variables: {
-              id: shopifyDiscountId,
-              input: {
-                title: fields.name,
-                startsAt: fields.startsAt || new Date().toISOString(),
-                endsAt: fields.endsAt || null,
-                customerSelection: { all: true },
-                customerGets: {
-                  value: discountValue,
-                  items: { all: true },
-                },
-                appliesOncePerCustomer: false,
-                codes: { add: [] },
-              },
-            },
-          }
-        );
-      } else {
-        const res = await admin.graphql(
-          `#graphql
-          mutation discountCodeBasicCreate($input: DiscountCodeBasicInput!) {
-            discountCodeBasicCreate(basicCodeDiscount: $input) {
-              codeDiscountNode { id }
-              userErrors { field message }
-            }
-          }`,
-          {
-            variables: {
-              input: {
-                title: fields.name,
-                startsAt: fields.startsAt || new Date().toISOString(),
-                endsAt: fields.endsAt || null,
-                customerSelection: { all: true },
-                customerGets: {
-                  value: discountValue,
-                  items: { all: true },
-                },
-                appliesOncePerCustomer: false,
-                codes: { add: [{ code: fields.shopifyDiscountCode }] },
-              },
-            },
-          }
-        );
-        const resJson = await res.json();
-        fields.shopifyDiscountId = resJson?.data?.discountCodeBasicCreate?.codeDiscountNode?.id || null;
-      }
+  if (settings.shopifyDiscountCode) {
+    const tiers = JSON.parse(settings.tiers || "[]");
+    const lowestTier = tiers.sort((a, b) => parseInt(a.minQty) - parseInt(b.minQty))[0];
+    if (lowestTier) {
+      const existingId = id
+        ? (await prisma.campaign.findFirst({ where: { id: parseInt(id), shop } }))?.shopifyDiscountId
+        : null;
+      settings.shopifyDiscountId = await upsertDiscountCode(admin, {
+        existingId,
+        title: name || "Volume Discount",
+        code: settings.shopifyDiscountCode,
+        startsAt,
+        endsAt,
+        isPercentage: settings.discountType === "percentage",
+        discountValue: lowestTier.discount,
+      }).catch(() => null);
     }
+  }
 
+  const dbData = {
+    shop,
+    type: "volume-discount",
+    name: name || "Volume Discount",
+    status: status || "draft",
+    settings: JSON.stringify(settings),
+    shopifyDiscountId: settings.shopifyDiscountId || null,
+    shopifyDiscountCode: settings.shopifyDiscountCode || null,
+    startsAt: startsAt ? new Date(startsAt) : null,
+    endsAt: endsAt ? new Date(endsAt) : null,
+  };
+
+  try {
     let record;
     if (id) {
-      record = await prisma.campaignVolumeDiscount.update({ where: { id: parseInt(id), shop }, data: fields });
+      record = await prisma.campaign.update({ where: { id: parseInt(id), shop }, data: dbData });
     } else {
-      record = await prisma.campaignVolumeDiscount.create({ data: { shop, ...fields } });
+      record = await prisma.campaign.create({ data: dbData });
     }
     return { success: true, id: record.id };
   } catch (err) {

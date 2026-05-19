@@ -17,7 +17,13 @@ export const loader = async ({ request }) => {
   const id = url.searchParams.get("id");
   let record = null;
   if (id) {
-    record = await prisma.cartTimer.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+    const raw = await prisma.campaign.findFirst({
+      where: { id: parseInt(id), shop: session.shop, type: "cart-timer" },
+    });
+    if (raw) {
+      const s = JSON.parse(raw.settings || "{}");
+      record = { ...raw, ...s };
+    }
   }
   return { record };
 };
@@ -26,13 +32,26 @@ export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
   const body = await request.json();
-  const { id, ...fields } = body;
+  const { id, name, status, startsAt, endsAt, ...settings } = body;
+
+  const dbData = {
+    shop,
+    type: "cart-timer",
+    name: name || "Cart Timer",
+    status: status || "draft",
+    settings: JSON.stringify(settings),
+    shopifyDiscountId: null,
+    shopifyDiscountCode: null,
+    startsAt: startsAt ? new Date(startsAt) : null,
+    endsAt: endsAt ? new Date(endsAt) : null,
+  };
+
   try {
     let record;
     if (id) {
-      record = await prisma.cartTimer.update({ where: { id: parseInt(id), shop }, data: fields });
+      record = await prisma.campaign.update({ where: { id: parseInt(id), shop }, data: dbData });
     } else {
-      record = await prisma.cartTimer.create({ data: { shop, ...fields } });
+      record = await prisma.campaign.create({ data: dbData });
     }
     return { success: true, id: record.id };
   } catch (err) {

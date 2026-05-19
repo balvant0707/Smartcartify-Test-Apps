@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams, useLoaderData, useFetcher } from "react-router";
 import {
   Page,
   Tabs,
@@ -9,12 +9,31 @@ import {
   InlineStack,
   Button,
   Divider,
+  Badge,
+  Modal,
 } from "@shopify/polaris";
+import { DeleteIcon, EditIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const campaigns = await prisma.campaign.findMany({
+    where: { shop: session.shop },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, type: true, name: true, status: true, createdAt: true, updatedAt: true },
+  });
+  return { campaigns };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const body = await request.json();
+  if (body._action === "delete") {
+    await prisma.campaign.deleteMany({ where: { id: parseInt(body.id), shop: session.shop } });
+    return { success: true };
+  }
+  return { error: "Unknown action" };
 };
 
 export const boundary = {
@@ -389,14 +408,83 @@ function PreviewPanel({ campaign, onCreate }) {
   );
 }
 
+const CAMPAIGN_TYPE_LABELS = {
+  "cart-goals": "Cart Goals",
+  "buy-x-get-y": "Buy X Get Y",
+  "one-click-upsell": "One Click Upsell",
+  "discount-code": "Discount Code",
+  "volume-discount": "Volume Discount",
+  "cart-announcement-bar": "Announcement Bar",
+  "cart-timer": "Cart Timer",
+  "line-item-messaging": "Line Item Msg",
+  "cart-automation": "Cart Automation",
+};
+
+const CAMPAIGN_ROUTES = {
+  "cart-goals": "/app/cart-goals",
+  "buy-x-get-y": "/app/buy-x-get-y",
+  "one-click-upsell": "/app/one-click-upsell",
+  "discount-code": "/app/discount-code",
+  "volume-discount": "/app/volume-discount",
+  "cart-announcement-bar": "/app/cart-announcement-bar",
+  "cart-timer": "/app/cart-timer",
+  "line-item-messaging": "/app/line-item-messaging",
+  "cart-automation": "/app/cart-automation",
+};
+
+const STATUS_TONE = { active: "success", draft: "info", paused: "warning" };
+
+function CampaignTable({ campaigns, onEdit, onDelete }) {
+  if (!campaigns.length) return null;
+  return (
+    <div style={{ border: "1px solid #e1e3e5", borderRadius: "10px", overflow: "hidden", background: "#fff", marginBottom: "24px" }}>
+      <div style={{ padding: "14px 18px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Text variant="headingSm" fontWeight="semibold" as="h3">My campaigns</Text>
+        <Badge>{campaigns.length}</Badge>
+      </div>
+      <div>
+        {campaigns.map((c, i) => (
+          <div key={c.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 18px", borderBottom: i < campaigns.length - 1 ? "1px solid #f1f1f1" : "none" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Text variant="bodyMd" fontWeight="semibold" as="p">{c.name}</Text>
+              <Text variant="bodySm" tone="subdued" as="p">{CAMPAIGN_TYPE_LABELS[c.type] || c.type}</Text>
+            </div>
+            <Badge tone={STATUS_TONE[c.status] || "info"}>{c.status}</Badge>
+            <Text variant="bodySm" tone="subdued" as="p">{new Date(c.updatedAt).toLocaleDateString()}</Text>
+            <Button size="slim" icon={EditIcon} onClick={() => onEdit(c)} accessibilityLabel="Edit" />
+            <Button size="slim" icon={DeleteIcon} tone="critical" variant="plain" onClick={() => onDelete(c)} accessibilityLabel="Delete" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CampaignSelector() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
+  const { campaigns } = useLoaderData();
+  const fetcher = useFetcher();
 
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [selectedId, setSelectedId] = useState("cart-goals");
+
+  const handleEdit = (c) => {
+    const base = CAMPAIGN_ROUTES[c.type];
+    if (base) navigate(withHost(`${base}?id=${c.id}`));
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    fetcher.submit(
+      { _action: "delete", id: deleteTarget.id },
+      { method: "post", encType: "application/json" }
+    );
+    setDeleteTarget(null);
+  };
 
   const activeCategory = TABS[selectedTabIndex].id;
   const selected = CAMPAIGN_TYPES.find((c) => c.id === selectedId);
@@ -438,18 +526,6 @@ export default function CampaignSelector() {
     if (first) setSelectedId(first.id);
   };
 
-  const CAMPAIGN_ROUTES = {
-    "cart-goals": "/app/cart-goals",
-    "buy-x-get-y": "/app/buy-x-get-y",
-    "one-click-upsell": "/app/one-click-upsell",
-    "discount-code": "/app/discount-code",
-    "volume-discount": "/app/volume-discount",
-    "cart-announcement-bar": "/app/cart-announcement-bar",
-    "cart-timer": "/app/cart-timer",
-    "line-item-messaging": "/app/line-item-messaging",
-    "cart-automation": "/app/cart-automation",
-  };
-
   const handleCreate = () => {
     const base = CAMPAIGN_ROUTES[selectedId] ?? `/app/rules?create=true&type=${selectedId}`;
     navigate(withHost(base));
@@ -458,9 +534,29 @@ export default function CampaignSelector() {
   return (
     <Page
       backAction={{ content: "Back", onAction: () => navigate(withHost("/app")) }}
-      title="Select a campaign type"
+      title="Campaigns"
     >
+      {deleteTarget && (
+        <Modal
+          open
+          onClose={() => setDeleteTarget(null)}
+          title="Delete campaign?"
+          primaryAction={{ content: "Delete", destructive: true, onAction: handleDeleteConfirm }}
+          secondaryActions={[{ content: "Cancel", onAction: () => setDeleteTarget(null) }]}
+        >
+          <Modal.Section>
+            <Text as="p">Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This cannot be undone.</Text>
+          </Modal.Section>
+        </Modal>
+      )}
       <Box paddingBlockEnd="600">
+        <CampaignTable
+          campaigns={campaigns}
+          onEdit={handleEdit}
+          onDelete={setDeleteTarget}
+        />
+        <Text variant="headingSm" fontWeight="semibold" as="h3" tone="subdued">Create a new campaign</Text>
+        <Box paddingBlockStart="300">
         <div
           style={{
             border: "1px solid #e1e3e5",
@@ -534,6 +630,7 @@ export default function CampaignSelector() {
             )}
           </div>
         </div>
+        </Box>
       </Box>
     </Page>
   );

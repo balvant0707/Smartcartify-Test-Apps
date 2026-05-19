@@ -19,22 +19,41 @@ export const loader = async ({ request }) => {
   const id = url.searchParams.get("id");
   let record = null;
   if (id) {
-    record = await prisma.oneClickUpsell.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+    const raw = await prisma.campaign.findFirst({
+      where: { id: parseInt(id), shop: session.shop, type: "one-click-upsell" },
+    });
+    if (raw) {
+      const s = JSON.parse(raw.settings || "{}");
+      record = { ...raw, ...s };
+    }
   }
   return { record };
 };
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const body = await request.json();
-  const { id, ...fields } = body;
+  const { id, name, status, startsAt, endsAt, ...settings } = body;
+
+  const dbData = {
+    shop,
+    type: "one-click-upsell",
+    name: name || "One Click Upsell",
+    status: status || "draft",
+    settings: JSON.stringify(settings),
+    shopifyDiscountId: settings.shopifyDiscountId || null,
+    shopifyDiscountCode: settings.shopifyDiscountCode || null,
+    startsAt: startsAt ? new Date(startsAt) : null,
+    endsAt: endsAt ? new Date(endsAt) : null,
+  };
+
   try {
     let record;
     if (id) {
-      record = await prisma.oneClickUpsell.update({ where: { id: parseInt(id), shop }, data: fields });
+      record = await prisma.campaign.update({ where: { id: parseInt(id), shop }, data: dbData });
     } else {
-      record = await prisma.oneClickUpsell.create({ data: { shop, ...fields } });
+      record = await prisma.campaign.create({ data: dbData });
     }
     return { success: true, id: record.id };
   } catch (err) {

@@ -347,6 +347,25 @@ model PlanSubscription {
   @@map("plansubscription")
 }
 
+model Campaign {
+  id                  Int       @id @default(autoincrement())
+  shop                String    @db.VarChar(255)
+  type                String    @db.VarChar(64)
+  name                String    @db.VarChar(255)
+  status              String    @default("draft") @db.VarChar(20)
+  settings            String    @db.LongText
+  shopifyDiscountId   String?   @db.VarChar(255)
+  shopifyDiscountCode String?   @db.VarChar(255)
+  startsAt            DateTime?
+  endsAt              DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([shop])
+  @@index([shop, type])
+  @@map("campaign")
+}
+
 model CartGoal {
   id               Int       @id @default(autoincrement())
   shop             String    @db.VarChar(255)
