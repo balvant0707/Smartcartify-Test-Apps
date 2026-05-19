@@ -314,7 +314,6 @@ function PreviewPanel({ campaign, onCreate }) {
           size="large"
           fullWidth
           onClick={onCreate}
-          tone="critical"
         >
           Create this campaign
         </Button>
