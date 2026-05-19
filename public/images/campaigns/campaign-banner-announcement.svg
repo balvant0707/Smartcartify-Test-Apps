@@ -1,0 +1,28 @@
+<svg viewBox="0 0 350 126" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g clip-path="url(#a)">
+    <mask style="mask-type:alpha" maskUnits="userSpaceOnUse" y="0" x="-3" height="124" width="387" id="b">
+      <path d="M-2.3.5 25.5 108l45 16 236-22.5L350 61l33-50L-2.3.5Z" fill="#C882FF"></path>
+    </mask>
+    <g mask="url(#b)">
+      <path d="M297.5 10.5 16.5 24 4 39.5 28.4 119l258.6 5.6 63-63.1-52.5-51Z" fill="#FFC32A"></path>
+      <path d="m28 82.5 258.8 42.1 14.8-25.8-31-28.2L297.6 10 170 16 59.5 21.5 15 24l13 58.5Z" fill="#F8A60F"></path>
+      <rect transform="rotate(9 55.8 8.6)" rx="13" fill="#0F0F0F" y="8.6" x="55.8" height="151" width="246"></rect>
+      <rect transform="rotate(9 46.3 2.3)" rx="13" fill="#D07300" y="2.3" x="46.3" height="151" width="246"></rect>
+      <path opacity=".3" d="M44.8 11.6 182 40.3l83.8 149.5-243-38.4 22-139.8Z" fill="#FFAE00"></path>
+      <path opacity=".3" d="m49 45.2 227.5-7.7-10.7 152.3-243-38.4L49 45.2Z" fill="#FFAE00"></path>
+      <path opacity=".3" d="M49 45.2 98.4 9.4 285 67.2l-19.3 122.6-243-38.4L49 45.2Z" fill="#FFAE00"></path>
+      <rect transform="rotate(9 47.7 44.4)" rx="5" fill="#fff" y="44.4" x="47.7" height="163" width="230"></rect>
+      <rect transform="rotate(9 47.8 100.2)" rx="2" fill="#E6E6EB" y="100.2" x="47.8" height="4" width="209.1"></rect>
+      <rect transform="rotate(8 83.5 88.3)" rx="3.4" fill="#D3C1B9" y="88.3" x="83.5" height="6.7" width="144.9"></rect>
+      <rect transform="rotate(9 47.8 100.2)" rx="2" fill="#CC5100" y="100.2" x="47.8" height="4" width="46.9"></rect>
+      <circle transform="rotate(9 113.5 112.2)" fill="#E6E6EB" r="5.6" cy="112.2" cx="113.5"></circle>
+      <path d="M25.8 40.5c.4-2.3 2.6-4 5-3.5l229.6 36.2c2.4.4 4 2.6 3.6 5l-2.6 16.7c-.4 2.4-2.6 4-5 3.6L26.9 62.3c-2.4-.4-4-2.6-3.6-5l2.6-16.8Z" stroke-width="2" stroke="#000" fill="#0F0F0F"></path>
+      <path d="M21 35.8c.4-2.3 2.6-4 5-3.6l229.7 36.3c2.3.3 4 2.5 3.6 4.9l-2.7 16.8c-.4 2.4-2.5 4-4.9 3.6L22 57.6c-2.3-.4-4-2.6-3.6-5l2.7-16.8Z" stroke-width="2" stroke="#000" fill="#FFCBCB"></path>
+    </g>
+  </g>
+  <defs>
+    <clipPath id="a">
+      <path d="M0 0h350v126H0z" fill="#fff"></path>
+    </clipPath>
+  </defs>
+</svg>
