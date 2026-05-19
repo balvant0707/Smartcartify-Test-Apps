@@ -346,3 +346,233 @@ model PlanSubscription {
 
   @@map("plansubscription")
 }
+
+model CartGoal {
+  id               Int       @id @default(autoincrement())
+  shop             String    @db.VarChar(255)
+  name             String    @db.VarChar(255)
+  status           String    @default("draft") @db.VarChar(20)
+  milestones       String    @db.LongText
+  position         String    @default("top") @db.VarChar(32)
+  bgColor          String?   @db.VarChar(32)
+  textColor        String?   @db.VarChar(32)
+  progressBarColor String?   @db.VarChar(32)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([shop])
+  @@map("cartgoal")
+}
+
+model CampaignBuyXGetY {
+  uid               Int       @id @default(autoincrement())
+  shop              String    @db.VarChar(255)
+  name              String    @db.VarChar(255)
+  status            String    @default("draft") @db.VarChar(20)
+  buyTriggerType    String    @default("specific_products") @db.VarChar(32)
+  buyProducts       String?   @db.LongText
+  buyCollections    String?   @db.LongText
+  minReqType        String    @default("quantity") @db.VarChar(16)
+  minQty            String?   @db.VarChar(16)
+  minSpend          String?   @db.VarChar(16)
+  rewardType        String    @default("free_product") @db.VarChar(32)
+  rewardProducts    String?   @db.LongText
+  rewardQty         String?   @db.VarChar(8)
+  rewardDiscount    String?   @db.VarChar(16)
+  shopifyCode       String?   @db.VarChar(255)
+  usageLimit        String?   @db.VarChar(16)
+  shopifyDiscountId String?   @db.VarChar(255)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([shop])
+  @@map("campaignbuyxgety")
+}
+
+model OneClickUpsell {
+  id                Int       @id @default(autoincrement())
+  shop              String    @db.VarChar(255)
+  name              String    @db.VarChar(255)
+  status            String    @default("draft") @db.VarChar(20)
+  productId         String?   @db.VarChar(255)
+  productTitle      String?   @db.VarChar(255)
+  variantId         String?   @db.VarChar(255)
+  discountType      String?   @db.VarChar(32)
+  discountValue     String?   @db.VarChar(32)
+  label             String?   @db.VarChar(255)
+  description       String?   @db.Text
+  position          String    @default("above_checkout") @db.VarChar(32)
+  displayCondition  String    @default("always") @db.VarChar(32)
+  conditionProducts String?   @db.LongText
+  conditionValue    String?   @db.VarChar(64)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([shop])
+  @@map("oneclickupsell")
+}
+
+model CampaignDiscountCode {
+  id            Int       @id @default(autoincrement())
+  shop          String    @db.VarChar(255)
+  name          String    @db.VarChar(255)
+  status        String    @default("draft") @db.VarChar(20)
+  discountCode  String?   @db.VarChar(255)
+  displayStyle  String    @default("banner") @db.VarChar(32)
+  allowCopy     Boolean   @default(true)
+  autoApply     Boolean   @default(false)
+  headline      String?   @db.VarChar(255)
+  description   String?   @db.Text
+  ctaText       String?   @db.VarChar(255)
+  bgColor       String?   @db.VarChar(32)
+  textColor     String?   @db.VarChar(32)
+  codeBoxBg     String?   @db.VarChar(32)
+  position      String    @default("top") @db.VarChar(32)
+  isDismissible Boolean   @default(false)
+  showWhen      String    @default("always") @db.VarChar(32)
+  minCartValue  String?   @db.VarChar(32)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([shop])
+  @@map("campaigndiscountcode")
+}
+
+model CampaignVolumeDiscount {
+  id                  Int       @id @default(autoincrement())
+  shop                String    @db.VarChar(255)
+  name                String    @db.VarChar(255)
+  status              String    @default("draft") @db.VarChar(20)
+  targetType          String    @default("all") @db.VarChar(32)
+  targetIds           String?   @db.LongText
+  discountType        String    @default("percentage") @db.VarChar(32)
+  tiers               String    @db.LongText
+  shopifyDiscountCode String?   @db.VarChar(255)
+  shopifyDiscountId   String?   @db.VarChar(255)
+  showTable           Boolean   @default(true)
+  tableTitle          String?   @db.VarChar(255)
+  startsAt            DateTime?
+  endsAt              DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([shop])
+  @@map("campaignvolumediscount")
+}
+
+model CartAnnouncementBar {
+  id            Int       @id @default(autoincrement())
+  shop          String    @db.VarChar(255)
+  name          String    @db.VarChar(255)
+  status        String    @default("draft") @db.VarChar(20)
+  icon          String?   @db.VarChar(8)
+  message       String?   @db.Text
+  linkUrl       String?   @db.VarChar(512)
+  linkText      String?   @db.VarChar(255)
+  position      String    @default("top") @db.VarChar(16)
+  bgColor       String?   @db.VarChar(32)
+  textColor     String?   @db.VarChar(32)
+  textAlignment String    @default("center") @db.VarChar(16)
+  fontSize      String?   @db.VarChar(8)
+  isDismissible Boolean   @default(false)
+  showWhen      String    @default("always") @db.VarChar(32)
+  minCartValue  String?   @db.VarChar(32)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([shop])
+  @@map("cartannouncementbar")
+}
+
+model CartTimer {
+  id                Int       @id @default(autoincrement())
+  shop              String    @db.VarChar(255)
+  name              String    @db.VarChar(255)
+  status            String    @default("draft") @db.VarChar(20)
+  timerType         String    @default("fixed") @db.VarChar(16)
+  hours             String?   @db.VarChar(8)
+  minutes           String?   @db.VarChar(8)
+  seconds           String?   @db.VarChar(8)
+  countdownDate     String?   @db.VarChar(16)
+  countdownTime     String?   @db.VarChar(8)
+  resetOnReopen     Boolean   @default(true)
+  messageText       String?   @db.Text
+  expiredText       String?   @db.Text
+  labelPosition     String    @default("above") @db.VarChar(8)
+  expiryBehavior    String    @default("show_message") @db.VarChar(32)
+  expiryRedirectUrl String?   @db.VarChar(512)
+  digitBgColor      String?   @db.VarChar(32)
+  digitTextColor    String?   @db.VarChar(32)
+  bgColor           String?   @db.VarChar(32)
+  textColor         String?   @db.VarChar(32)
+  position          String    @default("top") @db.VarChar(32)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([shop])
+  @@map("carttimer")
+}
+
+model LineItemMessaging {
+  id              Int       @id @default(autoincrement())
+  shop            String    @db.VarChar(255)
+  name            String    @db.VarChar(255)
+  status          String    @default("draft") @db.VarChar(20)
+  targetType      String    @default("all") @db.VarChar(32)
+  targetIds       String?   @db.LongText
+  conditions      String?   @db.LongText
+  conditionMatch  String    @default("all") @db.VarChar(8)
+  messageTemplate String    @default("delivery") @db.VarChar(32)
+  customMessage   String?   @db.Text
+  position        String    @default("below") @db.VarChar(8)
+  bgColor         String?   @db.VarChar(32)
+  textColor       String?   @db.VarChar(32)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([shop])
+  @@map("lineitemmessaging")
+}
+
+model CartAutomation {
+  id                        Int       @id @default(autoincrement())
+  shop                      String    @db.VarChar(255)
+  name                      String    @db.VarChar(255)
+  status                    String    @default("draft") @db.VarChar(20)
+  triggerRules              String    @db.LongText
+  triggerMatch              String    @default("any") @db.VarChar(8)
+  hasConditions             Boolean   @default(false)
+  conditionType             String?   @db.VarChar(32)
+  conditionValue            String?   @db.VarChar(255)
+  actionType                String    @default("add_attribute") @db.VarChar(32)
+  attrKey                   String?   @db.VarChar(255)
+  attrValue                 String?   @db.VarChar(255)
+  redirectUrl               String?   @db.VarChar(512)
+  redirectDelay             String?   @db.VarChar(8)
+  showMessage               String?   @db.Text
+  autoAddProductId          String?   @db.VarChar(255)
+  autoAddQty                String?   @db.VarChar(8)
+  autoRemoveWhenTriggerLost Boolean   @default(true)
+  runOnce                   Boolean   @default(false)
+  startsAt                  DateTime?
+  endsAt                    DateTime?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  @@index([shop])
+  @@map("cartautomation")
+}

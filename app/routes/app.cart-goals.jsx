@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams, useSubmit, useActionData, useLoaderData, useNavigation } from "react-router";
 import {
   Page,
   Text,
@@ -39,10 +39,35 @@ import {
   DeleteIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  let record = null;
+  if (id) {
+    record = await prisma.cartGoal.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+  }
+  return { record };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const body = await request.json();
+  const { id, ...fields } = body;
+  try {
+    let record;
+    if (id) {
+      record = await prisma.cartGoal.update({ where: { id: parseInt(id), shop }, data: fields });
+    } else {
+      record = await prisma.cartGoal.create({ data: { shop, ...fields } });
+    }
+    return { success: true, id: record.id };
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
 // ─── Collapsible section card ─────────────────────────────────────────────────
@@ -740,12 +765,19 @@ export default function CartGoalsCreate() {
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
 
-  const [status, setStatus] = useState("draft");
-  const [campaignName, setCampaignName] = useState("Cart Goal 1");
-  const [isSaving, setIsSaving] = useState(false);
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+  const recordId = loaderData?.record?.id || null;
+  const r = loaderData?.record;
+
+  const [status, setStatus] = useState(r?.status ?? "draft");
+  const [campaignName, setCampaignName] = useState(r?.name ?? "Cart Goal 1");
+  const isSaving = navigation.state === "submitting";
 
   const [trackBy, setTrackBy] = useState("cart_value");
-  const [milestones, setMilestones] = useState([]);
+  const [milestones, setMilestones] = useState(JSON.parse(r?.milestones || "[]"));
 
   const handleAddGoal = (rewardType) => {
     setMilestones((prev) => [...prev, { id: Date.now(), rewardType }]);
@@ -762,20 +794,36 @@ export default function CartGoalsCreate() {
     minute: "2-digit",
     hour12: false,
   });
-  const [startDate, setStartDate] = useState(today);
-  const [startTime, setStartTime] = useState(nowTime);
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("23:59");
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : nowTime);
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
   const [discountMode, setDiscountMode] = useState("after");
 
-  const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle") {
       navigate(withHost("/app/campaigns"));
-    }, 800);
+    }
+  }, [actionData, navigation.state]);
+
+  const handleSave = () => {
+    submit(
+      {
+        id: recordId,
+        name: campaignName,
+        status,
+        milestones: JSON.stringify(milestones),
+        position: null,
+        bgColor: null,
+        textColor: null,
+        progressBarColor: null,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   const isPaused = status !== "active";

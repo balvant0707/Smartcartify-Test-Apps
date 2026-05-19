@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams, useSubmit, useActionData, useLoaderData, useNavigation } from "react-router";
 import {
   Page,
   Text,
@@ -41,10 +41,92 @@ import {
   PackageIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  let record = null;
+  if (id) {
+    record = await prisma.campaignBuyXGetY.findFirst({ where: { uid: parseInt(id), shop: session.shop } });
+  }
+  return { record };
+};
+
+export const action = async ({ request }) => {
+  const { admin, session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const body = await request.json();
+  const { id, ...fields } = body;
+  try {
+    // Build Shopify BXGY discount
+    const startsAtIso = fields.startsAt || new Date().toISOString();
+    const bxgyInput = {
+      title: fields.name,
+      startsAt: startsAtIso,
+      endsAt: fields.endsAt || null,
+      customerBuys: {
+        items: { all: true },
+        value: fields.minReqType === "spend"
+          ? { subtotalAmount: { amount: fields.minSpend || "0", currencyCode: "USD" } }
+          : { quantity: { quantity: parseInt(fields.minQty || "1") } },
+      },
+      customerGets: {
+        items: { all: true },
+        value: {
+          discountOnQuantity: {
+            quantity: parseInt(fields.rewardQty || "1"),
+            effect: fields.rewardType === "free_product"
+              ? { percentage: 1.0 }
+              : { percentage: parseFloat(fields.rewardDiscount || "0") / 100 },
+          },
+        },
+      },
+    };
+
+    let shopifyDiscountId = fields.shopifyDiscountId || null;
+    if (id && shopifyDiscountId) {
+      // Update existing discount
+      const res = await admin.graphql(
+        `#graphql
+        mutation discountAutomaticBxgyUpdate($id: ID!, $input: DiscountAutomaticBxgyInput!) {
+          discountAutomaticBxgyUpdate(id: $id, bxgyAutomaticDiscount: $input) {
+            automaticDiscountNode { id }
+            userErrors { field message }
+          }
+        }`,
+        { variables: { id: shopifyDiscountId, input: bxgyInput } }
+      );
+      const resJson = await res.json();
+      shopifyDiscountId = resJson?.data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id || shopifyDiscountId;
+    } else {
+      // Create new discount
+      const res = await admin.graphql(
+        `#graphql
+        mutation discountAutomaticBxgyCreate($input: DiscountAutomaticBxgyInput!) {
+          discountAutomaticBxgyCreate(bxgyAutomaticDiscount: $input) {
+            automaticDiscountNode { id }
+            userErrors { field message }
+          }
+        }`,
+        { variables: { input: bxgyInput } }
+      );
+      const resJson = await res.json();
+      shopifyDiscountId = resJson?.data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id || null;
+    }
+    fields.shopifyDiscountId = shopifyDiscountId;
+
+    let record;
+    if (id) {
+      record = await prisma.campaignBuyXGetY.update({ where: { uid: parseInt(id), shop }, data: fields });
+    } else {
+      record = await prisma.campaignBuyXGetY.create({ data: { shop, ...fields } });
+    }
+    return { success: true, id: record.uid };
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
 // ─── Shared: Collapsible section card ────────────────────────────────────────
@@ -876,20 +958,68 @@ export default function BuyXGetYCreate() {
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
 
-  const [status, setStatus] = useState("draft");
-  const [campaignName, setCampaignName] = useState("Buy X Get Y");
-  const [isSaving, setIsSaving] = useState(false);
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+  const recordId = loaderData?.record?.uid || null;
+  const r = loaderData?.record;
+
+  const [status, setStatus] = useState(r?.status ?? "draft");
+  const [campaignName, setCampaignName] = useState(r?.name ?? "Buy X Get Y");
+  const isSaving = navigation.state === "submitting";
 
   // Lifted for preview
-  const [triggerType, setTriggerType] = useState("specific_products");
-  const [rewardType, setRewardType] = useState("free_product");
+  const [triggerType, setTriggerType] = useState(r?.buyTriggerType ?? "specific_products");
+  const [rewardType, setRewardType] = useState(r?.rewardType ?? "free_product");
+
+  // Fields for handleSave (mirror sub-component state for DB persistence)
+  const [buyProducts, setBuyProducts] = useState(JSON.parse(r?.buyProducts || "[]"));
+  const [buyCollections, setBuyCollections] = useState(JSON.parse(r?.buyCollections || "[]"));
+  const [minReqType, setMinReqType] = useState(r?.minReqType ?? "quantity");
+  const [minQty, setMinQty] = useState(r?.minQty ?? "1");
+  const [minSpend, setMinSpend] = useState(r?.minSpend ?? "");
+  const [rewardProducts, setRewardProducts] = useState(JSON.parse(r?.rewardProducts || "[]"));
+  const [rewardQty, setRewardQty] = useState(r?.rewardQty ?? "1");
+  const [rewardDiscount, setRewardDiscount] = useState(r?.rewardDiscount ?? "");
+  const [shopifyCode, setShopifyCode] = useState(r?.shopifyCode ?? "");
+  const [usageLimit, setUsageLimit] = useState(r?.usageLimit ?? "");
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }) : new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }));
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }) : "23:59");
+
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle") {
+      navigate(withHost("/app/campaigns"));
+    }
+  }, [actionData, navigation.state]);
 
   const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      navigate(withHost("/app/campaigns"));
-    }, 800);
+    submit(
+      {
+        id: recordId,
+        name: campaignName,
+        status,
+        buyTriggerType: triggerType,
+        buyProducts: JSON.stringify(buyProducts),
+        buyCollections: JSON.stringify(buyCollections),
+        minReqType,
+        minQty,
+        minSpend,
+        rewardType,
+        rewardProducts: JSON.stringify(rewardProducts),
+        rewardQty,
+        rewardDiscount,
+        shopifyCode,
+        usageLimit,
+        shopifyDiscountId: loaderData?.record?.shopifyDiscountId || null,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   const isPaused = status !== "active";

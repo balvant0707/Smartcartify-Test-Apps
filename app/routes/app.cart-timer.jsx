@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, useSubmit, useActionData, useLoaderData, useNavigation } from "react-router";
+import prisma from "../db.server";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button, TextField,
   Select, Checkbox, Collapsible, Divider, Icon, RadioButton,
@@ -11,8 +12,32 @@ import {
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  let record = null;
+  if (id) {
+    record = await prisma.cartTimer.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+  }
+  return { record };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const body = await request.json();
+  const { id, ...fields } = body;
+  try {
+    let record;
+    if (id) {
+      record = await prisma.cartTimer.update({ where: { id: parseInt(id), shop }, data: fields });
+    } else {
+      record = await prisma.cartTimer.create({ data: { shop, ...fields } });
+    }
+    return { success: true, id: record.id };
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -73,50 +98,90 @@ export default function CartTimerCreate() {
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
-  const [status, setStatus] = useState("draft");
-  const [campaignName, setCampaignName] = useState("Cart Timer");
-  const [isSaving, setIsSaving] = useState(false);
+
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+  const recordId = loaderData?.record?.id || null;
+
+  const r = loaderData?.record;
+
+  const [status, setStatus] = useState(r?.status ?? "draft");
+  const [campaignName, setCampaignName] = useState(r?.name ?? "Cart Timer");
+  const isSaving = navigation.state === "submitting";
 
   // Timer
-  const [timerType, setTimerType] = useState("fixed");
-  const [durationHours, setDurationHours] = useState("0");
-  const [durationMinutes, setDurationMinutes] = useState("30");
-  const [durationSeconds, setDurationSeconds] = useState("00");
-  const [resetOnReopen, setResetOnReopen] = useState(false);
-  const [countdownDate, setCountdownDate] = useState("");
-  const [countdownTime, setCountdownTime] = useState("23:59");
+  const [timerType, setTimerType] = useState(r?.timerType ?? "fixed");
+  const [durationHours, setDurationHours] = useState(r?.hours ?? "0");
+  const [durationMinutes, setDurationMinutes] = useState(r?.minutes ?? "30");
+  const [durationSeconds, setDurationSeconds] = useState(r?.seconds ?? "00");
+  const [resetOnReopen, setResetOnReopen] = useState(r?.resetOnReopen ?? false);
+  const [countdownDate, setCountdownDate] = useState(r?.countdownDate ?? "");
+  const [countdownTime, setCountdownTime] = useState(r?.countdownTime ?? "23:59");
 
   // Message
-  const [messageText, setMessageText] = useState("");
-  const [expiredText, setExpiredText] = useState("");
-  const [labelPosition, setLabelPosition] = useState("above");
+  const [messageText, setMessageText] = useState(r?.messageText ?? "");
+  const [expiredText, setExpiredText] = useState(r?.expiredText ?? "");
+  const [labelPosition, setLabelPosition] = useState(r?.labelPosition ?? "above");
 
   // Expiry behaviour
-  const [expiryBehaviour, setExpiryBehaviour] = useState("show_message");
-  const [redirectUrl, setRedirectUrl] = useState("");
+  const [expiryBehaviour, setExpiryBehaviour] = useState(r?.expiryBehavior ?? "show_message");
+  const [redirectUrl, setRedirectUrl] = useState(r?.expiryRedirectUrl ?? "");
 
   // Style
-  const [bgColor, setBgColor] = useState("#1e1e2e");
-  const [textColor, setTextColor] = useState("#ffffff");
-  const [position, setPosition] = useState("top");
+  const [bgColor, setBgColor] = useState(r?.bgColor ?? "#1e1e2e");
+  const [textColor, setTextColor] = useState(r?.textColor ?? "#ffffff");
+  const [position, setPosition] = useState(r?.position ?? "top");
 
   // Conditions
-  const [showWhen, setShowWhen] = useState("always");
-  const [minCartValue, setMinCartValue] = useState("");
+  const [showWhen, setShowWhen] = useState(r?.showWhen ?? "always");
+  const [minCartValue, setMinCartValue] = useState(r?.minCartValue ?? "");
 
   // Settings
   const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(today);
-  const [startTime, setStartTime] = useState("00:00");
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("23:59");
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
   const isPaused = status !== "active";
 
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle") {
+      navigate(withHost("/app/campaigns"));
+    }
+  }, [actionData, navigation.state]);
+
   const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => { setIsSaving(false); navigate(withHost("/app/campaigns")); }, 800);
+    submit(
+      {
+        id: recordId,
+        name: campaignName,
+        status,
+        timerType,
+        hours: durationHours,
+        minutes: durationMinutes,
+        seconds: durationSeconds,
+        countdownDate,
+        countdownTime,
+        resetOnReopen,
+        messageText,
+        expiredText,
+        labelPosition,
+        expiryBehavior: expiryBehaviour,
+        expiryRedirectUrl: redirectUrl,
+        digitBgColor: bgColor,
+        digitTextColor: textColor,
+        bgColor,
+        textColor,
+        position,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   return (

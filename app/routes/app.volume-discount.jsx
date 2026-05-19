@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, useSubmit, useActionData, useLoaderData, useNavigation } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button, TextField,
   Select, Checkbox, Collapsible, Divider, Icon, Banner, RadioButton, Badge,
@@ -10,10 +10,101 @@ import {
   ClockIcon, SearchIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  let record = null;
+  if (id) {
+    record = await prisma.campaignVolumeDiscount.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+  }
+  return { record };
+};
+
+export const action = async ({ request }) => {
+  const { admin, session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const body = await request.json();
+  const { id, ...fields } = body;
+  try {
+    // Build Shopify discount code for volume discount (lowest tier threshold)
+    const lowestTier = (JSON.parse(fields.tiers || "[]")).sort((a, b) => parseInt(a.minQty) - parseInt(b.minQty))[0];
+    if (lowestTier && fields.shopifyDiscountCode) {
+      const discountValue = fields.discountType === "percentage"
+        ? { percentage: parseFloat(lowestTier.discount) / 100 }
+        : { amount: { amount: lowestTier.discount, currencyCode: "USD" } };
+
+      let shopifyDiscountId = fields.shopifyDiscountId || null;
+      if (id && shopifyDiscountId) {
+        await admin.graphql(
+          `#graphql
+          mutation discountCodeBasicUpdate($id: ID!, $input: DiscountCodeBasicInput!) {
+            discountCodeBasicUpdate(id: $id, basicCodeDiscount: $input) {
+              codeDiscountNode { id }
+              userErrors { field message }
+            }
+          }`,
+          {
+            variables: {
+              id: shopifyDiscountId,
+              input: {
+                title: fields.name,
+                startsAt: fields.startsAt || new Date().toISOString(),
+                endsAt: fields.endsAt || null,
+                customerSelection: { all: true },
+                customerGets: {
+                  value: discountValue,
+                  items: { all: true },
+                },
+                appliesOncePerCustomer: false,
+                codes: { add: [] },
+              },
+            },
+          }
+        );
+      } else {
+        const res = await admin.graphql(
+          `#graphql
+          mutation discountCodeBasicCreate($input: DiscountCodeBasicInput!) {
+            discountCodeBasicCreate(basicCodeDiscount: $input) {
+              codeDiscountNode { id }
+              userErrors { field message }
+            }
+          }`,
+          {
+            variables: {
+              input: {
+                title: fields.name,
+                startsAt: fields.startsAt || new Date().toISOString(),
+                endsAt: fields.endsAt || null,
+                customerSelection: { all: true },
+                customerGets: {
+                  value: discountValue,
+                  items: { all: true },
+                },
+                appliesOncePerCustomer: false,
+                codes: { add: [{ code: fields.shopifyDiscountCode }] },
+              },
+            },
+          }
+        );
+        const resJson = await res.json();
+        fields.shopifyDiscountId = resJson?.data?.discountCodeBasicCreate?.codeDiscountNode?.id || null;
+      }
+    }
+
+    let record;
+    if (id) {
+      record = await prisma.campaignVolumeDiscount.update({ where: { id: parseInt(id), shop }, data: fields });
+    } else {
+      record = await prisma.campaignVolumeDiscount.create({ data: { shop, ...fields } });
+    }
+    return { success: true, id: record.id };
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -106,51 +197,82 @@ export default function VolumeDiscountCreate() {
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
-  const [status, setStatus] = useState("draft");
-  const [campaignName, setCampaignName] = useState("Volume Discount");
-  const [isSaving, setIsSaving] = useState(false);
+
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+  const recordId = loaderData?.record?.id || null;
+  const r = loaderData?.record;
+
+  const [status, setStatus] = useState(r?.status ?? "draft");
+  const [campaignName, setCampaignName] = useState(r?.name ?? "Volume Discount");
+  const isSaving = navigation.state === "submitting";
 
   // Products
-  const [appliesToType, setAppliesToType] = useState("specific_products");
-  const [productTags, setProductTags] = useState([]);
+  const [appliesToType, setAppliesToType] = useState(r?.targetType ?? "specific_products");
+  const [targetIds, setTargetIds] = useState(JSON.parse(r?.targetIds || "[]"));
+  const [productTags, setProductTags] = useState(JSON.parse(r?.targetIds || "[]"));
   const [productSearch, setProductSearch] = useState("");
 
   // Discount type
-  const [discountType, setDiscountType] = useState("percentage");
+  const [discountType, setDiscountType] = useState(r?.discountType ?? "percentage");
 
   // Tiers
-  const [tiers, setTiers] = useState([
+  const [tiers, setTiers] = useState(JSON.parse(r?.tiers || JSON.stringify([
     { id: 1, minQty: "2", discount: "10", label: "Buy 2+" },
     { id: 2, minQty: "3", discount: "15", label: "Buy 3+" },
     { id: 3, minQty: "5", discount: "20", label: "Buy 5+" },
-  ]);
+  ])));
 
   const addTier = () => setTiers(t => [...t, { id: Date.now(), minQty: "", discount: "", label: "" }]);
   const updateTier = (id, updated) => setTiers(t => t.map(x => x.id === id ? updated : x));
   const removeTier = (id) => setTiers(t => t.filter(x => x.id !== id));
 
   // Display
-  const [showTable, setShowTable] = useState(true);
-  const [tableTitle, setTableTitle] = useState("Volume discounts");
+  const [showTable, setShowTable] = useState(r?.showTable ?? true);
+  const [tableTitle, setTableTitle] = useState(r?.tableTitle ?? "Volume discounts");
   const [highlightActive, setHighlightActive] = useState(true);
   const [showBadges, setShowBadges] = useState(true);
 
   // Shopify code
-  const [shopifyCode, setShopifyCode] = useState("");
+  const [shopifyCode, setShopifyCode] = useState(r?.shopifyDiscountCode ?? "");
 
   // Settings
   const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(today);
-  const [startTime, setStartTime] = useState("00:00");
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("23:59");
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }) : "00:00");
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }) : "23:59");
 
   const isPaused = status !== "active";
 
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle") {
+      navigate(withHost("/app/campaigns"));
+    }
+  }, [actionData, navigation.state]);
+
   const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => { setIsSaving(false); navigate(withHost("/app/campaigns")); }, 800);
+    submit(
+      {
+        id: recordId,
+        name: campaignName,
+        status,
+        targetType: appliesToType,
+        targetIds: JSON.stringify(productTags),
+        discountType,
+        tiers: JSON.stringify(tiers),
+        shopifyDiscountCode: shopifyCode,
+        shopifyDiscountId: loaderData?.record?.shopifyDiscountId || null,
+        showTable,
+        tableTitle,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   return (

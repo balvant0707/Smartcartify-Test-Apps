@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, useSubmit, useActionData, useLoaderData, useNavigation } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button, TextField,
   Select, Checkbox, Collapsible, Divider, Icon, Banner,
@@ -11,10 +11,35 @@ import {
   CalendarIcon, ClockIcon, CheckboxIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  let record = null;
+  if (id) {
+    record = await prisma.oneClickUpsell.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+  }
+  return { record };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const body = await request.json();
+  const { id, ...fields } = body;
+  try {
+    let record;
+    if (id) {
+      record = await prisma.oneClickUpsell.update({ where: { id: parseInt(id), shop }, data: fields });
+    } else {
+      record = await prisma.oneClickUpsell.create({ data: { shop, ...fields } });
+    }
+    return { success: true, id: record.id };
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -61,45 +86,78 @@ export default function OneClickUpsellCreate() {
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
-  const [status, setStatus] = useState("draft");
-  const [campaignName, setCampaignName] = useState("One Click Upsell");
-  const [isSaving, setIsSaving] = useState(false);
+
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+  const recordId = loaderData?.record?.id || null;
+  const r = loaderData?.record;
+
+  const [status, setStatus] = useState(r?.status ?? "draft");
+  const [campaignName, setCampaignName] = useState(r?.name ?? "One Click Upsell");
+  const isSaving = navigation.state === "submitting";
 
   // Upsell product
   const [productSearch, setProductSearch] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(r?.productTitle ?? null);
   const [variantOption, setVariantOption] = useState("default");
   const [upsellQty, setUpsellQty] = useState("1");
 
   // Display
-  const [checkboxLabel, setCheckboxLabel] = useState("");
-  const [checkboxDesc, setCheckboxDesc] = useState("");
+  const [checkboxLabel, setCheckboxLabel] = useState(r?.label ?? "");
+  const [checkboxDesc, setCheckboxDesc] = useState(r?.description ?? "");
   const [showImage, setShowImage] = useState(true);
   const [showPrice, setShowPrice] = useState(true);
-  const [position, setPosition] = useState("below_items");
+  const [position, setPosition] = useState(r?.position ?? "below_items");
   const [discountEnabled, setDiscountEnabled] = useState(false);
-  const [discountType, setDiscountType] = useState("percentage");
-  const [discountValue, setDiscountValue] = useState("");
+  const [discountType, setDiscountType] = useState(r?.discountType ?? "percentage");
+  const [discountValue, setDiscountValue] = useState(r?.discountValue ?? "");
 
   // Conditions
-  const [showWhen, setShowWhen] = useState("always");
-  const [triggerProducts, setTriggerProducts] = useState([]);
+  const [showWhen, setShowWhen] = useState(r?.displayCondition ?? "always");
+  const [triggerProducts, setTriggerProducts] = useState(JSON.parse(r?.conditionProducts || "[]"));
   const [triggerSearch, setTriggerSearch] = useState("");
-  const [minCartValue, setMinCartValue] = useState("");
+  const [minCartValue, setMinCartValue] = useState(r?.conditionValue ?? "");
 
   // Settings
   const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(today);
-  const [startTime, setStartTime] = useState("00:00");
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("23:59");
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
   const isPaused = status !== "active";
 
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle") {
+      navigate(withHost("/app/campaigns"));
+    }
+  }, [actionData, navigation.state]);
+
   const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => { setIsSaving(false); navigate(withHost("/app/campaigns")); }, 800);
+    submit(
+      {
+        id: recordId,
+        name: campaignName,
+        status,
+        productId: null,
+        productTitle: selectedProduct,
+        variantId: null,
+        discountType,
+        discountValue,
+        label: checkboxLabel,
+        description: checkboxDesc,
+        position,
+        displayCondition: showWhen,
+        conditionProducts: JSON.stringify(triggerProducts),
+        conditionValue: minCartValue,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   return (

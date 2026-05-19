@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, useSubmit, useActionData, useLoaderData, useNavigation } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button, TextField,
   Select, Checkbox, Collapsible, Divider, Icon, RadioButton, Badge,
@@ -10,10 +10,35 @@ import {
   ClockIcon, SearchIcon, PlusIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  let record = null;
+  if (id) {
+    record = await prisma.lineItemMessaging.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+  }
+  return { record };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const body = await request.json();
+  const { id, ...fields } = body;
+  try {
+    let record;
+    if (id) {
+      record = await prisma.lineItemMessaging.update({ where: { id: parseInt(id), shop }, data: fields });
+    } else {
+      record = await prisma.lineItemMessaging.create({ data: { shop, ...fields } });
+    }
+    return { success: true, id: record.id };
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -97,47 +122,78 @@ export default function LineItemMessagingCreate() {
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
-  const [status, setStatus] = useState("draft");
-  const [campaignName, setCampaignName] = useState("Line Item Messaging");
-  const [isSaving, setIsSaving] = useState(false);
+
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+  const recordId = loaderData?.record?.id || null;
+  const r = loaderData?.record;
+
+  const [status, setStatus] = useState(r?.status ?? "draft");
+  const [campaignName, setCampaignName] = useState(r?.name ?? "Line Item Messaging");
+  const isSaving = navigation.state === "submitting";
 
   // Products to target
-  const [targetType, setTargetType] = useState("specific_products");
-  const [productTags, setProductTags] = useState([]);
+  const [targetType, setTargetType] = useState(r?.targetType ?? "specific_products");
+  const [productTags, setProductTags] = useState(JSON.parse(r?.targetIds || "[]"));
   const [productSearch, setProductSearch] = useState("");
 
   // Conditions / rules
-  const [rules, setRules] = useState([]);
-  const [ruleLogic, setRuleLogic] = useState("all");
+  const [rules, setRules] = useState(JSON.parse(r?.conditions || "[]"));
+  const [ruleLogic, setRuleLogic] = useState(r?.conditionMatch ?? "all");
 
   const addRule = () => setRules(r => [...r, { id: Date.now(), condition: "quantity", operator: "lt", value: "" }]);
   const updateRule = (id, updated) => setRules(r => r.map(x => x.id === id ? updated : x));
   const removeRule = (id) => setRules(r => r.filter(x => x.id !== id));
 
   // Message
-  const [templateType, setTemplateType] = useState("low_stock");
-  const [customText, setCustomText] = useState("");
+  const [templateType, setTemplateType] = useState(r?.messageTemplate ?? "low_stock");
+  const [customText, setCustomText] = useState(r?.customMessage ?? "");
   const [msgIcon, setMsgIcon] = useState("⚠️");
-  const [msgBgColor, setMsgBgColor] = useState("#fff7ed");
-  const [msgTextColor, setMsgTextColor] = useState("#92400e");
-  const [msgPosition, setMsgPosition] = useState("below_item");
+  const [msgBgColor, setMsgBgColor] = useState(r?.bgColor ?? "#fff7ed");
+  const [msgTextColor, setMsgTextColor] = useState(r?.textColor ?? "#92400e");
+  const [msgPosition, setMsgPosition] = useState(r?.position ?? "below_item");
 
   const activeTemplate = MESSAGE_TEMPLATES.find(t => t.value === templateType);
   const displayText = templateType === "custom" ? customText : activeTemplate?.text || "";
 
   // Settings
   const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(today);
-  const [startTime, setStartTime] = useState("00:00");
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("23:59");
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
   const isPaused = status !== "active";
 
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle") {
+      navigate(withHost("/app/campaigns"));
+    }
+  }, [actionData, navigation.state]);
+
   const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => { setIsSaving(false); navigate(withHost("/app/campaigns")); }, 800);
+    submit(
+      {
+        id: recordId,
+        name: campaignName,
+        status,
+        targetType,
+        targetIds: JSON.stringify(productTags),
+        conditions: JSON.stringify(rules),
+        conditionMatch: ruleLogic,
+        messageTemplate: templateType,
+        customMessage: customText,
+        position: msgPosition,
+        bgColor: msgBgColor,
+        textColor: msgTextColor,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   return (

@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, useSubmit, useActionData, useLoaderData, useNavigation } from "react-router";
+import prisma from "../db.server";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button, TextField,
   Select, Checkbox, Collapsible, Divider, Icon, RadioButton,
@@ -11,8 +12,32 @@ import {
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  let record = null;
+  if (id) {
+    record = await prisma.cartAnnouncementBar.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+  }
+  return { record };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const body = await request.json();
+  const { id, ...fields } = body;
+  try {
+    let record;
+    if (id) {
+      record = await prisma.cartAnnouncementBar.update({ where: { id: parseInt(id), shop }, data: fields });
+    } else {
+      record = await prisma.cartAnnouncementBar.create({ data: { shop, ...fields } });
+    }
+    return { success: true, id: record.id };
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -55,43 +80,78 @@ export default function CartAnnouncementBarCreate() {
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
-  const [status, setStatus] = useState("draft");
-  const [campaignName, setCampaignName] = useState("Cart Announcement Bar");
-  const [isSaving, setIsSaving] = useState(false);
+
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+  const recordId = loaderData?.record?.id || null;
+
+  const r = loaderData?.record;
+
+  const [status, setStatus] = useState(r?.status ?? "draft");
+  const [campaignName, setCampaignName] = useState(r?.name ?? "Cart Announcement Bar");
+  const isSaving = navigation.state === "submitting";
 
   // Message
-  const [messageText, setMessageText] = useState("");
-  const [icon, setIcon] = useState("🎉");
-  const [hasLink, setHasLink] = useState(false);
-  const [linkText, setLinkText] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
+  const [messageText, setMessageText] = useState(r?.message ?? "");
+  const [icon, setIcon] = useState(r?.icon ?? "🎉");
+  const [hasLink, setHasLink] = useState(!!(r?.linkUrl));
+  const [linkText, setLinkText] = useState(r?.linkText ?? "");
+  const [linkUrl, setLinkUrl] = useState(r?.linkUrl ?? "");
   const [linkOpenNewTab, setLinkOpenNewTab] = useState(true);
 
   // Style
-  const [bgColor, setBgColor] = useState("#fef3c7");
-  const [textColor, setTextColor] = useState("#92400e");
-  const [position, setPosition] = useState("top");
-  const [isDismissible, setIsDismissible] = useState(false);
-  const [textAlign, setTextAlign] = useState("center");
-  const [fontSize, setFontSize] = useState("14");
+  const [bgColor, setBgColor] = useState(r?.bgColor ?? "#fef3c7");
+  const [textColor, setTextColor] = useState(r?.textColor ?? "#92400e");
+  const [position, setPosition] = useState(r?.position ?? "top");
+  const [isDismissible, setIsDismissible] = useState(r?.isDismissible ?? false);
+  const [textAlign, setTextAlign] = useState(r?.textAlignment ?? "center");
+  const [fontSize, setFontSize] = useState(r?.fontSize ?? "14");
 
   // Conditions
-  const [showWhen, setShowWhen] = useState("always");
-  const [minCartValue, setMinCartValue] = useState("");
+  const [showWhen, setShowWhen] = useState(r?.showWhen ?? "always");
+  const [minCartValue, setMinCartValue] = useState(r?.minCartValue ?? "");
 
   // Settings
   const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(today);
-  const [startTime, setStartTime] = useState("00:00");
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("23:59");
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
   const isPaused = status !== "active";
 
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle") {
+      navigate(withHost("/app/campaigns"));
+    }
+  }, [actionData, navigation.state]);
+
   const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => { setIsSaving(false); navigate(withHost("/app/campaigns")); }, 800);
+    submit(
+      {
+        id: recordId,
+        name: campaignName,
+        status,
+        icon,
+        message: messageText,
+        linkUrl,
+        linkText,
+        position,
+        bgColor,
+        textColor,
+        textAlignment: textAlign,
+        fontSize,
+        isDismissible,
+        showWhen,
+        minCartValue,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   return (

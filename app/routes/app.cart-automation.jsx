@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, useSubmit, useActionData, useLoaderData, useNavigation } from "react-router";
+import prisma from "../db.server";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button, TextField,
   Select, Checkbox, Collapsible, Divider, Icon, RadioButton, Banner,
@@ -14,8 +15,32 @@ import {
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  let record = null;
+  if (id) {
+    record = await prisma.cartAutomation.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+  }
+  return { record };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const body = await request.json();
+  const { id, ...fields } = body;
+  try {
+    let record;
+    if (id) {
+      record = await prisma.cartAutomation.update({ where: { id: parseInt(id), shop }, data: fields });
+    } else {
+      record = await prisma.cartAutomation.create({ data: { shop, ...fields } });
+    }
+    return { success: true, id: record.id };
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -65,13 +90,28 @@ export default function CartAutomationCreate() {
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
-  const [status, setStatus] = useState("draft");
-  const [campaignName, setCampaignName] = useState("Cart Automation");
-  const [isSaving, setIsSaving] = useState(false);
+
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+  const recordId = loaderData?.record?.id || null;
+
+  const r = loaderData?.record;
+
+  const [status, setStatus] = useState(r?.status ?? "draft");
+  const [campaignName, setCampaignName] = useState(r?.name ?? "Cart Automation");
+  const isSaving = navigation.state === "submitting";
 
   // Trigger rules
-  const [triggerRules, setTriggerRules] = useState([]);
-  const [triggerMatch, setTriggerMatch] = useState("any");
+  const [triggerRules, setTriggerRules] = useState(JSON.parse(r?.triggerRules || "[]"));
+  const [triggerMatch, setTriggerMatch] = useState(r?.triggerMatch ?? "any");
+
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle") {
+      navigate(withHost("/app/campaigns"));
+    }
+  }, [actionData, navigation.state]);
   const [showRulePopover, setShowRulePopover] = useState(false);
 
   const RULE_GROUPS = [
@@ -114,35 +154,58 @@ export default function CartAutomationCreate() {
     setTriggerRules(prev => prev.map(r => r.uid === uid ? { ...r, [field]: val } : r));
 
   // Conditions (optional extra)
-  const [hasConditions, setHasConditions] = useState(false);
-  const [conditionType, setConditionType] = useState("customer_tag");
-  const [conditionValue, setConditionValue] = useState("");
+  const [hasConditions, setHasConditions] = useState(r?.hasConditions ?? false);
+  const [conditionType, setConditionType] = useState(r?.conditionType ?? "customer_tag");
+  const [conditionValue, setConditionValue] = useState(r?.conditionValue ?? "");
 
   // Action
-  const [actionType, setActionType] = useState("add_attribute");
-  const [attrKey, setAttrKey] = useState("");
-  const [attrValue, setAttrValue] = useState("");
-  const [redirectUrl, setRedirectUrl] = useState("");
-  const [redirectDelay, setRedirectDelay] = useState("0");
-  const [showMessage, setShowMessageText] = useState("");
-  const [autoAddProduct, setAutoAddProduct] = useState("");
-  const [autoAddQty, setAutoAddQty] = useState("1");
-  const [autoRemoveWhenTriggerLost, setAutoRemoveWhenTriggerLost] = useState(true);
+  const [actionType, setActionType] = useState(r?.actionType ?? "add_attribute");
+  const [attrKey, setAttrKey] = useState(r?.attrKey ?? "");
+  const [attrValue, setAttrValue] = useState(r?.attrValue ?? "");
+  const [redirectUrl, setRedirectUrl] = useState(r?.redirectUrl ?? "");
+  const [redirectDelay, setRedirectDelay] = useState(r?.redirectDelay ?? "0");
+  const [showMessage, setShowMessageText] = useState(r?.showMessage ?? "");
+  const [autoAddProduct, setAutoAddProduct] = useState(r?.autoAddProductId ?? "");
+  const [autoAddQty, setAutoAddQty] = useState(r?.autoAddQty ?? "1");
+  const [autoRemoveWhenTriggerLost, setAutoRemoveWhenTriggerLost] = useState(r?.autoRemoveWhenTriggerLost ?? true);
 
   // Settings
   const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(today);
-  const [startTime, setStartTime] = useState("00:00");
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("23:59");
-  const [runOnce, setRunOnce] = useState(false);
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
+  const [runOnce, setRunOnce] = useState(r?.runOnce ?? false);
 
   const isPaused = status !== "active";
 
   const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => { setIsSaving(false); navigate(withHost("/app/campaigns")); }, 800);
+    submit(
+      {
+        id: recordId,
+        name: campaignName,
+        status,
+        triggerRules: JSON.stringify(triggerRules),
+        triggerMatch,
+        hasConditions,
+        conditionType,
+        conditionValue,
+        actionType,
+        attrKey,
+        attrValue,
+        redirectUrl,
+        redirectDelay,
+        showMessage,
+        autoAddProductId: autoAddProduct,
+        autoAddQty,
+        autoRemoveWhenTriggerLost,
+        runOnce,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   return (

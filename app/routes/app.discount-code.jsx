@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams, useSubmit, useActionData, useLoaderData, useNavigation } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button, TextField,
   Select, Checkbox, Collapsible, Divider, Icon, Banner, RadioButton,
@@ -9,10 +9,35 @@ import {
   ClipboardIcon, PauseCircleIcon, PersonFilledIcon, CalendarIcon, ClockIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = url.searchParams.get("id");
+  let record = null;
+  if (id) {
+    record = await prisma.campaignDiscountCode.findFirst({ where: { id: parseInt(id), shop: session.shop } });
+  }
+  return { record };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const body = await request.json();
+  const { id, ...fields } = body;
+  try {
+    let record;
+    if (id) {
+      record = await prisma.campaignDiscountCode.update({ where: { id: parseInt(id), shop }, data: fields });
+    } else {
+      record = await prisma.campaignDiscountCode.create({ data: { shop, ...fields } });
+    }
+    return { success: true, id: record.id };
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -43,45 +68,81 @@ export default function DiscountCodeCreate() {
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
-  const [status, setStatus] = useState("draft");
-  const [campaignName, setCampaignName] = useState("Discount Code");
-  const [isSaving, setIsSaving] = useState(false);
+
+  const loaderData = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
+  const recordId = loaderData?.record?.id || null;
+  const r = loaderData?.record;
+
+  const [status, setStatus] = useState(r?.status ?? "draft");
+  const [campaignName, setCampaignName] = useState(r?.name ?? "Discount Code");
+  const isSaving = navigation.state === "submitting";
 
   // Code settings
-  const [discountCode, setDiscountCode] = useState("");
-  const [displayStyle, setDisplayStyle] = useState("banner");
-  const [allowCopy, setAllowCopy] = useState(true);
-  const [autoApply, setAutoApply] = useState(false);
+  const [discountCode, setDiscountCode] = useState(r?.discountCode ?? "");
+  const [displayStyle, setDisplayStyle] = useState(r?.displayStyle ?? "banner");
+  const [allowCopy, setAllowCopy] = useState(r?.allowCopy ?? true);
+  const [autoApply, setAutoApply] = useState(r?.autoApply ?? false);
 
   // Message
-  const [headline, setHeadline] = useState("");
-  const [description, setDescription] = useState("");
-  const [ctaText, setCtaText] = useState("");
+  const [headline, setHeadline] = useState(r?.headline ?? "");
+  const [description, setDescription] = useState(r?.description ?? "");
+  const [ctaText, setCtaText] = useState(r?.ctaText ?? "");
 
   // Style
-  const [bgColor, setBgColor] = useState("#fff7ed");
-  const [textColor, setTextColor] = useState("#92400e");
-  const [codeBoxBg, setCodeBoxBg] = useState("#fef3c7");
-  const [position, setPosition] = useState("top");
-  const [isDismissible, setIsDismissible] = useState(false);
+  const [bgColor, setBgColor] = useState(r?.bgColor ?? "#fff7ed");
+  const [textColor, setTextColor] = useState(r?.textColor ?? "#92400e");
+  const [codeBoxBg, setCodeBoxBg] = useState(r?.codeBoxBg ?? "#fef3c7");
+  const [position, setPosition] = useState(r?.position ?? "top");
+  const [isDismissible, setIsDismissible] = useState(r?.isDismissible ?? false);
 
   // Conditions
-  const [showWhen, setShowWhen] = useState("always");
-  const [minCartValue, setMinCartValue] = useState("");
+  const [showWhen, setShowWhen] = useState(r?.showWhen ?? "always");
+  const [minCartValue, setMinCartValue] = useState(r?.minCartValue ?? "");
 
   // Settings
   const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(today);
-  const [startTime, setStartTime] = useState("00:00");
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("23:59");
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
   const isPaused = status !== "active";
 
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle") {
+      navigate(withHost("/app/campaigns"));
+    }
+  }, [actionData, navigation.state]);
+
   const handleSave = () => {
-    setIsSaving(true);
-    setTimeout(() => { setIsSaving(false); navigate(withHost("/app/campaigns")); }, 800);
+    submit(
+      {
+        id: recordId,
+        name: campaignName,
+        status,
+        discountCode,
+        displayStyle,
+        allowCopy,
+        autoApply,
+        headline,
+        description,
+        ctaText,
+        bgColor,
+        textColor,
+        codeBoxBg,
+        position,
+        isDismissible,
+        showWhen,
+        minCartValue,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   return (
