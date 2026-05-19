@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   Page,
   Text,
@@ -736,6 +736,9 @@ function GoalContentItem({ index, rewardType }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function CartGoalsCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const host = searchParams.get("host");
+  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
 
   const [status, setStatus] = useState("draft");
   const [campaignName, setCampaignName] = useState("Cart Goal 1");
@@ -771,7 +774,7 @@ export default function CartGoalsCreate() {
     setIsSaving(true);
     setTimeout(() => {
       setIsSaving(false);
-      navigate("/app/campaigns");
+      navigate(withHost("/app/campaigns"));
     }, 800);
   };
 
@@ -781,7 +784,7 @@ export default function CartGoalsCreate() {
     <Page
       backAction={{
         content: "Campaigns",
-        onAction: () => navigate("/app/campaigns"),
+        onAction: () => navigate(withHost("/app/campaigns")),
       }}
       title={campaignName || "New Cart Goal"}
       primaryAction={{

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   Page,
   Tabs,
@@ -391,6 +391,10 @@ function PreviewPanel({ campaign, onCreate }) {
 
 export default function CampaignSelector() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const host = searchParams.get("host");
+  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
+
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [selectedId, setSelectedId] = useState("cart-goals");
 
@@ -447,13 +451,13 @@ export default function CampaignSelector() {
   };
 
   const handleCreate = () => {
-    const route = CAMPAIGN_ROUTES[selectedId] ?? `/app/rules?create=true&type=${selectedId}`;
-    navigate(route);
+    const base = CAMPAIGN_ROUTES[selectedId] ?? `/app/rules?create=true&type=${selectedId}`;
+    navigate(withHost(base));
   };
 
   return (
     <Page
-      backAction={{ content: "Back", onAction: () => navigate(-1) }}
+      backAction={{ content: "Back", onAction: () => navigate(withHost("/app")) }}
       title="Select a campaign type"
     >
       <Box paddingBlockEnd="600">

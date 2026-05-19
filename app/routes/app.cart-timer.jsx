@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button, TextField,
   Select, Checkbox, Collapsible, Divider, Icon, RadioButton,
@@ -70,6 +70,9 @@ function TimerDisplay({ hours, minutes, seconds, bgColor, textColor, messageText
 
 export default function CartTimerCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const host = searchParams.get("host");
+  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
   const [status, setStatus] = useState("draft");
   const [campaignName, setCampaignName] = useState("Cart Timer");
   const [isSaving, setIsSaving] = useState(false);
@@ -113,12 +116,12 @@ export default function CartTimerCreate() {
 
   const handleSave = () => {
     setIsSaving(true);
-    setTimeout(() => { setIsSaving(false); navigate("/app/campaigns"); }, 800);
+    setTimeout(() => { setIsSaving(false); navigate(withHost("/app/campaigns")); }, 800);
   };
 
   return (
     <Page
-      backAction={{ content: "Campaigns", onAction: () => navigate("/app/campaigns") }}
+      backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
       title={campaignName || "Cart Timer"}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
       secondaryActions={[{ content: status === "active" ? "Pause" : "Activate", onAction: () => setStatus(s => s === "active" ? "draft" : "active") }]}
