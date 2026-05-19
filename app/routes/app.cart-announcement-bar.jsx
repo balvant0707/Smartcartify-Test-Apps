@@ -118,7 +118,7 @@ export default function CartAnnouncementBarCreate() {
   const [hasLink, setHasLink] = useState(!!(r?.linkUrl));
   const [linkText, setLinkText] = useState(r?.linkText ?? "");
   const [linkUrl, setLinkUrl] = useState(r?.linkUrl ?? "");
-  const [linkOpenNewTab, setLinkOpenNewTab] = useState(true);
+  const [linkOpenNewTab, setLinkOpenNewTab] = useState(r?.linkOpenNewTab ?? true);
 
   // Style
   const [bgColor, setBgColor] = useState(r?.bgColor ?? "#fef3c7");
@@ -158,6 +158,7 @@ export default function CartAnnouncementBarCreate() {
         message: messageText,
         linkUrl,
         linkText,
+        linkOpenNewTab,
         position,
         bgColor,
         textColor,

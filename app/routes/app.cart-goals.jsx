@@ -825,7 +825,7 @@ export default function CartGoalsCreate() {
   const [campaignName, setCampaignName] = useState(r?.name ?? "Cart Goal 1");
   const isSaving = navigation.state === "submitting";
 
-  const [trackBy, setTrackBy] = useState("cart_value");
+  const [trackBy, setTrackBy] = useState(r?.trackBy ?? "cart_value");
   const [milestones, setMilestones] = useState(JSON.parse(r?.milestones || "[]"));
 
   const handleAddGoal = (rewardType) => {
@@ -835,7 +835,7 @@ export default function CartGoalsCreate() {
     setMilestones((prev) => prev.filter((m) => m.id !== id));
   };
 
-  const [goalsShown, setGoalsShown] = useState(3);
+  const [goalsShown, setGoalsShown] = useState(r?.goalsShown ?? 3);
 
   const today = new Date().toISOString().split("T")[0];
   const nowTime = new Date().toLocaleTimeString("en-US", {
@@ -849,7 +849,7 @@ export default function CartGoalsCreate() {
   const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
   const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
-  const [discountMode, setDiscountMode] = useState("after");
+  const [discountMode, setDiscountMode] = useState(r?.discountMode ?? "after");
 
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle") {
@@ -868,6 +868,9 @@ export default function CartGoalsCreate() {
         bgColor: null,
         textColor: null,
         progressBarColor: null,
+        trackBy,
+        discountMode,
+        goalsShown,
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
       },

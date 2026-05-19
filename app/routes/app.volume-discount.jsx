@@ -205,8 +205,8 @@ export default function VolumeDiscountCreate() {
   // Display
   const [showTable, setShowTable] = useState(r?.showTable ?? true);
   const [tableTitle, setTableTitle] = useState(r?.tableTitle ?? "Volume discounts");
-  const [highlightActive, setHighlightActive] = useState(true);
-  const [showBadges, setShowBadges] = useState(true);
+  const [highlightActive, setHighlightActive] = useState(r?.highlightActive ?? true);
+  const [showBadges, setShowBadges] = useState(r?.showBadges ?? true);
 
   // Shopify code
   const [shopifyCode, setShopifyCode] = useState(r?.shopifyDiscountCode ?? "");
@@ -241,6 +241,8 @@ export default function VolumeDiscountCreate() {
         shopifyDiscountId: loaderData?.record?.shopifyDiscountId || null,
         showTable,
         tableTitle,
+        highlightActive,
+        showBadges,
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
       },

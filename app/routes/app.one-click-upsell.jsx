@@ -120,16 +120,16 @@ export default function OneClickUpsellCreate() {
   // Upsell product
   const [productSearch, setProductSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(r?.productTitle ?? null);
-  const [variantOption, setVariantOption] = useState("default");
-  const [upsellQty, setUpsellQty] = useState("1");
+  const [variantOption, setVariantOption] = useState(r?.variantOption ?? "default");
+  const [upsellQty, setUpsellQty] = useState(r?.upsellQty ?? "1");
 
   // Display
   const [checkboxLabel, setCheckboxLabel] = useState(r?.label ?? "");
   const [checkboxDesc, setCheckboxDesc] = useState(r?.description ?? "");
-  const [showImage, setShowImage] = useState(true);
-  const [showPrice, setShowPrice] = useState(true);
+  const [showImage, setShowImage] = useState(r?.showImage ?? true);
+  const [showPrice, setShowPrice] = useState(r?.showPrice ?? true);
   const [position, setPosition] = useState(r?.position ?? "below_items");
-  const [discountEnabled, setDiscountEnabled] = useState(false);
+  const [discountEnabled, setDiscountEnabled] = useState(r?.discountEnabled ?? false);
   const [discountType, setDiscountType] = useState(r?.discountType ?? "percentage");
   const [discountValue, setDiscountValue] = useState(r?.discountValue ?? "");
 
@@ -172,6 +172,11 @@ export default function OneClickUpsellCreate() {
         displayCondition: showWhen,
         conditionProducts: JSON.stringify(triggerProducts),
         conditionValue: minCartValue,
+        variantOption,
+        upsellQty,
+        showImage,
+        showPrice,
+        discountEnabled,
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
       },

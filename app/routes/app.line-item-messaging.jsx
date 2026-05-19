@@ -169,7 +169,7 @@ export default function LineItemMessagingCreate() {
   // Message
   const [templateType, setTemplateType] = useState(r?.messageTemplate ?? "low_stock");
   const [customText, setCustomText] = useState(r?.customMessage ?? "");
-  const [msgIcon, setMsgIcon] = useState("⚠️");
+  const [msgIcon, setMsgIcon] = useState(r?.icon ?? "⚠️");
   const [msgBgColor, setMsgBgColor] = useState(r?.bgColor ?? "#fff7ed");
   const [msgTextColor, setMsgTextColor] = useState(r?.textColor ?? "#92400e");
   const [msgPosition, setMsgPosition] = useState(r?.position ?? "below_item");
@@ -205,6 +205,7 @@ export default function LineItemMessagingCreate() {
         conditionMatch: ruleLogic,
         messageTemplate: templateType,
         customMessage: customText,
+        icon: msgIcon,
         position: msgPosition,
         bgColor: msgBgColor,
         textColor: msgTextColor,

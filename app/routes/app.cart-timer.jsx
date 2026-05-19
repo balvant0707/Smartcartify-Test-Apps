@@ -196,6 +196,8 @@ export default function CartTimerCreate() {
         bgColor,
         textColor,
         position,
+        showWhen,
+        minCartValue,
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
       },
