@@ -385,7 +385,7 @@ export default function RuleAutoDiscount() {
             </SectionCard>
 
             {/* Settings */}
-            <SectionCard icon={SettingsIcon} title="Settings" defaultOpen={false}>
+            <SectionCard icon={CalendarIcon} title="Schedule" defaultOpen={false}>
               <BlockStack gap="400">
                 <BlockStack gap="200">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Active dates</Text>

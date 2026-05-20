@@ -589,8 +589,8 @@ export default function RuleBxgy() {
               </BlockStack>
             </SectionCard>
 
-            {/* Settings */}
-            <SectionCard icon={SettingsIcon} title="Settings" defaultOpen={false}>
+            {/* Schedule */}
+            <SectionCard icon={CalendarIcon} title="Schedule" defaultOpen={false}>
               <BlockStack gap="400">
                 <BlockStack gap="200">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Active dates</Text>
