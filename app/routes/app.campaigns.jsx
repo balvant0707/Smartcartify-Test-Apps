@@ -268,9 +268,9 @@ const RULE_TYPES = [
 
 const TABS = [
   { id: "all", content: "All" },
+   { id: "shipping", content: "Shipping" },
   { id: "discounts", content: "Discounts" },
   { id: "free-products", content: "Free Products" },
-  { id: "shipping", content: "Shipping" },
   { id: "upsell", content: "Upsell" },
 ];
 
