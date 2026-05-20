@@ -11,7 +11,7 @@ import {
 import {
   CodeIcon, SettingsIcon, EditIcon,
   MinimizeIcon, MaximizeIcon, PauseCircleIcon,
-  CalendarIcon, ClockIcon, ClipboardIcon,
+  CalendarIcon, ClockIcon, ClipboardIcon, PersonFilledIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -28,7 +28,6 @@ export const loader = async ({ request }) => {
     const row = await prisma.discountRule.findFirst({
       where: { id: parseInt(id, 10), shop: session.shop },
     });
-    // Only load code discount rules on this page
     if (row && String(row.type || "").toLowerCase() === "code") {
       record = row;
     }
@@ -46,6 +45,7 @@ export const action = async ({ request }) => {
     id, codeCampaignName, enabled, discountCode, valueType, value,
     minPurchase, progressTextBefore, progressTextAfter, progressTextBelow,
     startsAt, endsAt, priority,
+    customerTarget, customerTags, abTestEnabled, abTestVariant, templateKey,
   } = body;
 
   const dbData = {
@@ -65,10 +65,14 @@ export const action = async ({ request }) => {
     endsAt: endsAt ? new Date(endsAt) : null,
     priority: parseInt(priority || "0") || 0,
     rewardType: valueType === "amount" ? "amount" : "percent",
+    customerTarget: customerTarget || "all",
+    customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
+    abTestEnabled: abTestEnabled === true,
+    abTestVariant: abTestEnabled ? (abTestVariant || null) : null,
+    templateKey: templateKey || null,
   };
 
   try {
-    // Sync code discount to Shopify
     let existingShopifyId = null;
     if (id) {
       const existing = await prisma.discountRule.findFirst({
@@ -98,14 +102,9 @@ export const action = async ({ request }) => {
 
     let record;
     if (id) {
-      const existing = await prisma.discountRule.findFirst({
-        where: { id: parseInt(id, 10), shop },
-      });
+      const existing = await prisma.discountRule.findFirst({ where: { id: parseInt(id, 10), shop } });
       if (!existing) return { error: "Rule not found" };
-      record = await prisma.discountRule.update({
-        where: { id: parseInt(id, 10) },
-        data: dbData,
-      });
+      record = await prisma.discountRule.update({ where: { id: parseInt(id, 10) }, data: dbData });
     } else {
       record = await prisma.discountRule.create({ data: dbData });
     }
@@ -146,8 +145,7 @@ export default function RuleCodeDiscount() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
-  const withHost = (path) =>
-    host ? `${path}?host=${encodeURIComponent(host)}` : path;
+  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
 
   const loaderData = useLoaderData();
   const actionData = useActionData();
@@ -158,19 +156,13 @@ export default function RuleCodeDiscount() {
   const isSaving = navigation.state === "submitting";
 
   // Sidebar
-  const [codeCampaignName, setCodeCampaignName] = useState(
-    r?.codeCampaignName ?? r?.campaignName ?? "Code Discount"
-  );
+  const [codeCampaignName, setCodeCampaignName] = useState(r?.codeCampaignName ?? r?.campaignName ?? "Code Discount");
   const [enabled, setEnabled] = useState(r?.enabled !== false);
 
-  // Code
+  // Code & discount
   const [discountCode, setDiscountCode] = useState(r?.discountCode ?? "");
-
-  // Discount value
   const [valueType, setValueType] = useState(r?.valueType ?? "percent");
   const [value, setValue] = useState(r?.value ?? "");
-
-  // Condition
   const [minPurchase, setMinPurchase] = useState(r?.minPurchase ?? "");
 
   // Messages
@@ -180,25 +172,22 @@ export default function RuleCodeDiscount() {
 
   // Schedule
   const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(
-    r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today
-  );
-  const [startTime, setStartTime] = useState(
-    r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00"
-  );
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
   const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
-  const [endDate, setEndDate] = useState(
-    r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : ""
-  );
-  const [endTime, setEndTime] = useState(
-    r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59"
-  );
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
+
+  // Targeting & priority
   const [priority, setPriority] = useState(String(r?.priority ?? "0"));
+  const [customerTarget, setCustomerTarget] = useState(r?.customerTarget ?? "all");
+  const [customerTags, setCustomerTags] = useState(r?.customerTags ?? "");
+  const [abTestEnabled, setAbTestEnabled] = useState(r?.abTestEnabled === true);
+  const [abTestVariant, setAbTestVariant] = useState(r?.abTestVariant ?? "a");
+  const [templateKey, setTemplateKey] = useState(r?.templateKey ?? "");
 
   useEffect(() => {
-    if (actionData?.success && navigation.state === "idle") {
-      navigate(withHost("/app/campaigns"));
-    }
+    if (actionData?.success && navigation.state === "idle") navigate(withHost("/app/campaigns"));
   }, [actionData, navigation.state]);
 
   const handleSave = () => {
@@ -217,27 +206,31 @@ export default function RuleCodeDiscount() {
         priority,
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+        customerTarget,
+        customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
+        abTestEnabled,
+        abTestVariant: abTestEnabled ? abTestVariant : null,
+        templateKey: templateKey || null,
       },
       { method: "post", encType: "application/json" }
     );
   };
 
-  const discountLabel =
-    value
-      ? valueType === "percent"
-        ? `${value}% off`
-        : `$${value} off`
-      : "";
+  const discountLabel = value
+    ? valueType === "percent" ? `${value}% off` : `$${value} off`
+    : "";
+
+  const MOCK_CART = 67.50;
+  const minPurchaseNum = parseFloat(minPurchase || 0);
+  const meetsMin = minPurchaseNum === 0 || MOCK_CART >= minPurchaseNum;
+  const remaining = Math.max(0, minPurchaseNum - MOCK_CART).toFixed(2);
 
   return (
     <Page
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
       title={codeCampaignName || "Code Discount"}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
-      secondaryActions={[{
-        content: enabled ? "Disable" : "Enable",
-        onAction: () => setEnabled(v => !v),
-      }]}
+      secondaryActions={[{ content: enabled ? "Disable" : "Enable", onAction: () => setEnabled(v => !v) }]}
     >
       <style>{`.cd-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.cd-layout{grid-template-columns:1fr}}`}</style>
       {actionData?.error && (
@@ -345,6 +338,72 @@ export default function RuleCodeDiscount() {
               </BlockStack>
             </SectionCard>
 
+            {/* Targeting & priority */}
+            <SectionCard icon={PersonFilledIcon} title="Targeting & priority" defaultOpen={false}>
+              <BlockStack gap="400">
+                <Select
+                  label="Customer target"
+                  options={[
+                    { label: "All customers", value: "all" },
+                    { label: "Customers with tag", value: "has_tag" },
+                    { label: "Customers without tag", value: "no_tag" },
+                    { label: "Logged in customers only", value: "logged_in" },
+                    { label: "Guest customers only", value: "guest" },
+                  ]}
+                  value={customerTarget}
+                  onChange={setCustomerTarget}
+                  helpText="Choose which customers this rule applies to."
+                />
+                {(customerTarget === "has_tag" || customerTarget === "no_tag") && (
+                  <TextField
+                    label="Customer tags"
+                    value={customerTags}
+                    onChange={setCustomerTags}
+                    autoComplete="off"
+                    placeholder="vip, wholesale, member"
+                    helpText="Comma-separated list of customer tags to match."
+                  />
+                )}
+                <Divider />
+                <TextField
+                  label="Priority"
+                  type="number"
+                  value={priority}
+                  onChange={setPriority}
+                  autoComplete="off"
+                  helpText="Higher number = evaluated first when multiple rules are active."
+                />
+                <Divider />
+                <Checkbox
+                  label="Enable A/B testing"
+                  checked={abTestEnabled}
+                  onChange={setAbTestEnabled}
+                  helpText="Split traffic between two variants to test rule performance."
+                />
+                {abTestEnabled && (
+                  <Select
+                    label="A/B test variant"
+                    options={[
+                      { label: "Variant A", value: "a" },
+                      { label: "Variant B", value: "b" },
+                    ]}
+                    value={abTestVariant}
+                    onChange={setAbTestVariant}
+                    helpText="Assign this rule to variant A or B."
+                  />
+                )}
+                <Divider />
+                <TextField
+                  label="Template key (optional)"
+                  value={templateKey}
+                  onChange={setTemplateKey}
+                  autoComplete="off"
+                  placeholder="e.g. summer_theme"
+                  helpText="Custom template identifier for advanced visual themes."
+                />
+              </BlockStack>
+            </SectionCard>
+
             {/* Settings */}
             <SectionCard icon={SettingsIcon} title="Settings" defaultOpen={false}>
               <BlockStack gap="400">
@@ -366,15 +425,6 @@ export default function RuleCodeDiscount() {
                     </BlockStack>
                   </div>
                 </BlockStack>
-                <Divider />
-                <TextField
-                  label="Priority"
-                  type="number"
-                  value={priority}
-                  onChange={setPriority}
-                  autoComplete="off"
-                  helpText="Higher number = shown first when multiple code discount rules exist."
-                />
               </BlockStack>
             </SectionCard>
 
@@ -393,19 +443,11 @@ export default function RuleCodeDiscount() {
               <BlockStack gap="300">
                 <Select
                   label="Status"
-                  options={[
-                    { label: "Active", value: "true" },
-                    { label: "Inactive", value: "false" },
-                  ]}
+                  options={[{ label: "Active", value: "true" }, { label: "Inactive", value: "false" }]}
                   value={String(enabled)}
                   onChange={(v) => setEnabled(v === "true")}
                 />
-                <TextField
-                  label="Rule name"
-                  value={codeCampaignName}
-                  onChange={setCodeCampaignName}
-                  autoComplete="off"
-                />
+                <TextField label="Rule name" value={codeCampaignName} onChange={setCodeCampaignName} autoComplete="off" />
               </BlockStack>
             </div>
 
@@ -415,22 +457,74 @@ export default function RuleCodeDiscount() {
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
               </Box>
               <Box padding="300">
-                <div style={{ borderRadius: "8px", background: "#fffbeb", padding: "14px 16px" }}>
-                  <Text variant="bodySm" fontWeight="semibold" as="p">
-                    {discountLabel ? `🏷️ Use code below for ${discountLabel}!` : "🏷️ Use this discount code!"}
-                  </Text>
-                  {discountCode && (
-                    <Box paddingBlockStart="200">
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#fef3c7", border: "1.5px dashed #d97706", borderRadius: "6px", padding: "6px 12px" }}>
-                        <Text variant="bodyMd" fontWeight="bold" as="span">{discountCode}</Text>
-                        <span style={{ fontSize: "13px", cursor: "pointer" }}>📋</span>
+                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px" }}>
+                  {/* Cart header */}
+                  <div style={{ background: "#f9fafb", padding: "8px 12px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between" }}>
+                    <Text variant="bodySm" fontWeight="semibold" as="p">Your Cart</Text>
+                    <Text variant="bodySm" tone="subdued" as="p">2 items</Text>
+                  </div>
+                  {/* Items */}
+                  <div style={{ padding: "10px 12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+                      <Text variant="bodySm" tone="subdued" as="p">Watch × 1</Text>
+                      <Text variant="bodySm" as="p">$49.99</Text>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+                      <Text variant="bodySm" tone="subdued" as="p">Bracelet × 1</Text>
+                      <Text variant="bodySm" as="p">$17.51</Text>
+                    </div>
+                    {/* Coupon banner */}
+                    {minPurchaseNum > 0 && !meetsMin ? (
+                      <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "6px", padding: "10px" }}>
+                        <Text variant="bodySm" fontWeight="semibold" as="p">
+                          {progressTextBefore
+                            ? progressTextBefore.replace("{{amount}}", `$${remaining}`).replace("{{discount_code}}", discountCode || "CODE")
+                            : `Spend $${remaining} more to unlock ${discountLabel || "your discount"}!`}
+                        </Text>
+                        <div style={{ height: "4px", borderRadius: "2px", background: "#fde68a", overflow: "hidden", marginTop: "6px" }}>
+                          <div style={{ height: "100%", width: `${Math.min(100, (MOCK_CART / minPurchaseNum) * 100)}%`, background: "#d97706", borderRadius: "2px" }} />
+                        </div>
                       </div>
-                    </Box>
-                  )}
-                  <Box paddingBlockStart="200">
-                    <Text variant="bodySm" tone="subdued" as="p">Live preview based on your settings.</Text>
-                  </Box>
+                    ) : (
+                      <div style={{ background: "#fffbeb", border: "1.5px dashed #d97706", borderRadius: "6px", padding: "10px" }}>
+                        <Text variant="bodySm" fontWeight="semibold" as="p">
+                          {discountLabel ? `🏷 Get ${discountLabel} with your code:` : "🏷 Use this discount code:"}
+                        </Text>
+                        {discountCode ? (
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px", background: "#fef3c7", borderRadius: "4px", padding: "6px 10px" }}>
+                            <Text variant="bodyMd" fontWeight="bold" as="span">{discountCode}</Text>
+                            <span style={{ fontSize: "11px", color: "#92400e", cursor: "pointer", fontWeight: 600 }}>COPY</span>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: "6px", height: "28px", background: "#fef3c7", borderRadius: "4px", display: "flex", alignItems: "center", paddingLeft: "10px" }}>
+                            <Text variant="bodySm" tone="subdued" as="p">Your code will appear here</Text>
+                          </div>
+                        )}
+                        {progressTextAfter && discountCode && (
+                          <Text variant="bodySm" tone="subdued" as="p" alignment="center">
+                            {progressTextAfter.replace("{{discount_code}}", discountCode)}
+                          </Text>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {/* Footer */}
+                  <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                      <Text variant="bodySm" tone="subdued" as="p">Subtotal</Text>
+                      <Text variant="bodySm" as="p">$67.50</Text>
+                    </div>
+                    {meetsMin && value && discountCode && (
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <Text variant="bodySm" tone="success" as="p">Discount</Text>
+                        <Text variant="bodySm" tone="success" as="p">-{discountLabel}</Text>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                <Box paddingBlockStart="200">
+                  <Text variant="bodySm" tone="subdued" as="p">Live preview · simulated cart $67.50</Text>
+                </Box>
               </Box>
             </div>
           </BlockStack>

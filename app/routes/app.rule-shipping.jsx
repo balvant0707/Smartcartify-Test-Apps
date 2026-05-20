@@ -41,7 +41,7 @@ export const action = async ({ request }) => {
   const {
     id, campaignName, enabled, rewardType, amount, minSubtotal,
     method, progressTextBefore, progressTextAfter, progressTextBelow,
-    startsAt, endsAt, priority,
+    startsAt, endsAt,
   } = body;
 
   const dbData = {
@@ -57,11 +57,10 @@ export const action = async ({ request }) => {
     progressTextBelow: progressTextBelow || null,
     startsAt: startsAt ? new Date(startsAt) : null,
     endsAt: endsAt ? new Date(endsAt) : null,
-    priority: parseInt(priority || "0") || 0,
+    priority: 0,
   };
 
   try {
-    // Sync free shipping discount to Shopify
     if (rewardType === "free_shipping") {
       let existingShopifyId = null;
       if (id) {
@@ -87,14 +86,9 @@ export const action = async ({ request }) => {
 
     let record;
     if (id) {
-      const existing = await prisma.shippingRule.findFirst({
-        where: { id: parseInt(id, 10), shop },
-      });
+      const existing = await prisma.shippingRule.findFirst({ where: { id: parseInt(id, 10), shop } });
       if (!existing) return { error: "Rule not found" };
-      record = await prisma.shippingRule.update({
-        where: { id: parseInt(id, 10) },
-        data: dbData,
-      });
+      record = await prisma.shippingRule.update({ where: { id: parseInt(id, 10) }, data: dbData });
     } else {
       record = await prisma.shippingRule.create({ data: dbData });
     }
@@ -135,8 +129,7 @@ export default function RuleShipping() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
-  const withHost = (path) =>
-    host ? `${path}?host=${encodeURIComponent(host)}` : path;
+  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
 
   const loaderData = useLoaderData();
   const actionData = useActionData();
@@ -167,25 +160,14 @@ export default function RuleShipping() {
 
   // Schedule
   const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(
-    r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today
-  );
-  const [startTime, setStartTime] = useState(
-    r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00"
-  );
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
   const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
-  const [endDate, setEndDate] = useState(
-    r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : ""
-  );
-  const [endTime, setEndTime] = useState(
-    r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59"
-  );
-  const [priority, setPriority] = useState(String(r?.priority ?? "0"));
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
   useEffect(() => {
-    if (actionData?.success && navigation.state === "idle") {
-      navigate(withHost("/app/campaigns"));
-    }
+    if (actionData?.success && navigation.state === "idle") navigate(withHost("/app/campaigns"));
   }, [actionData, navigation.state]);
 
   const handleSave = () => {
@@ -201,7 +183,6 @@ export default function RuleShipping() {
         progressTextBefore,
         progressTextAfter,
         progressTextBelow,
-        priority,
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
       },
@@ -209,15 +190,21 @@ export default function RuleShipping() {
     );
   };
 
+  const MOCK_CART = 43.98;
+  const threshold = parseFloat(minSubtotal || 50);
+  const remaining = Math.max(0, threshold - MOCK_CART).toFixed(2);
+  const progressPct = Math.min(100, Math.round((MOCK_CART / threshold) * 100));
+  const isUnlocked = MOCK_CART >= threshold;
+  const previewMsg = isUnlocked
+    ? progressTextAfter || "You've unlocked free shipping! 🎉"
+    : progressTextBefore.replace("{{amount}}", `$${remaining}`) || "Spend more for free shipping!";
+
   return (
     <Page
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
       title={campaignName || "Shipping Rule"}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
-      secondaryActions={[{
-        content: enabled ? "Disable" : "Enable",
-        onAction: () => setEnabled(v => !v),
-      }]}
+      secondaryActions={[{ content: enabled ? "Disable" : "Enable", onAction: () => setEnabled(v => !v) }]}
     >
       <style>{`.sr-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.sr-layout{grid-template-columns:1fr}}`}</style>
       {actionData?.error && (
@@ -326,7 +313,7 @@ export default function RuleShipping() {
               </BlockStack>
             </SectionCard>
 
-            {/* Settings */}
+            {/* Settings — active dates only */}
             <SectionCard icon={SettingsIcon} title="Settings" defaultOpen={false}>
               <BlockStack gap="400">
                 <BlockStack gap="200">
@@ -347,15 +334,6 @@ export default function RuleShipping() {
                     </BlockStack>
                   </div>
                 </BlockStack>
-                <Divider />
-                <TextField
-                  label="Priority"
-                  type="number"
-                  value={priority}
-                  onChange={setPriority}
-                  autoComplete="off"
-                  helpText="Higher number = higher priority when multiple shipping rules exist."
-                />
               </BlockStack>
             </SectionCard>
 
@@ -374,19 +352,11 @@ export default function RuleShipping() {
               <BlockStack gap="300">
                 <Select
                   label="Status"
-                  options={[
-                    { label: "Active", value: "true" },
-                    { label: "Inactive", value: "false" },
-                  ]}
+                  options={[{ label: "Active", value: "true" }, { label: "Inactive", value: "false" }]}
                   value={String(enabled)}
                   onChange={(v) => setEnabled(v === "true")}
                 />
-                <TextField
-                  label="Rule name"
-                  value={campaignName}
-                  onChange={setCampaignName}
-                  autoComplete="off"
-                />
+                <TextField label="Rule name" value={campaignName} onChange={setCampaignName} autoComplete="off" />
               </BlockStack>
             </div>
 
@@ -396,20 +366,54 @@ export default function RuleShipping() {
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
               </Box>
               <Box padding="300">
-                <div style={{ background: "#f0f9ff", borderRadius: "8px", padding: "14px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-                    <Icon source={DeliveryIcon} />
-                    <Text variant="bodySm" fontWeight="semibold" as="span">
-                      {progressTextBefore.replace("{{amount}}", `$${minSubtotal || "50"}`) || "Spend more for free shipping!"}
-                    </Text>
+                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px" }}>
+                  {/* Cart header */}
+                  <div style={{ background: "#f9fafb", padding: "8px 12px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between" }}>
+                    <Text variant="bodySm" fontWeight="semibold" as="p">Your Cart</Text>
+                    <Text variant="bodySm" tone="subdued" as="p">2 items</Text>
                   </div>
-                  <div style={{ height: "6px", borderRadius: "3px", background: "#dbeafe", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: "60%", background: "#3b82f6", borderRadius: "3px" }} />
+                  {/* Items */}
+                  <div style={{ padding: "10px 12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+                      <Text variant="bodySm" tone="subdued" as="p">Sneakers × 1</Text>
+                      <Text variant="bodySm" as="p">$24.99</Text>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+                      <Text variant="bodySm" tone="subdued" as="p">Cap × 1</Text>
+                      <Text variant="bodySm" as="p">$18.99</Text>
+                    </div>
+                    {/* Shipping progress */}
+                    <div style={{ background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: "6px", padding: "10px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                        <Icon source={DeliveryIcon} />
+                        <Text variant="bodySm" fontWeight="semibold" as="span">{previewMsg}</Text>
+                      </div>
+                      <div style={{ height: "6px", borderRadius: "3px", background: "#dbeafe", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#3b82f6", borderRadius: "3px", transition: "width 0.3s" }} />
+                      </div>
+                      {progressTextBelow && (
+                        <Text variant="bodySm" tone="subdued" as="p">{progressTextBelow}</Text>
+                      )}
+                    </div>
                   </div>
-                  <Box paddingBlockStart="200">
-                    <Text variant="bodySm" tone="subdued" as="p">Live preview based on your settings.</Text>
-                  </Box>
+                  {/* Footer */}
+                  <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                      <Text variant="bodySm" tone="subdued" as="p">Subtotal</Text>
+                      <Text variant="bodySm" as="p">$43.98</Text>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <Text variant="bodySm" tone="subdued" as="p">Shipping</Text>
+                      {isUnlocked
+                        ? <Text variant="bodySm" tone="success" as="p">FREE</Text>
+                        : <Text variant="bodySm" tone="subdued" as="p">$5.99</Text>
+                      }
+                    </div>
+                  </div>
                 </div>
+                <Box paddingBlockStart="200">
+                  <Text variant="bodySm" tone="subdued" as="p">Live preview · simulated cart $43.98</Text>
+                </Box>
               </Box>
             </div>
           </BlockStack>

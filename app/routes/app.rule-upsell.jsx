@@ -362,40 +362,67 @@ export default function RuleUpsell() {
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
               </Box>
               <Box padding="300">
-                <div style={{ background: backgroundColor || "#fff", border: `1px solid ${borderColor || "#e1e3e5"}`, borderRadius: "8px", padding: "14px 16px" }}>
-                  <Text
-                    variant="bodySm"
-                    fontWeight="semibold"
-                    as="p"
-                    style={{ color: textColor || "#111827" }}
-                  >
-                    {sectionTitle || "You may also like"}
-                  </Text>
-
-                  {/* Mock product cards */}
-                  <div style={{ display: "flex", gap: "8px", marginTop: "12px", overflowX: "auto" }}>
-                    {["Product 1", "Product 2"].map((label) => (
-                      <div
-                        key={label}
-                        style={{ flex: "0 0 100px", border: `1px solid ${borderColor || "#e1e3e5"}`, borderRadius: "6px", padding: "8px", background: "#f9fafb", textAlign: "center" }}
-                      >
-                        <div style={{ height: "60px", background: "#e5e7eb", borderRadius: "4px", marginBottom: "6px" }} />
-                        <Text variant="bodySm" as="p">{label}</Text>
-                        <div
-                          style={{ marginTop: "6px", background: buttonColor || "#111827", borderRadius: "4px", padding: "4px 6px" }}
-                        >
-                          <Text variant="bodySm" as="p" alignment="center" >
-                            <span style={{ color: "#fff", fontSize: "11px" }}>{buttonText || "Add to cart"}</span>
-                          </Text>
+                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px" }}>
+                  {/* Cart header */}
+                  <div style={{ background: "#f9fafb", padding: "8px 12px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between" }}>
+                    <Text variant="bodySm" fontWeight="semibold" as="p">Your Cart</Text>
+                    <Text variant="bodySm" tone="subdued" as="p">1 item</Text>
+                  </div>
+                  {/* Cart item */}
+                  <div style={{ padding: "8px 12px", borderBottom: "1px solid #e1e3e5" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div style={{ width: "36px", height: "36px", background: "#e5e7eb", borderRadius: "4px", flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <Text variant="bodySm" fontWeight="semibold" as="p">Your Product</Text>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <Text variant="bodySm" tone="subdued" as="p">× 1</Text>
+                          <Text variant="bodySm" as="p">$39.99</Text>
                         </div>
                       </div>
-                    ))}
+                    </div>
                   </div>
-
-                  <Box paddingBlockStart="200">
-                    <Text variant="bodySm" tone="subdued" as="p">Live preview based on your settings.</Text>
-                  </Box>
+                  {/* Upsell section */}
+                  <div style={{ background: backgroundColor || "#fff", padding: "10px 12px" }}>
+                    <Text variant="bodySm" fontWeight="semibold" as="p" tone="subdued">
+                      <span style={{ color: textColor || "#111827" }}>{sectionTitle || "You may also like"}</span>
+                    </Text>
+                    {/* Product cards */}
+                    <div style={{ display: "flex", gap: "6px", marginTop: "8px", overflowX: "auto", paddingBottom: "2px" }}>
+                      {[{ name: "Item A", price: "$19.99" }, { name: "Item B", price: "$24.99" }].map((p) => (
+                        <div
+                          key={p.name}
+                          style={{
+                            flex: "0 0 90px",
+                            border: `1px solid ${borderColor || "#e1e3e5"}`,
+                            borderRadius: "6px",
+                            padding: "6px",
+                            background: "#f9fafb",
+                            textAlign: "center",
+                          }}
+                        >
+                          <div style={{ height: "48px", background: "#e5e7eb", borderRadius: "4px", marginBottom: "5px" }} />
+                          <Text variant="bodySm" as="p">{p.name}</Text>
+                          <Text variant="bodySm" tone="subdued" as="p">{p.price}</Text>
+                          <div style={{ marginTop: "5px", background: buttonColor || "#111827", borderRadius: "4px", padding: "3px 4px" }}>
+                            <span style={{ color: "#fff", fontSize: "10px", fontWeight: 600 }}>
+                              {buttonText || "Add to cart"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Footer */}
+                  <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <Text variant="bodySm" tone="subdued" as="p">Subtotal</Text>
+                      <Text variant="bodySm" as="p">$39.99</Text>
+                    </div>
+                  </div>
                 </div>
+                <Box paddingBlockStart="200">
+                  <Text variant="bodySm" tone="subdued" as="p">Live preview · cart drawer view</Text>
+                </Box>
               </Box>
             </div>
           </BlockStack>
