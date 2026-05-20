@@ -190,14 +190,12 @@ export default function RuleShipping() {
     );
   };
 
-  const MOCK_CART = 43.98;
+  const [sliderValue, setSliderValue] = useState(50);
   const threshold = parseFloat(minSubtotal || 50);
-  const remaining = Math.max(0, threshold - MOCK_CART).toFixed(2);
-  const progressPct = Math.min(100, Math.round((MOCK_CART / threshold) * 100));
-  const isUnlocked = MOCK_CART >= threshold;
-  const previewMsg = isUnlocked
-    ? progressTextAfter || "You've unlocked free shipping! 🎉"
-    : progressTextBefore.replace("{{amount}}", `$${remaining}`) || "Spend more for free shipping!";
+  const mockCart = (threshold * sliderValue) / 100;
+  const remaining = Math.max(0, threshold - mockCart).toFixed(2);
+  const progressPct = sliderValue;
+  const isUnlocked = sliderValue >= 100;
 
   return (
     <Page
@@ -365,55 +363,37 @@ export default function RuleShipping() {
               <Box padding="300" borderBlockEndWidth="025" borderColor="border">
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
               </Box>
-              <Box padding="300">
-                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px" }}>
-                  {/* Cart header */}
-                  <div style={{ background: "#f9fafb", padding: "8px 12px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between" }}>
-                    <Text variant="bodySm" fontWeight="semibold" as="p">Your Cart</Text>
-                    <Text variant="bodySm" tone="subdued" as="p">2 items</Text>
+              <Box padding="400">
+                <div style={{ background: "#f9fafb", border: "1px solid #e1e3e5", borderRadius: "8px", padding: "14px 16px 18px" }}>
+                  <div style={{ marginBottom: "14px", lineHeight: "1.5" }}>
+                    {isUnlocked ? (
+                      <Text variant="bodySm" fontWeight="semibold" as="p">{progressTextAfter || "You've unlocked free shipping! 🎉"}</Text>
+                    ) : (
+                      <span style={{ fontSize: "13px" }}>
+                        {progressTextBefore.includes("{{amount}}")
+                          ? <>{progressTextBefore.split("{{amount}}")[0]}<strong>${remaining}</strong>{progressTextBefore.split("{{amount}}")[1] ?? ""}</>
+                          : progressTextBefore || `Spend $${remaining} more for free shipping!`}
+                      </span>
+                    )}
                   </div>
-                  {/* Items */}
-                  <div style={{ padding: "10px 12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Sneakers × 1</Text>
-                      <Text variant="bodySm" as="p">$24.99</Text>
+                  <div style={{ position: "relative", paddingRight: "44px" }}>
+                    <div style={{ height: "4px", background: "#e1e3e5", borderRadius: "2px" }}>
+                      <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#111827", borderRadius: "2px", transition: "width 0.15s" }} />
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Cap × 1</Text>
-                      <Text variant="bodySm" as="p">$18.99</Text>
-                    </div>
-                    {/* Shipping progress */}
-                    <div style={{ background: "#f0f9ff", border: "1px solid #bfdbfe", borderRadius: "6px", padding: "10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-                        <Icon source={DeliveryIcon} />
-                        <Text variant="bodySm" fontWeight="semibold" as="span">{previewMsg}</Text>
-                      </div>
-                      <div style={{ height: "6px", borderRadius: "3px", background: "#dbeafe", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#3b82f6", borderRadius: "3px", transition: "width 0.3s" }} />
-                      </div>
-                      {progressTextBelow && (
-                        <Text variant="bodySm" tone="subdued" as="p">{progressTextBelow}</Text>
-                      )}
-                    </div>
-                  </div>
-                  {/* Footer */}
-                  <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Subtotal</Text>
-                      <Text variant="bodySm" as="p">$43.98</Text>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Shipping</Text>
-                      {isUnlocked
-                        ? <Text variant="bodySm" tone="success" as="p">FREE</Text>
-                        : <Text variant="bodySm" tone="subdued" as="p">$5.99</Text>
-                      }
+                    <div style={{ position: "absolute", right: "0", top: "-10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+                      <Icon source={DeliveryIcon} tone={isUnlocked ? "success" : "base"} />
+                      <span style={{ fontSize: "11px", color: isUnlocked ? "#16a34a" : "#6b7280", fontWeight: isUnlocked ? 600 : 400 }}>Free!</span>
                     </div>
                   </div>
                 </div>
-                <Box paddingBlockStart="200">
-                  <Text variant="bodySm" tone="subdued" as="p">Live preview · simulated cart $43.98</Text>
-                </Box>
+                <div style={{ marginTop: "16px" }}>
+                  <Text variant="bodySm" tone="subdued" as="p">Use this to adjust the progress bar</Text>
+                  <input
+                    type="range" min="0" max="100" value={sliderValue}
+                    onChange={(e) => setSliderValue(parseInt(e.target.value))}
+                    style={{ width: "100%", marginTop: "8px", cursor: "pointer", accentColor: "#111827" }}
+                  />
+                </div>
               </Box>
             </div>
           </BlockStack>

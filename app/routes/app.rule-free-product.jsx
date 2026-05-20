@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react";
 import {
   useNavigate, useSearchParams, useSubmit,
-  useActionData, useLoaderData, useNavigation,
+  useActionData, useLoaderData, useNavigation, useFetcher,
 } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, RadioButton, Banner,
+  Icon, RadioButton, Banner, Modal,
 } from "@shopify/polaris";
 import {
   GiftCardIcon, SettingsIcon, EditIcon,
   MinimizeIcon, MaximizeIcon, PauseCircleIcon,
   CalendarIcon, ClockIcon, ProductIcon, PersonFilledIcon,
+  SearchIcon, XSmallIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -84,6 +85,90 @@ export const action = async ({ request }) => {
   }
 };
 
+// ─── ResourcePickerModal ──────────────────────────────────────────────────────
+
+function ResourcePickerModal({ open, onClose, title, items, multi = true, selected = [], onApply, emptyText = "No items found.", kindLabel = "items" }) {
+  const [search, setSearch] = useState("");
+  const [draft, setDraft] = useState([]);
+
+  useEffect(() => {
+    if (open) {
+      setDraft(multi ? (Array.isArray(selected) ? [...selected] : []) : (selected ? [selected] : []));
+      setSearch("");
+    }
+  }, [open]);
+
+  const filtered = search
+    ? items.filter(item => item.title?.toLowerCase().includes(search.toLowerCase()))
+    : items;
+
+  const toggle = (id) => {
+    setDraft(prev =>
+      multi
+        ? prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        : [id]
+    );
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      primaryAction={{
+        content: multi ? "Apply selection" : "Select",
+        onAction: () => { onApply(multi ? draft : (draft[0] || "")); onClose(); },
+        disabled: draft.length === 0,
+      }}
+      secondaryActions={[{ content: "Cancel", onAction: onClose }]}
+    >
+      <Modal.Section>
+        <TextField
+          label="Search"
+          labelHidden
+          placeholder={`Search ${kindLabel}…`}
+          value={search}
+          onChange={setSearch}
+          prefix={<Icon source={SearchIcon} />}
+          autoComplete="off"
+          clearButton
+          onClearButtonClick={() => setSearch("")}
+        />
+      </Modal.Section>
+      <Modal.Section>
+        <div style={{ maxHeight: "340px", overflowY: "auto" }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: "24px 0", textAlign: "center" }}>
+              <Text tone="subdued" as="p">{emptyText}</Text>
+            </div>
+          ) : filtered.map(item => {
+            const checked = draft.includes(item.id);
+            return (
+              <div
+                key={item.id}
+                onClick={() => toggle(item.id)}
+                style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 4px", borderBottom: "1px solid #f1f3f5", cursor: "pointer", background: checked ? "#f0f7ff" : "transparent", borderRadius: "4px", marginBottom: "2px" }}
+              >
+                <Checkbox label="" labelHidden checked={checked} onChange={() => toggle(item.id)} />
+                {item.image ? (
+                  <img src={item.image} alt={item.title} style={{ width: "44px", height: "44px", objectFit: "cover", borderRadius: "6px", border: "1px solid #e1e3e5", flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: "44px", height: "44px", background: "#f1f3f5", borderRadius: "6px", border: "1px solid #e1e3e5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "18px" }}>📦</div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="bodySm" fontWeight="semibold" as="p">{item.title}</Text>
+                  {item.subtitle && <Text variant="bodySm" tone="subdued" as="p">{item.subtitle}</Text>}
+                </div>
+                {checked && <div style={{ color: "#2563eb", fontSize: "14px", fontWeight: 700, flexShrink: 0 }}>✓</div>}
+              </div>
+            );
+          })}
+        </div>
+      </Modal.Section>
+    </Modal>
+  );
+}
+
 // ─── SectionCard ─────────────────────────────────────────────────────────────
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -124,6 +209,22 @@ export default function RuleFreeProduct() {
   const r = loaderData?.record;
   const recordId = r?.id || null;
   const isSaving = navigation.state === "submitting";
+
+  // Fetch products for picker
+  const productFetcher = useFetcher();
+  useEffect(() => {
+    if (productFetcher.state === "idle" && !productFetcher.data) {
+      productFetcher.load("/api/products");
+    }
+  }, []);
+  const allProducts = productFetcher.data?.products || [];
+  const productPickerItems = allProducts.map(p => ({
+    id: p.id,
+    title: p.title,
+    subtitle: p.price ? `$${p.price}` : undefined,
+    image: p.image,
+  }));
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
 
   // Sidebar
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? "Free Product");
@@ -197,18 +298,14 @@ export default function RuleFreeProduct() {
     );
   };
 
-  const MOCK_CART = 58.97;
+  const [sliderValue, setSliderValue] = useState(50);
   const threshold = parseFloat(triggerType === "amount" ? (minPurchase || 75) : (minQuantity || 3));
+  const mockCart = (threshold * sliderValue) / 100;
   const remaining = triggerType === "amount"
-    ? `$${Math.max(0, threshold - MOCK_CART).toFixed(2)}`
-    : `${Math.max(0, threshold - 2)} item${Math.max(0, threshold - 2) !== 1 ? "s" : ""}`;
-  const progressPct = triggerType === "amount"
-    ? Math.min(100, Math.round((MOCK_CART / threshold) * 100))
-    : Math.min(100, Math.round((2 / threshold) * 100));
-  const isUnlocked = progressPct >= 100;
-  const previewMsg = isUnlocked
-    ? progressTextAfter || "🎁 Your free gift has been added!"
-    : progressTextBefore.replace("{{amount}}", remaining) || "Add more to unlock a free gift!";
+    ? Math.max(0, threshold - mockCart).toFixed(2)
+    : Math.max(0, Math.ceil(threshold - mockCart)).toString();
+  const progressPct = sliderValue;
+  const isUnlocked = sliderValue >= 100;
 
   return (
     <Page
@@ -281,17 +378,54 @@ export default function RuleFreeProduct() {
             {/* Gift product */}
             <SectionCard icon={ProductIcon} title="Free gift product">
               <BlockStack gap="400">
-                <Banner tone="info">
-                  Enter the Shopify Product GID (e.g. <strong>gid://shopify/Product/123456789</strong>) or the numeric product ID.
-                </Banner>
-                <TextField
-                  label="Product ID"
-                  value={bonusProductId}
-                  onChange={setBonusProductId}
-                  autoComplete="off"
-                  placeholder="e.g. gid://shopify/Product/123456789"
-                  helpText="This product will be automatically added to the cart as a free gift."
-                />
+                {/* Product selector */}
+                <BlockStack gap="300">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <BlockStack gap="050">
+                      <Text variant="bodyMd" fontWeight="semibold" as="p">Gift product</Text>
+                      <Text variant="bodySm" tone="subdued" as="p">
+                        {bonusProductId
+                          ? (() => {
+                              const found = productPickerItems.find(p => p.id === bonusProductId);
+                              return found?.title || bonusProductId.split("/").pop() || "1 product selected";
+                            })()
+                          : "No product selected"}
+                      </Text>
+                    </BlockStack>
+                    <Button
+                      size="slim"
+                      onClick={() => setProductPickerOpen(true)}
+                      loading={productFetcher.state === "loading"}
+                    >
+                      {bonusProductId ? "Change product" : "Browse products"}
+                    </Button>
+                  </InlineStack>
+
+                  {bonusProductId && (() => {
+                    const found = productPickerItems.find(p => p.id === bonusProductId);
+                    return (
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f0f7ff", border: "1px solid #bfdbfe", borderRadius: "6px", padding: "10px 12px" }}>
+                        {found?.image ? (
+                          <img src={found.image} alt={found.title} style={{ width: "44px", height: "44px", objectFit: "cover", borderRadius: "4px", border: "1px solid #e1e3e5", flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: "44px", height: "44px", background: "#e5e7eb", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "18px" }}>📦</div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <Text variant="bodySm" fontWeight="semibold" as="p">{found?.title || bonusProductId.split("/").pop()}</Text>
+                          {found?.subtitle && <Text variant="bodySm" tone="subdued" as="p">{found.subtitle}</Text>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setBonusProductId("")}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", display: "flex", alignItems: "center" }}
+                        >
+                          <Icon source={XSmallIcon} />
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </BlockStack>
+
                 <Divider />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <TextField
@@ -464,62 +598,55 @@ export default function RuleFreeProduct() {
               <Box padding="300" borderBlockEndWidth="025" borderColor="border">
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
               </Box>
-              <Box padding="300">
-                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px" }}>
-                  {/* Cart header */}
-                  <div style={{ background: "#f9fafb", padding: "8px 12px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between" }}>
-                    <Text variant="bodySm" fontWeight="semibold" as="p">Your Cart</Text>
-                    <Text variant="bodySm" tone="subdued" as="p">2 items</Text>
-                  </div>
-                  {/* Items */}
-                  <div style={{ padding: "10px 12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Hoodie × 1</Text>
-                      <Text variant="bodySm" as="p">$39.99</Text>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Socks × 1</Text>
-                      <Text variant="bodySm" as="p">$18.98</Text>
-                    </div>
-                    {/* Gift progress bar */}
-                    <div style={{ background: "#eef3ff", border: "1px solid #c7d7f9", borderRadius: "6px", padding: "10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-                        <span style={{ fontSize: "14px" }}>🎁</span>
-                        <Text variant="bodySm" fontWeight="semibold" as="span">{previewMsg}</Text>
-                      </div>
-                      <div style={{ height: "6px", borderRadius: "3px", background: "#c7d7f9", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#4f6ef7", borderRadius: "3px", transition: "width 0.3s" }} />
-                      </div>
-                      {progressTextBelow && (
-                        <Text variant="bodySm" tone="subdued" as="p">{progressTextBelow}</Text>
-                      )}
-                    </div>
-                    {isUnlocked && (
-                      <div style={{ marginTop: "8px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "6px", padding: "8px 10px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span style={{ fontSize: "16px" }}>🎁</span>
-                          <Text variant="bodySm" fontWeight="semibold" as="p">Free Gift</Text>
-                        </div>
-                        <Text variant="bodySm" tone="success" fontWeight="semibold" as="p">FREE</Text>
-                      </div>
+              <Box padding="400">
+                <div style={{ background: "#f9fafb", border: "1px solid #e1e3e5", borderRadius: "8px", padding: "14px 16px 18px" }}>
+                  <div style={{ marginBottom: "14px", lineHeight: "1.5" }}>
+                    {isUnlocked ? (
+                      <Text variant="bodySm" fontWeight="semibold" as="p">{progressTextAfter || "Your free gift has been added!"}</Text>
+                    ) : (
+                      <span style={{ fontSize: "13px" }}>
+                        {progressTextBefore.includes("{{amount}}")
+                          ? <>{progressTextBefore.split("{{amount}}")[0]}{triggerType === "amount" ? <strong>${remaining}</strong> : <strong>{remaining} {parseInt(remaining) !== 1 ? "items" : "item"}</strong>}{progressTextBefore.split("{{amount}}")[1] ?? ""}</>
+                          : progressTextBefore || (triggerType === "amount" ? `Add $${remaining} more to unlock a free gift!` : `Add ${remaining} more item${parseInt(remaining) !== 1 ? "s" : ""} to unlock a free gift!`)}
+                      </span>
                     )}
                   </div>
-                  {/* Footer */}
-                  <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Subtotal</Text>
-                      <Text variant="bodySm" as="p">$58.97</Text>
+                  <div style={{ position: "relative", paddingRight: "44px" }}>
+                    <div style={{ height: "4px", background: "#e1e3e5", borderRadius: "2px" }}>
+                      <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#111827", borderRadius: "2px", transition: "width 0.15s" }} />
+                    </div>
+                    <div style={{ position: "absolute", right: "0", top: "-10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+                      <Icon source={GiftCardIcon} tone={isUnlocked ? "success" : "base"} />
+                      <span style={{ fontSize: "11px", color: isUnlocked ? "#16a34a" : "#6b7280", fontWeight: isUnlocked ? 600 : 400 }}>Free Gift!</span>
                     </div>
                   </div>
                 </div>
-                <Box paddingBlockStart="200">
-                  <Text variant="bodySm" tone="subdued" as="p">Live preview · simulated cart $58.97</Text>
-                </Box>
+                <div style={{ marginTop: "16px" }}>
+                  <Text variant="bodySm" tone="subdued" as="p">Use this to adjust the progress bar</Text>
+                  <input
+                    type="range" min="0" max="100" value={sliderValue}
+                    onChange={(e) => setSliderValue(parseInt(e.target.value))}
+                    style={{ width: "100%", marginTop: "8px", cursor: "pointer", accentColor: "#111827" }}
+                  />
+                </div>
               </Box>
             </div>
           </BlockStack>
         </div>
       </Box>
+
+      {/* Gift product picker modal */}
+      <ResourcePickerModal
+        open={productPickerOpen}
+        onClose={() => setProductPickerOpen(false)}
+        title="Select gift product"
+        items={productPickerItems}
+        multi={false}
+        selected={bonusProductId}
+        onApply={(id) => setBonusProductId(id)}
+        emptyText="No products available."
+        kindLabel="products"
+      />
     </Page>
   );
 }

@@ -220,10 +220,13 @@ export default function RuleCodeDiscount() {
     ? valueType === "percent" ? `${value}% off` : `$${value} off`
     : "";
 
-  const MOCK_CART = 67.50;
+  const [sliderValue, setSliderValue] = useState(50);
   const minPurchaseNum = parseFloat(minPurchase || 0);
-  const meetsMin = minPurchaseNum === 0 || MOCK_CART >= minPurchaseNum;
-  const remaining = Math.max(0, minPurchaseNum - MOCK_CART).toFixed(2);
+  const mockCart = minPurchaseNum > 0 ? (minPurchaseNum * sliderValue) / 100 : sliderValue;
+  const meetsMin = minPurchaseNum === 0 || sliderValue >= 100;
+  const remaining = Math.max(0, minPurchaseNum - mockCart).toFixed(2);
+  const progressPct = minPurchaseNum > 0 ? sliderValue : 100;
+  const isUnlocked = meetsMin;
 
   return (
     <Page
@@ -456,75 +459,51 @@ export default function RuleCodeDiscount() {
               <Box padding="300" borderBlockEndWidth="025" borderColor="border">
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
               </Box>
-              <Box padding="300">
-                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px" }}>
-                  {/* Cart header */}
-                  <div style={{ background: "#f9fafb", padding: "8px 12px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between" }}>
-                    <Text variant="bodySm" fontWeight="semibold" as="p">Your Cart</Text>
-                    <Text variant="bodySm" tone="subdued" as="p">2 items</Text>
-                  </div>
-                  {/* Items */}
-                  <div style={{ padding: "10px 12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Watch × 1</Text>
-                      <Text variant="bodySm" as="p">$49.99</Text>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Bracelet × 1</Text>
-                      <Text variant="bodySm" as="p">$17.51</Text>
-                    </div>
-                    {/* Coupon banner */}
-                    {minPurchaseNum > 0 && !meetsMin ? (
-                      <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "6px", padding: "10px" }}>
-                        <Text variant="bodySm" fontWeight="semibold" as="p">
-                          {progressTextBefore
-                            ? progressTextBefore.replace("{{amount}}", `$${remaining}`).replace("{{discount_code}}", discountCode || "CODE")
-                            : `Spend $${remaining} more to unlock ${discountLabel || "your discount"}!`}
-                        </Text>
-                        <div style={{ height: "4px", borderRadius: "2px", background: "#fde68a", overflow: "hidden", marginTop: "6px" }}>
-                          <div style={{ height: "100%", width: `${Math.min(100, (MOCK_CART / minPurchaseNum) * 100)}%`, background: "#d97706", borderRadius: "2px" }} />
-                        </div>
-                      </div>
+              <Box padding="400">
+                <div style={{ background: "#f9fafb", border: "1px solid #e1e3e5", borderRadius: "8px", padding: "14px 16px 18px" }}>
+                  <div style={{ marginBottom: "14px", lineHeight: "1.5" }}>
+                    {isUnlocked ? (
+                      <Text variant="bodySm" fontWeight="semibold" as="p">
+                        {(progressTextAfter || "Use code {{discount_code}} to get {{discount}} off!").replace("{{discount_code}}", discountCode || "CODE").replace("{{discount}}", discountLabel || "your discount")}
+                      </Text>
+                    ) : minPurchaseNum > 0 ? (
+                      <span style={{ fontSize: "13px" }}>
+                        {progressTextBefore.includes("{{amount}}")
+                          ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>${remaining}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
+                          : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Spend $${remaining} more to unlock ${discountLabel || "your discount"}!`}
+                      </span>
                     ) : (
-                      <div style={{ background: "#fffbeb", border: "1.5px dashed #d97706", borderRadius: "6px", padding: "10px" }}>
-                        <Text variant="bodySm" fontWeight="semibold" as="p">
-                          {discountLabel ? `🏷 Get ${discountLabel} with your code:` : "🏷 Use this discount code:"}
-                        </Text>
-                        {discountCode ? (
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px", background: "#fef3c7", borderRadius: "4px", padding: "6px 10px" }}>
-                            <Text variant="bodyMd" fontWeight="bold" as="span">{discountCode}</Text>
-                            <span style={{ fontSize: "11px", color: "#92400e", cursor: "pointer", fontWeight: 600 }}>COPY</span>
-                          </div>
-                        ) : (
-                          <div style={{ marginTop: "6px", height: "28px", background: "#fef3c7", borderRadius: "4px", display: "flex", alignItems: "center", paddingLeft: "10px" }}>
-                            <Text variant="bodySm" tone="subdued" as="p">Your code will appear here</Text>
-                          </div>
-                        )}
-                        {progressTextAfter && discountCode && (
-                          <Text variant="bodySm" tone="subdued" as="p" alignment="center">
-                            {progressTextAfter.replace("{{discount_code}}", discountCode)}
-                          </Text>
-                        )}
-                      </div>
+                      <Text variant="bodySm" as="p">{discountCode ? `Use code: ${discountCode}` : "Enter a discount code above"}</Text>
                     )}
                   </div>
-                  {/* Footer */}
-                  <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Subtotal</Text>
-                      <Text variant="bodySm" as="p">$67.50</Text>
+                  {minPurchaseNum > 0 && (
+                    <div style={{ position: "relative", paddingRight: "44px" }}>
+                      <div style={{ height: "4px", background: "#e1e3e5", borderRadius: "2px" }}>
+                        <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#111827", borderRadius: "2px", transition: "width 0.15s" }} />
+                      </div>
+                      <div style={{ position: "absolute", right: "0", top: "-10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+                        <Icon source={CodeIcon} tone={isUnlocked ? "success" : "base"} />
+                        <span style={{ fontSize: "11px", color: isUnlocked ? "#16a34a" : "#6b7280", fontWeight: isUnlocked ? 600 : 400 }}>Discount!</span>
+                      </div>
                     </div>
-                    {meetsMin && value && discountCode && (
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <Text variant="bodySm" tone="success" as="p">Discount</Text>
-                        <Text variant="bodySm" tone="success" as="p">-{discountLabel}</Text>
-                      </div>
-                    )}
-                  </div>
+                  )}
+                  {isUnlocked && discountCode && (
+                    <div style={{ marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fef3c7", border: "1.5px dashed #d97706", borderRadius: "6px", padding: "8px 12px" }}>
+                      <Text variant="bodyMd" fontWeight="bold" as="span">{discountCode}</Text>
+                      <span style={{ fontSize: "11px", color: "#92400e", fontWeight: 600 }}>COPY</span>
+                    </div>
+                  )}
                 </div>
-                <Box paddingBlockStart="200">
-                  <Text variant="bodySm" tone="subdued" as="p">Live preview · simulated cart $67.50</Text>
-                </Box>
+                {minPurchaseNum > 0 && (
+                  <div style={{ marginTop: "16px" }}>
+                    <Text variant="bodySm" tone="subdued" as="p">Use this to adjust the progress bar</Text>
+                    <input
+                      type="range" min="0" max="100" value={sliderValue}
+                      onChange={(e) => setSliderValue(parseInt(e.target.value))}
+                      style={{ width: "100%", marginTop: "8px", cursor: "pointer", accentColor: "#111827" }}
+                    />
+                  </div>
+                )}
               </Box>
             </div>
           </BlockStack>

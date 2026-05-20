@@ -1,22 +1,22 @@
 import { useState, useEffect } from "react";
 import {
   useNavigate, useSearchParams, useSubmit,
-  useActionData, useLoaderData, useNavigation,
+  useActionData, useLoaderData, useNavigation, useFetcher,
 } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, RadioButton, Banner,
+  Icon, RadioButton, Banner, Modal,
 } from "@shopify/polaris";
 import {
   ProductIcon, SettingsIcon, EditIcon,
   MinimizeIcon, MaximizeIcon, PauseCircleIcon,
+  SearchIcon, XSmallIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
-// UpsellSettings is a singleton per shop (unique on shop field).
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -26,7 +26,7 @@ export const loader = async ({ request }) => {
       where: { shop: session.shop },
     });
   } catch {
-    // Table may not exist yet; return null so the form shows defaults.
+    // Table may not exist yet
   }
   return { record };
 };
@@ -50,7 +50,6 @@ export const action = async ({ request }) => {
       const cleaned = raw.trim();
       if (!cleaned) return null;
       try { JSON.parse(cleaned); return cleaned; } catch { /* not json */ }
-      // Comma-separated → convert to JSON array
       const arr = cleaned.split(",").map(s => s.trim()).filter(Boolean);
       return arr.length ? JSON.stringify(arr) : null;
     }
@@ -86,6 +85,114 @@ export const action = async ({ request }) => {
   }
 };
 
+// ─── ResourcePickerModal ──────────────────────────────────────────────────────
+
+function ResourcePickerModal({ open, onClose, title, items, multi = true, selected = [], onApply, emptyText = "No items found.", kindLabel = "items" }) {
+  const [search, setSearch] = useState("");
+  const [draft, setDraft] = useState([]);
+
+  useEffect(() => {
+    if (open) {
+      setDraft(Array.isArray(selected) ? [...selected] : []);
+      setSearch("");
+    }
+  }, [open]);
+
+  const filtered = search
+    ? items.filter(item => item.title?.toLowerCase().includes(search.toLowerCase()))
+    : items;
+
+  const toggle = (id) => {
+    setDraft(prev =>
+      multi
+        ? prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        : [id]
+    );
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      primaryAction={{
+        content: multi ? "Apply selection" : "Select",
+        onAction: () => { onApply(draft); onClose(); },
+        disabled: draft.length === 0,
+      }}
+      secondaryActions={[{ content: "Cancel", onAction: onClose }]}
+    >
+      <Modal.Section>
+        <TextField
+          label="Search"
+          labelHidden
+          placeholder={`Search ${kindLabel}…`}
+          value={search}
+          onChange={setSearch}
+          prefix={<Icon source={SearchIcon} />}
+          autoComplete="off"
+          clearButton
+          onClearButtonClick={() => setSearch("")}
+        />
+      </Modal.Section>
+      <Modal.Section>
+        <div style={{ maxHeight: "340px", overflowY: "auto" }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: "24px 0", textAlign: "center" }}>
+              <Text tone="subdued" as="p">{emptyText}</Text>
+            </div>
+          ) : (
+            <div>
+              {filtered.map(item => {
+                const checked = draft.includes(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => toggle(item.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "10px 4px",
+                      borderBottom: "1px solid #f1f3f5",
+                      cursor: "pointer",
+                      background: checked ? "#f0f7ff" : "transparent",
+                      borderRadius: "4px",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    <Checkbox label="" labelHidden checked={checked} onChange={() => toggle(item.id)} />
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        style={{ width: "44px", height: "44px", objectFit: "cover", borderRadius: "6px", border: "1px solid #e1e3e5", flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div style={{ width: "44px", height: "44px", background: "#f1f3f5", borderRadius: "6px", border: "1px solid #e1e3e5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "18px" }}>
+                        📦
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Text variant="bodySm" fontWeight="semibold" as="p">{item.title}</Text>
+                      {item.subtitle && (
+                        <Text variant="bodySm" tone="subdued" as="p">{item.subtitle}</Text>
+                      )}
+                    </div>
+                    {checked && (
+                      <div style={{ color: "#2563eb", fontSize: "14px", fontWeight: 700, flexShrink: 0 }}>✓</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Modal.Section>
+    </Modal>
+  );
+}
+
 // ─── SectionCard ─────────────────────────────────────────────────────────────
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -111,14 +218,54 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
   );
 }
 
+// ─── SelectedItemsDisplay ─────────────────────────────────────────────────────
+
+function SelectedItemsDisplay({ ids, allItems, onRemove, emptyLabel }) {
+  if (ids.length === 0) {
+    return <Text variant="bodySm" tone="subdued" as="p">{emptyLabel}</Text>;
+  }
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+      {ids.map(id => {
+        const found = allItems.find(i => i.id === id);
+        const label = found?.title || id.split("/").pop() || id;
+        return (
+          <div
+            key={id}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              background: "#f0f7ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: "4px",
+              padding: "2px 6px 2px 8px",
+              fontSize: "12px",
+              fontWeight: 500,
+            }}
+          >
+            <span style={{ maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+            <button
+              type="button"
+              onClick={() => onRemove(id)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "0 0 0 2px", color: "#6b7280", display: "flex", alignItems: "center" }}
+            >
+              <Icon source={XSmallIcon} />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function RuleUpsell() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
-  const withHost = (path) =>
-    host ? `${path}?host=${encodeURIComponent(host)}` : path;
+  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
 
   const loaderData = useLoaderData();
   const actionData = useActionData();
@@ -126,6 +273,46 @@ export default function RuleUpsell() {
   const submit = useSubmit();
   const r = loaderData?.record;
   const isSaving = navigation.state === "submitting";
+
+  // Fetch products & collections for pickers
+  const productFetcher = useFetcher();
+  useEffect(() => {
+    if (productFetcher.state === "idle" && !productFetcher.data) {
+      productFetcher.load("/api/products");
+    }
+  }, []);
+  const allProducts = productFetcher.data?.products || [];
+  const allCollections = productFetcher.data?.collections || [];
+
+  const productPickerItems = allProducts.map(p => ({
+    id: p.id,
+    title: p.title,
+    subtitle: p.price ? `$${p.price}` : undefined,
+    image: p.image,
+  }));
+  const collectionPickerItems = allCollections.map(c => ({
+    id: c.id,
+    title: c.title,
+    subtitle: c.handle ? `/${c.handle}` : undefined,
+  }));
+
+  // Picker modal states
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+
+  // Parse stored GID arrays
+  const parseStoredIds = (raw) => {
+    if (!raw) return [];
+    try {
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      if (typeof raw === "string" && raw.trim()) {
+        return raw.split(",").map(s => s.trim()).filter(Boolean);
+      }
+      return [];
+    }
+  };
 
   // Display
   const [enabled, setEnabled] = useState(r?.enabled !== false);
@@ -137,22 +324,9 @@ export default function RuleUpsell() {
   const [sectionTitle, setSectionTitle] = useState(r?.sectionTitle ?? "You may also like");
   const [buttonText, setButtonText] = useState(r?.buttonText ?? "Add to cart");
 
-  // Products (manual mode)
-  const parseStoredIds = (raw) => {
-    if (!raw) return "";
-    try {
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr.join(", ") : String(raw);
-    } catch {
-      return String(raw);
-    }
-  };
-  const [selectedProductIds, setSelectedProductIds] = useState(
-    parseStoredIds(r?.selectedProductIds)
-  );
-  const [selectedCollectionIds, setSelectedCollectionIds] = useState(
-    parseStoredIds(r?.selectedCollectionIds)
-  );
+  // Products (manual mode) — stored as arrays of GIDs
+  const [selectedProductIds, setSelectedProductIds] = useState(() => parseStoredIds(r?.selectedProductIds));
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState(() => parseStoredIds(r?.selectedCollectionIds));
 
   // Style
   const [buttonColor, setButtonColor] = useState(r?.buttonColor ?? "#111827");
@@ -187,6 +361,8 @@ export default function RuleUpsell() {
       { method: "post", encType: "application/json" }
     );
   };
+
+  const isLoadingPicker = productFetcher.state === "loading";
 
   return (
     <Page
@@ -256,28 +432,88 @@ export default function RuleUpsell() {
             {/* Product selection (manual mode) */}
             {recommendationMode === "manual" && (
               <SectionCard icon={ProductIcon} title="Product selection">
-                <BlockStack gap="400">
-                  <Banner tone="info">
-                    Enter Shopify Product GIDs or numeric IDs separated by commas.
-                  </Banner>
-                  <TextField
-                    label="Product IDs"
-                    value={selectedProductIds}
-                    onChange={setSelectedProductIds}
-                    autoComplete="off"
-                    multiline={3}
-                    placeholder="gid://shopify/Product/123, gid://shopify/Product/456"
-                    helpText="These specific products will be shown as upsell recommendations."
-                  />
-                  <TextField
-                    label="Collection IDs (optional)"
-                    value={selectedCollectionIds}
-                    onChange={setSelectedCollectionIds}
-                    autoComplete="off"
-                    multiline={2}
-                    placeholder="gid://shopify/Collection/789"
-                    helpText="Products from these collections will be included in recommendations."
-                  />
+                <BlockStack gap="500">
+
+                  {/* Products */}
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="050">
+                        <Text variant="bodyMd" fontWeight="semibold" as="p">Products</Text>
+                        <Text variant="bodySm" tone="subdued" as="p">
+                          {selectedProductIds.length > 0
+                            ? `${selectedProductIds.length} product${selectedProductIds.length !== 1 ? "s" : ""} selected`
+                            : "No products selected"}
+                        </Text>
+                      </BlockStack>
+                      <Button
+                        size="slim"
+                        onClick={() => setProductPickerOpen(true)}
+                        loading={isLoadingPicker}
+                      >
+                        {selectedProductIds.length > 0 ? "Edit products" : "Browse products"}
+                      </Button>
+                    </InlineStack>
+
+                    <SelectedItemsDisplay
+                      ids={selectedProductIds}
+                      allItems={productPickerItems}
+                      onRemove={(id) => setSelectedProductIds(prev => prev.filter(x => x !== id))}
+                      emptyLabel="Click 'Browse products' to select products to recommend."
+                    />
+
+                    {selectedProductIds.length > 0 && (
+                      <Button
+                        size="slim"
+                        variant="plain"
+                        tone="critical"
+                        onClick={() => setSelectedProductIds([])}
+                      >
+                        Clear all products
+                      </Button>
+                    )}
+                  </BlockStack>
+
+                  <Divider />
+
+                  {/* Collections */}
+                  <BlockStack gap="300">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="050">
+                        <Text variant="bodyMd" fontWeight="semibold" as="p">Collections (optional)</Text>
+                        <Text variant="bodySm" tone="subdued" as="p">
+                          {selectedCollectionIds.length > 0
+                            ? `${selectedCollectionIds.length} collection${selectedCollectionIds.length !== 1 ? "s" : ""} selected`
+                            : "No collections selected"}
+                        </Text>
+                      </BlockStack>
+                      <Button
+                        size="slim"
+                        onClick={() => setCollectionPickerOpen(true)}
+                        loading={isLoadingPicker}
+                      >
+                        {selectedCollectionIds.length > 0 ? "Edit collections" : "Browse collections"}
+                      </Button>
+                    </InlineStack>
+
+                    <SelectedItemsDisplay
+                      ids={selectedCollectionIds}
+                      allItems={collectionPickerItems}
+                      onRemove={(id) => setSelectedCollectionIds(prev => prev.filter(x => x !== id))}
+                      emptyLabel="Products from selected collections will be included in recommendations."
+                    />
+
+                    {selectedCollectionIds.length > 0 && (
+                      <Button
+                        size="slim"
+                        variant="plain"
+                        tone="critical"
+                        onClick={() => setSelectedCollectionIds([])}
+                      >
+                        Clear all collections
+                      </Button>
+                    )}
+                  </BlockStack>
+
                 </BlockStack>
               </SectionCard>
             )}
@@ -383,7 +619,7 @@ export default function RuleUpsell() {
                   </div>
                   {/* Upsell section */}
                   <div style={{ background: backgroundColor || "#fff", padding: "10px 12px" }}>
-                    <Text variant="bodySm" fontWeight="semibold" as="p" tone="subdued">
+                    <Text variant="bodySm" fontWeight="semibold" as="p">
                       <span style={{ color: textColor || "#111827" }}>{sectionTitle || "You may also like"}</span>
                     </Text>
                     {/* Product cards */}
@@ -428,6 +664,32 @@ export default function RuleUpsell() {
           </BlockStack>
         </div>
       </Box>
+
+      {/* Product picker modal */}
+      <ResourcePickerModal
+        open={productPickerOpen}
+        onClose={() => setProductPickerOpen(false)}
+        title="Select products"
+        items={productPickerItems}
+        multi={true}
+        selected={selectedProductIds}
+        onApply={setSelectedProductIds}
+        emptyText="No products available. Make sure your store has products."
+        kindLabel="products"
+      />
+
+      {/* Collection picker modal */}
+      <ResourcePickerModal
+        open={collectionPickerOpen}
+        onClose={() => setCollectionPickerOpen(false)}
+        title="Select collections"
+        items={collectionPickerItems}
+        multi={true}
+        selected={selectedCollectionIds}
+        onApply={setSelectedCollectionIds}
+        emptyText="No collections available. Create collections in your Shopify admin."
+        kindLabel="collections"
+      />
     </Page>
   );
 }

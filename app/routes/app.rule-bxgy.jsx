@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react";
 import {
   useNavigate, useSearchParams, useSubmit,
-  useActionData, useLoaderData, useNavigation,
+  useActionData, useLoaderData, useNavigation, useFetcher,
 } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, RadioButton, Banner,
+  Icon, RadioButton, Banner, Modal,
 } from "@shopify/polaris";
 import {
   TransferInternalIcon, SettingsIcon, EditIcon,
   MinimizeIcon, MaximizeIcon, PauseCircleIcon,
   CalendarIcon, ClockIcon, GiftCardIcon, PersonFilledIcon,
+  SearchIcon, XSmallIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -113,6 +114,112 @@ export const action = async ({ request }) => {
   }
 };
 
+// ─── ResourcePickerModal ──────────────────────────────────────────────────────
+
+function ResourcePickerModal({ open, onClose, title, items, multi = true, selected = [], onApply, emptyText = "No items found.", kindLabel = "items" }) {
+  const [search, setSearch] = useState("");
+  const [draft, setDraft] = useState([]);
+
+  useEffect(() => {
+    if (open) {
+      setDraft(Array.isArray(selected) ? [...selected] : []);
+      setSearch("");
+    }
+  }, [open]);
+
+  const filtered = search
+    ? items.filter(item => item.title?.toLowerCase().includes(search.toLowerCase()))
+    : items;
+
+  const toggle = (id) => {
+    setDraft(prev =>
+      multi
+        ? prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        : [id]
+    );
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      primaryAction={{
+        content: "Apply selection",
+        onAction: () => { onApply(draft); onClose(); },
+        disabled: draft.length === 0,
+      }}
+      secondaryActions={[{ content: "Cancel", onAction: onClose }]}
+    >
+      <Modal.Section>
+        <TextField
+          label="Search"
+          labelHidden
+          placeholder={`Search ${kindLabel}…`}
+          value={search}
+          onChange={setSearch}
+          prefix={<Icon source={SearchIcon} />}
+          autoComplete="off"
+          clearButton
+          onClearButtonClick={() => setSearch("")}
+        />
+      </Modal.Section>
+      <Modal.Section>
+        <div style={{ maxHeight: "340px", overflowY: "auto" }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: "24px 0", textAlign: "center" }}>
+              <Text tone="subdued" as="p">{emptyText}</Text>
+            </div>
+          ) : filtered.map(item => {
+            const checked = draft.includes(item.id);
+            return (
+              <div
+                key={item.id}
+                onClick={() => toggle(item.id)}
+                style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 4px", borderBottom: "1px solid #f1f3f5", cursor: "pointer", background: checked ? "#f0f7ff" : "transparent", borderRadius: "4px", marginBottom: "2px" }}
+              >
+                <Checkbox label="" labelHidden checked={checked} onChange={() => toggle(item.id)} />
+                {item.image ? (
+                  <img src={item.image} alt={item.title} style={{ width: "44px", height: "44px", objectFit: "cover", borderRadius: "6px", border: "1px solid #e1e3e5", flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: "44px", height: "44px", background: "#f1f3f5", borderRadius: "6px", border: "1px solid #e1e3e5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "18px" }}>📦</div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="bodySm" fontWeight="semibold" as="p">{item.title}</Text>
+                  {item.subtitle && <Text variant="bodySm" tone="subdued" as="p">{item.subtitle}</Text>}
+                </div>
+                {checked && <div style={{ color: "#2563eb", fontSize: "14px", fontWeight: 700, flexShrink: 0 }}>✓</div>}
+              </div>
+            );
+          })}
+        </div>
+      </Modal.Section>
+    </Modal>
+  );
+}
+
+// ─── SelectedItemsDisplay ─────────────────────────────────────────────────────
+
+function SelectedItemsDisplay({ ids, allItems, onRemove }) {
+  if (!ids || ids.length === 0) return null;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "4px" }}>
+      {ids.map(id => {
+        const found = allItems.find(i => i.id === id);
+        const label = found?.title || id.split("/").pop() || id;
+        return (
+          <div key={id} style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "#f0f7ff", border: "1px solid #bfdbfe", borderRadius: "4px", padding: "2px 6px 2px 8px", fontSize: "12px", fontWeight: 500 }}>
+            <span style={{ maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+            <button type="button" onClick={() => onRemove(id)} style={{ background: "none", border: "none", cursor: "pointer", padding: "0 0 0 2px", color: "#6b7280", display: "flex", alignItems: "center" }}>
+              <Icon source={XSmallIcon} />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── SectionCard ─────────────────────────────────────────────────────────────
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -154,6 +261,27 @@ export default function RuleBxgy() {
   const recordId = r?.id || null;
   const isSaving = navigation.state === "submitting";
 
+  // Fetch products & collections for pickers
+  const productFetcher = useFetcher();
+  useEffect(() => {
+    if (productFetcher.state === "idle" && !productFetcher.data) {
+      productFetcher.load("/api/products");
+    }
+  }, []);
+  const allProducts = productFetcher.data?.products || [];
+  const allCollections = productFetcher.data?.collections || [];
+  const productPickerItems = allProducts.map(p => ({ id: p.id, title: p.title, subtitle: p.price ? `$${p.price}` : undefined, image: p.image }));
+  const collectionPickerItems = allCollections.map(c => ({ id: c.id, title: c.title, subtitle: c.handle ? `/${c.handle}` : undefined }));
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+
+  // Parse stored appliesTo (could be JSON array or comma-separated string)
+  const parseAppliesTo = (raw) => {
+    if (!raw) return [];
+    try { const arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch { /* */ }
+    return raw.split(",").map(s => s.trim()).filter(Boolean);
+  };
+
   // Sidebar
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? "Buy X Get Y");
   const [enabled, setEnabled] = useState(r?.enabled !== false);
@@ -161,7 +289,7 @@ export default function RuleBxgy() {
   // Buy requirement
   const [xQty, setXQty] = useState(r?.xQty ?? "2");
   const [scope, setScope] = useState(r?.scope ?? "entire_store");
-  const [appliesTo, setAppliesTo] = useState(r?.appliesTo ?? "");
+  const [appliesTo, setAppliesTo] = useState(() => parseAppliesTo(r?.appliesTo));
 
   // Get reward
   const [yQty, setYQty] = useState(r?.yQty ?? "1");
@@ -207,7 +335,7 @@ export default function RuleBxgy() {
         xQty,
         yQty,
         scope,
-        appliesTo,
+        appliesTo: appliesTo.length ? JSON.stringify(appliesTo) : null,
         giftType,
         giftSku,
         maxGifts,
@@ -227,14 +355,13 @@ export default function RuleBxgy() {
     );
   };
 
+  const [sliderValue, setSliderValue] = useState(50);
   const xNum = parseInt(xQty || 2);
   const yNum = parseInt(yQty || 1);
-  const MOCK_CART_QTY = 1;
-  const remaining = Math.max(0, xNum - MOCK_CART_QTY);
-  const isUnlocked = MOCK_CART_QTY >= xNum;
-  const previewMsg = isUnlocked
-    ? afterOfferUnlockMessage || "🎁 Free gift unlocked!"
-    : beforeOfferUnlockMessage.replace("{{x}}", String(remaining)) || `Buy ${remaining} more to unlock!`;
+  const mockQty = Math.round((xNum * sliderValue) / 100);
+  const remaining = Math.max(0, xNum - mockQty);
+  const progressPct = sliderValue;
+  const isUnlocked = sliderValue >= 100;
 
   return (
     <Page
@@ -278,7 +405,7 @@ export default function RuleBxgy() {
                       checked={scope === "entire_store"}
                       id="bxgy-scope-store"
                       name="bxgyScope"
-                      onChange={() => setScope("entire_store")}
+                      onChange={() => { setScope("entire_store"); setAppliesTo([]); }}
                     />
                     <RadioButton
                       label="Specific products"
@@ -286,7 +413,7 @@ export default function RuleBxgy() {
                       checked={scope === "specific_products"}
                       id="bxgy-scope-products"
                       name="bxgyScope"
-                      onChange={() => setScope("specific_products")}
+                      onChange={() => { setScope("specific_products"); setAppliesTo([]); }}
                     />
                     <RadioButton
                       label="Specific collections"
@@ -294,21 +421,49 @@ export default function RuleBxgy() {
                       checked={scope === "specific_collections"}
                       id="bxgy-scope-collections"
                       name="bxgyScope"
-                      onChange={() => setScope("specific_collections")}
+                      onChange={() => { setScope("specific_collections"); setAppliesTo([]); }}
                     />
                   </BlockStack>
                 </BlockStack>
 
-                {scope !== "entire_store" && (
-                  <TextField
-                    label={scope === "specific_products" ? "Product IDs (comma-separated)" : "Collection IDs (comma-separated)"}
-                    value={appliesTo}
-                    onChange={setAppliesTo}
-                    autoComplete="off"
-                    multiline={3}
-                    placeholder={scope === "specific_products" ? "gid://shopify/Product/123, gid://shopify/Product/456" : "gid://shopify/Collection/789"}
-                    helpText="Enter Shopify GIDs or numeric IDs, separated by commas."
-                  />
+                {scope === "specific_products" && (
+                  <BlockStack gap="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="050">
+                        <Text variant="bodyMd" fontWeight="semibold" as="p">Selected products</Text>
+                        <Text variant="bodySm" tone="subdued" as="p">
+                          {appliesTo.length > 0 ? `${appliesTo.length} product${appliesTo.length !== 1 ? "s" : ""} selected` : "No products selected"}
+                        </Text>
+                      </BlockStack>
+                      <Button size="slim" onClick={() => setProductPickerOpen(true)} loading={productFetcher.state === "loading"}>
+                        {appliesTo.length > 0 ? "Edit products" : "Browse products"}
+                      </Button>
+                    </InlineStack>
+                    <SelectedItemsDisplay ids={appliesTo} allItems={productPickerItems} onRemove={(id) => setAppliesTo(prev => prev.filter(x => x !== id))} />
+                    {appliesTo.length > 0 && (
+                      <Button size="slim" variant="plain" tone="critical" onClick={() => setAppliesTo([])}>Clear all</Button>
+                    )}
+                  </BlockStack>
+                )}
+
+                {scope === "specific_collections" && (
+                  <BlockStack gap="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="050">
+                        <Text variant="bodyMd" fontWeight="semibold" as="p">Selected collections</Text>
+                        <Text variant="bodySm" tone="subdued" as="p">
+                          {appliesTo.length > 0 ? `${appliesTo.length} collection${appliesTo.length !== 1 ? "s" : ""} selected` : "No collections selected"}
+                        </Text>
+                      </BlockStack>
+                      <Button size="slim" onClick={() => setCollectionPickerOpen(true)} loading={productFetcher.state === "loading"}>
+                        {appliesTo.length > 0 ? "Edit collections" : "Browse collections"}
+                      </Button>
+                    </InlineStack>
+                    <SelectedItemsDisplay ids={appliesTo} allItems={collectionPickerItems} onRemove={(id) => setAppliesTo(prev => prev.filter(x => x !== id))} />
+                    {appliesTo.length > 0 && (
+                      <Button size="slim" variant="plain" tone="critical" onClick={() => setAppliesTo([])}>Clear all</Button>
+                    )}
+                  </BlockStack>
                 )}
               </BlockStack>
             </SectionCard>
@@ -523,74 +678,68 @@ export default function RuleBxgy() {
               <Box padding="300" borderBlockEndWidth="025" borderColor="border">
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
               </Box>
-              <Box padding="300">
-                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px" }}>
-                  {/* Cart header */}
-                  <div style={{ background: "#f9fafb", padding: "8px 12px", borderBottom: "1px solid #e1e3e5" }}>
-                    <Text variant="bodySm" fontWeight="semibold" as="p">Your Cart</Text>
+              <Box padding="400">
+                <div style={{ background: "#f9fafb", border: "1px solid #e1e3e5", borderRadius: "8px", padding: "14px 16px 18px" }}>
+                  <div style={{ marginBottom: "14px", lineHeight: "1.5" }}>
+                    {isUnlocked ? (
+                      <Text variant="bodySm" fontWeight="semibold" as="p">{afterOfferUnlockMessage || `Get ${yNum} free! Added to cart.`}</Text>
+                    ) : (
+                      <span style={{ fontSize: "13px" }}>
+                        {beforeOfferUnlockMessage.includes("{{x}}")
+                          ? <>{beforeOfferUnlockMessage.split("{{x}}")[0]}<strong>{remaining}</strong>{beforeOfferUnlockMessage.split("{{x}}")[1] ?? ""}</>
+                          : beforeOfferUnlockMessage || `Buy ${remaining} more item${remaining !== 1 ? "s" : ""} to unlock!`}
+                      </span>
+                    )}
                   </div>
-                  {/* BXGY offer banner */}
-                  <div style={{ padding: "10px 12px" }}>
-                    <div style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "6px", padding: "10px", marginBottom: "8px" }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span style={{ fontSize: "16px" }}>🛍</span>
-                          <Text variant="bodySm" fontWeight="semibold" as="span">
-                            Buy {xNum}, Get {yNum} {giftType === "free_product" ? "Free" : "Discounted"}
-                          </Text>
-                        </div>
-                      </div>
-                      {/* Progress dots */}
-                      <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
-                        {Array.from({ length: xNum }).map((_, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              width: "20px", height: "20px", borderRadius: "4px",
-                              background: i < MOCK_CART_QTY ? "#7c3aed" : "#ede9fe",
-                              border: `1px solid ${i < MOCK_CART_QTY ? "#7c3aed" : "#ddd6fe"}`,
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: "10px", color: i < MOCK_CART_QTY ? "#fff" : "#7c3aed",
-                            }}
-                          >
-                            {i < MOCK_CART_QTY ? "✓" : (i + 1)}
-                          </div>
-                        ))}
-                        <span style={{ display: "flex", alignItems: "center", margin: "0 2px", color: "#7c3aed" }}>→</span>
-                        <div style={{
-                          width: "20px", height: "20px", borderRadius: "4px",
-                          background: isUnlocked ? "#7c3aed" : "#f3f4f6",
-                          border: "1px dashed #a78bfa",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: "11px",
-                        }}>
-                          {isUnlocked ? "🎁" : "?"}
-                        </div>
-                      </div>
-                      <Text variant="bodySm" as="p" tone={isUnlocked ? "success" : "subdued"}>{previewMsg}</Text>
+                  <div style={{ position: "relative", paddingRight: "44px" }}>
+                    <div style={{ height: "4px", background: "#e1e3e5", borderRadius: "2px" }}>
+                      <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#111827", borderRadius: "2px", transition: "width 0.15s" }} />
                     </div>
-                    {/* Cart item */}
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Item × {MOCK_CART_QTY}</Text>
-                      <Text variant="bodySm" as="p">$29.99</Text>
-                    </div>
-                  </div>
-                  {/* Footer */}
-                  <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <Text variant="bodySm" tone="subdued" as="p">Subtotal</Text>
-                      <Text variant="bodySm" as="p">$29.99</Text>
+                    <div style={{ position: "absolute", right: "0", top: "-10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+                      <Icon source={GiftCardIcon} tone={isUnlocked ? "success" : "base"} />
+                      <span style={{ fontSize: "11px", color: isUnlocked ? "#16a34a" : "#6b7280", fontWeight: isUnlocked ? 600 : 400 }}>Get {yNum} Free!</span>
                     </div>
                   </div>
                 </div>
-                <Box paddingBlockStart="200">
-                  <Text variant="bodySm" tone="subdued" as="p">Live preview · cart has 1 item</Text>
-                </Box>
+                <div style={{ marginTop: "16px" }}>
+                  <Text variant="bodySm" tone="subdued" as="p">Use this to adjust the progress bar</Text>
+                  <input
+                    type="range" min="0" max="100" value={sliderValue}
+                    onChange={(e) => setSliderValue(parseInt(e.target.value))}
+                    style={{ width: "100%", marginTop: "8px", cursor: "pointer", accentColor: "#111827" }}
+                  />
+                </div>
               </Box>
             </div>
           </BlockStack>
         </div>
       </Box>
+
+      {/* Product picker modal */}
+      <ResourcePickerModal
+        open={productPickerOpen}
+        onClose={() => setProductPickerOpen(false)}
+        title="Select products"
+        items={productPickerItems}
+        multi={true}
+        selected={appliesTo}
+        onApply={setAppliesTo}
+        emptyText="No products available."
+        kindLabel="products"
+      />
+
+      {/* Collection picker modal */}
+      <ResourcePickerModal
+        open={collectionPickerOpen}
+        onClose={() => setCollectionPickerOpen(false)}
+        title="Select collections"
+        items={collectionPickerItems}
+        multi={true}
+        selected={appliesTo}
+        onApply={setAppliesTo}
+        emptyText="No collections available."
+        kindLabel="collections"
+      />
     </Page>
   );
 }
