@@ -274,14 +274,14 @@ const TABS = [
   { id: "upsell", content: "Upsell" },
 ];
 
-// Maps rule-type ID → rules-page tab param (app.rules.jsx reads ?tab=)
-const RULE_TAB_PARAMS = {
-  "shipping": "shipping",
-  "automatic-discount": "discount",
-  "free-product": "free",
-  "code-discount": "discount-code",
-  "buy-x-get-y": "bxgy",
-  "upsell": "upsell",
+// Maps rule-type ID → dedicated editor route
+const RULE_ROUTES = {
+  "shipping": "/app/rule-shipping",
+  "automatic-discount": "/app/rule-auto-discount",
+  "free-product": "/app/rule-free-product",
+  "code-discount": "/app/rule-code-discount",
+  "buy-x-get-y": "/app/rule-bxgy",
+  "upsell": "/app/rule-upsell",
 };
 
 const RULE_TYPE_LABELS = {
@@ -551,17 +551,20 @@ export default function CampaignSelector() {
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [selectedId, setSelectedId] = useState("shipping");
 
-  // Build the URL for app.rules.jsx with the correct ?tab= param.
-  // Appends host if present, handling existing query params correctly.
-  const toRulesPage = (tabId) => {
-    const params = new URLSearchParams({ tab: tabId });
+  // Build URL for a rule editor page, appending host if present.
+  const toRulePage = (base, extraParams = {}) => {
+    const params = new URLSearchParams(extraParams);
     if (host) params.set("host", host);
-    return `/app/rules?${params.toString()}`;
+    const qs = params.toString();
+    return qs ? `${base}?${qs}` : base;
   };
 
   const handleEdit = (rule) => {
-    const tabId = RULE_TAB_PARAMS[rule.ruleType];
-    if (tabId) navigate(toRulesPage(tabId));
+    const base = RULE_ROUTES[rule.ruleType];
+    if (!base) return;
+    // Upsell is a singleton — no ID param needed.
+    const extra = rule.ruleType !== "upsell" ? { id: rule.id } : {};
+    navigate(toRulePage(base, extra));
   };
 
   const handleDeleteConfirm = () => {
@@ -614,8 +617,8 @@ export default function CampaignSelector() {
   };
 
   const handleCreate = () => {
-    const tabId = RULE_TAB_PARAMS[selectedId];
-    if (tabId) navigate(toRulesPage(tabId));
+    const base = RULE_ROUTES[selectedId];
+    if (base) navigate(toRulePage(base));
   };
 
   return (
