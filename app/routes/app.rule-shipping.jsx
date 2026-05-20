@@ -41,7 +41,7 @@ export const action = async ({ request }) => {
   const {
     id, campaignName, enabled, rewardType, amount, minSubtotal,
     method, progressTextBefore, progressTextAfter, progressTextBelow,
-    startsAt, endsAt,
+    startsAt, endsAt, cartStepName,
   } = body;
 
   const dbData = {
@@ -58,6 +58,7 @@ export const action = async ({ request }) => {
     startsAt: startsAt ? new Date(startsAt) : null,
     endsAt: endsAt ? new Date(endsAt) : null,
     priority: 0,
+    cartStepName: cartStepName || null,
   };
 
   try {
@@ -142,6 +143,7 @@ export default function RuleShipping() {
   // Sidebar
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? "Shipping Rule");
   const [enabled, setEnabled] = useState(r?.enabled !== false);
+  const [cartStepName, setCartStepName] = useState(r?.cartStepName ?? "");
 
   // Threshold
   const [rewardType, setRewardType] = useState(r?.rewardType ?? "free_shipping");
@@ -183,6 +185,7 @@ export default function RuleShipping() {
         progressTextBefore,
         progressTextAfter,
         progressTextBelow,
+        cartStepName,
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
       },
@@ -355,6 +358,14 @@ export default function RuleShipping() {
                   onChange={(v) => setEnabled(v === "true")}
                 />
                 <TextField label="Rule name" value={campaignName} onChange={setCampaignName} autoComplete="off" />
+                <TextField
+                  label="Cart step"
+                  value={cartStepName}
+                  onChange={setCartStepName}
+                  autoComplete="off"
+                  placeholder="e.g. Step 1"
+                  helpText="Which cart step this rule appears on."
+                />
               </BlockStack>
             </div>
 

@@ -43,7 +43,7 @@ export const action = async ({ request }) => {
     qty, limitPerOrder, bonusProductId,
     progressTextBefore, progressTextAfter, progressTextBelow,
     startsAt, endsAt, priority,
-    customerTarget, customerTags,
+    customerTarget, customerTags, cartStepName,
   } = body;
 
   const dbData = {
@@ -65,6 +65,7 @@ export const action = async ({ request }) => {
     priority: parseInt(priority || "0") || 0,
     customerTarget: customerTarget || "all",
     customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
+    cartStepName: cartStepName || null,
   };
 
   try {
@@ -231,6 +232,7 @@ export default function RuleFreeProduct() {
   // Sidebar
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? "Free Product");
   const [enabled, setEnabled] = useState(r?.enabled !== false);
+  const [cartStepName, setCartStepName] = useState(r?.cartStepName ?? "");
 
   // Trigger condition
   const [triggerTabIdx, setTriggerTabIdx] = useState(r?.triggerType === "quantity" ? 1 : 0);
@@ -290,6 +292,7 @@ export default function RuleFreeProduct() {
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
         customerTarget,
         customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
+        cartStepName,
       },
       { method: "post", encType: "application/json" }
     );
@@ -542,6 +545,14 @@ export default function RuleFreeProduct() {
                   onChange={(v) => setEnabled(v === "true")}
                 />
                 <TextField label="Rule name" value={campaignName} onChange={setCampaignName} autoComplete="off" />
+                <TextField
+                  label="Cart step"
+                  value={cartStepName}
+                  onChange={setCartStepName}
+                  autoComplete="off"
+                  placeholder="e.g. Step 1"
+                  helpText="Which cart step this rule appears on."
+                />
               </BlockStack>
             </div>
 
