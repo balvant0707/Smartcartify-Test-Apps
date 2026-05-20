@@ -6,7 +6,7 @@ import {
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, RadioButton, Banner,
+  Icon, RadioButton, Banner, Tabs,
 } from "@shopify/polaris";
 import {
   CodeIcon, SettingsIcon, EditIcon,
@@ -43,7 +43,8 @@ export const action = async ({ request }) => {
   const body = await request.json();
   const {
     id, codeCampaignName, enabled, discountCode, valueType, value,
-    minPurchase, progressTextBefore, progressTextAfter, progressTextBelow,
+    triggerType, minPurchase, minQuantity,
+    progressTextBefore, progressTextAfter, progressTextBelow,
     startsAt, endsAt, priority,
     customerTarget, customerTags,
   } = body;
@@ -57,7 +58,9 @@ export const action = async ({ request }) => {
     discountCode: discountCode ? String(discountCode).toUpperCase().trim() : null,
     valueType: valueType || "percent",
     value: value ? String(value) : "0",
-    minPurchase: minPurchase ? String(minPurchase) : null,
+    triggerType: triggerType || "amount",
+    minPurchase: triggerType === "amount" ? (minPurchase ? String(minPurchase) : null) : null,
+    minQuantity: triggerType === "quantity" ? (minQuantity ? String(minQuantity) : null) : null,
     progressTextBefore: progressTextBefore || null,
     progressTextAfter: progressTextAfter || null,
     progressTextBelow: progressTextBelow || null,
@@ -111,6 +114,11 @@ export const action = async ({ request }) => {
   }
 };
 
+const TRIGGER_TABS = [
+  { id: "trigger-amount", content: "Amount Discount" },
+  { id: "trigger-quantity", content: "Quantity Discount" },
+];
+
 // ─── SectionCard ─────────────────────────────────────────────────────────────
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -160,7 +168,10 @@ export default function RuleCodeDiscount() {
   const [discountCode, setDiscountCode] = useState(r?.discountCode ?? "");
   const [valueType, setValueType] = useState(r?.valueType ?? "percent");
   const [value, setValue] = useState(r?.value ?? "");
+  const [triggerTabIdx, setTriggerTabIdx] = useState(r?.triggerType === "quantity" ? 1 : 0);
+  const triggerType = triggerTabIdx === 0 ? "amount" : "quantity";
   const [minPurchase, setMinPurchase] = useState(r?.minPurchase ?? "");
+  const [minQuantity, setMinQuantity] = useState(r?.minQuantity ?? "");
 
   // Messages
   const [progressTextBefore, setProgressTextBefore] = useState(r?.progressTextBefore ?? "");
@@ -193,7 +204,9 @@ export default function RuleCodeDiscount() {
         discountCode,
         valueType,
         value,
-        minPurchase,
+        triggerType,
+        minPurchase: triggerType === "amount" ? minPurchase : null,
+        minQuantity: triggerType === "quantity" ? minQuantity : null,
         progressTextBefore,
         progressTextAfter,
         progressTextBelow,
@@ -213,10 +226,16 @@ export default function RuleCodeDiscount() {
 
   const [sliderValue, setSliderValue] = useState(50);
   const minPurchaseNum = parseFloat(minPurchase || 0);
-  const mockCart = minPurchaseNum > 0 ? (minPurchaseNum * sliderValue) / 100 : sliderValue;
-  const meetsMin = minPurchaseNum === 0 || sliderValue >= 100;
-  const remaining = Math.max(0, minPurchaseNum - mockCart).toFixed(2);
-  const progressPct = minPurchaseNum > 0 ? sliderValue : 100;
+  const minQuantityNum = parseInt(minQuantity || 0);
+  const hasThreshold = triggerType === "amount" ? minPurchaseNum > 0 : minQuantityNum > 0;
+  const mockCart = triggerType === "amount"
+    ? (minPurchaseNum > 0 ? (minPurchaseNum * sliderValue) / 100 : sliderValue)
+    : (minQuantityNum > 0 ? (minQuantityNum * sliderValue) / 100 : sliderValue);
+  const meetsMin = !hasThreshold || sliderValue >= 100;
+  const remaining = triggerType === "amount"
+    ? Math.max(0, minPurchaseNum - mockCart).toFixed(2)
+    : Math.max(0, minQuantityNum - Math.floor(mockCart)).toString();
+  const progressPct = hasThreshold ? sliderValue : 100;
   const isUnlocked = meetsMin;
 
   return (
@@ -237,7 +256,7 @@ export default function RuleCodeDiscount() {
           {/* ── Main column ── */}
           <BlockStack gap="400">
 
-            {/* Discount code */}
+            {/* Discount code + Display condition */}
             <SectionCard icon={CodeIcon} title="Discount code">
               <BlockStack gap="400">
                 <TextField
@@ -282,22 +301,38 @@ export default function RuleCodeDiscount() {
                   prefix={valueType === "amount" ? "$" : undefined}
                   placeholder={valueType === "percent" ? "e.g. 15" : "e.g. 20"}
                 />
-              </BlockStack>
-            </SectionCard>
 
-            {/* Display condition */}
-            <SectionCard icon={CodeIcon} title="Display condition">
-              <BlockStack gap="300">
-                <TextField
-                  label="Minimum cart value to show this code (optional)"
-                  type="number"
-                  value={minPurchase}
-                  onChange={setMinPurchase}
-                  autoComplete="off"
-                  prefix="$"
-                  placeholder="e.g. 50"
-                  helpText="Leave blank to always show the discount code in the cart."
-                />
+                <Divider />
+
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Display condition</Text>
+                  <Text variant="bodySm" tone="subdued" as="p">Set a threshold customers must reach before this code is shown.</Text>
+                  <Tabs tabs={TRIGGER_TABS} selected={triggerTabIdx} onSelect={setTriggerTabIdx} />
+                </BlockStack>
+                <Box>
+                  {triggerTabIdx === 0 ? (
+                    <TextField
+                      label="Minimum cart value (optional)"
+                      type="number"
+                      value={minPurchase}
+                      onChange={setMinPurchase}
+                      autoComplete="off"
+                      prefix="$"
+                      placeholder="e.g. 50"
+                      helpText="Leave blank to always show the discount code in the cart."
+                    />
+                  ) : (
+                    <TextField
+                      label="Minimum item quantity (optional)"
+                      type="number"
+                      value={minQuantity}
+                      onChange={setMinQuantity}
+                      autoComplete="off"
+                      placeholder="e.g. 3"
+                      helpText="Leave blank to always show the discount code in the cart."
+                    />
+                  )}
+                </Box>
               </BlockStack>
             </SectionCard>
 
@@ -427,17 +462,21 @@ export default function RuleCodeDiscount() {
                       <Text variant="bodySm" fontWeight="semibold" as="p">
                         {(progressTextAfter || "Use code {{discount_code}} to get {{discount}} off!").replace("{{discount_code}}", discountCode || "CODE").replace("{{discount}}", discountLabel || "your discount")}
                       </Text>
-                    ) : minPurchaseNum > 0 ? (
+                    ) : hasThreshold ? (
                       <span style={{ fontSize: "13px" }}>
-                        {progressTextBefore.includes("{{amount}}")
-                          ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>${remaining}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
-                          : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Spend $${remaining} more to unlock ${discountLabel || "your discount"}!`}
+                        {triggerType === "amount"
+                          ? (progressTextBefore.includes("{{amount}}")
+                              ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>${remaining}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
+                              : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Spend $${remaining} more to unlock ${discountLabel || "your discount"}!`)
+                          : (progressTextBefore.includes("{{amount}}")
+                              ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>{remaining} item{parseInt(remaining) !== 1 ? "s" : ""}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
+                              : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Add ${remaining} more item${parseInt(remaining) !== 1 ? "s" : ""} to unlock ${discountLabel || "your discount"}!`)}
                       </span>
                     ) : (
                       <Text variant="bodySm" as="p">{discountCode ? `Use code: ${discountCode}` : "Enter a discount code above"}</Text>
                     )}
                   </div>
-                  {minPurchaseNum > 0 && (
+                  {hasThreshold && (
                     <div style={{ position: "relative", paddingRight: "44px" }}>
                       <div style={{ height: "4px", background: "#e1e3e5", borderRadius: "2px" }}>
                         <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#111827", borderRadius: "2px", transition: "width 0.15s" }} />
@@ -455,7 +494,7 @@ export default function RuleCodeDiscount() {
                     </div>
                   )}
                 </div>
-                {minPurchaseNum > 0 && (
+                {hasThreshold && (
                   <div style={{ marginTop: "16px" }}>
                     <Text variant="bodySm" tone="subdued" as="p">Use this to adjust the progress bar</Text>
                     <input

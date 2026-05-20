@@ -300,6 +300,18 @@ export default function RuleUpsell() {
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
 
+  // Which selection type is active in manual mode
+  const [selectionType, setSelectionType] = useState(
+    () => (parseStoredIds(r?.selectedCollectionIds).length > 0 && parseStoredIds(r?.selectedProductIds).length === 0)
+      ? "collections" : "products"
+  );
+
+  const handleSelectionTypeChange = (type) => {
+    setSelectionType(type);
+    if (type === "products") setProductPickerOpen(true);
+    else setCollectionPickerOpen(true);
+  };
+
   // Parse stored GID arrays
   const parseStoredIds = (raw) => {
     if (!raw) return [];
@@ -432,87 +444,117 @@ export default function RuleUpsell() {
             {/* Product selection (manual mode) */}
             {recommendationMode === "manual" && (
               <SectionCard icon={ProductIcon} title="Product selection">
-                <BlockStack gap="500">
+                <BlockStack gap="400">
 
-                  {/* Products */}
-                  <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <BlockStack gap="050">
-                        <Text variant="bodyMd" fontWeight="semibold" as="p">Products</Text>
-                        <Text variant="bodySm" tone="subdued" as="p">
-                          {selectedProductIds.length > 0
-                            ? `${selectedProductIds.length} product${selectedProductIds.length !== 1 ? "s" : ""} selected`
-                            : "No products selected"}
-                        </Text>
-                      </BlockStack>
-                      <Button
-                        size="slim"
-                        onClick={() => setProductPickerOpen(true)}
-                        loading={isLoadingPicker}
+                  {/* Radio: Products or Collections */}
+                  <BlockStack gap="200">
+                    <Text variant="bodyMd" fontWeight="semibold" as="p">Select by</Text>
+                    <BlockStack gap="100">
+                      <div
+                        onClick={() => handleSelectionTypeChange("products")}
+                        style={{
+                          display: "flex", alignItems: "flex-start", gap: "10px",
+                          padding: "12px 14px",
+                          border: `2px solid ${selectionType === "products" ? "#2563eb" : "#e1e3e5"}`,
+                          borderRadius: "8px", cursor: "pointer",
+                          background: selectionType === "products" ? "#f0f7ff" : "#fff",
+                          transition: "all 0.15s",
+                        }}
                       >
-                        {selectedProductIds.length > 0 ? "Edit products" : "Browse products"}
-                      </Button>
-                    </InlineStack>
+                        <div style={{ marginTop: "1px" }}>
+                          <div style={{
+                            width: "16px", height: "16px", borderRadius: "50%",
+                            border: `2px solid ${selectionType === "products" ? "#2563eb" : "#9ca3af"}`,
+                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                          }}>
+                            {selectionType === "products" && (
+                              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#2563eb" }} />
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <Text variant="bodySm" fontWeight="semibold" as="p">Products</Text>
+                          <Text variant="bodySm" tone="subdued" as="p">Pick specific products to show as upsells.</Text>
+                        </div>
+                        <div style={{ marginLeft: "auto" }}>
+                          <Button
+                            size="slim"
+                            onClick={(e) => { e.stopPropagation(); setSelectionType("products"); setProductPickerOpen(true); }}
+                            loading={isLoadingPicker}
+                          >
+                            {selectedProductIds.length > 0 ? `Edit (${selectedProductIds.length})` : "Browse"}
+                          </Button>
+                        </div>
+                      </div>
 
-                    <SelectedItemsDisplay
-                      ids={selectedProductIds}
-                      allItems={productPickerItems}
-                      onRemove={(id) => setSelectedProductIds(prev => prev.filter(x => x !== id))}
-                      emptyLabel="Click 'Browse products' to select products to recommend."
-                    />
-
-                    {selectedProductIds.length > 0 && (
-                      <Button
-                        size="slim"
-                        variant="plain"
-                        tone="critical"
-                        onClick={() => setSelectedProductIds([])}
+                      <div
+                        onClick={() => handleSelectionTypeChange("collections")}
+                        style={{
+                          display: "flex", alignItems: "flex-start", gap: "10px",
+                          padding: "12px 14px",
+                          border: `2px solid ${selectionType === "collections" ? "#2563eb" : "#e1e3e5"}`,
+                          borderRadius: "8px", cursor: "pointer",
+                          background: selectionType === "collections" ? "#f0f7ff" : "#fff",
+                          transition: "all 0.15s",
+                        }}
                       >
-                        Clear all products
-                      </Button>
-                    )}
+                        <div style={{ marginTop: "1px" }}>
+                          <div style={{
+                            width: "16px", height: "16px", borderRadius: "50%",
+                            border: `2px solid ${selectionType === "collections" ? "#2563eb" : "#9ca3af"}`,
+                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                          }}>
+                            {selectionType === "collections" && (
+                              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#2563eb" }} />
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <Text variant="bodySm" fontWeight="semibold" as="p">Collections</Text>
+                          <Text variant="bodySm" tone="subdued" as="p">Show all products from selected collections.</Text>
+                        </div>
+                        <div style={{ marginLeft: "auto" }}>
+                          <Button
+                            size="slim"
+                            onClick={(e) => { e.stopPropagation(); setSelectionType("collections"); setCollectionPickerOpen(true); }}
+                            loading={isLoadingPicker}
+                          >
+                            {selectedCollectionIds.length > 0 ? `Edit (${selectedCollectionIds.length})` : "Browse"}
+                          </Button>
+                        </div>
+                      </div>
+                    </BlockStack>
                   </BlockStack>
 
-                  <Divider />
-
-                  {/* Collections */}
-                  <BlockStack gap="300">
-                    <InlineStack align="space-between" blockAlign="center">
-                      <BlockStack gap="050">
-                        <Text variant="bodyMd" fontWeight="semibold" as="p">Collections (optional)</Text>
-                        <Text variant="bodySm" tone="subdued" as="p">
-                          {selectedCollectionIds.length > 0
-                            ? `${selectedCollectionIds.length} collection${selectedCollectionIds.length !== 1 ? "s" : ""} selected`
-                            : "No collections selected"}
-                        </Text>
-                      </BlockStack>
-                      <Button
-                        size="slim"
-                        onClick={() => setCollectionPickerOpen(true)}
-                        loading={isLoadingPicker}
-                      >
-                        {selectedCollectionIds.length > 0 ? "Edit collections" : "Browse collections"}
-                      </Button>
-                    </InlineStack>
-
-                    <SelectedItemsDisplay
-                      ids={selectedCollectionIds}
-                      allItems={collectionPickerItems}
-                      onRemove={(id) => setSelectedCollectionIds(prev => prev.filter(x => x !== id))}
-                      emptyLabel="Products from selected collections will be included in recommendations."
-                    />
-
-                    {selectedCollectionIds.length > 0 && (
-                      <Button
-                        size="slim"
-                        variant="plain"
-                        tone="critical"
-                        onClick={() => setSelectedCollectionIds([])}
-                      >
-                        Clear all collections
-                      </Button>
-                    )}
-                  </BlockStack>
+                  {/* Show selected items */}
+                  {selectionType === "products" && selectedProductIds.length > 0 && (
+                    <BlockStack gap="200">
+                      <InlineStack align="space-between">
+                        <Text variant="bodySm" tone="subdued" as="p">{selectedProductIds.length} product{selectedProductIds.length !== 1 ? "s" : ""} selected</Text>
+                        <Button size="slim" variant="plain" tone="critical" onClick={() => setSelectedProductIds([])}>Clear all</Button>
+                      </InlineStack>
+                      <SelectedItemsDisplay
+                        ids={selectedProductIds}
+                        allItems={productPickerItems}
+                        onRemove={(id) => setSelectedProductIds(prev => prev.filter(x => x !== id))}
+                        emptyLabel=""
+                      />
+                    </BlockStack>
+                  )}
+                  {selectionType === "collections" && selectedCollectionIds.length > 0 && (
+                    <BlockStack gap="200">
+                      <InlineStack align="space-between">
+                        <Text variant="bodySm" tone="subdued" as="p">{selectedCollectionIds.length} collection{selectedCollectionIds.length !== 1 ? "s" : ""} selected</Text>
+                        <Button size="slim" variant="plain" tone="critical" onClick={() => setSelectedCollectionIds([])}>Clear all</Button>
+                      </InlineStack>
+                      <SelectedItemsDisplay
+                        ids={selectedCollectionIds}
+                        allItems={collectionPickerItems}
+                        onRemove={(id) => setSelectedCollectionIds(prev => prev.filter(x => x !== id))}
+                        emptyLabel=""
+                      />
+                    </BlockStack>
+                  )}
 
                 </BlockStack>
               </SectionCard>
@@ -623,30 +665,63 @@ export default function RuleUpsell() {
                       <span style={{ color: textColor || "#111827" }}>{sectionTitle || "You may also like"}</span>
                     </Text>
                     {/* Product cards */}
-                    <div style={{ display: "flex", gap: "6px", marginTop: "8px", overflowX: "auto", paddingBottom: "2px" }}>
-                      {[{ name: "Item A", price: "$19.99" }, { name: "Item B", price: "$24.99" }].map((p) => (
-                        <div
-                          key={p.name}
-                          style={{
-                            flex: "0 0 90px",
-                            border: `1px solid ${borderColor || "#e1e3e5"}`,
-                            borderRadius: "6px",
-                            padding: "6px",
-                            background: "#f9fafb",
-                            textAlign: "center",
-                          }}
-                        >
-                          <div style={{ height: "48px", background: "#e5e7eb", borderRadius: "4px", marginBottom: "5px" }} />
-                          <Text variant="bodySm" as="p">{p.name}</Text>
-                          <Text variant="bodySm" tone="subdued" as="p">{p.price}</Text>
-                          <div style={{ marginTop: "5px", background: buttonColor || "#111827", borderRadius: "4px", padding: "3px 4px" }}>
-                            <span style={{ color: "#fff", fontSize: "10px", fontWeight: 600 }}>
-                              {buttonText || "Add to cart"}
-                            </span>
+                    {(() => {
+                      // Determine which products to show in preview
+                      let previewProducts = [];
+                      let isCollectionsMode = recommendationMode === "manual" && selectionType === "collections" && selectedCollectionIds.length > 0 && selectedProductIds.length === 0;
+                      if (recommendationMode === "manual" && selectionType === "products" && selectedProductIds.length > 0) {
+                        previewProducts = selectedProductIds
+                          .slice(0, 2)
+                          .map(id => productPickerItems.find(p => p.id === id))
+                          .filter(Boolean);
+                      }
+                      if (isCollectionsMode) {
+                        return (
+                          <div style={{ marginTop: "8px", padding: "8px", background: "#f0f7ff", borderRadius: "6px", textAlign: "center" }}>
+                            <Text variant="bodySm" tone="subdued" as="p">
+                              Products from {selectedCollectionIds.length} collection{selectedCollectionIds.length !== 1 ? "s" : ""} will appear here
+                            </Text>
                           </div>
+                        );
+                      }
+                      const cards = previewProducts.length > 0
+                        ? previewProducts
+                        : [{ id: "a", title: "Item A", subtitle: "$19.99" }, { id: "b", title: "Item B", subtitle: "$24.99" }];
+                      return (
+                        <div style={{ display: "flex", gap: "6px", marginTop: "8px", overflowX: "auto", paddingBottom: "2px" }}>
+                          {cards.map((p) => (
+                            <div
+                              key={p.id || p.title}
+                              style={{
+                                flex: "0 0 90px",
+                                border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                borderRadius: "6px",
+                                padding: "6px",
+                                background: "#f9fafb",
+                                textAlign: "center",
+                              }}
+                            >
+                              {p.image ? (
+                                <img
+                                  src={p.image}
+                                  alt={p.title}
+                                  style={{ height: "48px", width: "100%", objectFit: "cover", borderRadius: "4px", marginBottom: "5px", display: "block" }}
+                                />
+                              ) : (
+                                <div style={{ height: "48px", background: "#e5e7eb", borderRadius: "4px", marginBottom: "5px" }} />
+                              )}
+                              <Text variant="bodySm" as="p" truncate>{p.title || p.name}</Text>
+                              <Text variant="bodySm" tone="subdued" as="p">{p.subtitle || p.price || ""}</Text>
+                              <div style={{ marginTop: "5px", background: buttonColor || "#111827", borderRadius: "4px", padding: "3px 4px" }}>
+                                <span style={{ color: "#fff", fontSize: "10px", fontWeight: 600 }}>
+                                  {buttonText || "Add to cart"}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })()}
                   </div>
                   {/* Footer */}
                   <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>

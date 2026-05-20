@@ -6,7 +6,7 @@ import {
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, RadioButton, Banner, Modal,
+  Icon, Banner, Modal, Tabs,
 } from "@shopify/polaris";
 import {
   GiftCardIcon, SettingsIcon, EditIcon,
@@ -166,6 +166,11 @@ function ResourcePickerModal({ open, onClose, title, items, multi = true, select
   );
 }
 
+const TRIGGER_TABS = [
+  { id: "trigger-amount", content: "Amount Discount" },
+  { id: "trigger-quantity", content: "Quantity Discount" },
+];
+
 // ─── SectionCard ─────────────────────────────────────────────────────────────
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
@@ -228,7 +233,8 @@ export default function RuleFreeProduct() {
   const [enabled, setEnabled] = useState(r?.enabled !== false);
 
   // Trigger condition
-  const [triggerType, setTriggerType] = useState(r?.triggerType ?? "amount");
+  const [triggerTabIdx, setTriggerTabIdx] = useState(r?.triggerType === "quantity" ? 1 : 0);
+  const triggerType = triggerTabIdx === 0 ? "amount" : "quantity";
   const [minPurchase, setMinPurchase] = useState(r?.minPurchase ?? "");
   const [minQuantity, setMinQuantity] = useState(r?.minQuantity ?? "");
 
@@ -316,59 +322,42 @@ export default function RuleFreeProduct() {
           {/* ── Main column ── */}
           <BlockStack gap="400">
 
-            {/* Trigger condition */}
-            <SectionCard icon={GiftCardIcon} title="Trigger condition">
+            {/* Trigger condition + Gift product — merged */}
+            <SectionCard icon={GiftCardIcon} title="Free gift product">
               <BlockStack gap="400">
+
+                {/* Trigger tabs */}
                 <BlockStack gap="200">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Unlock free gift when</Text>
-                  <BlockStack gap="100">
-                    <RadioButton
-                      label="Cart value reaches a minimum"
-                      helpText="Unlock the free gift when the cart subtotal exceeds a threshold."
-                      checked={triggerType === "amount"}
-                      id="fp-tt-amount"
-                      name="fpTriggerType"
-                      onChange={() => setTriggerType("amount")}
-                    />
-                    <RadioButton
-                      label="Cart quantity reaches a minimum"
-                      helpText="Unlock the free gift when a minimum number of items are added."
-                      checked={triggerType === "quantity"}
-                      id="fp-tt-qty"
-                      name="fpTriggerType"
-                      onChange={() => setTriggerType("quantity")}
-                    />
-                  </BlockStack>
+                  <Tabs tabs={TRIGGER_TABS} selected={triggerTabIdx} onSelect={setTriggerTabIdx} />
                 </BlockStack>
-                <Divider />
-                {triggerType === "amount" ? (
-                  <TextField
-                    label="Minimum cart value"
-                    type="number"
-                    value={minPurchase}
-                    onChange={setMinPurchase}
-                    autoComplete="off"
-                    prefix="$"
-                    placeholder="e.g. 75"
-                    helpText="Free gift is added automatically when this threshold is met."
-                  />
-                ) : (
-                  <TextField
-                    label="Minimum quantity"
-                    type="number"
-                    value={minQuantity}
-                    onChange={setMinQuantity}
-                    autoComplete="off"
-                    placeholder="e.g. 3"
-                    helpText="Free gift is added automatically when this quantity is in the cart."
-                  />
-                )}
-              </BlockStack>
-            </SectionCard>
+                <Box>
+                  {triggerTabIdx === 0 ? (
+                    <TextField
+                      label="Minimum cart value"
+                      type="number"
+                      value={minPurchase}
+                      onChange={setMinPurchase}
+                      autoComplete="off"
+                      prefix="$"
+                      placeholder="e.g. 75"
+                      helpText="Free gift is added automatically when this threshold is met."
+                    />
+                  ) : (
+                    <TextField
+                      label="Minimum quantity"
+                      type="number"
+                      value={minQuantity}
+                      onChange={setMinQuantity}
+                      autoComplete="off"
+                      placeholder="e.g. 3"
+                      helpText="Free gift is added automatically when this quantity is in the cart."
+                    />
+                  )}
+                </Box>
 
-            {/* Gift product */}
-            <SectionCard icon={ProductIcon} title="Free gift product">
-              <BlockStack gap="400">
+                <Divider />
+
                 {/* Product selector */}
                 <BlockStack gap="300">
                   <InlineStack align="space-between" blockAlign="center">

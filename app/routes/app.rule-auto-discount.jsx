@@ -248,7 +248,7 @@ export default function RuleAutoDiscount() {
           {/* ── Main column ── */}
           <BlockStack gap="400">
 
-            {/* Discount value */}
+            {/* Discount value + Trigger condition */}
             <SectionCard icon={DiscountIcon} title="Discount value">
               <BlockStack gap="400">
                 <BlockStack gap="200">
@@ -270,7 +270,6 @@ export default function RuleAutoDiscount() {
                     />
                   </InlineStack>
                 </BlockStack>
-                <Divider />
                 <TextField
                   label={valueType === "percent" ? "Percentage off" : "Amount off"}
                   type="number"
@@ -282,14 +281,12 @@ export default function RuleAutoDiscount() {
                   placeholder={valueType === "percent" ? "e.g. 10" : "e.g. 15"}
                   helpText="Applied automatically when the trigger condition is met."
                 />
-              </BlockStack>
-            </SectionCard>
-
-            {/* Trigger condition — tabs */}
-            <SectionCard icon={DiscountIcon} title="Trigger condition">
-              <BlockStack gap="300">
-                <Tabs tabs={TRIGGER_TABS} selected={triggerTabIdx} onSelect={setTriggerTabIdx} />
-                <Box paddingBlockStart="200">
+                <Divider />
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Trigger condition</Text>
+                  <Tabs tabs={TRIGGER_TABS} selected={triggerTabIdx} onSelect={setTriggerTabIdx} />
+                </BlockStack>
+                <Box>
                   {triggerTabIdx === 0 ? (
                     <TextField
                       label="Minimum cart value"
