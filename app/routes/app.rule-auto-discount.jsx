@@ -45,7 +45,7 @@ export const action = async ({ request }) => {
     id, campaignName, enabled, valueType, value, triggerType, minPurchase, minQuantity,
     progressTextBefore, progressTextAfter, progressTextBelow,
     startsAt, endsAt, priority,
-    customerTarget, customerTags, abTestEnabled, abTestVariant, templateKey,
+    customerTarget, customerTags,
   } = body;
 
   const dbData = {
@@ -67,9 +67,6 @@ export const action = async ({ request }) => {
     rewardType: valueType === "amount" ? "amount" : "percent",
     customerTarget: customerTarget || "all",
     customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
-    abTestEnabled: abTestEnabled === true,
-    abTestVariant: abTestEnabled ? (abTestVariant || null) : null,
-    templateKey: templateKey || null,
   };
 
   try {
@@ -192,9 +189,6 @@ export default function RuleAutoDiscount() {
   const [priority, setPriority] = useState(String(r?.priority ?? "0"));
   const [customerTarget, setCustomerTarget] = useState(r?.customerTarget ?? "all");
   const [customerTags, setCustomerTags] = useState(r?.customerTags ?? "");
-  const [abTestEnabled, setAbTestEnabled] = useState(r?.abTestEnabled === true);
-  const [abTestVariant, setAbTestVariant] = useState(r?.abTestVariant ?? "a");
-  const [templateKey, setTemplateKey] = useState(r?.templateKey ?? "");
 
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle") navigate(withHost("/app/campaigns"));
@@ -219,9 +213,6 @@ export default function RuleAutoDiscount() {
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
         customerTarget,
         customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
-        abTestEnabled,
-        abTestVariant: abTestEnabled ? abTestVariant : null,
-        templateKey: templateKey || null,
       },
       { method: "post", encType: "application/json" }
     );
@@ -262,10 +253,9 @@ export default function RuleAutoDiscount() {
               <BlockStack gap="400">
                 <BlockStack gap="200">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Discount type</Text>
-                  <BlockStack gap="100">
+                  <InlineStack gap="400">
                     <RadioButton
                       label="Percentage off"
-                      helpText="e.g. 10% off the entire cart."
                       checked={valueType === "percent"}
                       id="vt-percent"
                       name="valueType"
@@ -273,13 +263,12 @@ export default function RuleAutoDiscount() {
                     />
                     <RadioButton
                       label="Fixed amount off"
-                      helpText="e.g. $15 off the cart total."
                       checked={valueType === "amount"}
                       id="vt-amount"
                       name="valueType"
                       onChange={() => setValueType("amount")}
                     />
-                  </BlockStack>
+                  </InlineStack>
                 </BlockStack>
                 <Divider />
                 <TextField
@@ -391,34 +380,6 @@ export default function RuleAutoDiscount() {
                   onChange={setPriority}
                   autoComplete="off"
                   helpText="Higher number = evaluated first when multiple rules are active."
-                />
-                <Divider />
-                <Checkbox
-                  label="Enable A/B testing"
-                  checked={abTestEnabled}
-                  onChange={setAbTestEnabled}
-                  helpText="Split traffic between two variants to test rule performance."
-                />
-                {abTestEnabled && (
-                  <Select
-                    label="A/B test variant"
-                    options={[
-                      { label: "Variant A", value: "a" },
-                      { label: "Variant B", value: "b" },
-                    ]}
-                    value={abTestVariant}
-                    onChange={setAbTestVariant}
-                    helpText="Assign this rule to variant A or B."
-                  />
-                )}
-                <Divider />
-                <TextField
-                  label="Template key (optional)"
-                  value={templateKey}
-                  onChange={setTemplateKey}
-                  autoComplete="off"
-                  placeholder="e.g. summer_theme"
-                  helpText="Custom template identifier for advanced visual themes."
                 />
               </BlockStack>
             </SectionCard>
