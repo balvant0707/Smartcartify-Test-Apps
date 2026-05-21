@@ -15,7 +15,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { upsertFreeShipping } from "../shopify-discount.server";
+import { upsertShippingRate } from "../shopify-discount.server";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
@@ -62,26 +62,34 @@ export const action = async ({ request }) => {
   };
 
   try {
-    if (rewardType === "free_shipping") {
+    if (enabled !== false) {
       let existingShopifyId = null;
       if (id) {
         const existing = await prisma.shippingRule.findFirst({
           where: { id: parseInt(id, 10), shop },
-          select: { shopifyRateId: true },
+          select: { shopifyRateId: true, shopifyMethodDefinitionId: true },
         });
-        existingShopifyId = existing?.shopifyRateId || null;
+        existingShopifyId =
+          existing?.shopifyMethodDefinitionId ||
+          (String(existing?.shopifyRateId || "").includes("DeliveryMethodDefinition")
+            ? existing.shopifyRateId
+            : null);
       }
       try {
-        const shopifyId = await upsertFreeShipping(admin, {
+        const shopifyId = await upsertShippingRate(admin, {
           existingId: existingShopifyId,
-          title: campaignName || "Free Shipping",
-          startsAt: startsAt || null,
-          endsAt: endsAt || null,
+          title: method || campaignName || "Free Shipping",
+          rewardType: rewardType || "free_shipping",
+          amount: amount || "0",
           minSubtotal: minSubtotal || "0",
         });
-        if (shopifyId) dbData.shopifyRateId = shopifyId;
+        if (shopifyId) {
+          dbData.shopifyRateId = shopifyId;
+          dbData.shopifyMethodDefinitionId = shopifyId;
+        }
       } catch (gqlErr) {
         console.error("[rule-shipping] Shopify sync failed:", gqlErr);
+        return { error: gqlErr.message || "Shopify shipping rate sync failed" };
       }
     }
 

@@ -80,23 +80,19 @@ export const action = async ({ request }) => {
       existingShopifyId = existing?.buyxgetyId || null;
     }
 
-    try {
-      const shopifyId = await upsertBxgy(admin, {
-        existingId: existingShopifyId,
-        title: campaignName || "Buy X Get Y",
-        startsAt: startsAt || null,
-        endsAt: endsAt || null,
-        minReqType: "quantity",
-        minQty: xQty || "1",
-        minSpend: null,
-        rewardQty: yQty || "1",
-        rewardType: giftType || "free_product",
-        rewardDiscount: null,
-      });
-      if (shopifyId) dbData.buyxgetyId = shopifyId;
-    } catch (gqlErr) {
-      console.error("[rule-bxgy] Shopify sync failed:", gqlErr);
-    }
+    const shopifyId = await upsertBxgy(admin, {
+      existingId: existingShopifyId,
+      title: campaignName || "Buy X Get Y",
+      startsAt: startsAt || null,
+      endsAt: endsAt || null,
+      minReqType: "quantity",
+      minQty: xQty || "1",
+      minSpend: null,
+      rewardQty: yQty || "1",
+      rewardType: giftType || "free_product",
+      rewardDiscount: null,
+    });
+    if (shopifyId) dbData.buyxgetyId = shopifyId;
 
     let record;
     if (id) {

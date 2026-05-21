@@ -80,20 +80,16 @@ export const action = async ({ request }) => {
       existingShopifyId = existing?.shopifyDiscountCodeId || null;
     }
 
-    try {
-      const shopifyId = await upsertAutomaticBasic(admin, {
-        existingId: existingShopifyId,
-        title: campaignName || "Automatic Discount",
-        startsAt: startsAt || null,
-        endsAt: endsAt || null,
-        minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,
-        isPercentage: valueType !== "amount",
-        discountValue: value || "0",
-      });
-      if (shopifyId) dbData.shopifyDiscountCodeId = shopifyId;
-    } catch (gqlErr) {
-      console.error("[rule-auto-discount] Shopify sync failed:", gqlErr);
-    }
+    const shopifyId = await upsertAutomaticBasic(admin, {
+      existingId: existingShopifyId,
+      title: campaignName || "Automatic Discount",
+      startsAt: startsAt || null,
+      endsAt: endsAt || null,
+      minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,
+      isPercentage: valueType !== "amount",
+      discountValue: value || "0",
+    });
+    if (shopifyId) dbData.shopifyDiscountCodeId = shopifyId;
 
     let record;
     if (id) {

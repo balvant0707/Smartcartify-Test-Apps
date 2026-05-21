@@ -43,7 +43,7 @@ const AUTOMATIC_BASIC_UPDATE = `#graphql
 
 const BXGY_CREATE = `#graphql
   mutation discountAutomaticBxgyCreate($input: DiscountAutomaticBxgyInput!) {
-    discountAutomaticBxgyCreate(bxgyAutomaticDiscount: $input) {
+    discountAutomaticBxgyCreate(automaticBxgyDiscount: $input) {
       automaticDiscountNode { id }
       userErrors { field message }
     }
@@ -51,7 +51,7 @@ const BXGY_CREATE = `#graphql
 
 const BXGY_UPDATE = `#graphql
   mutation discountAutomaticBxgyUpdate($id: ID!, $input: DiscountAutomaticBxgyInput!) {
-    discountAutomaticBxgyUpdate(id: $id, bxgyAutomaticDiscount: $input) {
+    discountAutomaticBxgyUpdate(id: $id, automaticBxgyDiscount: $input) {
       automaticDiscountNode { id }
       userErrors { field message }
     }
@@ -82,6 +82,175 @@ async function gql(admin, query, variables) {
   return res.json();
 }
 
+function graphqlTopLevelErrorMessage(errors = []) {
+  return errors
+    .map((err) => [err?.message, err?.extensions?.code].filter(Boolean).join(" "))
+    .filter(Boolean)
+    .join("; ");
+}
+
+function userErrorMessage(errors = []) {
+  return errors
+    .map((err) => [Array.isArray(err?.field) ? err.field.join(".") : err?.field, err?.message].filter(Boolean).join(": "))
+    .filter(Boolean)
+    .join("; ");
+}
+
+function assertDiscountMutationSuccess(data, mutationName, label) {
+  const topLevelErrors = data?.errors || [];
+  if (topLevelErrors.length) {
+    throw new Error(`${label} failed: ${graphqlTopLevelErrorMessage(topLevelErrors)}`);
+  }
+
+  const errors = data?.data?.[mutationName]?.userErrors || [];
+  if (errors.length) {
+    throw new Error(`${label} failed: ${userErrorMessage(errors)}`);
+  }
+}
+
+async function firstDeliveryProfileContext(admin) {
+  const profilesQuery = `#graphql
+    query DeliveryProfiles {
+      deliveryProfiles(first: 1) {
+        edges {
+          node {
+            id
+            profileLocationGroups {
+              locationGroup { id }
+              locationGroupZones(first: 1) {
+                edges {
+                  node {
+                    zone { id name }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      shop { currencyCode }
+    }`;
+
+  const data = await gql(admin, profilesQuery, {});
+  const topLevelErrors = data?.errors || [];
+  if (topLevelErrors.length) {
+    throw new Error(`Shopify delivery profile lookup failed: ${graphqlTopLevelErrorMessage(topLevelErrors)}`);
+  }
+
+  const profile = data?.data?.deliveryProfiles?.edges?.[0]?.node;
+  const locationGroup = profile?.profileLocationGroups?.[0] || profile?.profileLocationGroups?.edges?.[0]?.node;
+  const zone = locationGroup?.locationGroupZones?.edges?.[0]?.node?.zone;
+
+  if (!profile?.id || !locationGroup?.locationGroup?.id || !zone?.id) {
+    throw new Error("No delivery profile shipping zone found. Create a shipping zone in Shopify Admin first.");
+  }
+
+  return {
+    profileId: profile.id,
+    locationGroupId: locationGroup.locationGroup.id,
+    zoneId: zone.id,
+    currencyCode: data?.data?.shop?.currencyCode || "USD",
+  };
+}
+
+const DELIVERY_PROFILE_UPDATE = `#graphql
+  mutation DeliveryProfileUpdate($id: ID!, $profile: DeliveryProfileInput!) {
+    deliveryProfileUpdate(id: $id, profile: $profile) {
+      userErrors { field message }
+    }
+  }`;
+
+async function deleteDeliveryMethodDefinition(admin, profileId, methodDefinitionId) {
+  if (!methodDefinitionId) return;
+  const data = await gql(admin, DELIVERY_PROFILE_UPDATE, {
+    id: profileId,
+    profile: { methodDefinitionsToDelete: [methodDefinitionId] },
+  });
+  const topLevelErrors = data?.errors || [];
+  if (topLevelErrors.length) {
+    throw new Error(`Could not replace existing Shopify shipping rate: ${graphqlTopLevelErrorMessage(topLevelErrors)}`);
+  }
+
+  const errors = data?.data?.deliveryProfileUpdate?.userErrors || [];
+  if (errors.length) {
+    throw new Error(`Could not replace existing Shopify shipping rate: ${userErrorMessage(errors)}`);
+  }
+}
+
+async function findDeliveryMethodDefinition(admin, profileId, name, price, minSubtotal) {
+  const query = `#graphql
+    query DeliveryProfileMethods($id: ID!) {
+      deliveryProfile(id: $id) {
+        profileLocationGroups {
+          locationGroupZones(first: 50) {
+            edges {
+              node {
+                methodDefinitions(first: 50) {
+                  edges {
+                    node {
+                      id
+                      name
+                      rateProvider {
+                        __typename
+                        ... on DeliveryRateDefinition {
+                          price { amount currencyCode }
+                        }
+                      }
+                      methodConditions {
+                        field
+                        conditionCriteria {
+                          __typename
+                          ... on MoneyV2 { amount currencyCode }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }`;
+
+  const data = await gql(admin, query, { id: profileId });
+  const topLevelErrors = data?.errors || [];
+  if (topLevelErrors.length) {
+    throw new Error(`Shopify delivery method lookup failed: ${graphqlTopLevelErrorMessage(topLevelErrors)}`);
+  }
+
+  const groups = data?.data?.deliveryProfile?.profileLocationGroups || [];
+  const normalizedPrice = Number(price || 0).toFixed(2);
+  const normalizedMin = minSubtotal !== null && minSubtotal !== undefined ? Number(minSubtotal || 0).toFixed(2) : null;
+
+  for (const group of groups) {
+    const zones = group?.locationGroupZones?.edges || [];
+    for (const zoneEdge of zones) {
+      const methods = zoneEdge?.node?.methodDefinitions?.edges || [];
+      for (const methodEdge of methods) {
+        const method = methodEdge?.node;
+        const provider = method?.rateProvider;
+        const methodPrice = provider?.__typename === "DeliveryRateDefinition" && provider?.price?.amount !== undefined
+          ? Number(provider.price.amount || 0).toFixed(2)
+          : null;
+        const subtotalCondition = (method?.methodConditions || []).find((condition) => {
+          const field = condition?.field;
+          return field === "SUBTOTAL" || field === "ORDER_SUBTOTAL" || field === "TOTAL_PRICE";
+        });
+        const methodMin = subtotalCondition?.conditionCriteria?.__typename === "MoneyV2"
+          ? Number(subtotalCondition.conditionCriteria.amount || 0).toFixed(2)
+          : null;
+
+        if (method?.name === name && methodPrice === normalizedPrice && methodMin === normalizedMin) {
+          return method.id;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
@@ -108,6 +277,84 @@ export async function upsertFreeShipping(admin, { existingId, title, startsAt, e
 }
 
 /**
+ * Create or replace a Shopify Admin shipping-zone rate.
+ * Returns the DeliveryMethodDefinition GID string.
+ */
+export async function upsertShippingRate(admin, { existingId, title, rewardType, amount, minSubtotal }) {
+  const context = await firstDeliveryProfileContext(admin);
+  const price = rewardType === "reduced_rate" ? Number(amount || 0) : 0;
+  const min = minSubtotal !== "" && minSubtotal !== null && minSubtotal !== undefined ? Number(minSubtotal || 0) : null;
+
+  if (existingId) {
+    await deleteDeliveryMethodDefinition(admin, context.profileId, existingId);
+  }
+
+  const methodDefinition = {
+    name: title || (price > 0 ? "Reduced Shipping" : "Free Shipping"),
+    active: true,
+    rateDefinition: {
+      price: {
+        amount: price.toFixed(2),
+        currencyCode: context.currencyCode,
+      },
+    },
+  };
+
+  if (min !== null) {
+    methodDefinition.priceConditionsToCreate = [
+      {
+        operator: "GREATER_THAN_OR_EQUAL_TO",
+        criteria: {
+          amount: min.toFixed(2),
+          currencyCode: context.currencyCode,
+        },
+      },
+    ];
+  }
+
+  const data = await gql(admin, DELIVERY_PROFILE_UPDATE, {
+    id: context.profileId,
+    profile: {
+      locationGroupsToUpdate: [
+        {
+          id: context.locationGroupId,
+          zonesToUpdate: [
+            {
+              id: context.zoneId,
+              methodDefinitionsToCreate: [methodDefinition],
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  const topLevelErrors = data?.errors || [];
+  if (topLevelErrors.length) {
+    throw new Error(`Shopify shipping rate create failed: ${graphqlTopLevelErrorMessage(topLevelErrors)}`);
+  }
+
+  const errors = data?.data?.deliveryProfileUpdate?.userErrors || [];
+  if (errors.length) {
+    throw new Error(`Shopify shipping rate create failed: ${userErrorMessage(errors)}`);
+  }
+
+  const createdId = await findDeliveryMethodDefinition(
+    admin,
+    context.profileId,
+    methodDefinition.name,
+    price,
+    min
+  );
+
+  if (!createdId) {
+    throw new Error("Shopify shipping rate was created but its method definition ID could not be found.");
+  }
+
+  return createdId;
+}
+
+/**
  * Create or update an automatic basic (percentage/fixed) discount.
  * Returns the Shopify discount GID string.
  */
@@ -131,10 +378,14 @@ export async function upsertAutomaticBasic(admin, {
 
   if (existingId) {
     const data = await gql(admin, AUTOMATIC_BASIC_UPDATE, { id: existingId, input });
+    assertDiscountMutationSuccess(data, "discountAutomaticBasicUpdate", "Shopify automatic discount update");
     return data?.data?.discountAutomaticBasicUpdate?.automaticDiscountNode?.id || existingId;
   }
   const data = await gql(admin, AUTOMATIC_BASIC_CREATE, { input });
-  return data?.data?.discountAutomaticBasicCreate?.automaticDiscountNode?.id || null;
+  assertDiscountMutationSuccess(data, "discountAutomaticBasicCreate", "Shopify automatic discount create");
+  const createdId = data?.data?.discountAutomaticBasicCreate?.automaticDiscountNode?.id;
+  if (!createdId) throw new Error("Shopify automatic discount create failed: missing discount id");
+  return createdId;
 }
 
 /**
@@ -169,10 +420,14 @@ export async function upsertBxgy(admin, {
 
   if (existingId) {
     const data = await gql(admin, BXGY_UPDATE, { id: existingId, input });
+    assertDiscountMutationSuccess(data, "discountAutomaticBxgyUpdate", "Shopify Buy X Get Y discount update");
     return data?.data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id || existingId;
   }
   const data = await gql(admin, BXGY_CREATE, { input });
-  return data?.data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id || null;
+  assertDiscountMutationSuccess(data, "discountAutomaticBxgyCreate", "Shopify Buy X Get Y discount create");
+  const createdId = data?.data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id;
+  if (!createdId) throw new Error("Shopify Buy X Get Y discount create failed: missing discount id");
+  return createdId;
 }
 
 /**
@@ -201,8 +456,12 @@ export async function upsertDiscountCode(admin, {
 
   if (existingId) {
     const data = await gql(admin, CODE_BASIC_UPDATE, { id: existingId, input: { ...input, codes: { add: [] } } });
+    assertDiscountMutationSuccess(data, "discountCodeBasicUpdate", "Shopify code discount update");
     return data?.data?.discountCodeBasicUpdate?.codeDiscountNode?.id || existingId;
   }
   const data = await gql(admin, CODE_BASIC_CREATE, { input: { ...input, codes: { add: [{ code }] } } });
-  return data?.data?.discountCodeBasicCreate?.codeDiscountNode?.id || null;
+  assertDiscountMutationSuccess(data, "discountCodeBasicCreate", "Shopify code discount create");
+  const createdId = data?.data?.discountCodeBasicCreate?.codeDiscountNode?.id;
+  if (!createdId) throw new Error("Shopify code discount create failed: missing discount id");
+  return createdId;
 }

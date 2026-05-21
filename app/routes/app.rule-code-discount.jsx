@@ -82,23 +82,21 @@ export const action = async ({ request }) => {
       existingShopifyId = existing?.codeDiscountId || null;
     }
 
-    if (discountCode) {
-      try {
-        const shopifyId = await upsertDiscountCode(admin, {
-          existingId: existingShopifyId,
-          title: codeCampaignName || "Code Discount",
-          code: String(discountCode).toUpperCase().trim(),
-          startsAt: startsAt || null,
-          endsAt: endsAt || null,
-          isPercentage: valueType !== "amount",
-          discountValue: value || "0",
-          minSubtotal: minPurchase || null,
-        });
-        if (shopifyId) dbData.codeDiscountId = shopifyId;
-      } catch (gqlErr) {
-        console.error("[rule-code-discount] Shopify sync failed:", gqlErr);
-      }
+    if (!discountCode) {
+      return { error: "Discount code is required to create a Shopify code discount." };
     }
+
+    const shopifyId = await upsertDiscountCode(admin, {
+      existingId: existingShopifyId,
+      title: codeCampaignName || "Code Discount",
+      code: String(discountCode).toUpperCase().trim(),
+      startsAt: startsAt || null,
+      endsAt: endsAt || null,
+      isPercentage: valueType !== "amount",
+      discountValue: value || "0",
+      minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,
+    });
+    if (shopifyId) dbData.codeDiscountId = shopifyId;
 
     let record;
     if (id) {

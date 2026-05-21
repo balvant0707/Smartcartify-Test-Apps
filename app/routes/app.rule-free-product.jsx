@@ -16,6 +16,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { syncFreeProductDiscountsToShopify } from "../lib/minAmountFreeGift.server";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,37 @@ export const action = async ({ request }) => {
   };
 
   try {
+    let existingShopifyId = null;
+    if (id) {
+      const existing = await prisma.freeGiftRule.findFirst({
+        where: { id: parseInt(id, 10), shop },
+        select: { freeProductDiscountID: true },
+      });
+      existingShopifyId = existing?.freeProductDiscountID || null;
+    }
+
+    const syncResults = await syncFreeProductDiscountsToShopify({
+      shopDomain: shop,
+      accessToken: session.accessToken,
+      rules: [{
+        bonus: bonusProductId ? String(bonusProductId) : null,
+        minPurchase: triggerType === "amount" ? (minPurchase || null) : null,
+        triggerType: triggerType || "amount",
+        minQuantity: triggerType === "quantity" ? (minQuantity || null) : null,
+        qty: qty || "1",
+        limit: limitPerOrder || null,
+        enabled: enabled !== false,
+        startsAt: startsAt || null,
+        endsAt: endsAt || null,
+      }],
+      existingDiscountIds: [existingShopifyId],
+    });
+
+    const shopifyDiscountId = syncResults?.[0]?.id || null;
+    if (shopifyDiscountId) {
+      dbData.freeProductDiscountID = shopifyDiscountId;
+    }
+
     let record;
     if (id) {
       const existing = await prisma.freeGiftRule.findFirst({ where: { id: parseInt(id, 10), shop } });
