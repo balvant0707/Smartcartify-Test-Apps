@@ -85,6 +85,7 @@ export const action = async ({ request }) => {
       title: campaignName || "Buy X Get Y",
       startsAt: startsAt || null,
       endsAt: endsAt || null,
+      enabled: enabled !== false,
       minReqType: "quantity",
       minQty: xQty || "1",
       minSpend: null,

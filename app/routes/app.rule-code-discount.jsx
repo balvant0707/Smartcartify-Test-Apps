@@ -92,6 +92,7 @@ export const action = async ({ request }) => {
       code: String(discountCode).toUpperCase().trim(),
       startsAt: startsAt || null,
       endsAt: endsAt || null,
+      enabled: enabled !== false,
       isPercentage: valueType !== "amount",
       discountValue: value || "0",
       minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,

@@ -563,9 +563,9 @@ const normalizeStepSlot = (value) => {
   if (STEP_SLOTS.includes(compact)) return compact;
   const cartStepMatch = compact.match(/^cartstep0*([1-4])$/);
   if (cartStepMatch) return `step${cartStepMatch[1]}`;
-  const match = text.match(/step\s*([1-4])$/);
+  const match = text.match(/^step\s*([1-4])$/);
   if (match) return `step${match[1]}`;
-  const numericMatch = text.match(/([1-4])/);
+  const numericMatch = text.match(/^([1-4])$/);
   if (numericMatch) return `step${numericMatch[1]}`;
   return "";
 };
@@ -10680,10 +10680,13 @@ export default function AppRules() {
   const automaticDiscountCount = discountRules.filter(
     (rule) => String(rule?.type || "automatic").toLowerCase() !== "code"
   ).length;
-  const canAddShipping = true;
-  const canAddAutomaticDiscount = true;
+  const canAddCartStepRule =
+    getCartStepRuleEntries(shippingRules, discountRules, freeRules).length <
+    STEP_SLOTS.length;
+  const canAddShipping = canAddCartStepRule;
+  const canAddAutomaticDiscount = canAddCartStepRule;
   const canAddCodeDiscount = true;
-  const canUseFreeGift = true;
+  const canUseFreeGift = canAddCartStepRule;
   const canUseBxgy = true;
 
   const handleSave = () => {

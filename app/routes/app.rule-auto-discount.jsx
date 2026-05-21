@@ -18,6 +18,10 @@ import prisma from "../db.server";
 import { upsertAutomaticBasic } from "../shopify-discount.server";
 
 const CART_STEPS = ["Cart Step 1", "Cart Step 2", "Cart Step 3", "Cart Step 4"];
+const CART_STEP_OPTIONS = [
+  { label: "Select cart step", value: "", disabled: true },
+  ...CART_STEPS.map((step) => ({ label: step, value: step })),
+];
 
 function normalizeCartStep(value) {
   if (value === undefined || value === null) return "";
@@ -27,7 +31,7 @@ function normalizeCartStep(value) {
   if (direct) return `Cart Step ${direct[1]}`;
   const cartStep = compact.match(/^cartstep([1-4])$/);
   if (cartStep) return `Cart Step ${cartStep[1]}`;
-  const number = text.match(/([1-4])/);
+  const number = text.match(/^([1-4])$/);
   return number ? `Cart Step ${number[1]}` : "";
 }
 
@@ -56,6 +60,34 @@ async function nextCartStepForShop(shop) {
   return CART_STEPS.find((step) => !usedSteps.has(step)) || "";
 }
 
+async function cartStepAlreadyUsed(shop, cartStepName, currentId = null) {
+  const normalized = normalizeCartStep(cartStepName);
+  if (!normalized) return false;
+
+  const [shippingRows, discountRows, freeRows] = await Promise.all([
+    prisma.shippingRule.findMany({
+      where: { shop },
+      select: { id: true, cartStepName: true },
+    }),
+    prisma.discountRule.findMany({
+      where: { shop, type: { not: "code" } },
+      select: { id: true, cartStepName: true },
+    }),
+    prisma.freeGiftRule.findMany({
+      where: { shop },
+      select: { id: true, cartStepName: true },
+    }),
+  ]);
+
+  return [
+    ...shippingRows.map((rule) => rule.cartStepName),
+    ...discountRows
+      .filter((rule) => !currentId || rule.id !== Number(currentId))
+      .map((rule) => rule.cartStepName),
+    ...freeRows.map((rule) => rule.cartStepName),
+  ].some((value) => normalizeCartStep(value) === normalized);
+}
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export const loader = async ({ request }) => {
@@ -71,7 +103,7 @@ export const loader = async ({ request }) => {
       record = row;
     }
   }
-  const defaultCartStepName = record?.cartStepName || await nextCartStepForShop(session.shop);
+  const defaultCartStepName = normalizeCartStep(record?.cartStepName) || await nextCartStepForShop(session.shop);
   return { record, defaultCartStepName };
 };
 
@@ -87,6 +119,15 @@ export const action = async ({ request }) => {
     startsAt, endsAt, priority,
     customerTarget, customerTags, cartStepName,
   } = body;
+  const normalizedCartStepName = normalizeCartStep(cartStepName);
+
+  if (!normalizedCartStepName) {
+    return { error: "Cart step must be Cart Step 1, Cart Step 2, Cart Step 3, or Cart Step 4." };
+  }
+
+  if (await cartStepAlreadyUsed(shop, normalizedCartStepName, id)) {
+    return { error: "This cart step is already used. Only four cart steps are allowed." };
+  }
 
   const dbData = {
     shop,
@@ -107,7 +148,7 @@ export const action = async ({ request }) => {
     rewardType: valueType === "amount" ? "amount" : "percent",
     customerTarget: customerTarget || "all",
     customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
-    cartStepName: String(cartStepName || "").trim() || "Cart Step 1",
+    cartStepName: normalizedCartStepName,
   };
 
   try {
@@ -125,6 +166,7 @@ export const action = async ({ request }) => {
       title: campaignName || "Automatic Discount",
       startsAt: startsAt || null,
       endsAt: endsAt || null,
+      enabled: enabled !== false,
       minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,
       isPercentage: valueType !== "amount",
       discountValue: value || "0",
@@ -195,8 +237,12 @@ export default function RuleAutoDiscount() {
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? "Automatic Discount");
   const [enabled, setEnabled] = useState(r?.enabled !== false);
   const [cartStepName, setCartStepName] = useState(
-    r?.cartStepName ?? loaderData?.defaultCartStepName ?? "Cart Step 1"
+    normalizeCartStep(r?.cartStepName) || loaderData?.defaultCartStepName || ""
   );
+  const cartStepLimitReached = !recordId && !loaderData?.defaultCartStepName;
+  const cartStepOptions = cartStepLimitReached
+    ? [{ label: "All 4 cart steps are already used", value: "", disabled: true }]
+    : CART_STEP_OPTIONS;
 
   // Discount value
   const [valueType, setValueType] = useState(r?.valueType ?? "percent");
@@ -253,7 +299,7 @@ export default function RuleAutoDiscount() {
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
         customerTarget,
         customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
-        cartStepName: String(cartStepName || "").trim() || "Cart Step 1",
+        cartStepName: normalizeCartStep(cartStepName),
       },
       { method: "post", encType: "application/json" }
     );
@@ -262,7 +308,7 @@ export default function RuleAutoDiscount() {
   const discountLabel = value
     ? valueType === "percent" ? `${value}% off` : `$${value} off`
     : "discount";
-  const cartStepLabel = cartStepName?.trim() || "Cart Step 1";
+  const cartStepLabel = cartStepName?.trim() || "Cart Step";
 
   const [sliderValue, setSliderValue] = useState(50);
   const threshold = parseFloat(triggerType === "amount" ? (minPurchase || 100) : 1);
@@ -276,7 +322,7 @@ export default function RuleAutoDiscount() {
     <Page
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
       title={campaignName || "Automatic Discount"}
-      primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
+      primaryAction={{ content: "Save", loading: isSaving, disabled: cartStepLimitReached, onAction: handleSave }}
       secondaryActions={[{ content: enabled ? "Disable" : "Enable", onAction: () => setEnabled(v => !v) }]}
     >
       <style>{`.ad-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.ad-layout{grid-template-columns:1fr}}`}</style>
@@ -467,13 +513,13 @@ export default function RuleAutoDiscount() {
                   onChange={(v) => setEnabled(v === "true")}
                 />
                 <TextField label="Rule name" value={campaignName} onChange={setCampaignName} autoComplete="off" />
-                <TextField
+                <Select
                   label="Cart step"
+                  options={cartStepOptions}
                   value={cartStepName}
                   onChange={setCartStepName}
-                  autoComplete="off"
-                  placeholder="e.g. Cart Step 1"
-                  helpText="Which cart step this rule appears on."
+                  disabled={cartStepLimitReached}
+                  helpText={cartStepLimitReached ? "All 4 cart steps are already used. Remove a cart-step rule to add another." : "Which cart step this rule appears on."}
                 />
               </BlockStack>
             </div>

@@ -91,12 +91,28 @@ const COMBINES_WITH_ORDER_DISCOUNTS = {
 };
 
 const SHOPIFY_TITLE_APP_NAME = "CartLift: Cart Drawer & Upsell";
+const EXPIRED_DISCOUNT_STARTS_AT = "2000-01-01T00:00:00.000Z";
+const EXPIRED_DISCOUNT_ENDS_AT = "2000-01-02T00:00:00.000Z";
 
 function withAppNameTitle(title, fallback = "Discount") {
   const base = String(title || fallback).trim() || fallback;
   return base.toLowerCase().includes(SHOPIFY_TITLE_APP_NAME.toLowerCase())
     ? base
     : `${SHOPIFY_TITLE_APP_NAME} ${base}`;
+}
+
+function discountScheduleFields({ enabled = true, startsAt, endsAt } = {}) {
+  if (enabled === false) {
+    return {
+      startsAt: EXPIRED_DISCOUNT_STARTS_AT,
+      endsAt: EXPIRED_DISCOUNT_ENDS_AT,
+    };
+  }
+
+  return {
+    startsAt: startsAt || new Date().toISOString(),
+    endsAt: endsAt || null,
+  };
 }
 
 function graphqlTopLevelErrorMessage(errors = []) {
@@ -318,11 +334,10 @@ async function findDeliveryMethodDefinitionWithRetry(admin, profileId, name, pri
  * Create or update a free-shipping automatic discount.
  * Returns the Shopify discount GID string.
  */
-export async function upsertFreeShipping(admin, { existingId, title, startsAt, endsAt, minSubtotal }) {
+export async function upsertFreeShipping(admin, { existingId, title, startsAt, endsAt, minSubtotal, enabled = true }) {
   const input = {
     title: withAppNameTitle(title, "Free Shipping"),
-    startsAt: startsAt || new Date().toISOString(),
-    endsAt: endsAt || null,
+    ...discountScheduleFields({ enabled, startsAt, endsAt }),
     minimumRequirement: {
       subtotal: { greaterThanOrEqualToSubtotal: String(parseFloat(minSubtotal || "0")) },
     },
@@ -440,12 +455,11 @@ export async function upsertShippingRate(admin, { existingId, title, rewardType,
  * Returns the Shopify discount GID string.
  */
 export async function upsertAutomaticBasic(admin, {
-  existingId, title, startsAt, endsAt, minSubtotal, isPercentage, discountValue,
+  existingId, title, startsAt, endsAt, minSubtotal, isPercentage, discountValue, enabled = true,
 }) {
   const input = {
     title: withAppNameTitle(title, "Automatic Discount"),
-    startsAt: startsAt || new Date().toISOString(),
-    endsAt: endsAt || null,
+    ...discountScheduleFields({ enabled, startsAt, endsAt }),
     minimumRequirement: minSubtotal
       ? { subtotal: { greaterThanOrEqualToSubtotal: String(parseFloat(minSubtotal)) } }
       : undefined,
@@ -492,12 +506,11 @@ export async function upsertAutomaticBasic(admin, {
  * Returns the Shopify discount GID string.
  */
 export async function upsertBxgy(admin, {
-  existingId, title, startsAt, endsAt, minReqType, minQty, minSpend, rewardQty, rewardType, rewardDiscount,
+  existingId, title, startsAt, endsAt, minReqType, minQty, minSpend, rewardQty, rewardType, rewardDiscount, enabled = true,
 }) {
   const input = {
     title: withAppNameTitle(title, "Buy X Get Y Discount"),
-    startsAt: startsAt || new Date().toISOString(),
-    endsAt: endsAt || null,
+    ...discountScheduleFields({ enabled, startsAt, endsAt }),
     customerBuys: {
       items: { all: true },
       value: minReqType === "spend"
@@ -552,12 +565,11 @@ export async function upsertBxgy(admin, {
  * Returns the Shopify discount GID string.
  */
 export async function upsertDiscountCode(admin, {
-  existingId, title, code, startsAt, endsAt, isPercentage, discountValue, minSubtotal,
+  existingId, title, code, startsAt, endsAt, isPercentage, discountValue, minSubtotal, enabled = true,
 }) {
   const input = {
     title: withAppNameTitle(title, "Code Discount"),
-    startsAt: startsAt || new Date().toISOString(),
-    endsAt: endsAt || null,
+    ...discountScheduleFields({ enabled, startsAt, endsAt }),
     customerSelection: { all: true },
     customerGets: {
       value: isPercentage

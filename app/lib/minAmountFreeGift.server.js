@@ -53,6 +53,15 @@ const AUTOMATIC_DISCOUNT_MUTATION = `
   }
 `;
 
+const AUTOMATIC_DISCOUNT_UPDATE_MUTATION = `
+  mutation DiscountAutomaticBasicUpdate($id: ID!, $automaticBasicDiscount: DiscountAutomaticBasicInput!) {
+    discountAutomaticBasicUpdate(id: $id, automaticBasicDiscount: $automaticBasicDiscount) {
+      automaticDiscountNode { id }
+      userErrors { field message }
+    }
+  }
+`;
+
 const BXGY_DISCOUNT_MUTATION = `
   mutation DiscountAutomaticBxgyCreate($automaticBxgyDiscount: DiscountAutomaticBxgyInput!) {
     discountAutomaticBxgyCreate(automaticBxgyDiscount: $automaticBxgyDiscount) {
@@ -130,11 +139,34 @@ const ALL_PRODUCTS_COLLECTION_QUERY = `
 `;
 const ALL_PRODUCTS_COLLECTION_HANDLES = ["all", "all-products"];
 const allProductsCollectionCache = new TTLCache();
+const EXPIRED_DISCOUNT_STARTS_AT = "2000-01-01T00:00:00.000Z";
+const EXPIRED_DISCOUNT_ENDS_AT = "2000-01-02T00:00:00.000Z";
 
 const appendUniqueTitleSuffix = (title) => {
   const base = String(title || "Discount").trim() || "Discount";
   const suffix = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
   return `${base} ${suffix}`;
+};
+
+const discountScheduleFields = (rule = {}) => {
+  if (rule.enabled === false) {
+    return {
+      startsAt: EXPIRED_DISCOUNT_STARTS_AT,
+      endsAt: EXPIRED_DISCOUNT_ENDS_AT,
+    };
+  }
+
+  const startsAt = rule.startsAt ? new Date(rule.startsAt) : new Date();
+  const endsAt = rule.endsAt ? new Date(rule.endsAt) : null;
+
+  return {
+    startsAt: Number.isNaN(startsAt.getTime())
+      ? new Date().toISOString()
+      : startsAt.toISOString(),
+    ...(endsAt && !Number.isNaN(endsAt.getTime())
+      ? { endsAt: endsAt.toISOString() }
+      : {}),
+  };
 };
 
 const ALL_PRODUCT_IDS_QUERY = `
@@ -414,9 +446,6 @@ const buildMinAmountAutomaticInput = (rule, giftVariantId) => {
   // qty is the gift quantity; triggerType decides the cart threshold.
   const giftQty = Math.max(Number(rule.qty ?? "1") || 1, 1);
   const limitValue = Math.max(Number(rule.limitPerOrder ?? "0") || 0, 0);
-  const startsAt = rule.startsAt ? new Date(rule.startsAt) : new Date();
-  const endsAt = rule.endsAt ? new Date(rule.endsAt) : null;
-
   const minimumRequirement =
     triggerType === "quantity"
       ? {
@@ -434,9 +463,7 @@ const buildMinAmountAutomaticInput = (rule, giftVariantId) => {
   // not every unit of that variant in the cart (which percentage:1 would do)
   const payload = {
     title,
-    startsAt: Number.isNaN(startsAt.getTime())
-      ? new Date().toISOString()
-      : startsAt.toISOString(),
+    ...discountScheduleFields(rule),
     customerSelection: { all: true },
     customerGets: {
       value: {
@@ -465,10 +492,6 @@ const buildMinAmountAutomaticInput = (rule, giftVariantId) => {
     payload.usesPerOrderLimit = String(limitValue);
   }
 
-  if (endsAt && !Number.isNaN(endsAt.getTime())) {
-    payload.endsAt = endsAt.toISOString();
-  }
-
   return payload;
 };
 
@@ -477,6 +500,49 @@ export const syncMinAmountFreeGiftDiscount = async (params) => {
 
   if (!shopDomain || !accessToken) {
     throw new Error("Missing Shopify context to sync free gift");
+  }
+
+  if (!rule.enabled) {
+    if (!rule.freeProductDiscountID) {
+      return { deleted: true };
+    }
+
+    const giftVariantId = await resolveGiftVariantId(
+      shopDomain,
+      accessToken,
+      rule.bonusProductId ?? rule.bonus ?? null,
+    );
+
+    if (!giftVariantId) {
+      try {
+        await setShopifyDiscountActiveState({
+          shopDomain,
+          accessToken,
+          discountId: rule.freeProductDiscountID,
+          enabled: false,
+        });
+      } catch (err) {
+        logger.warn("Failed to deactivate existing min amount free gift discount", err);
+      }
+      return { id: rule.freeProductDiscountID };
+    }
+
+    const input = buildMinAmountAutomaticInput(rule, giftVariantId);
+    const data = await adminGraphql(
+      shopDomain,
+      accessToken,
+      AUTOMATIC_DISCOUNT_UPDATE_MUTATION,
+      {
+        id: rule.freeProductDiscountID,
+        automaticBasicDiscount: input,
+      },
+    );
+
+    return {
+      id:
+        data?.discountAutomaticBasicUpdate?.automaticDiscountNode?.id ||
+        rule.freeProductDiscountID,
+    };
   }
 
   if (rule.freeProductDiscountID) {
@@ -492,10 +558,6 @@ export const syncMinAmountFreeGiftDiscount = async (params) => {
         err,
       );
     }
-  }
-
-  if (!rule.enabled) {
-    return { deleted: true };
   }
 
   const giftVariantId = await resolveGiftVariantId(
@@ -559,9 +621,6 @@ const buildBxgyDiscountInput = (
   }
 
   const qtyValue = Math.max(Number(rule.qty ?? "1") || 1, 1);
-  const startsAt = rule.startsAt ? new Date(rule.startsAt) : new Date();
-  const endsAt = rule.endsAt ? new Date(rule.endsAt) : null;
-
   const customerBuys = {
     value:
       triggerType === "quantity"
@@ -590,12 +649,7 @@ const buildBxgyDiscountInput = (
       triggerType === "quantity"
         ? `CartLift: Cart Drawer & Upsell Free gift >= ${Math.max(1, Math.floor(minQuantityValue))} items`
         : `CartLift: Cart Drawer & Upsell Free gift >= $${minPurchaseValue}`,
-    startsAt: Number.isNaN(startsAt.getTime())
-      ? new Date().toISOString()
-      : startsAt.toISOString(),
-    ...(endsAt && !Number.isNaN(endsAt.getTime())
-      ? { endsAt: endsAt.toISOString() }
-      : {}),
+    ...discountScheduleFields(rule),
     combinesWith: {
       orderDiscounts: true,
       productDiscounts: false,
@@ -630,7 +684,13 @@ const syncSingleBxgyDiscount = async (params) => {
     productIds,
   } = params;
 
-  if (!rule.enabled) {
+  const giftVariantId = await resolveGiftVariantId(
+    shopDomain,
+    accessToken,
+    rule.bonusProductId ?? rule.bonus ?? null,
+  );
+
+  if (!rule.enabled && !giftVariantId) {
     if (existingDiscountId) {
       try {
         await setShopifyDiscountActiveState({
@@ -646,18 +706,47 @@ const syncSingleBxgyDiscount = async (params) => {
     return { id: existingDiscountId ?? null };
   }
 
-  const giftVariantId = await resolveGiftVariantId(
-    shopDomain,
-    accessToken,
-    rule.bonusProductId ?? rule.bonus ?? null,
-  );
-
   const input = buildBxgyDiscountInput(
     rule,
     collectionId,
     productIds,
     giftVariantId,
   );
+
+  if (!rule.enabled) {
+    if (!existingDiscountId) {
+      return { id: null };
+    }
+
+    try {
+      const data = await adminGraphql(
+        shopDomain,
+        accessToken,
+        BXGY_DISCOUNT_UPDATE_MUTATION,
+        {
+          id: existingDiscountId,
+          automaticBxgyDiscount: input,
+        },
+      );
+      const nextId =
+        data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id ||
+        existingDiscountId;
+      return { id: nextId };
+    } catch (err) {
+      logger.warn("Failed to expire existing free product discount", err);
+      try {
+        await setShopifyDiscountActiveState({
+          shopDomain,
+          accessToken,
+          discountId: existingDiscountId,
+          enabled: false,
+        });
+      } catch (deactivateErr) {
+        logger.warn("Failed to deactivate existing free product discount", deactivateErr);
+      }
+      return { id: existingDiscountId };
+    }
+  }
 
   const create = async () =>
     adminGraphql(
