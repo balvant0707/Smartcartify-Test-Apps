@@ -9791,6 +9791,7 @@ export default function AppRules() {
   const [saveMessage, setSaveMessage] = React.useState("");
 
   const [saving, setSaving] = React.useState(false);
+  const [savingTarget, setSavingTarget] = React.useState(null);
 
   const [payloadPreview, setPayloadPreview] = React.useState(null);
 
@@ -10090,6 +10091,9 @@ export default function AppRules() {
 
       try {
         setSaving(true);
+        setSavingTarget(
+          Number.isInteger(index) ? `${section}:${index}` : section
+        );
 
         const res = await fetch("/api/rules", {
           method: "POST",
@@ -10367,6 +10371,7 @@ export default function AppRules() {
         );
       } finally {
         setSaving(false);
+        setSavingTarget(null);
       }
     },
 
@@ -11865,6 +11870,9 @@ export default function AppRules() {
             </div>
             {discountPreviewRules.map((entry, idx) => {
               const center = discountCenters[idx] ?? 0;
+              const cartStepLabel = normalizeStepSlot(entry.rule?.cartStepName)
+                ? getCartStepLabel(entry.rule?.cartStepName)
+                : "";
               const ruleDefaults = getDiscountContentDefaults(entry.rule?.type);
               const ruleBelowTemplate =
                 entry.rule?.progressTextBelow ?? ruleDefaults.progressTextBelow;
@@ -11912,6 +11920,15 @@ export default function AppRules() {
                       style={{ whiteSpace: "nowrap", fontSize: 11 }}
                     >
                       {ruleCopy}
+                    </Text>
+                  )}
+                  {cartStepLabel && (
+                    <Text
+                      variant="bodyXs"
+                      tone="subdued"
+                      style={{ whiteSpace: "nowrap", fontSize: 10, fontWeight: 600 }}
+                    >
+                      {cartStepLabel}
                     </Text>
                   )}
                 </div>
@@ -12717,7 +12734,8 @@ export default function AppRules() {
                   <Button
                     size="slim"
                     variant="primary"
-                    loading={saving}
+                    loading={saving && savingTarget === `discount:${index}`}
+                    disabled={saving && savingTarget !== `discount:${index}`}
                     onClick={() => handleSectionSave("discount", index)}
                   >
                     Save Rule

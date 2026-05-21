@@ -220,6 +220,7 @@ export default function RuleAutoDiscount() {
   const discountLabel = value
     ? valueType === "percent" ? `${value}% off` : `$${value} off`
     : "discount";
+  const cartStepLabel = cartStepName?.trim() || "Step 1";
 
   const [sliderValue, setSliderValue] = useState(50);
   const threshold = parseFloat(triggerType === "amount" ? (minPurchase || 100) : 1);
@@ -464,6 +465,7 @@ export default function RuleAutoDiscount() {
                     <div style={{ position: "absolute", right: "0", top: "-10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
                       <Icon source={DiscountIcon} tone={isUnlocked ? "success" : "base"} />
                       <span style={{ fontSize: "11px", color: isUnlocked ? "#16a34a" : "#6b7280", fontWeight: isUnlocked ? 600 : 400 }}>{discountLabel || "Discount!"}</span>
+                      <span style={{ fontSize: "10px", color: "#6b7280", fontWeight: 600 }}>{cartStepLabel}</span>
                     </div>
                   </div>
                 </div>

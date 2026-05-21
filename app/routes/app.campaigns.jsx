@@ -339,7 +339,7 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
 
 // ─── PreviewPanel ─────────────────────────────────────────────────────────────
 
-function PreviewPanel({ ruleType, onCreate }) {
+function PreviewPanel({ ruleType, onCreate, creating = false }) {
   const isBanner = ruleType.preview.banner.includes("campaign-banner-");
 
   return (
@@ -387,7 +387,14 @@ function PreviewPanel({ ruleType, onCreate }) {
           {ruleType.preview.description}
         </Text>
 
-        <Button variant="primary" size="large" fullWidth onClick={onCreate}>
+        <Button
+          variant="primary"
+          size="large"
+          fullWidth
+          loading={creating}
+          disabled={creating}
+          onClick={onCreate}
+        >
           Create this rule
         </Button>
 
@@ -550,6 +557,7 @@ export default function CampaignSelector() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [selectedId, setSelectedId] = useState("shipping");
+  const [creatingRuleId, setCreatingRuleId] = useState(null);
 
   // Build URL for a rule editor page, appending host if present.
   const toRulePage = (base, extraParams = {}) => {
@@ -607,6 +615,7 @@ export default function CampaignSelector() {
         ];
 
   const handleTabSelect = (index) => {
+    setCreatingRuleId(null);
     setSelectedTabIndex(index);
     const category = TABS[index].id;
     const first =
@@ -618,7 +627,9 @@ export default function CampaignSelector() {
 
   const handleCreate = () => {
     const base = RULE_ROUTES[selectedId];
-    if (base) navigate(toRulePage(base));
+    if (!base) return;
+    setCreatingRuleId(selectedId);
+    navigate(toRulePage(base));
   };
 
   return (
@@ -740,7 +751,11 @@ export default function CampaignSelector() {
 
               {/* Right: preview panel */}
               {selected && (
-                <PreviewPanel ruleType={selected} onCreate={handleCreate} />
+                <PreviewPanel
+                  ruleType={selected}
+                  onCreate={handleCreate}
+                  creating={creatingRuleId === selectedId}
+                />
               )}
             </div>
           </div>
