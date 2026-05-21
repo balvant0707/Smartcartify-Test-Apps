@@ -11471,17 +11471,6 @@ export default function AppRules() {
                   /> 
                 </div> */}
               </div>
-              <RuleScheduleFields
-                startsAt={r.startsAt}
-                endsAt={r.endsAt}
-                disabled={shippingReadOnly}
-                onStartsAtChange={(value) =>
-                  updateShippingRuleField(i, "startsAt", value)
-                }
-                onEndsAtChange={(value) =>
-                  updateShippingRuleField(i, "endsAt", value)
-                }
-              />
               <AdvancedRuleControls
                 rule={r}
                 disabled={shippingReadOnly}
@@ -11594,6 +11583,17 @@ export default function AppRules() {
                   />
                 </Box>
               </InlineStack>
+              <RuleScheduleFields
+                startsAt={r.startsAt}
+                endsAt={r.endsAt}
+                disabled={shippingReadOnly}
+                onStartsAtChange={(value) =>
+                  updateShippingRuleField(i, "startsAt", value)
+                }
+                onEndsAtChange={(value) =>
+                  updateShippingRuleField(i, "endsAt", value)
+                }
+              />
               {contentActions}
             </BlockStack>
           </RuleShell>
@@ -12295,17 +12295,6 @@ export default function AppRules() {
                   </InlineStack>
                 )}
 
-                <RuleScheduleFields
-                  startsAt={r.startsAt}
-                  endsAt={r.endsAt}
-                  disabled={readOnly}
-                  onStartsAtChange={(value) =>
-                    updateDiscountRuleField(index, "startsAt", value)
-                  }
-                  onEndsAtChange={(value) =>
-                    updateDiscountRuleField(index, "endsAt", value)
-                  }
-                />
                 <AdvancedRuleControls
                   rule={r}
                   disabled={readOnly}
@@ -12440,6 +12429,18 @@ export default function AppRules() {
                   )}
 
                 </BlockStack>
+
+                <RuleScheduleFields
+                  startsAt={r.startsAt}
+                  endsAt={r.endsAt}
+                  disabled={readOnly}
+                  onStartsAtChange={(value) =>
+                    updateDiscountRuleField(index, "startsAt", value)
+                  }
+                  onEndsAtChange={(value) =>
+                    updateDiscountRuleField(index, "endsAt", value)
+                  }
+                />
 
                 {showProgressPreview && (
                   <>
@@ -12802,17 +12803,6 @@ export default function AppRules() {
                   )}
                 </InlineStack>
               </Box>
-              <RuleScheduleFields
-                startsAt={r.startsAt}
-                endsAt={r.endsAt}
-                disabled={freeReadOnly}
-                onStartsAtChange={(value) =>
-                  updateFreeRuleField(i, "startsAt", value)
-                }
-                onEndsAtChange={(value) =>
-                  updateFreeRuleField(i, "endsAt", value)
-                }
-              />
               <AdvancedRuleControls
                 rule={r}
                 disabled={freeReadOnly}
@@ -12932,6 +12922,18 @@ export default function AppRules() {
                   </Box>
                 </InlineStack>
               </BlockStack>
+
+              <RuleScheduleFields
+                startsAt={r.startsAt}
+                endsAt={r.endsAt}
+                disabled={freeReadOnly}
+                onStartsAtChange={(value) =>
+                  updateFreeRuleField(i, "startsAt", value)
+                }
+                onEndsAtChange={(value) =>
+                  updateFreeRuleField(i, "endsAt", value)
+                }
+              />
 
               <InlineStack align="end">
                 <Button
@@ -13222,17 +13224,6 @@ export default function AppRules() {
                   </BlockStack>
                 </div>
 
-                <RuleScheduleFields
-                  startsAt={r.startsAt}
-                  endsAt={r.endsAt}
-                  disabled={bxgyReadOnly}
-                  onStartsAtChange={(value) =>
-                    updateBxgyRuleField(i, "startsAt", value)
-                  }
-                  onEndsAtChange={(value) =>
-                    updateBxgyRuleField(i, "endsAt", value)
-                  }
-                />
                 <AdvancedRuleControls
                   rule={r}
                   disabled={bxgyReadOnly}
@@ -13350,6 +13341,18 @@ export default function AppRules() {
                     />
                   </Box>
                 </InlineStack>
+
+                <RuleScheduleFields
+                  startsAt={r.startsAt}
+                  endsAt={r.endsAt}
+                  disabled={bxgyReadOnly}
+                  onStartsAtChange={(value) =>
+                    updateBxgyRuleField(i, "startsAt", value)
+                  }
+                  onEndsAtChange={(value) =>
+                    updateBxgyRuleField(i, "endsAt", value)
+                  }
+                />
 
                 <InlineStack align="end">
                   <Button

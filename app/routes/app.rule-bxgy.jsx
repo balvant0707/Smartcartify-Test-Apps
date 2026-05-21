@@ -390,7 +390,6 @@ export default function RuleBxgy() {
                     <div className="bxgy-radio-row bxgy-radio-row--three">
                       <RadioButton
                         label="Entire store"
-                        helpText="Rule applies to any product in the store."
                         checked={scope === "entire_store"}
                         id="bxgy-scope-store"
                         name="bxgyScope"
@@ -398,7 +397,6 @@ export default function RuleBxgy() {
                       />
                       <RadioButton
                         label="Specific products"
-                        helpText="Rule applies only to the products listed below."
                         checked={scope === "specific_products"}
                         id="bxgy-scope-products"
                         name="bxgyScope"
@@ -406,7 +404,6 @@ export default function RuleBxgy() {
                       />
                       <RadioButton
                         label="Specific collections"
-                        helpText="Rule applies to products in the collections listed below."
                         checked={scope === "specific_collections"}
                         id="bxgy-scope-collections"
                         name="bxgyScope"
@@ -456,6 +453,33 @@ export default function RuleBxgy() {
                     )}
                   </BlockStack>
                 )}
+              </BlockStack>
+            </SectionCard>
+
+            <SectionCard icon={EditIcon} title="Content Settings" defaultOpen={false}>
+              <BlockStack gap="300">
+                <div className="bxgy-field-row">
+                  <TextField
+                    label="Before Offer Unlock Message"
+                    value={beforeOfferUnlockMessage}
+                    onChange={setBeforeOfferUnlockMessage}
+                    autoComplete="off"
+                    helpText="Use {{x}} and {{y}} to mention quantities."
+                  />
+                  <TextField
+                    label="After Offer Unlock Message"
+                    value={afterOfferUnlockMessage}
+                    onChange={setAfterOfferUnlockMessage}
+                    autoComplete="off"
+                    helpText="Celebrate the customer once they unlock the offer."
+                  />
+                </div>
+                <TextField
+                  label="Campaign name"
+                  value={campaignName}
+                  onChange={setCampaignName}
+                  autoComplete="off"
+                />
               </BlockStack>
             </SectionCard>
 
@@ -515,33 +539,6 @@ export default function RuleBxgy() {
                   onChange={setPriority}
                   autoComplete="off"
                   helpText="Higher number = evaluated first when multiple rules are active."
-                />
-              </BlockStack>
-            </SectionCard>
-
-            <SectionCard icon={EditIcon} title="Content Settings" defaultOpen={false}>
-              <BlockStack gap="300">
-                <div className="bxgy-field-row">
-                  <TextField
-                    label="Before Offer Unlock Message"
-                    value={beforeOfferUnlockMessage}
-                    onChange={setBeforeOfferUnlockMessage}
-                    autoComplete="off"
-                    helpText="Use {{x}} and {{y}} to mention quantities."
-                  />
-                  <TextField
-                    label="After Offer Unlock Message"
-                    value={afterOfferUnlockMessage}
-                    onChange={setAfterOfferUnlockMessage}
-                    autoComplete="off"
-                    helpText="Celebrate the customer once they unlock the offer."
-                  />
-                </div>
-                <TextField
-                  label="Campaign name"
-                  value={campaignName}
-                  onChange={setCampaignName}
-                  autoComplete="off"
                 />
               </BlockStack>
             </SectionCard>
