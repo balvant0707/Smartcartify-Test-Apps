@@ -207,7 +207,7 @@ export default function RuleShipping() {
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
       secondaryActions={[{ content: enabled ? "Disable" : "Enable", onAction: () => setEnabled(v => !v) }]}
     >
-      <style>{`.sr-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.sr-layout{grid-template-columns:1fr}}`}</style>
+      <style>{`.sr-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}.sr-radio-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}@media(max-width:900px){.sr-layout{grid-template-columns:1fr}}@media(max-width:640px){.sr-radio-row{grid-template-columns:1fr}}`}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
           <Banner tone="critical" title="Save failed">{actionData.error}</Banner>
@@ -223,7 +223,7 @@ export default function RuleShipping() {
               <BlockStack gap="400">
                 <BlockStack gap="200">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Reward type</Text>
-                  <BlockStack gap="100">
+                  <div className="sr-radio-row">
                     <RadioButton
                       label="Free shipping"
                       helpText="Remove shipping cost when cart meets the threshold."
@@ -240,7 +240,7 @@ export default function RuleShipping() {
                       name="rewardType"
                       onChange={() => setRewardType("reduced_rate")}
                     />
-                  </BlockStack>
+                  </div>
                 </BlockStack>
 
                 <Divider />
