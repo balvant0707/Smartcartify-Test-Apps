@@ -18,10 +18,7 @@ import prisma from "../db.server";
 import { upsertAutomaticBasic } from "../shopify-discount.server";
 
 const CART_STEPS = ["Cart Step 1", "Cart Step 2", "Cart Step 3", "Cart Step 4"];
-const CART_STEP_OPTIONS = [
-  { label: "Select cart step", value: "", disabled: true },
-  ...CART_STEPS.map((step) => ({ label: step, value: step })),
-];
+const DISABLED_CART_STEP_LABEL = "Cart Step 5";
 
 function normalizeCartStep(value) {
   if (value === undefined || value === null) return "";
@@ -104,7 +101,7 @@ export const loader = async ({ request }) => {
     }
   }
   const defaultCartStepName = normalizeCartStep(record?.cartStepName) || await nextCartStepForShop(session.shop);
-  return { record, defaultCartStepName };
+  return { record, defaultCartStepName, cartStepLimitReached: !record && !defaultCartStepName };
 };
 
 // ─── Action ──────────────────────────────────────────────────────────────────
@@ -125,7 +122,16 @@ export const action = async ({ request }) => {
     return { error: "Cart step must be Cart Step 1, Cart Step 2, Cart Step 3, or Cart Step 4." };
   }
 
-  if (await cartStepAlreadyUsed(shop, normalizedCartStepName, id)) {
+  const existingCartStepName = id
+    ? await prisma.discountRule.findFirst({
+        where: { id: parseInt(id, 10), shop },
+        select: { cartStepName: true },
+      })
+    : null;
+  const cartStepChanged =
+    !id || normalizeCartStep(existingCartStepName?.cartStepName) !== normalizedCartStepName;
+
+  if (cartStepChanged && await cartStepAlreadyUsed(shop, normalizedCartStepName, id)) {
     return { error: "This cart step is already used. Only four cart steps are allowed." };
   }
 
@@ -239,10 +245,8 @@ export default function RuleAutoDiscount() {
   const [cartStepName, setCartStepName] = useState(
     normalizeCartStep(r?.cartStepName) || loaderData?.defaultCartStepName || ""
   );
-  const cartStepLimitReached = !recordId && !loaderData?.defaultCartStepName;
-  const cartStepOptions = cartStepLimitReached
-    ? [{ label: "All 4 cart steps are already used", value: "", disabled: true }]
-    : CART_STEP_OPTIONS;
+  const cartStepLimitReached = !recordId && Boolean(loaderData?.cartStepLimitReached);
+  const cartStepDisplayValue = cartStepLimitReached ? DISABLED_CART_STEP_LABEL : cartStepName;
 
   // Discount value
   const [valueType, setValueType] = useState(r?.valueType ?? "percent");
@@ -513,13 +517,14 @@ export default function RuleAutoDiscount() {
                   onChange={(v) => setEnabled(v === "true")}
                 />
                 <TextField label="Rule name" value={campaignName} onChange={setCampaignName} autoComplete="off" />
-                <Select
+                <TextField
                   label="Cart step"
-                  options={cartStepOptions}
-                  value={cartStepName}
+                  value={cartStepDisplayValue}
                   onChange={setCartStepName}
+                  autoComplete="off"
                   disabled={cartStepLimitReached}
-                  helpText={cartStepLimitReached ? "All 4 cart steps are already used. Remove a cart-step rule to add another." : "Which cart step this rule appears on."}
+                  placeholder="e.g. Cart Step 1"
+                  helpText={cartStepLimitReached ? "Cart Step 5 is disabled. Only 4 cart steps are allowed." : "Which cart step this rule appears on."}
                 />
               </BlockStack>
             </div>
