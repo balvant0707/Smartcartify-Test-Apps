@@ -147,19 +147,19 @@ const RULE_ROUTES = {
 
 const RULE_META = {
   "shipping":           { label: "Shipping Rule",       icon: DeliveryIcon,  color: "#0ea5e9", bg: "#f0f9ff" },
-  "automatic-discount": { label: "Auto Discount",        icon: DiscountIcon,  color: "#f59e0b", bg: "#fffbeb" },
-  "free-product":       { label: "Free Product",         icon: GiftCardIcon,  color: "#8b5cf6", bg: "#f5f3ff" },
+  "automatic-discount": { label: "Automatic Discount",   icon: DiscountIcon,  color: "#f59e0b", bg: "#fffbeb" },
+  "free-product":       { label: "Free Product Discount", icon: GiftCardIcon,  color: "#8b5cf6", bg: "#f5f3ff" },
   "code-discount":      { label: "Code Discount",        icon: CodeIcon,      color: "#10b981", bg: "#ecfdf5" },
-  "buy-x-get-y":        { label: "Buy X Get Y",          icon: GiftCardIcon,  color: "#ef4444", bg: "#fff1f2" },
+  "buy-x-get-y":        { label: "Buy X Get Y Discount", icon: GiftCardIcon,  color: "#ef4444", bg: "#fff1f2" },
 };
 
 const TABS = [
   { id: "all",              content: "All rules" },
   { id: "shipping",         content: "Shipping" },
-  { id: "automatic-discount", content: "Auto Discount" },
-  { id: "free-product",     content: "Free Product" },
+  { id: "automatic-discount", content: "Automatic Discount" },
+  { id: "free-product",     content: "Free Product Discount" },
   { id: "code-discount",    content: "Code Discount" },
-  { id: "buy-x-get-y",      content: "Buy X Get Y" },
+  { id: "buy-x-get-y",      content: "Buy X Get Y Discount" },
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────
