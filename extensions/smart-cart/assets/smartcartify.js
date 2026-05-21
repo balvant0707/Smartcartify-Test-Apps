@@ -875,6 +875,9 @@
 
     const replaced = replaceTokens(text, {
       goal: goalToken,
+      amount: goalToken,
+      remaining: remainingText,
+      goal_amount: goalText,
       discount: discountTokens.value,
       discount_value: discountTokens.value,
       discount_value_with_off: discountTokens.valueWithOff,
@@ -3360,11 +3363,14 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-size:var(--sc-small-font-size);
   color:var(--sc-progress-text);
   text-align:center;
-  line-height:1.1;
-  max-width:92px;
+  line-height:1.2;
+  max-width:80px;
   overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  word-break:break-word;
+  white-space:normal;
 }
 
 .sc-legends{display:none !important;}
@@ -5427,7 +5433,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   ========================================================= */
   const buildSteps = () => {
     const assignment = {};
-    const subtotalCents = Number(CART?.items_subtotal_price || 0);
+    const subtotalCents = getCartOriginalSubtotalCents();
     const subtotalRupees = subtotalCents / priceDivisor();
 
     CODE_DISCOUNT_RULES = [];
@@ -5503,7 +5509,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const title =
         trimToNull(rule?.campaignName) ||
         belowRaw ||
-        (type === "shipping" ? "Shipping" : type === "discount" ? "Discount" : "Free Product");
+        (type === "shipping" ? "Shipping" : type === "discount" ? "Discount" : type === "free" ? "Free Gift" : "Reward");
 
       const progressMetric = getRuleProgressMetric(type, rule);
       const unlockCents =

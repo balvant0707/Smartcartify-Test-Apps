@@ -6,11 +6,13 @@ import {
   Text,
   Box,
   BlockStack,
+  InlineStack,
   Button,
   Badge,
   Modal,
+  Icon,
 } from "@shopify/polaris";
-import { DeleteIcon, EditIcon } from "@shopify/polaris-icons";
+import { DeleteIcon, EditIcon, DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
@@ -27,33 +29,57 @@ export const loader = async ({ request }) => {
     prisma.shippingRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true },
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, minSubtotal: true, maxSubtotal: true, cartStepName: true },
     }),
     prisma.discountRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        type: true,
-        campaignName: true,
-        codeCampaignName: true,
-        enabled: true,
-        updatedAt: true,
-      },
+      select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true },
     }),
     prisma.freeGiftRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true },
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true },
     }),
     prisma.bxgyRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true },
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, xQty: true, yQty: true, scope: true },
     }),
   ]);
 
-  // Normalise into a single list; code-discount rules live in discountrule with type="code".
+  const fmtMoney = (v) => (v ? `$${v}` : null);
+
+  const shippingMeta = (r) => {
+    const reward = r.rewardType === "free" ? "Free shipping" : r.rewardType === "reduced_rate" ? "Reduced rate" : "Shipping";
+    const parts = [];
+    if (r.minSubtotal) parts.push(`Min ${fmtMoney(r.minSubtotal)}`);
+    if (r.maxSubtotal) parts.push(`Max ${fmtMoney(r.maxSubtotal)}`);
+    return parts.length ? `${reward} · ${parts.join(" – ")}` : reward;
+  };
+
+  const discountMeta = (r) => {
+    const value = r.value ? (r.valueType === "percent" ? `${r.value}% off` : `$${r.value} off`) : null;
+    const trigger = r.triggerType === "quantity" && r.minQuantity
+      ? `Min ${r.minQuantity} item${r.minQuantity !== "1" ? "s" : ""}`
+      : r.minPurchase ? `Min ${fmtMoney(r.minPurchase)}` : null;
+    return [value, trigger].filter(Boolean).join(" · ") || "No value set";
+  };
+
+  const freeGiftMeta = (r) => {
+    const trigger = r.triggerType === "quantity" && r.minQuantity
+      ? `Min ${r.minQuantity} item${r.minQuantity !== "1" ? "s" : ""}`
+      : r.minPurchase ? `Min ${fmtMoney(r.minPurchase)}` : "No minimum";
+    return `Free gift · ${trigger}`;
+  };
+
+  const formatCartStep = (value) => {
+    if (!value) return "";
+    const compact = String(value).trim().toLowerCase().replace(/[_-]/g, "").replace(/\s+/g, "");
+    const match = compact.match(/(?:cart)?step(\d+)$/) || compact.match(/^(\d+)$/);
+    return match ? `Cart Step ${match[1]}` : String(value).replace(/^Step\b/i, "Cart Step");
+  };
+
   const rules = [
     ...shippingRows.map((r) => ({
       id: r.id,
@@ -61,6 +87,8 @@ export const loader = async ({ request }) => {
       name: r.campaignName || "Shipping Rule",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
+      meta: shippingMeta(r),
+      cartStep: formatCartStep(r.cartStepName),
     })),
     ...discountRows
       .filter((r) => String(r.type || "").toLowerCase() !== "code")
@@ -70,6 +98,8 @@ export const loader = async ({ request }) => {
         name: r.campaignName || "Automatic Discount",
         status: r.enabled ? "active" : "disabled",
         updatedAt: r.updatedAt,
+        meta: discountMeta(r),
+        cartStep: formatCartStep(r.cartStepName),
       })),
     ...freeRows.map((r) => ({
       id: r.id,
@@ -77,6 +107,8 @@ export const loader = async ({ request }) => {
       name: r.campaignName || "Free Product",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
+      meta: freeGiftMeta(r),
+      cartStep: formatCartStep(r.cartStepName),
     })),
     ...discountRows
       .filter((r) => String(r.type || "").toLowerCase() === "code")
@@ -86,6 +118,8 @@ export const loader = async ({ request }) => {
         name: r.codeCampaignName || r.campaignName || "Code Discount",
         status: r.enabled ? "active" : "disabled",
         updatedAt: r.updatedAt,
+        meta: discountMeta(r),
+        cartStep: formatCartStep(r.cartStepName),
       })),
     ...bxgyRows.map((r) => ({
       id: r.id,
@@ -93,6 +127,8 @@ export const loader = async ({ request }) => {
       name: r.campaignName || "Buy X Get Y",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
+      meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " · Storewide" : ""}`,
+      cartStep: "",
     })),
   ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
@@ -284,20 +320,19 @@ const RULE_ROUTES = {
   "upsell": "/app/rule-upsell",
 };
 
-const RULE_TYPE_LABELS = {
-  "shipping": "Shipping Rule",
-  "automatic-discount": "Automatic Discount",
-  "free-product": "Free Product",
-  "code-discount": "Code Discount",
-  "buy-x-get-y": "Buy X Get Y",
-  "upsell": "Upsell Products",
-};
-
 const STATUS_TONE = {
   active: "success",
   disabled: "critical",
   draft: "info",
   paused: "warning",
+};
+
+const RULE_META = {
+  "shipping":           { label: "Shipping Rule",        icon: DeliveryIcon,  color: "#0ea5e9", bg: "#f0f9ff" },
+  "automatic-discount": { label: "Automatic Discount",   icon: DiscountIcon,  color: "#f59e0b", bg: "#fffbeb" },
+  "free-product":       { label: "Free Product Discount",icon: GiftCardIcon,  color: "#8b5cf6", bg: "#f5f3ff" },
+  "code-discount":      { label: "Code Discount",        icon: CodeIcon,      color: "#10b981", bg: "#ecfdf5" },
+  "buy-x-get-y":        { label: "Buy X Get Y Discount", icon: GiftCardIcon,  color: "#ef4444", bg: "#fff1f2" },
 };
 
 // ─── RuleTypeListItem ─────────────────────────────────────────────────────────
@@ -470,76 +505,109 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
 }
 
 // ─── RulesTable ───────────────────────────────────────────────────────────────
-// Shows existing rules from all legacy tables in a unified list.
 
 function RulesTable({ rules, onEdit, onDelete }) {
   if (!rules.length) return null;
   return (
-    <div
-      style={{
-        border: "1px solid #e1e3e5",
-        borderRadius: "10px",
-        overflow: "hidden",
-        background: "#fff",
-        marginBottom: "24px",
-      }}
-    >
-      <div
-        style={{
-          padding: "14px 18px",
-          borderBottom: "1px solid #e1e3e5",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Text variant="headingSm" fontWeight="semibold" as="h3">
-          My rules
-        </Text>
+    <div style={{ border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
+      {/* Header */}
+      <div style={{ padding: "12px 20px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Text variant="headingSm" fontWeight="semibold" as="h3">My rules</Text>
         <Badge>{rules.length}</Badge>
       </div>
-      <div>
-        {rules.map((rule, i) => (
+
+      {/* Column headers */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(180px, 2fr) 150px 120px 110px 120px 90px",
+        gap: "12px",
+        padding: "8px 20px",
+        background: "#f9fafb",
+        borderBottom: "1px solid #e1e3e5",
+      }}>
+        {["Rule", "Type", "Cart Step", "Status", "Last updated", "Actions"].map((h) => (
+          <Text key={h} variant="bodySm" fontWeight="semibold" tone="subdued" as="p">{h}</Text>
+        ))}
+      </div>
+
+      {/* Rows */}
+      {rules.map((rule, i) => {
+        const meta = RULE_META[rule.ruleType] || {};
+        const isLast = i === rules.length - 1;
+        return (
           <div
             key={`${rule.ruleType}-${rule.id}`}
             style={{
-              display: "flex",
-              alignItems: "center",
+              display: "grid",
+              gridTemplateColumns: "minmax(180px, 2fr) 150px 120px 110px 120px 90px",
               gap: "12px",
-              padding: "12px 18px",
-              borderBottom: i < rules.length - 1 ? "1px solid #f1f1f1" : "none",
+              padding: "12px 20px",
+              alignItems: "center",
+              borderBottom: isLast ? "none" : "1px solid #f1f3f5",
+              transition: "background 0.1s",
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Text variant="bodyMd" fontWeight="semibold" as="p">
-                {rule.name}
-              </Text>
-              <Text variant="bodySm" tone="subdued" as="p">
-                {RULE_TYPE_LABELS[rule.ruleType] || rule.ruleType}
-              </Text>
+            {/* Rule name + meta */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+              <div style={{
+                width: "34px", height: "34px", borderRadius: "8px", flexShrink: 0,
+                background: meta.bg || "#f3f4f6",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <span style={{ color: meta.color || "#6b7280" }}>
+                  <Icon source={meta.icon || DiscountIcon} />
+                </span>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <Text variant="bodyMd" fontWeight="semibold" as="p" truncate>{rule.name}</Text>
+                <Text variant="bodySm" tone="subdued" as="p">{rule.meta}</Text>
+              </div>
             </div>
-            <Badge tone={STATUS_TONE[rule.status] || "info"}>
-              {rule.status}
-            </Badge>
-            <Text variant="bodySm" tone="subdued" as="p">
-              {new Date(rule.updatedAt).toLocaleDateString()}
+
+            {/* Type badge */}
+            <div>
+              <span style={{
+                display: "inline-block",
+                fontSize: "11px", fontWeight: 600,
+                padding: "3px 8px", borderRadius: "4px",
+                background: meta.bg || "#f3f4f6",
+                color: meta.color || "#374151",
+                border: `1px solid ${meta.color ? meta.color + "33" : "#e1e3e5"}`,
+                whiteSpace: "nowrap",
+              }}>
+                {meta.label || rule.ruleType}
+              </span>
+            </div>
+
+            {/* Cart Step */}
+            <Text variant="bodySm" tone={rule.cartStep ? undefined : "subdued"} as="p">
+              {rule.cartStep || "—"}
             </Text>
-            <Button
-              size="slim"
-              icon={EditIcon}
-              onClick={() => onEdit(rule)}
-              accessibilityLabel="Edit"
-            />
-            <Button
-              size="slim"
-              icon={DeleteIcon}
-              tone="critical"
-              variant="plain"
-              onClick={() => onDelete(rule)}
-              accessibilityLabel="Delete"
-            />
+
+            {/* Status */}
+            <Badge tone={STATUS_TONE[rule.status] || "info"}>
+              {rule.status === "active" ? "Active" : "Disabled"}
+            </Badge>
+
+            {/* Date */}
+            <Text variant="bodySm" tone="subdued" as="p">
+              {new Date(rule.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            </Text>
+
+            {/* Actions */}
+            <InlineStack gap="200">
+              <Button size="slim" icon={EditIcon} onClick={() => onEdit(rule)} accessibilityLabel="Edit" />
+              <Button size="slim" icon={DeleteIcon} tone="critical" variant="plain" onClick={() => onDelete(rule)} accessibilityLabel="Delete" />
+            </InlineStack>
           </div>
-        ))}
+        );
+      })}
+
+      {/* Footer */}
+      <div style={{ padding: "8px 20px", borderTop: "1px solid #f1f3f5", background: "#f9fafb" }}>
+        <Text variant="bodySm" tone="subdued" as="p">{rules.length} rule{rules.length !== 1 ? "s" : ""}</Text>
       </div>
     </div>
   );

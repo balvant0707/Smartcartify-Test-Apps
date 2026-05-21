@@ -173,8 +173,8 @@ export default function RuleCodeDiscount() {
   const [minQuantity, setMinQuantity] = useState(r?.minQuantity ?? "");
 
   // Messages
-  const [progressTextBefore, setProgressTextBefore] = useState(r?.progressTextBefore ?? "");
-  const [progressTextAfter, setProgressTextAfter] = useState(r?.progressTextAfter ?? "");
+  const [progressTextBefore, setProgressTextBefore] = useState(r?.progressTextBefore ?? "Spend {{amount}} more to unlock code {{discount_code}}!");
+  const [progressTextAfter, setProgressTextAfter] = useState(r?.progressTextAfter ?? "Use code {{discount_code}} to get {{discount_value_with_off}}! 🎉");
   const [progressTextBelow, setProgressTextBelow] = useState(r?.progressTextBelow ?? "");
 
   // Schedule

@@ -75,6 +75,14 @@ const CODE_BASIC_UPDATE = `#graphql
     }
   }`;
 
+const REDEEM_CODE_BULK_ADD = `#graphql
+  mutation discountRedeemCodeBulkAdd($discountId: ID!, $codes: [DiscountRedeemCodeInput!]!) {
+    discountRedeemCodeBulkAdd(discountId: $discountId, codes: $codes) {
+      bulkCreation { id }
+      userErrors { field message }
+    }
+  }`;
+
 // ─── Helper: parse GQL response ──────────────────────────────────────────────
 
 async function gql(admin, query, variables) {
@@ -515,13 +523,13 @@ export async function upsertBxgy(admin, {
       items: { all: true },
       value: minReqType === "spend"
         ? { subtotalAmount: { amount: String(parseFloat(minSpend || "0")), currencyCode: "USD" } }
-        : { quantity: { quantity: parseInt(minQty || "1") } },
+        : { quantity: { quantity: String(parseInt(minQty || "1", 10)) } },
     },
     customerGets: {
       items: { all: true },
       value: {
         discountOnQuantity: {
-          quantity: parseInt(rewardQty || "1"),
+          quantity: String(parseInt(rewardQty || "1", 10)),
           effect: rewardType === "free_product"
             ? { percentage: 1.0 }
             : { percentage: parseFloat(rewardDiscount || "0") / 100 },
@@ -585,32 +593,34 @@ export async function upsertDiscountCode(admin, {
   };
 
   if (existingId) {
-    let data = await gql(admin, CODE_BASIC_UPDATE, { id: existingId, input: { ...input, codes: { add: [] } } });
+    let data = await gql(admin, CODE_BASIC_UPDATE, { id: existingId, input });
     if (hasUniqueTitleError(data, "discountCodeBasicUpdate")) {
       data = await gql(admin, CODE_BASIC_UPDATE, {
         id: existingId,
-        input: {
-          ...input,
-          title: uniqueDiscountTitle(input.title),
-          codes: { add: [] },
-        },
+        input: { ...input, title: uniqueDiscountTitle(input.title) },
       });
     }
     assertDiscountMutationSuccess(data, "discountCodeBasicUpdate", "Shopify code discount update");
     return data?.data?.discountCodeBasicUpdate?.codeDiscountNode?.id || existingId;
   }
-  let data = await gql(admin, CODE_BASIC_CREATE, { input: { ...input, codes: { add: [{ code }] } } });
+
+  let data = await gql(admin, CODE_BASIC_CREATE, { input });
   if (hasUniqueTitleError(data, "discountCodeBasicCreate")) {
     data = await gql(admin, CODE_BASIC_CREATE, {
-      input: {
-        ...input,
-        title: uniqueDiscountTitle(input.title),
-        codes: { add: [{ code }] },
-      },
+      input: { ...input, title: uniqueDiscountTitle(input.title) },
     });
   }
   assertDiscountMutationSuccess(data, "discountCodeBasicCreate", "Shopify code discount create");
   const createdId = data?.data?.discountCodeBasicCreate?.codeDiscountNode?.id;
   if (!createdId) throw new Error("Shopify code discount create failed: missing discount id");
+
+  // Add the redemption code separately — `codes` is not part of DiscountCodeBasicInput
+  if (code) {
+    await gql(admin, REDEEM_CODE_BULK_ADD, {
+      discountId: createdId,
+      codes: [{ code: String(code).toUpperCase().trim() }],
+    });
+  }
+
   return createdId;
 }
