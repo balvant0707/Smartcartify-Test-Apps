@@ -48,7 +48,6 @@ import {
   PlusCircleIcon,
   MinusCircleIcon,
 } from "@shopify/polaris-icons";
-import { authenticate, apiVersion } from "../shopify.server";
 import prisma from "../db.server";
 import {
   syncMinAmountFreeGiftDiscount,
@@ -1535,7 +1534,7 @@ const DELIVERY_PROFILE_ZONES_QUERY = `
 `;
 
 // Use centralized API version from shopify.server.js
-const ADMIN_API_VERSION = apiVersion;
+const ADMIN_API_VERSION = "2025-10";
 
 const ENABLE_SHOPIFY_SHIPPING_SYNC =
   process.env.ENABLE_SHOPIFY_SHIPPING_SYNC !== "false";
@@ -2834,6 +2833,7 @@ const ICON_POLARIS = {
 };
 
 export const loader = async ({ request }) => {
+  const { authenticate } = await import("../shopify.server");
   const { session } = await authenticate.admin(request);
   const sessionShop = session.shop;
   const shop = sessionShop || null;
@@ -3040,6 +3040,7 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
+  const { authenticate } = await import("../shopify.server");
   const { session } = await authenticate.admin(request);
   const contentType = request.headers.get("content-type") || "";
   if (contentType.includes("multipart/form-data")) {
@@ -5028,7 +5029,7 @@ const buildFreeShippingCodeInput = (rule, code, currencyCode = "USD", index = nu
   const minSubtotalInput = minSubtotal ? minSubtotal.toFixed(2) : null;
   const baseTitle = `Free shipping ${minSubtotal ? formatCurrency(minSubtotal, currencyCode) : ""}`.trim();
   return {
-    title: appendRuleIndexSuffix(baseTitle, index),
+    title: appendRuleIndexSuffix(withAppNameTitle(baseTitle, "Free Shipping"), index),
     code,
     ...scheduleInputFields(rule),
     customerSelection: { all: true },
@@ -5077,6 +5078,15 @@ const appendRuleIndexSuffix = (title, index) => {
   return `${title} #${normalized + 1}`;
 };
 
+const SHOPIFY_TITLE_APP_NAME = "CartLift: Cart Drawer & Upsell";
+
+const withAppNameTitle = (title, fallback = "Discount") => {
+  const base = String(title || fallback).trim() || fallback;
+  return base.toLowerCase().includes(SHOPIFY_TITLE_APP_NAME.toLowerCase())
+    ? base
+    : `${SHOPIFY_TITLE_APP_NAME} ${base}`;
+};
+
 const appendUniqueTitleSuffix = (title) => {
   const base = String(title || "Discount").trim() || "Discount";
   const suffix = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
@@ -5111,7 +5121,7 @@ const buildDiscountCodeInput = (
   const value = Math.max(num(rule.value), 0);
   const titleValue = buildDiscountDisplayTitle(rule, currencyCode);
   return {
-    title: appendRuleIndexSuffix(`CartLift ${titleValue}`, index),
+    title: appendRuleIndexSuffix(withAppNameTitle(titleValue, "Code Discount"), index),
     code,
     ...scheduleInputFields(rule),
     customerSelection: { all: true },
@@ -5139,7 +5149,7 @@ const buildAutomaticDiscountInput = (
   const titleValue = buildDiscountDisplayTitle(rule, currencyCode);
 
   return {
-    title: appendRuleIndexSuffix(`CartLift: Cart Drawer & Upsell Auto ${titleValue}`, index),
+    title: appendRuleIndexSuffix(withAppNameTitle(`Auto ${titleValue}`, "Automatic Discount"), index),
     ...scheduleInputFields(rule),
     customerGets: {
       value: buildDiscountValueInput(rule, currencyCode),
@@ -5239,7 +5249,10 @@ const buildBxgyCustomerGets = (rule = {}, selection) => {
 const buildBxgyAutomaticInput = (rule = {}, index = 0) => {
   const selection = buildBxgySelection(rule);
   const usageLimit = Math.max(num(rule.maxGifts), 0);
-  const baseTitle = rule.campaignName?.trim() || rule.title || `CartLift: Cart Drawer & Upsell BXGY ${rule.xQty || "X"} x ${rule.yQty || "Y"}`;
+  const baseTitle = withAppNameTitle(
+    rule.campaignName?.trim() || rule.title || `BXGY ${rule.xQty || "X"} x ${rule.yQty || "Y"}`,
+    "Buy X Get Y Discount"
+  );
   const suffix = typeof index === "number" ? ` (#${index + 1})` : "";
   const title = `${baseTitle}${suffix}`;
   const customerGets = buildBxgyCustomerGets(rule, selection);
@@ -6187,7 +6200,7 @@ const buildAutomaticFreeShippingInput = (rule, index = null) => {
     }`.trim();
 
   return {
-    title: appendRuleIndexSuffix(baseTitle, index),
+    title: appendRuleIndexSuffix(withAppNameTitle(baseTitle, "Free Shipping"), index),
     ...scheduleInputFields(rule),
     minimumRequirement: minSubtotalInput
       ? { subtotal: { greaterThanOrEqualToSubtotal: minSubtotalInput } }
@@ -6476,33 +6489,56 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
           adminGraphql(shopDomain, accessToken, codeMutation, {
             basicCodeDiscount: input,
           });
+        const createCodeWithUniqueTitle = async () =>
+          adminGraphql(shopDomain, accessToken, codeMutation, {
+            basicCodeDiscount: {
+              ...input,
+              title: appendUniqueTitleSuffix(input.title),
+            },
+          });
         const update = async () =>
           adminGraphql(shopDomain, accessToken, codeUpdateMutation, {
             id: existingId,
             basicCodeDiscount: input,
           });
+        const updateCodeWithUniqueTitle = async () =>
+          adminGraphql(shopDomain, accessToken, codeUpdateMutation, {
+            id: existingId,
+            basicCodeDiscount: {
+              ...input,
+              title: appendUniqueTitleSuffix(input.title),
+            },
+          });
 
         const data = existingId
           ? await update().catch(async (err) => {
+            if (
+              err instanceof Error &&
+              err.message.includes("Title must be unique")
+            ) {
+              return updateCodeWithUniqueTitle();
+            }
             logger.warn(
               "[SHOPIFY DISCOUNT] code update failed, creating replacement",
               err
             );
             await deleteShopifyDiscountById(shopDomain, accessToken, existingId);
-            return create();
+            return create().catch((createErr) => {
+              if (
+                createErr instanceof Error &&
+                createErr.message.includes("Title must be unique")
+              ) {
+                return createCodeWithUniqueTitle();
+              }
+              throw createErr;
+            });
           })
           : await create().catch(async (err) => {
             if (
               err instanceof Error &&
               err.message.includes("Title must be unique")
             ) {
-              await findAndDeleteDiscountByTitle(
-                shopDomain,
-                accessToken,
-                input.title,
-                "code"
-              );
-              return create();
+              return createCodeWithUniqueTitle();
             }
             throw err;
           });
@@ -6632,6 +6668,18 @@ const syncBxgyRulesToShopify = async (rules = [], shopDomain, accessToken) => {
             automaticBxgyDiscount: input,
           }
         );
+      const createBxgyWithUniqueTitle = async () =>
+        adminGraphql(
+          shopDomain,
+          accessToken,
+          AUTOMATIC_BXGY_DISCOUNT_MUTATION,
+          {
+            automaticBxgyDiscount: {
+              ...input,
+              title: appendUniqueTitleSuffix(input.title),
+            },
+          }
+        );
       const update = async () =>
         adminGraphql(
           shopDomain,
@@ -6642,9 +6690,28 @@ const syncBxgyRulesToShopify = async (rules = [], shopDomain, accessToken) => {
             automaticBxgyDiscount: input,
           }
         );
+      const updateBxgyWithUniqueTitle = async () =>
+        adminGraphql(
+          shopDomain,
+          accessToken,
+          AUTOMATIC_BXGY_DISCOUNT_UPDATE_MUTATION,
+          {
+            id: rule.buyxgetyId,
+            automaticBxgyDiscount: {
+              ...input,
+              title: appendUniqueTitleSuffix(input.title),
+            },
+          }
+        );
 
       const data = rule.buyxgetyId
         ? await update().catch(async (err) => {
+          if (
+            err instanceof Error &&
+            err.message.includes("Title must be unique")
+          ) {
+            return updateBxgyWithUniqueTitle();
+          }
           logger.warn(
             "[SHOPIFY BXGY] update failed, creating replacement",
             err
@@ -6654,20 +6721,22 @@ const syncBxgyRulesToShopify = async (rules = [], shopDomain, accessToken) => {
             accessToken,
             rule.buyxgetyId
           );
-          return create();
+          return create().catch((createErr) => {
+            if (
+              createErr instanceof Error &&
+              createErr.message.includes("Title must be unique")
+            ) {
+              return createBxgyWithUniqueTitle();
+            }
+            throw createErr;
+          });
         })
         : await create().catch(async (err) => {
           if (
             err instanceof Error &&
             err.message.includes("Title must be unique")
           ) {
-            await findAndDeleteDiscountByTitle(
-              shopDomain,
-              accessToken,
-              input.title,
-              "automatic"
-            );
-            return create();
+            return createBxgyWithUniqueTitle();
           }
           throw err;
         });

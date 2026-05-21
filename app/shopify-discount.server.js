@@ -90,6 +90,15 @@ const COMBINES_WITH_ORDER_DISCOUNTS = {
   shippingDiscounts: false,
 };
 
+const SHOPIFY_TITLE_APP_NAME = "CartLift: Cart Drawer & Upsell";
+
+function withAppNameTitle(title, fallback = "Discount") {
+  const base = String(title || fallback).trim() || fallback;
+  return base.toLowerCase().includes(SHOPIFY_TITLE_APP_NAME.toLowerCase())
+    ? base
+    : `${SHOPIFY_TITLE_APP_NAME} ${base}`;
+}
+
 function graphqlTopLevelErrorMessage(errors = []) {
   return errors
     .map((err) => [err?.message, err?.extensions?.code].filter(Boolean).join(" "))
@@ -311,7 +320,7 @@ async function findDeliveryMethodDefinitionWithRetry(admin, profileId, name, pri
  */
 export async function upsertFreeShipping(admin, { existingId, title, startsAt, endsAt, minSubtotal }) {
   const input = {
-    title,
+    title: withAppNameTitle(title, "Free Shipping"),
     startsAt: startsAt || new Date().toISOString(),
     endsAt: endsAt || null,
     minimumRequirement: {
@@ -347,7 +356,7 @@ export async function upsertShippingRate(admin, { existingId, title, rewardType,
   }
 
   const methodDefinition = {
-    name: title || (price > 0 ? "Reduced Shipping" : "Free Shipping"),
+    name: withAppNameTitle(title || (price > 0 ? "Reduced Shipping" : "Free Shipping"), "Shipping"),
     active: true,
     rateDefinition: {
       price: {
@@ -434,7 +443,7 @@ export async function upsertAutomaticBasic(admin, {
   existingId, title, startsAt, endsAt, minSubtotal, isPercentage, discountValue,
 }) {
   const input = {
-    title,
+    title: withAppNameTitle(title, "Automatic Discount"),
     startsAt: startsAt || new Date().toISOString(),
     endsAt: endsAt || null,
     minimumRequirement: minSubtotal
@@ -450,7 +459,16 @@ export async function upsertAutomaticBasic(admin, {
   };
 
   if (existingId) {
-    const data = await gql(admin, AUTOMATIC_BASIC_UPDATE, { id: existingId, input });
+    let data = await gql(admin, AUTOMATIC_BASIC_UPDATE, { id: existingId, input });
+    if (hasUniqueTitleError(data, "discountAutomaticBasicUpdate")) {
+      data = await gql(admin, AUTOMATIC_BASIC_UPDATE, {
+        id: existingId,
+        input: {
+          ...input,
+          title: uniqueDiscountTitle(input.title),
+        },
+      });
+    }
     assertDiscountMutationSuccess(data, "discountAutomaticBasicUpdate", "Shopify automatic discount update");
     return data?.data?.discountAutomaticBasicUpdate?.automaticDiscountNode?.id || existingId;
   }
@@ -477,7 +495,7 @@ export async function upsertBxgy(admin, {
   existingId, title, startsAt, endsAt, minReqType, minQty, minSpend, rewardQty, rewardType, rewardDiscount,
 }) {
   const input = {
-    title,
+    title: withAppNameTitle(title, "Buy X Get Y Discount"),
     startsAt: startsAt || new Date().toISOString(),
     endsAt: endsAt || null,
     customerBuys: {
@@ -501,11 +519,28 @@ export async function upsertBxgy(admin, {
   };
 
   if (existingId) {
-    const data = await gql(admin, BXGY_UPDATE, { id: existingId, input });
+    let data = await gql(admin, BXGY_UPDATE, { id: existingId, input });
+    if (hasUniqueTitleError(data, "discountAutomaticBxgyUpdate")) {
+      data = await gql(admin, BXGY_UPDATE, {
+        id: existingId,
+        input: {
+          ...input,
+          title: uniqueDiscountTitle(input.title),
+        },
+      });
+    }
     assertDiscountMutationSuccess(data, "discountAutomaticBxgyUpdate", "Shopify Buy X Get Y discount update");
     return data?.data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id || existingId;
   }
-  const data = await gql(admin, BXGY_CREATE, { input });
+  let data = await gql(admin, BXGY_CREATE, { input });
+  if (hasUniqueTitleError(data, "discountAutomaticBxgyCreate")) {
+    data = await gql(admin, BXGY_CREATE, {
+      input: {
+        ...input,
+        title: uniqueDiscountTitle(input.title),
+      },
+    });
+  }
   assertDiscountMutationSuccess(data, "discountAutomaticBxgyCreate", "Shopify Buy X Get Y discount create");
   const createdId = data?.data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id;
   if (!createdId) throw new Error("Shopify Buy X Get Y discount create failed: missing discount id");
@@ -520,7 +555,7 @@ export async function upsertDiscountCode(admin, {
   existingId, title, code, startsAt, endsAt, isPercentage, discountValue, minSubtotal,
 }) {
   const input = {
-    title,
+    title: withAppNameTitle(title, "Code Discount"),
     startsAt: startsAt || new Date().toISOString(),
     endsAt: endsAt || null,
     customerSelection: { all: true },
@@ -538,11 +573,30 @@ export async function upsertDiscountCode(admin, {
   };
 
   if (existingId) {
-    const data = await gql(admin, CODE_BASIC_UPDATE, { id: existingId, input: { ...input, codes: { add: [] } } });
+    let data = await gql(admin, CODE_BASIC_UPDATE, { id: existingId, input: { ...input, codes: { add: [] } } });
+    if (hasUniqueTitleError(data, "discountCodeBasicUpdate")) {
+      data = await gql(admin, CODE_BASIC_UPDATE, {
+        id: existingId,
+        input: {
+          ...input,
+          title: uniqueDiscountTitle(input.title),
+          codes: { add: [] },
+        },
+      });
+    }
     assertDiscountMutationSuccess(data, "discountCodeBasicUpdate", "Shopify code discount update");
     return data?.data?.discountCodeBasicUpdate?.codeDiscountNode?.id || existingId;
   }
-  const data = await gql(admin, CODE_BASIC_CREATE, { input: { ...input, codes: { add: [{ code }] } } });
+  let data = await gql(admin, CODE_BASIC_CREATE, { input: { ...input, codes: { add: [{ code }] } } });
+  if (hasUniqueTitleError(data, "discountCodeBasicCreate")) {
+    data = await gql(admin, CODE_BASIC_CREATE, {
+      input: {
+        ...input,
+        title: uniqueDiscountTitle(input.title),
+        codes: { add: [{ code }] },
+      },
+    });
+  }
   assertDiscountMutationSuccess(data, "discountCodeBasicCreate", "Shopify code discount create");
   const createdId = data?.data?.discountCodeBasicCreate?.codeDiscountNode?.id;
   if (!createdId) throw new Error("Shopify code discount create failed: missing discount id");

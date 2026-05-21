@@ -131,6 +131,12 @@ const ALL_PRODUCTS_COLLECTION_QUERY = `
 const ALL_PRODUCTS_COLLECTION_HANDLES = ["all", "all-products"];
 const allProductsCollectionCache = new TTLCache();
 
+const appendUniqueTitleSuffix = (title) => {
+  const base = String(title || "Discount").trim() || "Discount";
+  const suffix = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  return `${base} ${suffix}`;
+};
+
 const ALL_PRODUCT_IDS_QUERY = `
   query AllProductIds($first: Int!, $after: String) {
     products(first: $first, after: $after) {
@@ -660,6 +666,18 @@ const syncSingleBxgyDiscount = async (params) => {
       BXGY_DISCOUNT_MUTATION,
       { automaticBxgyDiscount: input },
     );
+  const createWithUniqueTitle = async () =>
+    adminGraphql(
+      shopDomain,
+      accessToken,
+      BXGY_DISCOUNT_MUTATION,
+      {
+        automaticBxgyDiscount: {
+          ...input,
+          title: appendUniqueTitleSuffix(input.title),
+        },
+      },
+    );
 
   const update = async () =>
     adminGraphql(
@@ -671,9 +689,28 @@ const syncSingleBxgyDiscount = async (params) => {
         automaticBxgyDiscount: input,
       },
     );
+  const updateWithUniqueTitle = async () =>
+    adminGraphql(
+      shopDomain,
+      accessToken,
+      BXGY_DISCOUNT_UPDATE_MUTATION,
+      {
+        id: existingDiscountId,
+        automaticBxgyDiscount: {
+          ...input,
+          title: appendUniqueTitleSuffix(input.title),
+        },
+      },
+    );
 
   const data = existingDiscountId
     ? await update().catch(async (err) => {
+      if (
+        err instanceof Error &&
+        err.message.includes("Title must be unique")
+      ) {
+        return updateWithUniqueTitle();
+      }
       logger.warn(
         "Failed to update existing free product discount, creating replacement",
         err,
@@ -683,9 +720,25 @@ const syncSingleBxgyDiscount = async (params) => {
         accessToken,
         existingDiscountId,
       );
-      return create();
+      return create().catch((createErr) => {
+        if (
+          createErr instanceof Error &&
+          createErr.message.includes("Title must be unique")
+        ) {
+          return createWithUniqueTitle();
+        }
+        throw createErr;
+      });
     })
-    : await create();
+    : await create().catch((err) => {
+      if (
+        err instanceof Error &&
+        err.message.includes("Title must be unique")
+      ) {
+        return createWithUniqueTitle();
+      }
+      throw err;
+    });
 
   const nextId =
     data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id ||
