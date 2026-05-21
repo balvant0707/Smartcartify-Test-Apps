@@ -43,6 +43,7 @@ export const action = async ({ request }) => {
     appliesTo, giftType,
   } = body;
 
+  
   const dbData = {
     shop,
     campaignName: campaignName || "Buy X Get Y",
