@@ -484,11 +484,11 @@ export default function RuleShipping() {
                   </div>
                   <div style={{ position: "relative", marginTop: "10px", paddingBottom: "44px" }}>
                     <div style={{ height: "6px", background: "#e1e3e5", borderRadius: "999px", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${progressPct}%`, background: "#d8dde6", borderRadius: "999px", transition: "width 0.15s" }} />
+                      <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#000" : "#d8dde6", borderRadius: "999px", transition: "width 0.15s" }} />
                     </div>
-                    <div style={{ position: "absolute", left: `${Math.min(92, Math.max(8, progressPct))}%`, top: "-8px", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", color: "#303030" }}>
+                    <div style={{ position: "absolute", left: isUnlocked ? "100%" : `${Math.min(92, Math.max(8, progressPct))}%`, top: "-8px", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", color: "#303030" }}>
                       <span style={{ width: "22px", height: "22px", borderRadius: "50%", background: "#303030", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                        <Icon source={DeliveryIcon} />
+                        {isUnlocked ? <span style={{ fontSize: "16px", lineHeight: 1, fontWeight: 700 }}>✓</span> : <Icon source={DeliveryIcon} />}
                       </span>
                       <span style={{ marginTop: "5px", fontSize: "14px", lineHeight: "15px", textAlign: "center", whiteSpace: "pre-line" }}>Free{"\n"}Shipping!</span>
                     </div>
