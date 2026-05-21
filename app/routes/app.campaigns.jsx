@@ -665,13 +665,6 @@ export default function CampaignSelector() {
       )}
 
       <Box paddingBlockEnd="600">
-        {/* Existing rules table */}
-        <RulesTable
-          rules={rules}
-          onEdit={handleEdit}
-          onDelete={setDeleteTarget}
-        />
-
         <Text
           variant="headingSm"
           fontWeight="semibold"

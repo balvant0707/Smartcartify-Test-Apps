@@ -11,6 +11,15 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
+function formatCartStep(value) {
+  if (value === undefined || value === null) return "";
+  const text = String(value).trim();
+  if (!text) return "";
+  const compact = text.toLowerCase().replace(/[_-]/g, "").replace(/\s+/g, "");
+  const match = compact.match(/(?:cart)?step([1-4])$/) || compact.match(/^([1-4])$/);
+  return match ? `Cart Step ${match[1]}` : text.replace(/^Step\b/i, "Cart Step");
+}
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export const loader = async ({ request }) => {
@@ -21,17 +30,17 @@ export const loader = async ({ request }) => {
     prisma.shippingRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, minSubtotal: true },
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, minSubtotal: true, cartStepName: true },
     }),
     prisma.discountRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true },
+      select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true, cartStepName: true },
     }),
     prisma.freeGiftRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, triggerType: true, minPurchase: true },
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, triggerType: true, minPurchase: true, cartStepName: true },
     }),
     prisma.bxgyRule.findMany({
       where: { shop },
@@ -48,6 +57,7 @@ export const loader = async ({ request }) => {
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
       meta: r.minSubtotal ? `Min $${r.minSubtotal}` : "No minimum",
+      cartStep: formatCartStep(r.cartStepName),
     })),
     ...discountRows
       .filter((r) => String(r.type || "").toLowerCase() !== "code")
@@ -58,6 +68,7 @@ export const loader = async ({ request }) => {
         status: r.enabled ? "active" : "disabled",
         updatedAt: r.updatedAt,
         meta: r.value ? (r.valueType === "percent" ? `${r.value}% off` : `$${r.value} off`) : "No value set",
+        cartStep: formatCartStep(r.cartStepName),
       })),
     ...freeRows.map((r) => ({
       id: r.id,
@@ -66,6 +77,7 @@ export const loader = async ({ request }) => {
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
       meta: r.minPurchase ? `Min $${r.minPurchase}` : (r.triggerType === "quantity" ? "Quantity trigger" : "No minimum"),
+      cartStep: formatCartStep(r.cartStepName),
     })),
     ...discountRows
       .filter((r) => String(r.type || "").toLowerCase() === "code")
@@ -76,6 +88,7 @@ export const loader = async ({ request }) => {
         status: r.enabled ? "active" : "disabled",
         updatedAt: r.updatedAt,
         meta: r.value ? (r.valueType === "percent" ? `${r.value}% off` : `$${r.value} off`) : "Display only",
+        cartStep: formatCartStep(r.cartStepName),
       })),
     ...bxgyRows.map((r) => ({
       id: r.id,
@@ -84,6 +97,7 @@ export const loader = async ({ request }) => {
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
       meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free`,
+      cartStep: "",
     })),
   ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
@@ -236,13 +250,13 @@ export default function MyRules() {
               {/* Table header */}
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "2fr 140px 120px 120px 100px",
+                gridTemplateColumns: "minmax(180px, 2fr) 130px 120px 120px 120px 100px",
                 gap: "12px",
                 padding: "10px 20px",
                 background: "#f9fafb",
                 borderBottom: "1px solid #e1e3e5",
               }}>
-                {["Rule", "Type", "Status", "Last updated", "Actions"].map((h) => (
+                {["Rule", "Type", "Cart Step", "Status", "Last updated", "Actions"].map((h) => (
                   <Text key={h} variant="bodySm" fontWeight="semibold" tone="subdued" as="p">{h}</Text>
                 ))}
               </div>
@@ -256,7 +270,7 @@ export default function MyRules() {
                     key={`${rule.ruleType}-${rule.id}`}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "2fr 140px 120px 120px 100px",
+                      gridTemplateColumns: "minmax(180px, 2fr) 130px 120px 120px 120px 100px",
                       gap: "12px",
                       padding: "14px 20px",
                       alignItems: "center",
@@ -297,6 +311,11 @@ export default function MyRules() {
                         {meta.label || rule.ruleType}
                       </span>
                     </div>
+
+                    {/* Cart Step */}
+                    <Text variant="bodySm" tone={rule.cartStep ? undefined : "subdued"} as="p">
+                      {rule.cartStep || "-"}
+                    </Text>
 
                     {/* Status */}
                     <div>
