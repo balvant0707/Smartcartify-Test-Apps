@@ -11,6 +11,7 @@ import {
 import {
   TransferInternalIcon,
   MinimizeIcon, MaximizeIcon, PauseCircleIcon,
+  CalendarIcon, ClockIcon, EditIcon, PersonFilledIcon,
   SearchIcon, XSmallIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
@@ -41,6 +42,9 @@ export const action = async ({ request }) => {
   const {
     id, campaignName, enabled, xQty, yQty, scope,
     appliesTo, giftType,
+    beforeOfferUnlockMessage, afterOfferUnlockMessage,
+    startsAt, endsAt, priority,
+    customerTarget, customerTags,
   } = body;
 
   
@@ -57,13 +61,13 @@ export const action = async ({ request }) => {
     maxGifts: null,
     allowStacking: false,
     appliesStore: scope === "entire_store",
-    beforeOfferUnlockMessage: null,
-    afterOfferUnlockMessage: null,
-    startsAt: null,
-    endsAt: null,
-    priority: 0,
-    customerTarget: "all",
-    customerTags: null,
+    beforeOfferUnlockMessage: beforeOfferUnlockMessage || null,
+    afterOfferUnlockMessage: afterOfferUnlockMessage || null,
+    startsAt: startsAt ? new Date(startsAt) : null,
+    endsAt: endsAt ? new Date(endsAt) : null,
+    priority: parseInt(priority || "0") || 0,
+    customerTarget: customerTarget || "all",
+    customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
   };
 
   try {
@@ -80,8 +84,8 @@ export const action = async ({ request }) => {
       const shopifyId = await upsertBxgy(admin, {
         existingId: existingShopifyId,
         title: campaignName || "Buy X Get Y",
-        startsAt: null,
-        endsAt: null,
+        startsAt: startsAt || null,
+        endsAt: endsAt || null,
         minReqType: "quantity",
         minQty: xQty || "1",
         minSpend: null,
@@ -289,6 +293,27 @@ export default function RuleBxgy() {
   const [yQty, setYQty] = useState(r?.yQty ?? "1");
   const [giftType, setGiftType] = useState(r?.giftType ?? "free_product");
 
+  // Schedule
+  const today = new Date().toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
+  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
+  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
+  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
+  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
+
+  // Targeting & priority
+  const [priority, setPriority] = useState(String(r?.priority ?? "0"));
+  const [customerTarget, setCustomerTarget] = useState(r?.customerTarget ?? "all");
+  const [customerTags, setCustomerTags] = useState(r?.customerTags ?? "");
+
+  // Content settings
+  const [beforeOfferUnlockMessage, setBeforeOfferUnlockMessage] = useState(
+    r?.beforeOfferUnlockMessage ?? "Add {{x}} more items to get {{y}} free"
+  );
+  const [afterOfferUnlockMessage, setAfterOfferUnlockMessage] = useState(
+    r?.afterOfferUnlockMessage ?? "Congratulations! You've earned a free item"
+  );
+
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle") navigate(withHost("/app/campaigns"));
   }, [actionData, navigation.state]);
@@ -304,6 +329,13 @@ export default function RuleBxgy() {
         scope,
         appliesTo: appliesTo.length ? JSON.stringify(appliesTo) : null,
         giftType,
+        beforeOfferUnlockMessage,
+        afterOfferUnlockMessage,
+        priority,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+        customerTarget,
+        customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
       },
       { method: "post", encType: "application/json" }
     );
@@ -448,6 +480,92 @@ export default function RuleBxgy() {
               </BlockStack>
             </SectionCard>
 
+            <SectionCard icon={CalendarIcon} title="Schedule" defaultOpen={false}>
+              <BlockStack gap="400">
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Active dates</Text>
+                  <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", padding: "16px" }}>
+                    <BlockStack gap="300">
+                      <div className="bxgy-field-row">
+                        <TextField label="Start date" type="date" value={startDate} onChange={setStartDate} prefix={<Icon source={CalendarIcon} />} autoComplete="off" />
+                        <TextField label="Start time" type="time" value={startTime} onChange={setStartTime} prefix={<Icon source={ClockIcon} />} autoComplete="off" />
+                      </div>
+                      <Checkbox label="Set end date" checked={hasEndDate} onChange={setHasEndDate} />
+                      {hasEndDate && (
+                        <div className="bxgy-field-row">
+                          <TextField label="End date" type="date" value={endDate} onChange={setEndDate} prefix={<Icon source={CalendarIcon} />} autoComplete="off" />
+                          <TextField label="End time" type="time" value={endTime} onChange={setEndTime} prefix={<Icon source={ClockIcon} />} autoComplete="off" />
+                        </div>
+                      )}
+                    </BlockStack>
+                  </div>
+                </BlockStack>
+              </BlockStack>
+            </SectionCard>
+
+            <SectionCard icon={PersonFilledIcon} title="Targeting & priority" defaultOpen={false}>
+              <BlockStack gap="400">
+                <Select
+                  label="Customer target"
+                  options={[
+                    { label: "All customers", value: "all" },
+                    { label: "Customers with tag", value: "has_tag" },
+                    { label: "Customers without tag", value: "no_tag" },
+                    { label: "Logged in customers only", value: "logged_in" },
+                    { label: "Guest customers only", value: "guest" },
+                  ]}
+                  value={customerTarget}
+                  onChange={setCustomerTarget}
+                  helpText="Choose which customers this rule applies to."
+                />
+                {(customerTarget === "has_tag" || customerTarget === "no_tag") && (
+                  <TextField
+                    label="Customer tags"
+                    value={customerTags}
+                    onChange={setCustomerTags}
+                    autoComplete="off"
+                    placeholder="vip, wholesale, member"
+                    helpText="Comma-separated list of customer tags to match."
+                  />
+                )}
+                <Divider />
+                <TextField
+                  label="Priority"
+                  type="number"
+                  value={priority}
+                  onChange={setPriority}
+                  autoComplete="off"
+                  helpText="Higher number = evaluated first when multiple rules are active."
+                />
+              </BlockStack>
+            </SectionCard>
+
+            <SectionCard icon={EditIcon} title="Content Settings" defaultOpen={false}>
+              <BlockStack gap="300">
+                <div className="bxgy-field-row">
+                  <TextField
+                    label="Before Offer Unlock Message"
+                    value={beforeOfferUnlockMessage}
+                    onChange={setBeforeOfferUnlockMessage}
+                    autoComplete="off"
+                    helpText="Use {{x}} and {{y}} to mention quantities."
+                  />
+                  <TextField
+                    label="After Offer Unlock Message"
+                    value={afterOfferUnlockMessage}
+                    onChange={setAfterOfferUnlockMessage}
+                    autoComplete="off"
+                    helpText="Celebrate the customer once they unlock the offer."
+                  />
+                </div>
+                <TextField
+                  label="Campaign name"
+                  value={campaignName}
+                  onChange={setCampaignName}
+                  autoComplete="off"
+                />
+              </BlockStack>
+            </SectionCard>
 
           </BlockStack>
 
