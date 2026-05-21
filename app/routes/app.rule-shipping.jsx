@@ -20,12 +20,17 @@ function normalizeCartStep(value) {
   if (value === undefined || value === null) return "";
   const text = String(value).trim().toLowerCase();
   const compact = text.replace(/[_-]/g, "").replace(/\s+/g, "");
-  const direct = compact.match(/^step([1-4])$/);
+  const direct = compact.match(/^step(\d+)$/);
   if (direct) return `Cart Step ${direct[1]}`;
-  const cartStep = compact.match(/^cartstep([1-4])$/);
+  const cartStep = compact.match(/^cartstep(\d+)$/);
   if (cartStep) return `Cart Step ${cartStep[1]}`;
-  const number = text.match(/^([1-4])$/);
+  const number = text.match(/^(\d+)$/);
   return number ? `Cart Step ${number[1]}` : "";
+}
+
+function cartStepNumber(normalizedName) {
+  const m = String(normalizedName || "").match(/Cart Step (\d+)/i);
+  return m ? parseInt(m[1], 10) : 0;
 }
 
 async function cartStepDisplayContextForShop(prisma, shop) {
@@ -126,9 +131,10 @@ export const action = async ({ request }) => {
     startsAt, endsAt, cartStepName,
   } = body;
   const normalizedCartStepName = normalizeCartStep(cartStepName);
+  const stepNum = cartStepNumber(normalizedCartStepName);
 
   if (!normalizedCartStepName) {
-    return { error: "Cart step must be Cart Step 1, Cart Step 2, Cart Step 3, or Cart Step 4." };
+    return { error: "Please enter a valid cart step (e.g. Cart Step 1)." };
   }
 
   const existingCartStepName = id
@@ -141,7 +147,7 @@ export const action = async ({ request }) => {
     !id || normalizeCartStep(existingCartStepName?.cartStepName) !== normalizedCartStepName;
 
   if (cartStepChanged && await cartStepAlreadyUsed(prisma, shop, normalizedCartStepName, id)) {
-    return { error: "This cart step is already used. Only four cart steps are allowed." };
+    return { error: "This cart step is already used by another rule." };
   }
 
   if (
@@ -159,7 +165,7 @@ export const action = async ({ request }) => {
   const dbData = {
     shop,
     campaignName: campaignName || "Shipping Rule",
-    enabled: enabled !== false,
+    enabled: stepNum >= 5 ? false : (enabled !== false),
     rewardType: rewardType || "free_shipping",
     amount: amount ? String(amount) : null,
     minSubtotal: minSubtotal ? String(minSubtotal) : "0",
@@ -200,7 +206,7 @@ export const action = async ({ request }) => {
       record = await prisma.shippingRule.create({ data: dbData });
     }
 
-    if (enabled !== false) {
+    if (enabled !== false && stepNum < 5) {
       try {
         const shopifyId = await upsertShippingRate(admin, {
           existingId: existingShopifyId,
@@ -328,7 +334,7 @@ export default function RuleShipping() {
         progressTextBefore,
         progressTextAfter,
         progressTextBelow,
-        cartStepName: normalizeCartStep(cartStepName),
+        cartStepName: cartStepLimitReached ? cartStepDisplayValue : normalizeCartStep(cartStepName),
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
       },
@@ -347,7 +353,7 @@ export default function RuleShipping() {
     <Page
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
       title={campaignName || "Shipping Rule"}
-      primaryAction={{ content: "Save", loading: isSaving, disabled: cartStepLimitReached, onAction: handleSave }}
+      primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
       secondaryActions={[{ content: enabled ? "Disable" : "Enable", onAction: () => setEnabled(v => !v) }]}
     >
       <style>{`.sr-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}.sr-radio-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}@media(max-width:900px){.sr-layout{grid-template-columns:1fr}}@media(max-width:640px){.sr-radio-row{grid-template-columns:1fr}}`}</style>
@@ -521,7 +527,7 @@ export default function RuleShipping() {
                   autoComplete="off"
                   disabled={cartStepLimitReached}
                   placeholder="e.g. Cart Step 1"
-                  helpText={cartStepLimitReached ? `${cartStepDisplayValue} is disabled. Only 4 cart steps are allowed.` : "Which cart step this rule appears on."}
+                  helpText={cartStepLimitReached ? `${cartStepDisplayValue}: all active slots are full — rule will be saved as disabled.` : "Which cart step this rule appears on."}
                 />
               </BlockStack>
             </div>

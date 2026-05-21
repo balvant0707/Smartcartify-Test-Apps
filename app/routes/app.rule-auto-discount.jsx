@@ -20,12 +20,17 @@ function normalizeCartStep(value) {
   if (value === undefined || value === null) return "";
   const text = String(value).trim().toLowerCase();
   const compact = text.replace(/[_-]/g, "").replace(/\s+/g, "");
-  const direct = compact.match(/^step([1-4])$/);
+  const direct = compact.match(/^step(\d+)$/);
   if (direct) return `Cart Step ${direct[1]}`;
-  const cartStep = compact.match(/^cartstep([1-4])$/);
+  const cartStep = compact.match(/^cartstep(\d+)$/);
   if (cartStep) return `Cart Step ${cartStep[1]}`;
-  const number = text.match(/^([1-4])$/);
+  const number = text.match(/^(\d+)$/);
   return number ? `Cart Step ${number[1]}` : "";
+}
+
+function cartStepNumber(normalizedName) {
+  const m = String(normalizedName || "").match(/Cart Step (\d+)/i);
+  return m ? parseInt(m[1], 10) : 0;
 }
 
 async function cartStepDisplayContextForShop(prisma, shop) {
@@ -127,9 +132,10 @@ export const action = async ({ request }) => {
     customerTarget, customerTags, cartStepName,
   } = body;
   const normalizedCartStepName = normalizeCartStep(cartStepName);
+  const stepNum = cartStepNumber(normalizedCartStepName);
 
   if (!normalizedCartStepName) {
-    return { error: "Cart step must be Cart Step 1, Cart Step 2, Cart Step 3, or Cart Step 4." };
+    return { error: "Please enter a valid cart step (e.g. Cart Step 1)." };
   }
 
   const existingCartStepName = id
@@ -142,14 +148,14 @@ export const action = async ({ request }) => {
     !id || normalizeCartStep(existingCartStepName?.cartStepName) !== normalizedCartStepName;
 
   if (cartStepChanged && await cartStepAlreadyUsed(prisma, shop, normalizedCartStepName, id)) {
-    return { error: "This cart step is already used. Only four cart steps are allowed." };
+    return { error: "This cart step is already used by another rule." };
   }
 
   const dbData = {
     shop,
     type: "automatic",
     campaignName: campaignName || "Automatic Discount",
-    enabled: enabled !== false,
+    enabled: stepNum >= 5 ? false : (enabled !== false),
     valueType: valueType || "percent",
     value: value ? String(value) : "0",
     triggerType: triggerType || "amount",
@@ -177,17 +183,19 @@ export const action = async ({ request }) => {
       existingShopifyId = existing?.shopifyDiscountCodeId || null;
     }
 
-    const shopifyId = await upsertAutomaticBasic(admin, {
-      existingId: existingShopifyId,
-      title: campaignName || "Automatic Discount",
-      startsAt: startsAt || null,
-      endsAt: endsAt || null,
-      enabled: enabled !== false,
-      minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,
-      isPercentage: valueType !== "amount",
-      discountValue: value || "0",
-    });
-    if (shopifyId) dbData.shopifyDiscountCodeId = shopifyId;
+    if (stepNum < 5) {
+      const shopifyId = await upsertAutomaticBasic(admin, {
+        existingId: existingShopifyId,
+        title: campaignName || "Automatic Discount",
+        startsAt: startsAt || null,
+        endsAt: endsAt || null,
+        enabled: enabled !== false,
+        minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,
+        isPercentage: valueType !== "amount",
+        discountValue: value || "0",
+      });
+      if (shopifyId) dbData.shopifyDiscountCodeId = shopifyId;
+    }
 
     let record;
     if (id) {
@@ -315,7 +323,7 @@ export default function RuleAutoDiscount() {
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
         customerTarget,
         customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
-        cartStepName: normalizeCartStep(cartStepName),
+        cartStepName: cartStepLimitReached ? cartStepDisplayValue : normalizeCartStep(cartStepName),
       },
       { method: "post", encType: "application/json" }
     );
@@ -338,7 +346,7 @@ export default function RuleAutoDiscount() {
     <Page
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
       title={campaignName || "Automatic Discount"}
-      primaryAction={{ content: "Save", loading: isSaving, disabled: cartStepLimitReached, onAction: handleSave }}
+      primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
       secondaryActions={[{ content: enabled ? "Disable" : "Enable", onAction: () => setEnabled(v => !v) }]}
     >
       <style>{`.ad-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.ad-layout{grid-template-columns:1fr}}`}</style>
@@ -536,7 +544,7 @@ export default function RuleAutoDiscount() {
                   autoComplete="off"
                   disabled={cartStepLimitReached}
                   placeholder="e.g. Cart Step 1"
-                  helpText={cartStepLimitReached ? `${cartStepDisplayValue} is disabled. Only 4 cart steps are allowed.` : "Which cart step this rule appears on."}
+                  helpText={cartStepLimitReached ? `${cartStepDisplayValue}: all active slots are full — rule will be saved as disabled.` : "Which cart step this rule appears on."}
                 />
               </BlockStack>
             </div>
