@@ -17,18 +17,18 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { upsertAutomaticBasic } from "../shopify-discount.server";
 
-const CART_STEPS = ["Step 1", "Step 2", "Step 3", "Step 4"];
+const CART_STEPS = ["Cart Step 1", "Cart Step 2", "Cart Step 3", "Cart Step 4"];
 
 function normalizeCartStep(value) {
   if (value === undefined || value === null) return "";
   const text = String(value).trim().toLowerCase();
   const compact = text.replace(/[_-]/g, "").replace(/\s+/g, "");
   const direct = compact.match(/^step([1-4])$/);
-  if (direct) return `Step ${direct[1]}`;
+  if (direct) return `Cart Step ${direct[1]}`;
   const cartStep = compact.match(/^cartstep([1-4])$/);
-  if (cartStep) return `Step ${cartStep[1]}`;
+  if (cartStep) return `Cart Step ${cartStep[1]}`;
   const number = text.match(/([1-4])/);
-  return number ? `Step ${number[1]}` : "";
+  return number ? `Cart Step ${number[1]}` : "";
 }
 
 async function nextCartStepForShop(shop) {
@@ -107,7 +107,7 @@ export const action = async ({ request }) => {
     rewardType: valueType === "amount" ? "amount" : "percent",
     customerTarget: customerTarget || "all",
     customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
-    cartStepName: String(cartStepName || "").trim() || "Step 1",
+    cartStepName: String(cartStepName || "").trim() || "Cart Step 1",
   };
 
   try {
@@ -195,7 +195,7 @@ export default function RuleAutoDiscount() {
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? "Automatic Discount");
   const [enabled, setEnabled] = useState(r?.enabled !== false);
   const [cartStepName, setCartStepName] = useState(
-    r?.cartStepName ?? loaderData?.defaultCartStepName ?? "Step 1"
+    r?.cartStepName ?? loaderData?.defaultCartStepName ?? "Cart Step 1"
   );
 
   // Discount value
@@ -253,7 +253,7 @@ export default function RuleAutoDiscount() {
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
         customerTarget,
         customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
-        cartStepName: String(cartStepName || "").trim() || "Step 1",
+        cartStepName: String(cartStepName || "").trim() || "Cart Step 1",
       },
       { method: "post", encType: "application/json" }
     );
@@ -262,7 +262,7 @@ export default function RuleAutoDiscount() {
   const discountLabel = value
     ? valueType === "percent" ? `${value}% off` : `$${value} off`
     : "discount";
-  const cartStepLabel = cartStepName?.trim() || "Step 1";
+  const cartStepLabel = cartStepName?.trim() || "Cart Step 1";
 
   const [sliderValue, setSliderValue] = useState(50);
   const threshold = parseFloat(triggerType === "amount" ? (minPurchase || 100) : 1);
@@ -472,7 +472,7 @@ export default function RuleAutoDiscount() {
                   value={cartStepName}
                   onChange={setCartStepName}
                   autoComplete="off"
-                  placeholder="e.g. Step 1"
+                  placeholder="e.g. Cart Step 1"
                   helpText="Which cart step this rule appears on."
                 />
               </BlockStack>
