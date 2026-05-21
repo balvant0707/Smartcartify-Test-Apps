@@ -268,7 +268,7 @@ const RULE_TYPES = [
 
 const TABS = [
   { id: "all", content: "All" },
-   { id: "shipping", content: "Shipping" },
+  { id: "shipping", content: "Shipping" },
   { id: "discounts", content: "Discounts" },
   { id: "free-products", content: "Free Products" },
   { id: "upsell", content: "Upsell" },
@@ -583,16 +583,16 @@ export default function CampaignSelector() {
     activeCategory === "all"
       ? [
           {
+            label: "Shipping",
+            items: RULE_TYPES.filter((r) => r.category === "shipping"),
+          },
+          {
             label: "Discounts",
             items: RULE_TYPES.filter((r) => r.category === "discounts"),
           },
           {
             label: "Free Products",
             items: RULE_TYPES.filter((r) => r.category === "free-products"),
-          },
-          {
-            label: "Shipping",
-            items: RULE_TYPES.filter((r) => r.category === "shipping"),
           },
           {
             label: "Upsell",
