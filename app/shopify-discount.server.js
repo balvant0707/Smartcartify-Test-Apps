@@ -177,7 +177,7 @@ async function deleteDeliveryMethodDefinition(admin, profileId, methodDefinition
   }
 }
 
-async function findDeliveryMethodDefinition(admin, profileId, name, price, minSubtotal) {
+async function findDeliveryMethodDefinition(admin, profileId, name, price, minSubtotal, maxSubtotal) {
   const query = `#graphql
     query DeliveryProfileMethods($id: ID!) {
       deliveryProfile(id: $id) {
@@ -222,6 +222,7 @@ async function findDeliveryMethodDefinition(admin, profileId, name, price, minSu
   const groups = data?.data?.deliveryProfile?.profileLocationGroups || [];
   const normalizedPrice = Number(price || 0).toFixed(2);
   const normalizedMin = minSubtotal !== null && minSubtotal !== undefined ? Number(minSubtotal || 0).toFixed(2) : null;
+  const normalizedMax = maxSubtotal !== null && maxSubtotal !== undefined ? Number(maxSubtotal || 0).toFixed(2) : null;
 
   for (const group of groups) {
     const zones = group?.locationGroupZones?.edges || [];
@@ -233,15 +234,24 @@ async function findDeliveryMethodDefinition(admin, profileId, name, price, minSu
         const methodPrice = provider?.__typename === "DeliveryRateDefinition" && provider?.price?.amount !== undefined
           ? Number(provider.price.amount || 0).toFixed(2)
           : null;
-        const subtotalCondition = (method?.methodConditions || []).find((condition) => {
+        const subtotalConditions = (method?.methodConditions || []).filter((condition) => {
           const field = condition?.field;
           return field === "SUBTOTAL" || field === "ORDER_SUBTOTAL" || field === "TOTAL_PRICE";
         });
-        const methodMin = subtotalCondition?.conditionCriteria?.__typename === "MoneyV2"
-          ? Number(subtotalCondition.conditionCriteria.amount || 0).toFixed(2)
+        const minCondition = subtotalConditions.find((condition) =>
+          String(condition?.operator || "").includes("GREATER")
+        );
+        const maxCondition = subtotalConditions.find((condition) =>
+          String(condition?.operator || "").includes("LESS")
+        );
+        const methodMin = minCondition?.conditionCriteria?.__typename === "MoneyV2"
+          ? Number(minCondition.conditionCriteria.amount || 0).toFixed(2)
+          : null;
+        const methodMax = maxCondition?.conditionCriteria?.__typename === "MoneyV2"
+          ? Number(maxCondition.conditionCriteria.amount || 0).toFixed(2)
           : null;
 
-        if (method?.name === name && methodPrice === normalizedPrice && methodMin === normalizedMin) {
+        if (method?.name === name && methodPrice === normalizedPrice && methodMin === normalizedMin && methodMax === normalizedMax) {
           return method.id;
         }
       }
@@ -280,10 +290,15 @@ export async function upsertFreeShipping(admin, { existingId, title, startsAt, e
  * Create or replace a Shopify Admin shipping-zone rate.
  * Returns the DeliveryMethodDefinition GID string.
  */
-export async function upsertShippingRate(admin, { existingId, title, rewardType, amount, minSubtotal }) {
+export async function upsertShippingRate(admin, { existingId, title, rewardType, amount, minSubtotal, maxSubtotal }) {
   const context = await firstDeliveryProfileContext(admin);
   const price = rewardType === "reduced_rate" ? Number(amount || 0) : 0;
   const min = minSubtotal !== "" && minSubtotal !== null && minSubtotal !== undefined ? Number(minSubtotal || 0) : null;
+  const max = maxSubtotal !== "" && maxSubtotal !== null && maxSubtotal !== undefined ? Number(maxSubtotal || 0) : null;
+
+  if (min !== null && max !== null && max < min) {
+    throw new Error("Maximum cart value must be greater than or equal to minimum cart value.");
+  }
 
   if (existingId) {
     await deleteDeliveryMethodDefinition(admin, context.profileId, existingId);
@@ -300,16 +315,30 @@ export async function upsertShippingRate(admin, { existingId, title, rewardType,
     },
   };
 
+  const priceConditionsToCreate = [];
+
   if (min !== null) {
-    methodDefinition.priceConditionsToCreate = [
-      {
+    priceConditionsToCreate.push({
         operator: "GREATER_THAN_OR_EQUAL_TO",
         criteria: {
           amount: min.toFixed(2),
           currencyCode: context.currencyCode,
         },
+      });
+  }
+
+  if (max !== null) {
+    priceConditionsToCreate.push({
+      operator: "LESS_THAN_OR_EQUAL_TO",
+      criteria: {
+        amount: max.toFixed(2),
+        currencyCode: context.currencyCode,
       },
-    ];
+    });
+  }
+
+  if (priceConditionsToCreate.length) {
+    methodDefinition.priceConditionsToCreate = priceConditionsToCreate;
   }
 
   const data = await gql(admin, DELIVERY_PROFILE_UPDATE, {
@@ -344,7 +373,8 @@ export async function upsertShippingRate(admin, { existingId, title, rewardType,
     context.profileId,
     methodDefinition.name,
     price,
-    min
+    min,
+    max
   );
 
   if (!createdId) {

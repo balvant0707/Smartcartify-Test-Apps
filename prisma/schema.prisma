@@ -57,6 +57,7 @@ model ShippingRule {
   rateType                  String?
   amount                    String?
   minSubtotal               String?
+  maxSubtotal               String?
   method                    String
   enabled                   Boolean   @default(true)
   createdAt                 DateTime  @default(now())

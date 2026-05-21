@@ -39,10 +39,22 @@ export const action = async ({ request }) => {
   const shop = session.shop;
   const body = await request.json();
   const {
-    id, campaignName, enabled, rewardType, amount, minSubtotal,
+    id, campaignName, enabled, rewardType, amount, minSubtotal, maxSubtotal,
     method, progressTextBefore, progressTextAfter, progressTextBelow,
     startsAt, endsAt, cartStepName,
   } = body;
+
+  if (
+    minSubtotal !== "" &&
+    minSubtotal !== null &&
+    minSubtotal !== undefined &&
+    maxSubtotal !== "" &&
+    maxSubtotal !== null &&
+    maxSubtotal !== undefined &&
+    Number(maxSubtotal) < Number(minSubtotal)
+  ) {
+    return { error: "Maximum cart value must be greater than or equal to minimum cart value." };
+  }
 
   const dbData = {
     shop,
@@ -51,6 +63,7 @@ export const action = async ({ request }) => {
     rewardType: rewardType || "free_shipping",
     amount: amount ? String(amount) : null,
     minSubtotal: minSubtotal ? String(minSubtotal) : "0",
+    maxSubtotal: maxSubtotal ? String(maxSubtotal) : null,
     method: method || "Free Shipping",
     progressTextBefore: progressTextBefore || null,
     progressTextAfter: progressTextAfter || null,
@@ -82,6 +95,7 @@ export const action = async ({ request }) => {
           rewardType: rewardType || "free_shipping",
           amount: amount || "0",
           minSubtotal: minSubtotal || "0",
+          maxSubtotal: maxSubtotal || null,
         });
         if (shopifyId) {
           dbData.shopifyRateId = shopifyId;
@@ -156,6 +170,7 @@ export default function RuleShipping() {
   // Threshold
   const [rewardType, setRewardType] = useState(r?.rewardType ?? "free_shipping");
   const [minSubtotal, setMinSubtotal] = useState(r?.minSubtotal ?? "");
+  const [maxSubtotal, setMaxSubtotal] = useState(r?.maxSubtotal ?? "");
   const [amount, setAmount] = useState(r?.amount ?? "");
   const [method, setMethod] = useState(r?.method ?? "Free Shipping");
 
@@ -188,6 +203,7 @@ export default function RuleShipping() {
         enabled,
         rewardType,
         minSubtotal,
+        maxSubtotal,
         amount,
         method,
         progressTextBefore,
@@ -264,6 +280,19 @@ export default function RuleShipping() {
                     placeholder="e.g. 50"
                     helpText="Cart must reach this value to unlock the reward."
                   />
+                  <TextField
+                    label="Maximum cart value"
+                    type="number"
+                    value={maxSubtotal}
+                    onChange={setMaxSubtotal}
+                    autoComplete="off"
+                    prefix="$"
+                    placeholder="Optional"
+                    helpText="Optional upper cart value where this shipping rate stops applying."
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   {rewardType === "reduced_rate" && (
                     <TextField
                       label="Reduced rate amount"

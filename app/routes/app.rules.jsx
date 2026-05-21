@@ -1280,6 +1280,7 @@ const LOAD_RULES_QUERY = `
       rateType
       amount
       minSubtotal
+      maxSubtotal
       method
       progressTextBefore
       progressTextAfter
@@ -1544,6 +1545,7 @@ const createDefaultShippingRule = () => ({
   rateType: "flat",
   amount: "0",
   minSubtotal: "300",
+  maxSubtotal: "",
   method: "standard",
   iconChoice: "truck",
   icon: null,
@@ -2259,6 +2261,7 @@ const normalizeShippingRuleForKey = (rule = {}) => ({
   rateType: rule.rewardType === "reduced" ? "flat" : rule.rateType || "flat",
   amount: rule.amount ?? "",
   minSubtotal: rule.minSubtotal ?? "",
+  maxSubtotal: rule.maxSubtotal ?? "",
   method: rule.method || "standard",
   iconChoice: rule.iconChoice || "truck",
   progressTextBefore: rule.progressTextBefore ?? "",
@@ -2396,6 +2399,7 @@ const buildRulesPayload = (data = {}) => {
           rule.rewardType === "reduced" ? "flat" : rule.rateType || "flat",
         amount: rule.amount ?? "",
         minSubtotal: rule.minSubtotal ?? "",
+        maxSubtotal: rule.maxSubtotal ?? "",
         method: rule.method || "standard",
         iconChoice: rule.iconChoice || "truck",
         progressTextBefore:
@@ -3577,6 +3581,17 @@ export const action = async ({ request }) => {
         });
 
         const rules = dedupeRules(payload, normalizeShippingRuleForKey);
+        const invalidMaxRule = rules.find((rule) =>
+          notEmpty(rule.minSubtotal) &&
+          notEmpty(rule.maxSubtotal) &&
+          num(rule.maxSubtotal) < num(rule.minSubtotal)
+        );
+        if (invalidMaxRule) {
+          return json(
+            { error: "Maximum cart value must be greater than or equal to minimum cart value." },
+            { status: 400 }
+          );
+        }
         const mergedRules = await mergeRulesWithExisting(
           "shipping",
           rules,
@@ -3590,6 +3605,7 @@ export const action = async ({ request }) => {
           rateType: rule.rewardType === "reduced" ? "flat" : rule.rateType ?? "flat",
           amount: rule.amount ?? null,
           minSubtotal: rule.minSubtotal ?? null,
+          maxSubtotal: rule.maxSubtotal ?? null,
           method: rule.method || "standard",
           iconChoice: rule.iconChoice || "truck",
           progressTextBefore: rule.progressTextBefore ?? null,
@@ -3616,6 +3632,7 @@ export const action = async ({ request }) => {
             rateType: rule.rewardType === "reduced" ? "flat" : rule.rateType ?? "flat",
             amount: rule.amount ?? null,
             minSubtotal: rule.minSubtotal ?? null,
+            maxSubtotal: rule.maxSubtotal ?? null,
             method: rule.method || "standard",
             iconChoice: rule.iconChoice || "truck",
             progressTextBefore: rule.progressTextBefore ?? null,
@@ -3692,6 +3709,7 @@ export const action = async ({ request }) => {
             candidate.rateType === target.rateType &&
             same(candidate.amount, target.amount) &&
             same(candidate.minSubtotal, target.minSubtotal) &&
+            same(candidate.maxSubtotal, target.maxSubtotal) &&
             candidate.method === target.method
           );
         };
@@ -4774,7 +4792,8 @@ const shippingSummary = (r, currency = "USD") => {
   const method = r.method === "express" ? "Express" : "Standard";
   const reward = r.rewardType === "free" ? "Free shipping" : r.rateType === "flat" ? `Shipping ${formatCurrency(r.amount || 0, currency)}` : `${r.amount || 0}% off shipping`;
   const threshold = notEmpty(r.minSubtotal) ? `Min ${formatCurrency(r.minSubtotal, currency)}` : "No minimum";
-  return `Summary: ${reward} via ${method}  ${threshold}`;
+  const maximum = notEmpty(r.maxSubtotal) ? `Max ${formatCurrency(r.maxSubtotal, currency)}` : null;
+  return `Summary: ${reward} via ${method}  ${[threshold, maximum].filter(Boolean).join(" / ")}`;
 };
 
 const discountSummary = (r, currency = "USD") => {
@@ -5435,24 +5454,37 @@ const fetchDeliveryProfileZones = async (
             provider.__typename === "DeliveryRateDefinition"
               ? provider.price || null
               : null;
-          const subtotalCondition =
-            (m.methodConditions || []).find((c) => {
+          const subtotalConditions =
+            (m.methodConditions || []).filter((c) => {
               const field = c?.field;
               return (
                 field === "SUBTOTAL" ||
                 field === "ORDER_SUBTOTAL" ||
                 field === "TOTAL_PRICE"
               );
-            }) || null;
+            }) || [];
 
-          const subtotalCriteria = subtotalCondition?.conditionCriteria;
-          const subtotalAmount =
-            subtotalCriteria?.__typename === "MoneyV2"
-              ? subtotalCriteria?.amount
+          const subtotalMinCondition = subtotalConditions.find((condition) =>
+            String(condition?.operator || "").includes("GREATER")
+          );
+          const subtotalMaxCondition = subtotalConditions.find((condition) =>
+            String(condition?.operator || "").includes("LESS")
+          );
+          const subtotalMinCriteria = subtotalMinCondition?.conditionCriteria;
+          const subtotalMaxCriteria = subtotalMaxCondition?.conditionCriteria;
+          const subtotalMinAmount =
+            subtotalMinCriteria?.__typename === "MoneyV2"
+              ? subtotalMinCriteria?.amount
+              : null;
+          const subtotalMaxAmount =
+            subtotalMaxCriteria?.__typename === "MoneyV2"
+              ? subtotalMaxCriteria?.amount
               : null;
           const subtotalCurrency =
-            subtotalCriteria?.__typename === "MoneyV2"
-              ? subtotalCriteria?.currencyCode
+            subtotalMinCriteria?.__typename === "MoneyV2"
+              ? subtotalMinCriteria?.currencyCode
+              : subtotalMaxCriteria?.__typename === "MoneyV2"
+                ? subtotalMaxCriteria?.currencyCode
               : null;
 
           return {
@@ -5461,7 +5493,9 @@ const fetchDeliveryProfileZones = async (
             active: Boolean(m.active),
             priceAmount: price?.amount || null,
             priceCurrency: price?.currencyCode || null,
-            subtotalAmount,
+            subtotalAmount: subtotalMinAmount,
+            subtotalMinAmount,
+            subtotalMaxAmount,
             subtotalCurrency,
           };
         });
@@ -5567,6 +5601,7 @@ const buildDeliveryMethodDefinitionInput = ({
   priceString,
   currencyCode,
   minSubtotalString,
+  maxSubtotalString,
 }) => {
   const normalizedCurrency = (currencyCode || "USD").toUpperCase();
 
@@ -5578,13 +5613,24 @@ const buildDeliveryMethodDefinitionInput = ({
     },
   };
 
+  const priceConditionsToCreate = [];
+
   if (minSubtotalString) {
-    definition.priceConditionsToCreate = [
-      {
-        operator: "GREATER_THAN_OR_EQUAL_TO",
-        criteria: moneyInput(minSubtotalString, normalizedCurrency),
-      },
-    ];
+    priceConditionsToCreate.push({
+      operator: "GREATER_THAN_OR_EQUAL_TO",
+      criteria: moneyInput(minSubtotalString, normalizedCurrency),
+    });
+  }
+
+  if (maxSubtotalString) {
+    priceConditionsToCreate.push({
+      operator: "LESS_THAN_OR_EQUAL_TO",
+      criteria: moneyInput(maxSubtotalString, normalizedCurrency),
+    });
+  }
+
+  if (priceConditionsToCreate.length) {
+    definition.priceConditionsToCreate = priceConditionsToCreate;
   }
   return definition;
 };
@@ -5600,10 +5646,12 @@ const findGraphqlMethodDefinition = (
   zones = [],
   name,
   priceString,
-  minSubtotalString
+  minSubtotalString,
+  maxSubtotalString
 ) => {
   const normalizedPrice = priceString !== null && priceString !== undefined ? Number(priceString).toFixed(2) : null;
   const normalizedMin = minSubtotalString !== null && minSubtotalString !== undefined ? Number(minSubtotalString).toFixed(2) : null;
+  const normalizedMax = maxSubtotalString !== null && maxSubtotalString !== undefined ? Number(maxSubtotalString).toFixed(2) : null;
 
   for (const zone of zones) {
     if (!zone?.deliveryMethods?.length) continue;
@@ -5613,8 +5661,14 @@ const findGraphqlMethodDefinition = (
           ? Number(method.priceAmount).toFixed(2)
           : null;
       const methodMin =
-        method.subtotalAmount !== null && method.subtotalAmount !== undefined
-          ? Number(method.subtotalAmount).toFixed(2)
+        method.subtotalMinAmount !== null && method.subtotalMinAmount !== undefined
+          ? Number(method.subtotalMinAmount).toFixed(2)
+          : method.subtotalAmount !== null && method.subtotalAmount !== undefined
+            ? Number(method.subtotalAmount).toFixed(2)
+            : null;
+      const methodMax =
+        method.subtotalMaxAmount !== null && method.subtotalMaxAmount !== undefined
+          ? Number(method.subtotalMaxAmount).toFixed(2)
           : null;
       const nameMatches = method.name === name;
       const priceMatches =
@@ -5625,7 +5679,11 @@ const findGraphqlMethodDefinition = (
         normalizedMin === null
           ? methodMin === null
           : methodMin === normalizedMin;
-      if (nameMatches && priceMatches && minMatches) {
+      const maxMatches =
+        normalizedMax === null
+          ? methodMax === null
+          : methodMax === normalizedMax;
+      if (nameMatches && priceMatches && minMatches && maxMatches) {
         return method;
       }
     }
@@ -5674,12 +5732,27 @@ const syncShippingRateViaGraphql = async ({
         .toFixed(2)
         .toString()
       : null;
+  const maxSubtotalString =
+    desired.hasMaxSubtotal && desired.maxSubtotal !== null
+      ? Number(desired.maxSubtotal || 0)
+        .toFixed(2)
+        .toString()
+      : null;
+
+  if (
+    minSubtotalString !== null &&
+    maxSubtotalString !== null &&
+    Number(maxSubtotalString) < Number(minSubtotalString)
+  ) {
+    throw new Error("Maximum cart value must be greater than or equal to minimum cart value.");
+  }
 
   const existingMethod = findGraphqlMethodDefinition(
     [zone],
     desired.name,
     priceString,
-    minSubtotalString
+    minSubtotalString,
+    maxSubtotalString
   );
 
   if (existingMethod?.id) {
@@ -5691,6 +5764,7 @@ const syncShippingRateViaGraphql = async ({
     priceString,
     currencyCode,
     minSubtotalString,
+    maxSubtotalString,
   });
 
   try {
@@ -5732,7 +5806,8 @@ const syncShippingRateViaGraphql = async ({
       refreshedZones,
       desired.name,
       priceString,
-      minSubtotalString
+      minSubtotalString,
+      maxSubtotalString
     );
 
     if (created?.id) {
@@ -5783,6 +5858,10 @@ const deleteShippingRatesFromShopify = async (
       rule.minSubtotal !== undefined && rule.minSubtotal !== null
         ? Math.max(num(rule.minSubtotal), 0)
         : null;
+    const maxSubtotal =
+      rule.maxSubtotal !== undefined && rule.maxSubtotal !== null && rule.maxSubtotal !== ""
+        ? Math.max(num(rule.maxSubtotal), 0)
+        : null;
 
     const preservedIndex =
       Number.isInteger(rule._ruleIndex) && rule._ruleIndex >= 0
@@ -5798,6 +5877,8 @@ const deleteShippingRatesFromShopify = async (
 
       minSubtotalString:
         minSubtotal !== null ? Number(minSubtotal).toFixed(2).toString() : null,
+      maxSubtotalString:
+        maxSubtotal !== null ? Number(maxSubtotal).toFixed(2).toString() : null,
     };
   });
 
@@ -5841,8 +5922,14 @@ const deleteShippingRatesFromShopify = async (
             .toFixed(2)
             .toString();
           const subtotalString =
-            m.subtotalAmount !== null && m.subtotalAmount !== undefined
-              ? Number(m.subtotalAmount || 0)
+            m.subtotalMinAmount !== null && m.subtotalMinAmount !== undefined
+              ? Number(m.subtotalMinAmount || 0)
+                .toFixed(2)
+                .toString()
+              : null;
+          const maxSubtotalString =
+            m.subtotalMaxAmount !== null && m.subtotalMaxAmount !== undefined
+              ? Number(m.subtotalMaxAmount || 0)
                 .toFixed(2)
                 .toString()
               : null;
@@ -5852,7 +5939,9 @@ const deleteShippingRatesFromShopify = async (
             m.name === target.name &&
             priceString === target.priceString &&
             (target.minSubtotalString === null ||
-              target.minSubtotalString === subtotalString);
+              target.minSubtotalString === subtotalString) &&
+            (target.maxSubtotalString === null ||
+              target.maxSubtotalString === maxSubtotalString);
 
           if (idMatch || attrMatch) {
             matchedIds.push(m.id);
@@ -5919,11 +6008,16 @@ const syncShippingRatesToShopify = async (rules, shopDomain, accessToken) => {
     .map(({ rule, originalIdx }) => {
       const hasMinSubtotal = notEmpty(rule.minSubtotal);
       const min = hasMinSubtotal ? Math.max(num(rule.minSubtotal), 0) : null;
+      const hasMaxSubtotal = notEmpty(rule.maxSubtotal);
+      const max = hasMaxSubtotal ? Math.max(num(rule.maxSubtotal), 0) : null;
+      if (hasMinSubtotal && hasMaxSubtotal && max < min) {
+        throw new Error("Maximum cart value must be greater than or equal to minimum cart value.");
+      }
       const preservedIdx =
         Number.isInteger(rule._ruleIndex) && rule._ruleIndex >= 0
           ? rule._ruleIndex
           : originalIdx;
-      return { rule, min, hasMinSubtotal, idx: preservedIdx };
+      return { rule, min, max, hasMinSubtotal, hasMaxSubtotal, idx: preservedIdx };
     })
 
     .sort((a, b) => {
@@ -5934,7 +6028,7 @@ const syncShippingRatesToShopify = async (rules, shopDomain, accessToken) => {
 
   const currencyCode = await fetchShopCurrency(shopDomain, accessToken);
 
-  const desiredRates = normalized.map(({ rule, idx, min, hasMinSubtotal }) => {
+  const desiredRates = normalized.map(({ rule, idx, min, max, hasMinSubtotal, hasMaxSubtotal }) => {
     const price =
       rule.rewardType === "free"
         ? 0
@@ -5950,7 +6044,9 @@ const syncShippingRatesToShopify = async (rules, shopDomain, accessToken) => {
       ruleIndex: idx,
       shopifyRateId: rule.shopifyRateId || null,
       minSubtotal: min,
+      maxSubtotal: max,
       hasMinSubtotal,
+      hasMaxSubtotal,
     };
   });
 
@@ -6031,12 +6127,19 @@ const hydrateGraphqlMethodDefinitionIds = async ({
             .toFixed(2)
             .toString()
           : null;
+      const maxSubtotalString =
+        rule.maxSubtotal !== undefined && rule.maxSubtotal !== null && rule.maxSubtotal !== ""
+          ? Number(rule.maxSubtotal || 0)
+            .toFixed(2)
+            .toString()
+          : null;
 
       const matched = findGraphqlMethodDefinition(
         zones,
         buildRateName(rule, ruleIndex),
         priceString,
-        minSubtotalString
+        minSubtotalString,
+        maxSubtotalString
       );
 
       const methodId = normalizeShopifyRateId(matched?.id);
@@ -10568,6 +10671,7 @@ export default function AppRules() {
         rateType: "flat",
         amount: "0",
         minSubtotal: "",
+        maxSubtotal: "",
         method: "standard",
         iconChoice: "truck",
         icon: null,
@@ -11424,6 +11528,26 @@ export default function AppRules() {
                       setShippingRules((x) =>
                         x.map((it, idx) =>
                           idx === i ? { ...it, minSubtotal: v } : it
+                        )
+                      )
+                    }
+                    style={{ minWidth: 110 }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>
+                    Maximum subtotal ({currencySymbol})
+                  </div>
+                  <TextField
+                    size="small"
+                    labelHidden
+                    disabled={shippingReadOnly}
+                    value={r.maxSubtotal || ""}
+                    placeholder="Optional"
+                    onChange={(v) =>
+                      setShippingRules((x) =>
+                        x.map((it, idx) =>
+                          idx === i ? { ...it, maxSubtotal: v } : it
                         )
                       )
                     }
