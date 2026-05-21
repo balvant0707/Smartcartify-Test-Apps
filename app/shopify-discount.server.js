@@ -84,6 +84,12 @@ async function gql(admin, query, variables) {
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const COMBINES_WITH_ORDER_DISCOUNTS = {
+  orderDiscounts: true,
+  productDiscounts: false,
+  shippingDiscounts: false,
+};
+
 function graphqlTopLevelErrorMessage(errors = []) {
   return errors
     .map((err) => [err?.message, err?.extensions?.code].filter(Boolean).join(" "))
@@ -427,6 +433,7 @@ export async function upsertAutomaticBasic(admin, {
         : { discountAmount: { amount: String(parseFloat(discountValue || "0")), appliesOnEachItem: false } },
       items: { all: true },
     },
+    combinesWith: COMBINES_WITH_ORDER_DISCOUNTS,
   };
 
   if (existingId) {
@@ -469,6 +476,7 @@ export async function upsertBxgy(admin, {
         },
       },
     },
+    combinesWith: COMBINES_WITH_ORDER_DISCOUNTS,
   };
 
   if (existingId) {
@@ -505,6 +513,7 @@ export async function upsertDiscountCode(admin, {
     minimumRequirement: minSubtotal
       ? { subtotal: { greaterThanOrEqualToSubtotal: String(parseFloat(minSubtotal)) } }
       : undefined,
+    combinesWith: COMBINES_WITH_ORDER_DISCOUNTS,
   };
 
   if (existingId) {
