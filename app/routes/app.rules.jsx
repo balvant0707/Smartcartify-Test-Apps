@@ -12985,14 +12985,6 @@ export default function AppRules() {
     </BlockStack>
   );
 
-  const bxgyScopeOptions = [
-    { label: "Specific Products", value: "product" },
-
-    { label: "Specific Collections", value: "collection" },
-
-    { label: "Whole Store", value: "store" },
-  ];
-
   const bxgyReadOnly = false;
 
   const BxgyPanel = (
@@ -13064,16 +13056,20 @@ export default function AppRules() {
               <BlockStack gap="200">
                 <div className="rules-field-panel">
                   <BlockStack gap="200">
+                    <Text as="h3" variant="headingSm">
+                      Buy X Get Y Discount
+                    </Text>
+
                     <div
                       className="rules-field-panel--grid"
                       style={{
                         gridTemplateColumns:
-                          "minmax(130px, 200px) minmax(130px, 200px) minmax(140px, 300px)",
+                          "minmax(180px, 1fr) minmax(180px, 1fr)",
                       }}
                     >
 
                       <TextField
-                        label="Buy (X qty)"
+                        label="Customer must buy (X) items"
                         disabled={bxgyReadOnly}
                         value={r.xQty}
                         onChange={(v) =>
@@ -13084,7 +13080,7 @@ export default function AppRules() {
                       />
 
                       <TextField
-                        label="Get (Y qty)"
+                        label="Customer gets (Y) items free/discounted"
                         disabled={bxgyReadOnly}
                         value={r.yQty}
                         onChange={(v) =>
@@ -13093,63 +13089,108 @@ export default function AppRules() {
                           )
                         }
                       />
-                       <TextField
-                          label="Max Uses Per Order"
-                          disabled={bxgyReadOnly}
-                          value={r.maxGifts}
-                          onChange={(v) =>
-                            setBxgyRules((x) =>
-                              x.map((it, idx) =>
-                                idx === i ? { ...it, maxGifts: v } : it
-                              )
-                            )
-                          }
-                        />
                     </div>
 
-                    <InlineStack gap="200" align="start" wrap>
-                      <Select
-                        label="Scope"
-                        disabled={bxgyReadOnly}
-                        options={bxgyScopeOptions}
-                        value={r.scope}
-                        onChange={(v) => {
-                          if (bxgyReadOnly) return;
-                          setBxgyRules((x) =>
-                            x.map((it, idx) =>
-                              idx === i
-                                ? {
-                                  ...it,
-                                  scope: v,
-                                  appliesTo:
-                                    v === "product"
-                                      ? { ...it.appliesTo, collections: [] }
-                                      : v === "collection"
-                                        ? { ...it.appliesTo, products: [] }
-                                        : {
-                                          ...it.appliesTo,
-                                          products: allProductIds,
-                                          collections: [],
-                                        },
-                                }
-                                : it
-                            )
-                          );
+                    <Divider />
 
-                          if (!bxgyScopeValidation[i]) return;
+                    <div
+                      className="rules-field-panel--grid"
+                      style={{
+                        gridTemplateColumns:
+                          "minmax(220px, 1fr) minmax(220px, 1fr)",
+                      }}
+                    >
+                      <BlockStack gap="100">
+                        <Text variant="bodyMd" fontWeight="semibold" as="p">
+                          Applies to
+                        </Text>
+                        <RadioButton
+                          label="Entire store"
+                          helpText="Rule applies to any product in the store."
+                          checked={r.scope === "store"}
+                          id={`bxgy-scope-store-${i}`}
+                          name={`bxgy-scope-${i}`}
+                          disabled={bxgyReadOnly}
+                          onChange={() => {
+                            if (bxgyReadOnly) return;
+                            updateBxgyRuleField(i, "scope", "store");
+                            updateBxgyRuleField(i, "appliesTo", {
+                              products: allProductIds,
+                              collections: [],
+                            });
+                          }}
+                        />
+                        <RadioButton
+                          label="Specific products"
+                          helpText="Rule applies only to the products listed below."
+                          checked={r.scope === "product"}
+                          id={`bxgy-scope-products-${i}`}
+                          name={`bxgy-scope-${i}`}
+                          disabled={bxgyReadOnly}
+                          onChange={() => {
+                            if (bxgyReadOnly) return;
+                            updateBxgyRuleField(i, "scope", "product");
+                            updateBxgyRuleField(i, "appliesTo", {
+                              ...r.appliesTo,
+                              collections: [],
+                            });
+                          }}
+                        />
+                        <RadioButton
+                          label="Specific collections"
+                          helpText="Rule applies to products in the collections listed below."
+                          checked={r.scope === "collection"}
+                          id={`bxgy-scope-collections-${i}`}
+                          name={`bxgy-scope-${i}`}
+                          disabled={bxgyReadOnly}
+                          onChange={() => {
+                            if (bxgyReadOnly) return;
+                            updateBxgyRuleField(i, "scope", "collection");
+                            updateBxgyRuleField(i, "appliesTo", {
+                              ...r.appliesTo,
+                              products: [],
+                            });
+                          }}
+                        />
+                        {bxgyScopeValidation[i] && (
+                          <Text tone="critical" as="p" variant="bodySm">
+                            {bxgyScopeValidation[i]}
+                          </Text>
+                        )}
+                      </BlockStack>
 
-                          setBxgyScopeValidation((prev) => {
-                            if (!prev[i]) return prev;
-
-                            const next = { ...prev };
-
-                            delete next[i];
-
-                            return next;
-                          });
-                        }}
-                        error={bxgyScopeValidation[i]}
-                      />
+                      <BlockStack gap="100">
+                        <Text variant="bodyMd" fontWeight="semibold" as="p">
+                          Reward type
+                        </Text>
+                        <RadioButton
+                          label="Free product (100% off)"
+                          helpText="The Y items are completely free."
+                          checked={
+                            r.giftType === "same" ||
+                            r.giftType === "free_product" ||
+                            !r.giftType
+                          }
+                          id={`bxgy-gift-free-${i}`}
+                          name={`bxgy-gift-type-${i}`}
+                          disabled={bxgyReadOnly}
+                          onChange={() =>
+                            updateBxgyRuleField(i, "giftType", "free_product")
+                          }
+                        />
+                        <RadioButton
+                          label="Percentage discount"
+                          helpText="The Y items receive a percentage discount."
+                          checked={r.giftType === "percentage_off"}
+                          id={`bxgy-gift-percentage-${i}`}
+                          name={`bxgy-gift-type-${i}`}
+                          disabled={bxgyReadOnly}
+                          onChange={() =>
+                            updateBxgyRuleField(i, "giftType", "percentage_off")
+                          }
+                        />
+                      </BlockStack>
+                    </div>
 
                       {showScopePickerControls && (
                         <ScopeResourcePickerControl
@@ -13178,7 +13219,6 @@ export default function AppRules() {
                       )
                     }
                   /> */}
-                    </InlineStack>
                   </BlockStack>
                 </div>
 

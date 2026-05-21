@@ -9,9 +9,8 @@ import {
   Icon, RadioButton, Banner, Modal,
 } from "@shopify/polaris";
 import {
-  TransferInternalIcon, SettingsIcon, EditIcon,
+  TransferInternalIcon,
   MinimizeIcon, MaximizeIcon, PauseCircleIcon,
-  CalendarIcon, ClockIcon, GiftCardIcon, PersonFilledIcon,
   SearchIcon, XSmallIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
@@ -41,10 +40,7 @@ export const action = async ({ request }) => {
   const body = await request.json();
   const {
     id, campaignName, enabled, xQty, yQty, scope,
-    appliesTo, giftType, giftSku, maxGifts, allowStacking,
-    beforeOfferUnlockMessage, afterOfferUnlockMessage,
-    startsAt, endsAt, priority,
-    customerTarget, customerTags,
+    appliesTo, giftType,
   } = body;
 
   const dbData = {
@@ -56,17 +52,17 @@ export const action = async ({ request }) => {
     scope: scope || "entire_store",
     appliesTo: appliesTo || null,
     giftType: giftType || "free_product",
-    giftSku: giftSku ? String(giftSku) : null,
-    maxGifts: maxGifts ? String(maxGifts) : null,
-    allowStacking: allowStacking === true,
+    giftSku: null,
+    maxGifts: null,
+    allowStacking: false,
     appliesStore: scope === "entire_store",
-    beforeOfferUnlockMessage: beforeOfferUnlockMessage || null,
-    afterOfferUnlockMessage: afterOfferUnlockMessage || null,
-    startsAt: startsAt ? new Date(startsAt) : null,
-    endsAt: endsAt ? new Date(endsAt) : null,
-    priority: parseInt(priority || "0") || 0,
-    customerTarget: customerTarget || "all",
-    customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
+    beforeOfferUnlockMessage: null,
+    afterOfferUnlockMessage: null,
+    startsAt: null,
+    endsAt: null,
+    priority: 0,
+    customerTarget: "all",
+    customerTags: null,
   };
 
   try {
@@ -83,8 +79,8 @@ export const action = async ({ request }) => {
       const shopifyId = await upsertBxgy(admin, {
         existingId: existingShopifyId,
         title: campaignName || "Buy X Get Y",
-        startsAt: startsAt || null,
-        endsAt: endsAt || null,
+        startsAt: null,
+        endsAt: null,
         minReqType: "quantity",
         minQty: xQty || "1",
         minSpend: null,
@@ -291,30 +287,6 @@ export default function RuleBxgy() {
   // Get reward
   const [yQty, setYQty] = useState(r?.yQty ?? "1");
   const [giftType, setGiftType] = useState(r?.giftType ?? "free_product");
-  const [giftSku, setGiftSku] = useState(r?.giftSku ?? "");
-  const [maxGifts, setMaxGifts] = useState(r?.maxGifts ?? "");
-  const [allowStacking, setAllowStacking] = useState(r?.allowStacking === true);
-
-  // Messages
-  const [beforeOfferUnlockMessage, setBeforeOfferUnlockMessage] = useState(
-    r?.beforeOfferUnlockMessage ?? "Buy {{x}} more to unlock a free gift!"
-  );
-  const [afterOfferUnlockMessage, setAfterOfferUnlockMessage] = useState(
-    r?.afterOfferUnlockMessage ?? "🎁 Free gift unlocked! Added to your cart."
-  );
-
-  // Schedule
-  const today = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today);
-  const [startTime, setStartTime] = useState(r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00");
-  const [hasEndDate, setHasEndDate] = useState(!!r?.endsAt);
-  const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
-  const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
-
-  // Targeting & priority
-  const [priority, setPriority] = useState(String(r?.priority ?? "0"));
-  const [customerTarget, setCustomerTarget] = useState(r?.customerTarget ?? "all");
-  const [customerTags, setCustomerTags] = useState(r?.customerTags ?? "");
 
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle") navigate(withHost("/app/campaigns"));
@@ -331,28 +303,10 @@ export default function RuleBxgy() {
         scope,
         appliesTo: appliesTo.length ? JSON.stringify(appliesTo) : null,
         giftType,
-        giftSku,
-        maxGifts,
-        allowStacking,
-        beforeOfferUnlockMessage,
-        afterOfferUnlockMessage,
-        priority,
-        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
-        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
-        customerTarget,
-        customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
       },
       { method: "post", encType: "application/json" }
     );
   };
-
-  const [sliderValue, setSliderValue] = useState(50);
-  const xNum = parseInt(xQty || 2);
-  const yNum = parseInt(yQty || 1);
-  const mockQty = Math.round((xNum * sliderValue) / 100);
-  const remaining = Math.max(0, xNum - mockQty);
-  const progressPct = sliderValue;
-  const isUnlocked = sliderValue >= 100;
 
   return (
     <Page
@@ -361,7 +315,7 @@ export default function RuleBxgy() {
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
       secondaryActions={[{ content: enabled ? "Disable" : "Enable", onAction: () => setEnabled(v => !v) }]}
     >
-      <style>{`.bxgy-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.bxgy-layout{grid-template-columns:1fr}}`}</style>
+      <style>{`.bxgy-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}.bxgy-field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}.bxgy-choice-row{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}@media(max-width:900px){.bxgy-layout{grid-template-columns:1fr}}@media(max-width:640px){.bxgy-field-row,.bxgy-choice-row{grid-template-columns:1fr}}`}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
           <Banner tone="critical" title="Save failed">{actionData.error}</Banner>
@@ -372,50 +326,84 @@ export default function RuleBxgy() {
           {/* ── Main column ── */}
           <BlockStack gap="400">
 
-            {/* Buy requirement */}
-            <SectionCard icon={TransferInternalIcon} title="Buy requirement (X)">
+            <SectionCard icon={TransferInternalIcon} title="Buy X Get Y Discount">
               <BlockStack gap="400">
-                <TextField
-                  label="Customer must buy (X) items"
-                  type="number"
-                  value={xQty}
-                  onChange={setXQty}
-                  autoComplete="off"
-                  placeholder="e.g. 2"
-                  helpText="Minimum quantity the customer must add to the cart to trigger the reward."
-                />
+                <div className="bxgy-field-row">
+                  <TextField
+                    label="Customer must buy (X) items"
+                    type="number"
+                    value={xQty}
+                    onChange={setXQty}
+                    autoComplete="off"
+                    placeholder="e.g. 2"
+                    helpText="Minimum quantity the customer must add to the cart to trigger the reward."
+                  />
+                  <TextField
+                    label="Customer gets (Y) items free/discounted"
+                    type="number"
+                    value={yQty}
+                    onChange={setYQty}
+                    autoComplete="off"
+                    placeholder="e.g. 1"
+                    helpText="How many items the customer receives as the reward."
+                  />
+                </div>
 
                 <Divider />
 
-                <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold" as="p">Applies to</Text>
-                  <BlockStack gap="100">
-                    <RadioButton
-                      label="Entire store"
-                      helpText="Rule applies to any product in the store."
-                      checked={scope === "entire_store"}
-                      id="bxgy-scope-store"
-                      name="bxgyScope"
-                      onChange={() => { setScope("entire_store"); setAppliesTo([]); }}
-                    />
-                    <RadioButton
-                      label="Specific products"
-                      helpText="Rule applies only to the products listed below."
-                      checked={scope === "specific_products"}
-                      id="bxgy-scope-products"
-                      name="bxgyScope"
-                      onChange={() => { setScope("specific_products"); setAppliesTo([]); }}
-                    />
-                    <RadioButton
-                      label="Specific collections"
-                      helpText="Rule applies to products in the collections listed below."
-                      checked={scope === "specific_collections"}
-                      id="bxgy-scope-collections"
-                      name="bxgyScope"
-                      onChange={() => { setScope("specific_collections"); setAppliesTo([]); }}
-                    />
+                <div className="bxgy-choice-row">
+                  <BlockStack gap="200">
+                    <Text variant="bodyMd" fontWeight="semibold" as="p">Applies to</Text>
+                    <BlockStack gap="100">
+                      <RadioButton
+                        label="Entire store"
+                        helpText="Rule applies to any product in the store."
+                        checked={scope === "entire_store"}
+                        id="bxgy-scope-store"
+                        name="bxgyScope"
+                        onChange={() => { setScope("entire_store"); setAppliesTo([]); }}
+                      />
+                      <RadioButton
+                        label="Specific products"
+                        helpText="Rule applies only to the products listed below."
+                        checked={scope === "specific_products"}
+                        id="bxgy-scope-products"
+                        name="bxgyScope"
+                        onChange={() => { setScope("specific_products"); setAppliesTo([]); }}
+                      />
+                      <RadioButton
+                        label="Specific collections"
+                        helpText="Rule applies to products in the collections listed below."
+                        checked={scope === "specific_collections"}
+                        id="bxgy-scope-collections"
+                        name="bxgyScope"
+                        onChange={() => { setScope("specific_collections"); setAppliesTo([]); }}
+                      />
+                    </BlockStack>
                   </BlockStack>
-                </BlockStack>
+
+                  <BlockStack gap="200">
+                    <Text variant="bodyMd" fontWeight="semibold" as="p">Reward type</Text>
+                    <BlockStack gap="100">
+                      <RadioButton
+                        label="Free product (100% off)"
+                        helpText="The Y items are completely free."
+                        checked={giftType === "free_product"}
+                        id="bxgy-gift-free"
+                        name="bxgyGiftType"
+                        onChange={() => setGiftType("free_product")}
+                      />
+                      <RadioButton
+                        label="Percentage discount"
+                        helpText="The Y items receive a percentage discount."
+                        checked={giftType === "percentage_off"}
+                        id="bxgy-gift-pct"
+                        name="bxgyGiftType"
+                        onChange={() => setGiftType("percentage_off")}
+                      />
+                    </BlockStack>
+                  </BlockStack>
+                </div>
 
                 {scope === "specific_products" && (
                   <BlockStack gap="200">
@@ -459,159 +447,6 @@ export default function RuleBxgy() {
               </BlockStack>
             </SectionCard>
 
-            {/* Get reward */}
-            <SectionCard icon={GiftCardIcon} title="Get reward (Y)">
-              <BlockStack gap="400">
-                <TextField
-                  label="Customer gets (Y) items free/discounted"
-                  type="number"
-                  value={yQty}
-                  onChange={setYQty}
-                  autoComplete="off"
-                  placeholder="e.g. 1"
-                  helpText="How many items the customer receives as the reward."
-                />
-
-                <Divider />
-
-                <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold" as="p">Reward type</Text>
-                  <BlockStack gap="100">
-                    <RadioButton
-                      label="Free product (100% off)"
-                      helpText="The Y items are completely free."
-                      checked={giftType === "free_product"}
-                      id="bxgy-gift-free"
-                      name="bxgyGiftType"
-                      onChange={() => setGiftType("free_product")}
-                    />
-                    <RadioButton
-                      label="Percentage discount"
-                      helpText="The Y items receive a percentage discount."
-                      checked={giftType === "percentage_off"}
-                      id="bxgy-gift-pct"
-                      name="bxgyGiftType"
-                      onChange={() => setGiftType("percentage_off")}
-                    />
-                  </BlockStack>
-                </BlockStack>
-
-                <TextField
-                  label="Specific gift product SKU or ID (optional)"
-                  value={giftSku}
-                  onChange={setGiftSku}
-                  autoComplete="off"
-                  placeholder="e.g. gid://shopify/Product/987654321"
-                  helpText="If blank, the cheapest eligible item in the cart will be the reward."
-                />
-
-                <Divider />
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <TextField
-                    label="Max gifts per order (optional)"
-                    type="number"
-                    value={maxGifts}
-                    onChange={setMaxGifts}
-                    autoComplete="off"
-                    placeholder="e.g. 1"
-                    helpText="Leave blank for unlimited."
-                  />
-                </div>
-
-                <Checkbox
-                  label="Allow stacking with other discounts"
-                  checked={allowStacking}
-                  onChange={setAllowStacking}
-                  helpText="If enabled, this BXGY discount can combine with other active discounts."
-                />
-              </BlockStack>
-            </SectionCard>
-
-            {/* Messages */}
-            <SectionCard icon={EditIcon} title="Cart messages">
-              <BlockStack gap="300">
-                <Banner tone="info">
-                  Use <strong>{"{{x}}"}</strong> for remaining items needed to unlock the reward.
-                </Banner>
-                <TextField
-                  label="Message before reward is unlocked"
-                  value={beforeOfferUnlockMessage}
-                  onChange={setBeforeOfferUnlockMessage}
-                  autoComplete="off"
-                  placeholder="Buy {{x}} more to unlock a free gift!"
-                />
-                <TextField
-                  label="Message after reward is unlocked"
-                  value={afterOfferUnlockMessage}
-                  onChange={setAfterOfferUnlockMessage}
-                  autoComplete="off"
-                  placeholder="🎁 Free gift unlocked! Added to your cart."
-                />
-              </BlockStack>
-            </SectionCard>
-
-            {/* Targeting & priority */}
-            <SectionCard icon={PersonFilledIcon} title="Targeting & priority" defaultOpen={false}>
-              <BlockStack gap="400">
-                <Select
-                  label="Customer target"
-                  options={[
-                    { label: "All customers", value: "all" },
-                    { label: "Customers with tag", value: "has_tag" },
-                    { label: "Customers without tag", value: "no_tag" },
-                    { label: "Logged in customers only", value: "logged_in" },
-                    { label: "Guest customers only", value: "guest" },
-                  ]}
-                  value={customerTarget}
-                  onChange={setCustomerTarget}
-                  helpText="Choose which customers this rule applies to."
-                />
-                {(customerTarget === "has_tag" || customerTarget === "no_tag") && (
-                  <TextField
-                    label="Customer tags"
-                    value={customerTags}
-                    onChange={setCustomerTags}
-                    autoComplete="off"
-                    placeholder="vip, wholesale, member"
-                    helpText="Comma-separated list of customer tags to match."
-                  />
-                )}
-                <Divider />
-                <TextField
-                  label="Priority"
-                  type="number"
-                  value={priority}
-                  onChange={setPriority}
-                  autoComplete="off"
-                  helpText="Higher number = evaluated first when multiple rules are active."
-                />
-              </BlockStack>
-            </SectionCard>
-
-            {/* Schedule */}
-            <SectionCard icon={CalendarIcon} title="Schedule" defaultOpen={false}>
-              <BlockStack gap="400">
-                <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold" as="p">Active dates</Text>
-                  <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", padding: "16px" }}>
-                    <BlockStack gap="300">
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                        <TextField label="Start date" type="date" value={startDate} onChange={setStartDate} prefix={<Icon source={CalendarIcon} />} autoComplete="off" />
-                        <TextField label="Start time" type="time" value={startTime} onChange={setStartTime} prefix={<Icon source={ClockIcon} />} autoComplete="off" />
-                      </div>
-                      <Checkbox label="Set end date" checked={hasEndDate} onChange={setHasEndDate} />
-                      {hasEndDate && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                          <TextField label="End date" type="date" value={endDate} onChange={setEndDate} prefix={<Icon source={CalendarIcon} />} autoComplete="off" />
-                          <TextField label="End time" type="time" value={endTime} onChange={setEndTime} prefix={<Icon source={ClockIcon} />} autoComplete="off" />
-                        </div>
-                      )}
-                    </BlockStack>
-                  </div>
-                </BlockStack>
-              </BlockStack>
-            </SectionCard>
 
           </BlockStack>
 
@@ -636,44 +471,6 @@ export default function RuleBxgy() {
               </BlockStack>
             </div>
 
-            {/* Preview */}
-            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", overflow: "hidden" }}>
-              <Box padding="300" borderBlockEndWidth="025" borderColor="border">
-                <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
-              </Box>
-              <Box padding="400">
-                <div style={{ background: "#f9fafb", border: "1px solid #e1e3e5", borderRadius: "8px", padding: "14px 16px 18px" }}>
-                  <div style={{ marginBottom: "14px", lineHeight: "1.5" }}>
-                    {isUnlocked ? (
-                      <Text variant="bodySm" fontWeight="semibold" as="p">{afterOfferUnlockMessage || `Get ${yNum} free! Added to cart.`}</Text>
-                    ) : (
-                      <span style={{ fontSize: "13px" }}>
-                        {beforeOfferUnlockMessage.includes("{{x}}")
-                          ? <>{beforeOfferUnlockMessage.split("{{x}}")[0]}<strong>{remaining}</strong>{beforeOfferUnlockMessage.split("{{x}}")[1] ?? ""}</>
-                          : beforeOfferUnlockMessage || `Buy ${remaining} more item${remaining !== 1 ? "s" : ""} to unlock!`}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ position: "relative", paddingRight: "44px" }}>
-                    <div style={{ height: "4px", background: "#e1e3e5", borderRadius: "2px" }}>
-                      <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#111827", borderRadius: "2px", transition: "width 0.15s" }} />
-                    </div>
-                    <div style={{ position: "absolute", right: "0", top: "-10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
-                      <Icon source={GiftCardIcon} tone={isUnlocked ? "success" : "base"} />
-                      <span style={{ fontSize: "11px", color: isUnlocked ? "#16a34a" : "#6b7280", fontWeight: isUnlocked ? 600 : 400 }}>Get {yNum} Free!</span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ marginTop: "16px" }}>
-                  <Text variant="bodySm" tone="subdued" as="p">Use this to adjust the progress bar</Text>
-                  <input
-                    type="range" min="0" max="100" value={sliderValue}
-                    onChange={(e) => setSliderValue(parseInt(e.target.value))}
-                    style={{ width: "100%", marginTop: "8px", cursor: "pointer", accentColor: "#111827" }}
-                  />
-                </div>
-              </Box>
-            </div>
           </BlockStack>
         </div>
       </Box>
