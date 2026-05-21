@@ -30,24 +30,55 @@ export const loader = async ({ request }) => {
     prisma.shippingRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, minSubtotal: true, cartStepName: true },
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, rateType: true, amount: true, minSubtotal: true, maxSubtotal: true, cartStepName: true },
     }),
     prisma.discountRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true, cartStepName: true },
+      select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true },
     }),
     prisma.freeGiftRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, triggerType: true, minPurchase: true, cartStepName: true },
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true },
     }),
     prisma.bxgyRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, xQty: true, yQty: true },
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, xQty: true, yQty: true, scope: true },
     }),
   ]);
+
+  const fmtMoney = (v) => (v ? `$${v}` : null);
+
+  const shippingMeta = (r) => {
+    const reward = r.rewardType === "free" ? "Free shipping" : r.rewardType === "reduced_rate" ? "Reduced rate" : "Shipping";
+    const parts = [];
+    if (r.minSubtotal) parts.push(`Min ${fmtMoney(r.minSubtotal)}`);
+    if (r.maxSubtotal) parts.push(`Max ${fmtMoney(r.maxSubtotal)}`);
+    return parts.length ? `${reward} · ${parts.join(" – ")}` : reward;
+  };
+
+  const discountMeta = (r) => {
+    const value = r.value
+      ? (r.valueType === "percent" ? `${r.value}% off` : `$${r.value} off`)
+      : null;
+    const trigger = r.triggerType === "quantity" && r.minQuantity
+      ? `Min ${r.minQuantity} item${r.minQuantity !== "1" ? "s" : ""}`
+      : r.minPurchase
+        ? `Min ${fmtMoney(r.minPurchase)}`
+        : null;
+    return [value, trigger].filter(Boolean).join(" · ") || "No value set";
+  };
+
+  const freeGiftMeta = (r) => {
+    const trigger = r.triggerType === "quantity" && r.minQuantity
+      ? `Min ${r.minQuantity} item${r.minQuantity !== "1" ? "s" : ""}`
+      : r.minPurchase
+        ? `Min ${fmtMoney(r.minPurchase)}`
+        : "No minimum";
+    return `Free gift · ${trigger}`;
+  };
 
   const rules = [
     ...shippingRows.map((r) => ({
@@ -56,7 +87,7 @@ export const loader = async ({ request }) => {
       name: r.campaignName || "Shipping Rule",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
-      meta: r.minSubtotal ? `Min $${r.minSubtotal}` : "No minimum",
+      meta: shippingMeta(r),
       cartStep: formatCartStep(r.cartStepName),
     })),
     ...discountRows
@@ -67,7 +98,7 @@ export const loader = async ({ request }) => {
         name: r.campaignName || "Automatic Discount",
         status: r.enabled ? "active" : "disabled",
         updatedAt: r.updatedAt,
-        meta: r.value ? (r.valueType === "percent" ? `${r.value}% off` : `$${r.value} off`) : "No value set",
+        meta: discountMeta(r),
         cartStep: formatCartStep(r.cartStepName),
       })),
     ...freeRows.map((r) => ({
@@ -76,7 +107,7 @@ export const loader = async ({ request }) => {
       name: r.campaignName || "Free Product",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
-      meta: r.minPurchase ? `Min $${r.minPurchase}` : (r.triggerType === "quantity" ? "Quantity trigger" : "No minimum"),
+      meta: freeGiftMeta(r),
       cartStep: formatCartStep(r.cartStepName),
     })),
     ...discountRows
@@ -87,7 +118,7 @@ export const loader = async ({ request }) => {
         name: r.codeCampaignName || r.campaignName || "Code Discount",
         status: r.enabled ? "active" : "disabled",
         updatedAt: r.updatedAt,
-        meta: r.value ? (r.valueType === "percent" ? `${r.value}% off` : `$${r.value} off`) : "Display only",
+        meta: discountMeta(r),
         cartStep: formatCartStep(r.cartStepName),
       })),
     ...bxgyRows.map((r) => ({
@@ -96,7 +127,7 @@ export const loader = async ({ request }) => {
       name: r.campaignName || "Buy X Get Y",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
-      meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free`,
+      meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " · Storewide" : ""}`,
       cartStep: "",
     })),
   ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
