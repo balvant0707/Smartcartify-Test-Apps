@@ -291,7 +291,7 @@ export default function RuleBxgy() {
 
   // Get reward
   const [yQty, setYQty] = useState(r?.yQty ?? "1");
-  const [giftType, setGiftType] = useState(r?.giftType ?? "free_product");
+  const [giftType] = useState(r?.giftType ?? "free_product");
 
   // Schedule
   const today = new Date().toISOString().split("T")[0];
@@ -348,7 +348,7 @@ export default function RuleBxgy() {
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
       secondaryActions={[{ content: enabled ? "Disable" : "Enable", onAction: () => setEnabled(v => !v) }]}
     >
-      <style>{`.bxgy-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}.bxgy-field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}.bxgy-choice-row{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}@media(max-width:900px){.bxgy-layout{grid-template-columns:1fr}}@media(max-width:640px){.bxgy-field-row,.bxgy-choice-row{grid-template-columns:1fr}}`}</style>
+      <style>{`.bxgy-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}.bxgy-field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}.bxgy-choice-row{display:grid;grid-template-columns:1fr;gap:24px;align-items:start}.bxgy-radio-row{display:grid;gap:12px;align-items:start}.bxgy-radio-row--three{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:900px){.bxgy-layout{grid-template-columns:1fr}}@media(max-width:640px){.bxgy-field-row,.bxgy-radio-row--three{grid-template-columns:1fr}}`}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
           <Banner tone="critical" title="Save failed">{actionData.error}</Banner>
@@ -387,7 +387,7 @@ export default function RuleBxgy() {
                 <div className="bxgy-choice-row">
                   <BlockStack gap="200">
                     <Text variant="bodyMd" fontWeight="semibold" as="p">Applies to</Text>
-                    <BlockStack gap="100">
+                    <div className="bxgy-radio-row bxgy-radio-row--three">
                       <RadioButton
                         label="Entire store"
                         helpText="Rule applies to any product in the store."
@@ -412,30 +412,9 @@ export default function RuleBxgy() {
                         name="bxgyScope"
                         onChange={() => { setScope("specific_collections"); setAppliesTo([]); }}
                       />
-                    </BlockStack>
+                    </div>
                   </BlockStack>
 
-                  <BlockStack gap="200">
-                    <Text variant="bodyMd" fontWeight="semibold" as="p">Reward type</Text>
-                    <BlockStack gap="100">
-                      <RadioButton
-                        label="Free product (100% off)"
-                        helpText="The Y items are completely free."
-                        checked={giftType === "free_product"}
-                        id="bxgy-gift-free"
-                        name="bxgyGiftType"
-                        onChange={() => setGiftType("free_product")}
-                      />
-                      <RadioButton
-                        label="Percentage discount"
-                        helpText="The Y items receive a percentage discount."
-                        checked={giftType === "percentage_off"}
-                        id="bxgy-gift-pct"
-                        name="bxgyGiftType"
-                        onChange={() => setGiftType("percentage_off")}
-                      />
-                    </BlockStack>
-                  </BlockStack>
                 </div>
 
                 {scope === "specific_products" && (
