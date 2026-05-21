@@ -17,6 +17,45 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { upsertAutomaticBasic } from "../shopify-discount.server";
 
+const CART_STEPS = ["Step 1", "Step 2", "Step 3", "Step 4"];
+
+function normalizeCartStep(value) {
+  if (value === undefined || value === null) return "";
+  const text = String(value).trim().toLowerCase();
+  const compact = text.replace(/[_-]/g, "").replace(/\s+/g, "");
+  const direct = compact.match(/^step([1-4])$/);
+  if (direct) return `Step ${direct[1]}`;
+  const cartStep = compact.match(/^cartstep([1-4])$/);
+  if (cartStep) return `Step ${cartStep[1]}`;
+  const number = text.match(/([1-4])/);
+  return number ? `Step ${number[1]}` : "";
+}
+
+async function nextCartStepForShop(shop) {
+  const [shippingRows, discountRows, freeRows] = await Promise.all([
+    prisma.shippingRule.findMany({
+      where: { shop },
+      select: { cartStepName: true },
+    }),
+    prisma.discountRule.findMany({
+      where: { shop, type: { not: "code" } },
+      select: { cartStepName: true },
+    }),
+    prisma.freeGiftRule.findMany({
+      where: { shop },
+      select: { cartStepName: true },
+    }),
+  ]);
+
+  const usedSteps = new Set(
+    [...shippingRows, ...discountRows, ...freeRows]
+      .map((rule) => normalizeCartStep(rule.cartStepName))
+      .filter(Boolean)
+  );
+
+  return CART_STEPS.find((step) => !usedSteps.has(step)) || "";
+}
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export const loader = async ({ request }) => {
@@ -32,7 +71,8 @@ export const loader = async ({ request }) => {
       record = row;
     }
   }
-  return { record };
+  const defaultCartStepName = record?.cartStepName || await nextCartStepForShop(session.shop);
+  return { record, defaultCartStepName };
 };
 
 // ─── Action ──────────────────────────────────────────────────────────────────
@@ -67,7 +107,7 @@ export const action = async ({ request }) => {
     rewardType: valueType === "amount" ? "amount" : "percent",
     customerTarget: customerTarget || "all",
     customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
-    cartStepName: cartStepName || null,
+    cartStepName: String(cartStepName || "").trim() || "Step 1",
   };
 
   try {
@@ -154,7 +194,9 @@ export default function RuleAutoDiscount() {
   // Sidebar
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? "Automatic Discount");
   const [enabled, setEnabled] = useState(r?.enabled !== false);
-  const [cartStepName, setCartStepName] = useState(r?.cartStepName ?? "");
+  const [cartStepName, setCartStepName] = useState(
+    r?.cartStepName ?? loaderData?.defaultCartStepName ?? "Step 1"
+  );
 
   // Discount value
   const [valueType, setValueType] = useState(r?.valueType ?? "percent");
@@ -211,7 +253,7 @@ export default function RuleAutoDiscount() {
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
         customerTarget,
         customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
-        cartStepName,
+        cartStepName: String(cartStepName || "").trim() || "Step 1",
       },
       { method: "post", encType: "application/json" }
     );

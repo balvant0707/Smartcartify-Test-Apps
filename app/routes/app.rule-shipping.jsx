@@ -17,6 +17,45 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { upsertShippingRate } from "../shopify-discount.server";
 
+const CART_STEPS = ["Step 1", "Step 2", "Step 3", "Step 4"];
+
+function normalizeCartStep(value) {
+  if (value === undefined || value === null) return "";
+  const text = String(value).trim().toLowerCase();
+  const compact = text.replace(/[_-]/g, "").replace(/\s+/g, "");
+  const direct = compact.match(/^step([1-4])$/);
+  if (direct) return `Step ${direct[1]}`;
+  const cartStep = compact.match(/^cartstep([1-4])$/);
+  if (cartStep) return `Step ${cartStep[1]}`;
+  const number = text.match(/([1-4])/);
+  return number ? `Step ${number[1]}` : "";
+}
+
+async function nextCartStepForShop(shop) {
+  const [shippingRows, discountRows, freeRows] = await Promise.all([
+    prisma.shippingRule.findMany({
+      where: { shop },
+      select: { cartStepName: true },
+    }),
+    prisma.discountRule.findMany({
+      where: { shop, type: { not: "code" } },
+      select: { cartStepName: true },
+    }),
+    prisma.freeGiftRule.findMany({
+      where: { shop },
+      select: { cartStepName: true },
+    }),
+  ]);
+
+  const usedSteps = new Set(
+    [...shippingRows, ...discountRows, ...freeRows]
+      .map((rule) => normalizeCartStep(rule.cartStepName))
+      .filter(Boolean)
+  );
+
+  return CART_STEPS.find((step) => !usedSteps.has(step)) || "";
+}
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export const loader = async ({ request }) => {
@@ -29,7 +68,8 @@ export const loader = async ({ request }) => {
       where: { id: parseInt(id, 10), shop: session.shop },
     });
   }
-  return { record };
+  const defaultCartStepName = record?.cartStepName || await nextCartStepForShop(session.shop);
+  return { record, defaultCartStepName };
 };
 
 // ─── Action ──────────────────────────────────────────────────────────────────
@@ -74,7 +114,7 @@ export const action = async ({ request }) => {
     startsAt: startsAt ? new Date(startsAt) : null,
     endsAt: endsAt ? new Date(endsAt) : null,
     priority: 0,
-    cartStepName: cartStepName || null,
+    cartStepName: String(cartStepName || "").trim() || "Step 1",
   };
 
   try {
@@ -181,7 +221,9 @@ export default function RuleShipping() {
   // Sidebar
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? "Shipping Rule");
   const [enabled, setEnabled] = useState(r?.enabled !== false);
-  const [cartStepName, setCartStepName] = useState(r?.cartStepName ?? "");
+  const [cartStepName, setCartStepName] = useState(
+    r?.cartStepName ?? loaderData?.defaultCartStepName ?? "Step 1"
+  );
 
   // Threshold
   const [rewardType, setRewardType] = useState(r?.rewardType ?? "free_shipping");
@@ -225,7 +267,7 @@ export default function RuleShipping() {
         progressTextBefore,
         progressTextAfter,
         progressTextBelow,
-        cartStepName,
+        cartStepName: String(cartStepName || "").trim() || "Step 1",
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
       },
