@@ -635,37 +635,41 @@ export default function RuleFreeProduct() {
               <Box padding="300" borderBlockEndWidth="025" borderColor="border">
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
               </Box>
-              <Box padding="400">
-                <div style={{ background: "#f9fafb", border: "1px solid #e1e3e5", borderRadius: "8px", padding: "14px 16px 18px" }}>
-                  <div style={{ marginBottom: "14px", lineHeight: "1.5" }}>
+              <div style={{ minHeight: "150px", background: "#f7f7f7", padding: "18px 20px 24px", borderBottom: "1px solid #e1e3e5" }}>
+                <div style={{ textAlign: "center", minHeight: "28px", lineHeight: "1.4", fontSize: "13px", fontWeight: 600 }}>
+                  <div>
                     {isUnlocked ? (
                       <Text variant="bodySm" fontWeight="semibold" as="p">{progressTextAfter || "Your free gift has been added!"}</Text>
                     ) : (
-                      <span style={{ fontSize: "13px" }}>
+                      <span>
                         {progressTextBefore.includes("{{amount}}")
                           ? <>{progressTextBefore.split("{{amount}}")[0]}{triggerType === "amount" ? <strong>${remaining}</strong> : <strong>{remaining} {parseInt(remaining) !== 1 ? "items" : "item"}</strong>}{progressTextBefore.split("{{amount}}")[1] ?? ""}</>
                           : progressTextBefore || (triggerType === "amount" ? `Add $${remaining} more to unlock a free gift!` : `Add ${remaining} more item${parseInt(remaining) !== 1 ? "s" : ""} to unlock a free gift!`)}
                       </span>
                     )}
                   </div>
-                  <div style={{ position: "relative", paddingRight: "44px" }}>
-                    <div style={{ height: "4px", background: "#e1e3e5", borderRadius: "2px" }}>
-                      <div style={{ height: "100%", width: `${progressPct}%`, background: isUnlocked ? "#16a34a" : "#111827", borderRadius: "2px", transition: "width 0.15s" }} />
+                  <div style={{ position: "relative", marginTop: "10px", paddingBottom: "44px" }}>
+                    <div style={{ height: "6px", background: "#e1e3e5", borderRadius: "999px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${progressPct}%`, background: "#d8dde6", borderRadius: "999px", transition: "width 0.15s" }} />
                     </div>
-                    <div style={{ position: "absolute", right: "0", top: "-10px", display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
-                      <Icon source={GiftCardIcon} tone={isUnlocked ? "success" : "base"} />
-                      <span style={{ fontSize: "11px", color: isUnlocked ? "#16a34a" : "#6b7280", fontWeight: isUnlocked ? 600 : 400 }}>Free Gift!</span>
+                    <div style={{ position: "absolute", left: `${Math.min(92, Math.max(8, progressPct))}%`, top: "-8px", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", color: "#303030" }}>
+                      <span style={{ width: "22px", height: "22px", borderRadius: "50%", background: "#303030", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                        <Icon source={GiftCardIcon} />
+                      </span>
+                      <span style={{ marginTop: "5px", fontSize: "14px", lineHeight: "15px", textAlign: "center", whiteSpace: "pre-line" }}>Free{"\n"}Gift!</span>
                     </div>
                   </div>
                 </div>
-                <div style={{ marginTop: "16px" }}>
-                  <Text variant="bodySm" tone="subdued" as="p">Use this to adjust the progress bar</Text>
+              </div>
+              <Box padding="400">
+                <BlockStack gap="200">
+                  <Text variant="bodyLg" as="p">Use this to adjust the progress bar</Text>
                   <input
                     type="range" min="0" max="100" value={sliderValue}
                     onChange={(e) => setSliderValue(parseInt(e.target.value))}
-                    style={{ width: "100%", marginTop: "8px", cursor: "pointer", accentColor: "#111827" }}
+                    style={{ width: "100%", cursor: "pointer", accentColor: "#303030" }}
                   />
-                </div>
+                </BlockStack>
               </Box>
             </div>
           </BlockStack>
