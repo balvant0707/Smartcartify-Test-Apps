@@ -82,6 +82,8 @@ async function gql(admin, query, variables) {
   return res.json();
 }
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function graphqlTopLevelErrorMessage(errors = []) {
   return errors
     .map((err) => [err?.message, err?.extensions?.code].filter(Boolean).join(" "))
@@ -198,6 +200,7 @@ async function findDeliveryMethodDefinition(admin, profileId, name, price, minSu
                       }
                       methodConditions {
                         field
+                        operator
                         conditionCriteria {
                           __typename
                           ... on MoneyV2 { amount currencyCode }
@@ -256,6 +259,26 @@ async function findDeliveryMethodDefinition(admin, profileId, name, price, minSu
         }
       }
     }
+  }
+
+  return null;
+}
+
+async function findDeliveryMethodDefinitionWithRetry(admin, profileId, name, price, minSubtotal, maxSubtotal) {
+  const attempts = [0, 400, 900, 1500];
+
+  for (const delay of attempts) {
+    if (delay) await wait(delay);
+    const methodId = await findDeliveryMethodDefinition(
+      admin,
+      profileId,
+      name,
+      price,
+      minSubtotal,
+      maxSubtotal
+    );
+
+    if (methodId) return methodId;
   }
 
   return null;
@@ -368,7 +391,7 @@ export async function upsertShippingRate(admin, { existingId, title, rewardType,
     throw new Error(`Shopify shipping rate create failed: ${userErrorMessage(errors)}`);
   }
 
-  const createdId = await findDeliveryMethodDefinition(
+  const createdId = await findDeliveryMethodDefinitionWithRetry(
     admin,
     context.profileId,
     methodDefinition.name,
