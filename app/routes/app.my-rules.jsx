@@ -16,7 +16,7 @@ function formatCartStep(value) {
   const text = String(value).trim();
   if (!text) return "";
   const compact = text.toLowerCase().replace(/[_-]/g, "").replace(/\s+/g, "");
-  const match = compact.match(/(?:cart)?step([1-4])$/) || compact.match(/^([1-4])$/);
+  const match = compact.match(/(?:cart)?step(\d+)$/) || compact.match(/^(\d+)$/);
   return match ? `Cart Step ${match[1]}` : text.replace(/^Step\b/i, "Cart Step");
 }
 

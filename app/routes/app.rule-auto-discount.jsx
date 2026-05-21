@@ -13,12 +13,8 @@ import {
   MinimizeIcon, MaximizeIcon, PauseCircleIcon,
   CalendarIcon, ClockIcon, PersonFilledIcon,
 } from "@shopify/polaris-icons";
-import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
-import { upsertAutomaticBasic } from "../shopify-discount.server";
 
 const CART_STEPS = ["Cart Step 1", "Cart Step 2", "Cart Step 3", "Cart Step 4"];
-const DISABLED_CART_STEP_LABEL = "Cart Step 5";
 
 function normalizeCartStep(value) {
   if (value === undefined || value === null) return "";
@@ -32,7 +28,7 @@ function normalizeCartStep(value) {
   return number ? `Cart Step ${number[1]}` : "";
 }
 
-async function nextCartStepForShop(shop) {
+async function cartStepDisplayContextForShop(prisma, shop) {
   const [shippingRows, discountRows, freeRows] = await Promise.all([
     prisma.shippingRule.findMany({
       where: { shop },
@@ -48,16 +44,19 @@ async function nextCartStepForShop(shop) {
     }),
   ]);
 
+  const rows = [...shippingRows, ...discountRows, ...freeRows];
   const usedSteps = new Set(
-    [...shippingRows, ...discountRows, ...freeRows]
-      .map((rule) => normalizeCartStep(rule.cartStepName))
-      .filter(Boolean)
+    rows.map((rule) => normalizeCartStep(rule.cartStepName)).filter(Boolean)
   );
+  const nextAvailable = CART_STEPS.find((step) => !usedSteps.has(step)) || "";
 
-  return CART_STEPS.find((step) => !usedSteps.has(step)) || "";
+  return {
+    nextAvailable,
+    disabledLabel: `Cart Step ${Math.max(rows.length + 1, CART_STEPS.length + 1)}`,
+  };
 }
 
-async function cartStepAlreadyUsed(shop, cartStepName, currentId = null) {
+async function cartStepAlreadyUsed(prisma, shop, cartStepName, currentId = null) {
   const normalized = normalizeCartStep(cartStepName);
   if (!normalized) return false;
 
@@ -88,6 +87,8 @@ async function cartStepAlreadyUsed(shop, cartStepName, currentId = null) {
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export const loader = async ({ request }) => {
+  const { authenticate } = await import("../shopify.server");
+  const { default: prisma } = await import("../db.server");
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
@@ -100,13 +101,22 @@ export const loader = async ({ request }) => {
       record = row;
     }
   }
-  const defaultCartStepName = normalizeCartStep(record?.cartStepName) || await nextCartStepForShop(session.shop);
-  return { record, defaultCartStepName, cartStepLimitReached: !record && !defaultCartStepName };
+  const cartStepContext = await cartStepDisplayContextForShop(prisma, session.shop);
+  const defaultCartStepName = normalizeCartStep(record?.cartStepName) || cartStepContext.nextAvailable;
+  return {
+    record,
+    defaultCartStepName,
+    disabledCartStepLabel: cartStepContext.disabledLabel,
+    cartStepLimitReached: !record && !defaultCartStepName,
+  };
 };
 
 // ─── Action ──────────────────────────────────────────────────────────────────
 
 export const action = async ({ request }) => {
+  const { authenticate } = await import("../shopify.server");
+  const { upsertAutomaticBasic } = await import("../shopify-discount.server");
+  const { default: prisma } = await import("../db.server");
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const body = await request.json();
@@ -131,7 +141,7 @@ export const action = async ({ request }) => {
   const cartStepChanged =
     !id || normalizeCartStep(existingCartStepName?.cartStepName) !== normalizedCartStepName;
 
-  if (cartStepChanged && await cartStepAlreadyUsed(shop, normalizedCartStepName, id)) {
+  if (cartStepChanged && await cartStepAlreadyUsed(prisma, shop, normalizedCartStepName, id)) {
     return { error: "This cart step is already used. Only four cart steps are allowed." };
   }
 
@@ -246,7 +256,9 @@ export default function RuleAutoDiscount() {
     normalizeCartStep(r?.cartStepName) || loaderData?.defaultCartStepName || ""
   );
   const cartStepLimitReached = !recordId && Boolean(loaderData?.cartStepLimitReached);
-  const cartStepDisplayValue = cartStepLimitReached ? DISABLED_CART_STEP_LABEL : cartStepName;
+  const cartStepDisplayValue = cartStepLimitReached
+    ? loaderData?.disabledCartStepLabel || "Cart Step 5"
+    : cartStepName;
 
   // Discount value
   const [valueType, setValueType] = useState(r?.valueType ?? "percent");
@@ -524,7 +536,7 @@ export default function RuleAutoDiscount() {
                   autoComplete="off"
                   disabled={cartStepLimitReached}
                   placeholder="e.g. Cart Step 1"
-                  helpText={cartStepLimitReached ? "Cart Step 5 is disabled. Only 4 cart steps are allowed." : "Which cart step this rule appears on."}
+                  helpText={cartStepLimitReached ? `${cartStepDisplayValue} is disabled. Only 4 cart steps are allowed.` : "Which cart step this rule appears on."}
                 />
               </BlockStack>
             </div>

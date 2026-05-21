@@ -664,6 +664,16 @@ export default function CampaignSelector() {
         </Modal>
       )}
 
+      {rules.length > 0 && (
+        <Box paddingBlockEnd="600">
+          <RulesTable
+            rules={rules}
+            onEdit={handleEdit}
+            onDelete={setDeleteTarget}
+          />
+        </Box>
+      )}
+
       <Box paddingBlockEnd="600">
         <Text
           variant="headingSm"
