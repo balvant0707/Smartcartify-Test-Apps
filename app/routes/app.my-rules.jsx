@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLoaderData, useFetcher } from "react-router";
 import {
   Page, Tabs, Text, Box, BlockStack, InlineStack,
@@ -106,33 +106,116 @@ export const loader = async ({ request }) => {
 
 // ─── Action ──────────────────────────────────────────────────────────────────
 
+const DELETE_AUTOMATIC = `#graphql
+  mutation DiscountAutomaticDelete($id: ID!) {
+    discountAutomaticDelete(id: $id) {
+      userErrors { field message }
+      deletedAutomaticDiscountId
+    }
+  }`;
+
+const DELETE_CODE = `#graphql
+  mutation DiscountCodeDelete($id: ID!) {
+    discountCodeDelete(id: $id) {
+      userErrors { field message }
+      deletedCodeDiscountId
+    }
+  }`;
+
+const DELIVERY_PROFILES_QUERY = `#graphql
+  query { deliveryProfiles(first: 1) { edges { node { id } } } }`;
+
+const DELIVERY_PROFILE_UPDATE = `#graphql
+  mutation DeliveryProfileUpdate($id: ID!, $profile: DeliveryProfileInput!) {
+    deliveryProfileUpdate(id: $id, profile: $profile) {
+      userErrors { field message }
+    }
+  }`;
+
+async function deleteShopifyDiscount(admin, id) {
+  if (!id) return;
+  try {
+    await (await admin.graphql(DELETE_AUTOMATIC, { variables: { id } })).json();
+  } catch {
+    try {
+      await (await admin.graphql(DELETE_CODE, { variables: { id } })).json();
+    } catch { /* non-fatal */ }
+  }
+}
+
+async function deleteShopifyShippingRate(admin, methodDefinitionId) {
+  if (!methodDefinitionId) return;
+  try {
+    const profileRes = await (await admin.graphql(DELIVERY_PROFILES_QUERY, { variables: {} })).json();
+    const profileId = profileRes?.data?.deliveryProfiles?.edges?.[0]?.node?.id;
+    if (!profileId) return;
+    await admin.graphql(DELIVERY_PROFILE_UPDATE, {
+      variables: { id: profileId, profile: { methodDefinitionsToDelete: [methodDefinitionId] } },
+    });
+  } catch { /* non-fatal */ }
+}
+
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const body = await request.json();
 
   if (body._action === "delete") {
     const id = parseInt(body.id, 10);
     const shop = session.shop;
+
     switch (body.ruleType) {
-      case "shipping":
+      case "shipping": {
+        const rule = await prisma.shippingRule.findFirst({
+          where: { id, shop },
+          select: { shopifyMethodDefinitionId: true },
+        });
+        await deleteShopifyShippingRate(admin, rule?.shopifyMethodDefinitionId);
         await prisma.shippingRule.deleteMany({ where: { id, shop } });
         break;
-      case "automatic-discount":
-      case "code-discount":
+      }
+      case "automatic-discount": {
+        const rule = await prisma.discountRule.findFirst({
+          where: { id, shop },
+          select: { shopifyDiscountCodeId: true },
+        });
+        await deleteShopifyDiscount(admin, rule?.shopifyDiscountCodeId);
         await prisma.discountRule.deleteMany({ where: { id, shop } });
         break;
-      case "free-product":
+      }
+      case "code-discount": {
+        const rule = await prisma.discountRule.findFirst({
+          where: { id, shop },
+          select: { codeDiscountId: true },
+        });
+        await deleteShopifyDiscount(admin, rule?.codeDiscountId);
+        await prisma.discountRule.deleteMany({ where: { id, shop } });
+        break;
+      }
+      case "free-product": {
+        const rule = await prisma.freeGiftRule.findFirst({
+          where: { id, shop },
+          select: { freeProductDiscountID: true, minAmountFreeGiftDiscountId: true },
+        });
+        await deleteShopifyDiscount(admin, rule?.freeProductDiscountID);
+        await deleteShopifyDiscount(admin, rule?.minAmountFreeGiftDiscountId);
         await prisma.freeGiftRule.deleteMany({ where: { id, shop } });
         break;
-      case "buy-x-get-y":
+      }
+      case "buy-x-get-y": {
+        const rule = await prisma.bxgyRule.findFirst({
+          where: { id, shop },
+          select: { buyxgetyId: true },
+        });
+        await deleteShopifyDiscount(admin, rule?.buyxgetyId);
         await prisma.bxgyRule.deleteMany({ where: { id, shop } });
         break;
+      }
       default:
-        return { error: "Unknown rule type" };
+        return Response.json({ error: "Unknown rule type" }, { status: 400 });
     }
-    return { success: true };
+    return Response.json({ success: true });
   }
-  return { error: "Unknown action" };
+  return Response.json({ error: "Unknown action" }, { status: 400 });
 };
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -180,6 +263,18 @@ export default function MyRules() {
 
   const [tabIndex, setTabIndex] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletingKey, setDeletingKey] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && deletingKey) {
+      setDeletingKey(null);
+      if (fetcher.data?.success) {
+        setSuccessMsg("Rule deleted and removed from Shopify.");
+        setTimeout(() => setSuccessMsg(null), 4000);
+      }
+    }
+  }, [fetcher.state]);
 
   const activeType = TABS[tabIndex].id;
   const filtered = activeType === "all"
@@ -194,6 +289,8 @@ export default function MyRules() {
 
   const handleDeleteConfirm = () => {
     if (!deleteTarget) return;
+    const key = `${deleteTarget.ruleType}-${deleteTarget.id}`;
+    setDeletingKey(key);
     fetcher.submit(
       { _action: "delete", id: deleteTarget.id, ruleType: deleteTarget.ruleType },
       { method: "post", encType: "application/json" }
@@ -217,6 +314,13 @@ export default function MyRules() {
         onAction: () => navigate(withHost("/app/campaigns")),
       }}
     >
+      {successMsg && (
+        <Box paddingBlockEnd="400">
+          <Banner tone="success" onDismiss={() => setSuccessMsg(null)}>
+            {successMsg}
+          </Banner>
+        </Box>
+      )}
       {fetcher.data?.error && (
         <Box paddingBlockEnd="400">
           <Banner tone="critical" title="Delete failed">{fetcher.data.error}</Banner>
@@ -346,7 +450,7 @@ export default function MyRules() {
                         variant="plain"
                         onClick={() => setDeleteTarget(rule)}
                         accessibilityLabel={`Delete ${rule.name}`}
-                        loading={fetcher.state !== "idle" && deleteTarget?.id === rule.id}
+                        loading={deletingKey === `${rule.ruleType}-${rule.id}`}
                       />
                     </InlineStack>
                   </div>
