@@ -5077,6 +5077,12 @@ const appendRuleIndexSuffix = (title, index) => {
   return `${title} #${normalized + 1}`;
 };
 
+const appendUniqueTitleSuffix = (title) => {
+  const base = String(title || "Discount").trim() || "Discount";
+  const suffix = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  return `${base} ${suffix}`;
+};
+
 const buildDiscountMinimumRequirement = (rule = {}) => {
   const triggerType = normalizeTriggerType(rule.triggerType);
   if (triggerType === "quantity") {
@@ -6525,6 +6531,13 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
           adminGraphql(shopDomain, accessToken, AUTOMATIC_DISCOUNT_MUTATION, {
             automaticBasicDiscount: input,
           });
+        const createWithUniqueTitle = async () =>
+          adminGraphql(shopDomain, accessToken, AUTOMATIC_DISCOUNT_MUTATION, {
+            automaticBasicDiscount: {
+              ...input,
+              title: appendUniqueTitleSuffix(input.title),
+            },
+          });
         const update = async () =>
           adminGraphql(
             shopDomain,
@@ -6543,20 +6556,22 @@ const syncDiscountsToShopify = async (rules = [], shopDomain, accessToken) => {
               err
             );
             await deleteShopifyDiscountById(shopDomain, accessToken, existingId);
-            return create();
+            return create().catch((createErr) => {
+              if (
+                createErr instanceof Error &&
+                createErr.message.includes("Title must be unique")
+              ) {
+                return createWithUniqueTitle();
+              }
+              throw createErr;
+            });
           })
           : await create().catch(async (err) => {
             if (
               err instanceof Error &&
               err.message.includes("Title must be unique")
             ) {
-              await findAndDeleteDiscountByTitle(
-                shopDomain,
-                accessToken,
-                input.title,
-                "automatic"
-              );
-              return create();
+              return createWithUniqueTitle();
             }
             throw err;
           });

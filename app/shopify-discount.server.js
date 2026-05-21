@@ -116,6 +116,19 @@ function assertDiscountMutationSuccess(data, mutationName, label) {
   }
 }
 
+function hasUniqueTitleError(data, mutationName) {
+  const errors = data?.data?.[mutationName]?.userErrors || [];
+  return errors.some((err) =>
+    String(err?.message || "").toLowerCase().includes("title must be unique")
+  );
+}
+
+function uniqueDiscountTitle(title) {
+  const base = String(title || "Discount").trim() || "Discount";
+  const suffix = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  return `${base} ${suffix}`;
+}
+
 async function firstDeliveryProfileContext(admin) {
   const profilesQuery = `#graphql
     query DeliveryProfiles {
@@ -441,7 +454,15 @@ export async function upsertAutomaticBasic(admin, {
     assertDiscountMutationSuccess(data, "discountAutomaticBasicUpdate", "Shopify automatic discount update");
     return data?.data?.discountAutomaticBasicUpdate?.automaticDiscountNode?.id || existingId;
   }
-  const data = await gql(admin, AUTOMATIC_BASIC_CREATE, { input });
+  let data = await gql(admin, AUTOMATIC_BASIC_CREATE, { input });
+  if (hasUniqueTitleError(data, "discountAutomaticBasicCreate")) {
+    data = await gql(admin, AUTOMATIC_BASIC_CREATE, {
+      input: {
+        ...input,
+        title: uniqueDiscountTitle(input.title),
+      },
+    });
+  }
   assertDiscountMutationSuccess(data, "discountAutomaticBasicCreate", "Shopify automatic discount create");
   const createdId = data?.data?.discountAutomaticBasicCreate?.automaticDiscountNode?.id;
   if (!createdId) throw new Error("Shopify automatic discount create failed: missing discount id");
