@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   useNavigate, useSearchParams, useSubmit,
-  useActionData, useLoaderData, useNavigation,
+  useActionData, useLoaderData, useNavigation, redirect,
 } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
@@ -36,6 +36,9 @@ export const loader = async ({ request }) => {
 
 export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const host = url.searchParams.get("host");
+  const campaignsUrl = host ? `/app/campaigns?host=${encodeURIComponent(host)}` : "/app/campaigns";
   const shop = session.shop;
   const body = await request.json();
   const {
@@ -75,19 +78,32 @@ export const action = async ({ request }) => {
   };
 
   try {
+    let record;
+    let existingShopifyId = null;
+    if (id) {
+      const existing = await prisma.shippingRule.findFirst({
+        where: { id: parseInt(id, 10), shop },
+        select: {
+          id: true,
+          shopifyRateId: true,
+          shopifyMethodDefinitionId: true,
+        },
+      });
+      if (!existing) return { error: "Rule not found" };
+      existingShopifyId =
+        existing.shopifyMethodDefinitionId ||
+        (String(existing.shopifyRateId || "").includes("DeliveryMethodDefinition")
+          ? existing.shopifyRateId
+          : null);
+      record = await prisma.shippingRule.update({
+        where: { id: existing.id },
+        data: dbData,
+      });
+    } else {
+      record = await prisma.shippingRule.create({ data: dbData });
+    }
+
     if (enabled !== false) {
-      let existingShopifyId = null;
-      if (id) {
-        const existing = await prisma.shippingRule.findFirst({
-          where: { id: parseInt(id, 10), shop },
-          select: { shopifyRateId: true, shopifyMethodDefinitionId: true },
-        });
-        existingShopifyId =
-          existing?.shopifyMethodDefinitionId ||
-          (String(existing?.shopifyRateId || "").includes("DeliveryMethodDefinition")
-            ? existing.shopifyRateId
-            : null);
-      }
       try {
         const shopifyId = await upsertShippingRate(admin, {
           existingId: existingShopifyId,
@@ -98,24 +114,24 @@ export const action = async ({ request }) => {
           maxSubtotal: maxSubtotal || null,
         });
         if (shopifyId) {
-          dbData.shopifyRateId = shopifyId;
-          dbData.shopifyMethodDefinitionId = shopifyId;
+          record = await prisma.shippingRule.update({
+            where: { id: record.id },
+            data: {
+              shopifyRateId: shopifyId,
+              shopifyMethodDefinitionId: shopifyId,
+            },
+          });
         }
       } catch (gqlErr) {
         console.error("[rule-shipping] Shopify sync failed:", gqlErr);
-        return { error: gqlErr.message || "Shopify shipping rate sync failed" };
+        return {
+          error: gqlErr.message || "Shopify shipping rate sync failed",
+          id: record.id,
+        };
       }
     }
 
-    let record;
-    if (id) {
-      const existing = await prisma.shippingRule.findFirst({ where: { id: parseInt(id, 10), shop } });
-      if (!existing) return { error: "Rule not found" };
-      record = await prisma.shippingRule.update({ where: { id: parseInt(id, 10) }, data: dbData });
-    } else {
-      record = await prisma.shippingRule.create({ data: dbData });
-    }
-    return { success: true, id: record.id };
+    return redirect(campaignsUrl);
   } catch (err) {
     return { error: err.message };
   }
