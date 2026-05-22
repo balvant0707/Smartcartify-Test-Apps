@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import {
   useNavigate, useSearchParams, useSubmit,
   useActionData, useLoaderData, useNavigation, useFetcher,
@@ -751,22 +751,17 @@ export default function RuleUpsell() {
                         </Text>
                       </div>
                     ) : showAsSlider ? (
-                      <div style={{ marginTop: "8px" }}>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "28px minmax(0, 1fr) 28px",
+                          gap: "8px",
+                          alignItems: "center",
+                          marginTop: "8px",
+                        }}
+                      >
                         {[activePreviewProduct].filter(Boolean).map((p) => (
-                          <div
-                            key={p.id || p.title}
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: "22px 72px minmax(0, 1fr) auto 22px",
-                                gap: "10px",
-                                alignItems: "center",
-                                minHeight: "96px",
-                                padding: "14px 16px",
-                                background: "#f8fbff",
-                                border: `1px solid ${borderColor || "#dfe7ef"}`,
-                                borderRadius: "6px",
-                              }}
-                          >
+                          <Fragment key={p.id || p.title}>
                             <button
                               type="button"
                               aria-label="Previous preview product"
@@ -786,94 +781,111 @@ export default function RuleUpsell() {
                                 fontSize: "22px",
                                 lineHeight: "22px",
                                 cursor: previewCards.length > 1 ? "pointer" : "default",
+                                opacity: previewCards.length > 1 ? 1 : 0.45,
                               }}
                             >
                               &lsaquo;
                             </button>
-                            {p.image ? (
-                              <img
-                                src={p.image}
-                                alt={p.title}
-                                style={{
-                                  width: "72px",
-                                  height: "72px",
-                                  objectFit: "cover",
-                                  borderRadius: "6px",
-                                  border: `1px solid ${borderColor || "#e1e3e5"}`,
-                                  display: "block",
-                                  background: "#f3f4f6",
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: "52px",
-                                  height: "42px",
-                                  borderRadius: "6px",
-                                  border: `1px solid ${borderColor || "#e1e3e5"}`,
-                                  background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)",
-                                }}
-                              />
-                            )}
-                            <div style={{ minWidth: 0 }}>
-                              <div
-                                style={{
-                                  color: textColor || "#111827",
-                                  fontSize: "14px",
-                                  lineHeight: "18px",
-                                  fontWeight: 700,
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {p.title || p.name || "Product"}
-                              </div>
-                              <div style={{ display: "flex", gap: "5px", alignItems: "baseline", minWidth: 0 }}>
-                                <span
-                                  style={{
-                                    color: "#8c8c8c",
-                                    fontSize: "11px",
-                                    lineHeight: "14px",
-                                    textDecoration: "line-through",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {previewComparePrice || ""}
-                                </span>
-                                <span
-                                  style={{
-                                    color: textColor || "#111827",
-                                    fontSize: "12px",
-                                    lineHeight: "14px",
-                                    fontWeight: 700,
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {previewPrice}
-                                </span>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
+                            <div
                               style={{
-                                background: buttonColor || "#fff",
-                                border: `1px solid ${borderColor || "#d8dee4"}`,
-                                borderRadius: "5px",
-                                color: "#1f2937",
-                                fontSize: "12px",
-                                lineHeight: "16px",
-                                fontWeight: 700,
-                                padding: "8px 14px",
-                                minWidth: "110px",
-                                maxWidth: "130px",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
+                                display: "grid",
+                                gridTemplateColumns: "72px minmax(0, 1fr)",
+                                gap: "14px",
+                                alignItems: "center",
+                                minHeight: "96px",
+                                padding: "14px 16px",
+                                background: "#f8fbff",
+                                border: `1px solid ${borderColor || "#dfe7ef"}`,
+                                borderRadius: "6px",
                               }}
                             >
-                              + {buttonText || "Add to cart"}
-                            </button>
+                              {p.image ? (
+                                <img
+                                  src={p.image}
+                                  alt={p.title}
+                                  style={{
+                                    width: "72px",
+                                    height: "72px",
+                                    objectFit: "cover",
+                                    borderRadius: "6px",
+                                    border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                    display: "block",
+                                    background: "#f3f4f6",
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: "72px",
+                                    height: "72px",
+                                    borderRadius: "6px",
+                                    border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                    background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)",
+                                  }}
+                                />
+                              )}
+                              <div style={{ minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    color: textColor || "#111827",
+                                    fontSize: "14px",
+                                    lineHeight: "18px",
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {p.title || p.name || "Product"}
+                                </div>
+                                <div style={{ display: "flex", gap: "5px", alignItems: "baseline", minWidth: 0, marginTop: "4px" }}>
+                                  {previewComparePrice && (
+                                    <span
+                                      style={{
+                                        color: "#8c8c8c",
+                                        fontSize: "11px",
+                                        lineHeight: "14px",
+                                        textDecoration: "line-through",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {previewComparePrice}
+                                    </span>
+                                  )}
+                                  <span
+                                    style={{
+                                      color: textColor || "#111827",
+                                      fontSize: "12px",
+                                      lineHeight: "14px",
+                                      fontWeight: 700,
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {previewPrice}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  style={{
+                                    background: buttonColor || "#fff",
+                                    border: `1px solid ${borderColor || "#d8dee4"}`,
+                                    borderRadius: "5px",
+                                    color: "#1f2937",
+                                    fontSize: "12px",
+                                    lineHeight: "16px",
+                                    fontWeight: 700,
+                                    padding: "8px 14px",
+                                    marginTop: "12px",
+                                    maxWidth: "140px",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  + {buttonText || "Add to cart"}
+                                </button>
+                              </div>
+                            </div>
                             <button
                               type="button"
                               aria-label="Next preview product"
@@ -893,11 +905,12 @@ export default function RuleUpsell() {
                                 fontSize: "22px",
                                 lineHeight: "22px",
                                 cursor: previewCards.length > 1 ? "pointer" : "default",
+                                opacity: previewCards.length > 1 ? 1 : 0.45,
                               }}
                             >
                               &rsaquo;
                             </button>
-                          </div>
+                          </Fragment>
                         ))}
                       </div>
                     ) : (
@@ -920,13 +933,37 @@ export default function RuleUpsell() {
                               <img
                                 src={p.image}
                                 alt={p.title}
-                                style={{ width: "48px", height: "42px", objectFit: "cover", borderRadius: "5px", display: "block", background: "#f3f4f6" }}
+                                style={{
+                                  width: "48px",
+                                  height: "42px",
+                                  objectFit: "cover",
+                                  borderRadius: "5px",
+                                  display: "block",
+                                  background: "#f3f4f6",
+                                }}
                               />
                             ) : (
-                              <div style={{ width: "48px", height: "42px", background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)", borderRadius: "5px" }} />
+                              <div
+                                style={{
+                                  width: "48px",
+                                  height: "42px",
+                                  borderRadius: "5px",
+                                  background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)",
+                                }}
+                              />
                             )}
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ color: textColor || "#111827", fontSize: "12px", lineHeight: "15px", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              <div
+                                style={{
+                                  color: textColor || "#111827",
+                                  fontSize: "12px",
+                                  lineHeight: "15px",
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
                                 {p.title || p.name || "Product"}
                               </div>
                               <div style={{ color: "#6b7280", fontSize: "11px", lineHeight: "14px" }}>
@@ -935,7 +972,19 @@ export default function RuleUpsell() {
                             </div>
                             <button
                               type="button"
-                              style={{ background: buttonColor || "#111827", border: "none", borderRadius: "5px", color: "#fff", fontSize: "11px", fontWeight: 700, padding: "7px 9px", maxWidth: "68px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                              style={{
+                                background: buttonColor || "#111827",
+                                border: "none",
+                                borderRadius: "5px",
+                                color: "#fff",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                padding: "7px 9px",
+                                maxWidth: "68px",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
                             >
                               {buttonText || "Add"}
                             </button>
@@ -943,7 +992,6 @@ export default function RuleUpsell() {
                         ))}
                       </div>
                     )}
-
                     {showAsSlider && enabled && !previewEmptyManualSelection && (
                       <div style={{ display: "flex", gap: "4px", justifyContent: "center", marginTop: "8px" }}>
                         {previewCards.map((p, dot) => (
