@@ -5519,10 +5519,26 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const belowRaw = trimToNull(getProgressBelow(rule));
 
-      const title =
-        trimToNull(rule?.campaignName) ||
-        belowRaw ||
-        (type === "shipping" ? "Shipping" : type === "discount" ? "Discount" : type === "free" ? "Free Gift" : "Reward");
+      const title = (() => {
+        const campaign = trimToNull(rule?.campaignName);
+        if (campaign) return campaign;
+        if (belowRaw) return belowRaw;
+        if (type === "shipping") {
+          const rt = String(rule?.rewardType ?? rule?.reward_type ?? "").trim().toLowerCase();
+          if (rt === "reduce" && (rule?.amount ?? rule?.rateAmount)) {
+            const amt = rule?.amount ?? rule?.rateAmount;
+            return `${formatMoney(amountToCurrencyMinorUnits(amt), CART?.currency)} shipping`;
+          }
+          return "Free Shipping!";
+        }
+        if (type === "discount") {
+          const tokens = getDiscountValueTokens(rule);
+          if (tokens?.valueWithOff) return tokens.valueWithOff;
+          return "Discount";
+        }
+        if (type === "free") return "Free Gift";
+        return "Reward";
+      })();
 
       const progressMetric = getRuleProgressMetric(type, rule);
       const unlockCents =
@@ -7121,7 +7137,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     let labelText = "";
     if (nextPending) {
       // Step pending: show its before message. Never bleed after-messages from completed steps.
-      labelText = trimToNull(nextPending.progressTextBefore) || "";
+      labelText = trimToNull(nextPending.progressTextBefore) || trimToNull(nextPending.title) || "";
     } else if (doneCount > 0) {
       // All steps done: show the last completed step's after message.
       const lastDone = doneSteps[doneCount - 1];
@@ -7130,7 +7146,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!labelText) {
       labelText = doneCount >= configuredSteps.length && !nextPending
         ? "🎉 Congrats! All rewards are unlocked!"
-        : "Milestones in progress";
+        : trimToNull(nextPending?.title) || "Add items to unlock rewards";
     }
     label.textContent = labelText;
 

@@ -130,7 +130,7 @@ export const loader = async ({ request }) => {
     prisma.shippingRule.findMany({
       where: { shop, enabled: true },
       orderBy: { id: "asc" },
-      select: { progressTextBefore: true, progressTextAfter: true, minSubtotal: true, cartStepName: true, iconChoice: true, campaignName: true },
+      select: { progressTextBefore: true, progressTextAfter: true, minSubtotal: true, cartStepName: true, iconChoice: true, campaignName: true, rewardType: true, amount: true },
     }),
     prisma.discountRule.findMany({
       where: { shop, enabled: true, type: { not: "code" } },
@@ -284,9 +284,33 @@ function fmtAmount(val) {
   return isNaN(n) ? "$20" : `$${n % 1 === 0 ? n : n.toFixed(2)}`;
 }
 
-function resolveStepText(text, amount) {
+function resolveStepText(text, amount, discountOpts = {}) {
   if (!text) return null;
-  return text.replace(/\{\{amount\}\}/gi, fmtAmount(amount));
+  let result = text.replace(/\{\{amount\}\}/gi, fmtAmount(amount));
+  if (discountOpts.value !== undefined) {
+    const ds = discountOpts.valueType === "percent"
+      ? `${parseFloat(discountOpts.value)}%`
+      : fmtAmount(discountOpts.value);
+    result = result.replace(/\{\{discount\}\}/gi, ds);
+  }
+  result = result.replace(/\{\{[^}]+\}\}/g, "").trim();
+  return result || null;
+}
+
+// Returns a short human-readable label for a step milestone
+function ruleStepLabel(rule) {
+  if (rule._ruleType === "shipping") {
+    if (rule.rewardType === "reduce" && rule.amount) return `${fmtAmount(rule.amount)} shipping`;
+    return "Free Shipping!";
+  }
+  if (rule._ruleType === "discount") {
+    if (!rule.value) return "Discount";
+    return rule.valueType === "percent"
+      ? `${parseFloat(rule.value)}% Off`
+      : `${fmtAmount(rule.value)} Off`;
+  }
+  if (rule._ruleType === "free") return "Free Gift";
+  return rule.campaignName || "Reward";
 }
 
 // Maps iconChoice string → Polaris icon component
@@ -328,6 +352,7 @@ function CartDrawerPreview({
   bxgyRules, codeDiscountRules,
   drawerBgMode, drawerImage,
   discountCodeApply,
+  borderColor, iconColor,
 }) {
   const r = Number(radius) || 0;
   const tc = textColor || "#000";
@@ -335,6 +360,8 @@ function CartDrawerPreview({
   const bc = buttonColor || "#000";
   const blc = buttonLabelColor || "#fff";
   const pc = progress || "#000";
+  const brc = borderColor || "#e1e3e5";
+  const ic = iconColor || pc;
 
   // ── Build announcement messages ──────────────────────────────────────────────
   const announceMessages = [];
@@ -384,21 +411,24 @@ function CartDrawerPreview({
   const totalSteps = steps.length || 1;
   const progressFill = 30;
 
-  // Label above bar: first pending step's progressTextBefore
+  // Label above bar: first pending step's progressTextBefore (with all placeholders resolved)
   const firstPending = steps[0]?.rule;
-  const nextGoalText =
-    (firstPending?._ruleType === "shipping"
-      ? resolveStepText(firstPending.progressTextBefore, firstPending.minSubtotal)
-      : resolveStepText(firstPending?.progressTextBefore, firstPending?.minPurchase)) ||
-    "Add more to complete your reward";
+  const nextGoalText = (() => {
+    if (!firstPending) return "Add more to complete your reward";
+    const amount = firstPending._ruleType === "shipping" ? firstPending.minSubtotal : firstPending.minPurchase;
+    const discountOpts = firstPending._ruleType === "discount"
+      ? { value: firstPending.value, valueType: firstPending.valueType }
+      : {};
+    return resolveStepText(firstPending.progressTextBefore, amount, discountOpts) || ruleStepLabel(firstPending);
+  })();
 
   // Free gift section
   const fgRule = (freeGiftRules || [])[0];
   const hasFreeGift = !!fgRule;
-  const fgLabel = fgRule?.campaignName || fgRule?.cartStepName || "Free Gift!!";
+  const fgLabel = fgRule?.campaignName || "Free Gift";
   const fgText =
     resolveStepText(fgRule?.progressTextBefore, fgRule?.minPurchase) ||
-    "Add more to get Free Gift with this order";
+    "Add more to unlock your free gift";
 
   const showUpsell = upsellSettings?.enabled === true;
 
@@ -409,13 +439,13 @@ function CartDrawerPreview({
 
   // Cart item row using Polaris layout
   const CartItem = ({ name, variant, price }) => (
-    <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+    <div style={{ padding: "12px 16px", borderTop: `1px solid ${brc}` }}>
       <InlineStack align="start" blockAlign="start" gap="300" wrap={false}>
         <div style={{ width: 56, height: 56, background: "#f0f0f0", borderRadius: 10, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <InlineStack align="space-between" blockAlign="start">
             <Text variant="bodySm" as="span" fontWeight="semibold">{name}</Text>
-            <PreviewIcon source={DeleteIcon} size={14} color="#bbb" />
+            <PreviewIcon source={DeleteIcon} size={14} color={ic} />
           </InlineStack>
           <div style={{ marginTop: 2 }}>
             <Text variant="bodySm" as="span" tone="subdued">{variant}</Text>
@@ -435,37 +465,40 @@ function CartDrawerPreview({
     </div>
   );
 
+  const annColor = announcementText || "#fff";
+
   return (
-    <div style={{ border: "1px solid #e1e3e5", borderRadius: 12, overflow: "hidden", background: bg || "#fff", userSelect: "none", minHeight: 700 }}>
+    <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", background: bg || "#fff", userSelect: "none", minHeight: 700 }}>
+      {/* Marquee keyframes */}
+      <style>{`@keyframes cp-mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
 
       {/* ── Header ── */}
       <div style={{ ...headerBgStyle, padding: "14px 16px" }}>
         <InlineStack align="space-between" blockAlign="center">
           <span style={{ color: hc, fontWeight: 700, fontSize: 17, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>Cart</span>
           <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.88)", borderRadius: 20, padding: "4px 12px", cursor: "pointer" }}>
-            <PreviewIcon source={XIcon} size={12} color="#555" />
+            <PreviewIcon source={XIcon} size={12} color={ic} />
             <Text variant="bodySm" as="span">Close</Text>
           </div>
         </InlineStack>
       </div>
 
-      {/* ── Announcement bar ── */}
-      <div style={{ background: announcementBg || "#fff8f0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-        <div style={{ padding: "7px 16px" }}>
-          <InlineStack align="space-between" blockAlign="center" wrap={false} gap="100">
-            <span style={{ color: announcementText || "#c0392b", fontSize: 11, fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {announceMessages[0]}
-            </span>
-            <PreviewIcon source={ChevronRightIcon} size={16} color={announcementText || "#c0392b"} />
-          </InlineStack>
-        </div>
-        {announceMessages.length > 1 && (
-          <div style={{ display: "flex", gap: 4, justifyContent: "center", paddingBottom: 6 }}>
-            {announceMessages.map((_, i) => (
-              <div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: i === 0 ? (announcementText || "#c0392b") : "rgba(0,0,0,0.2)" }} />
+      {/* ── Announcement bar — sliding marquee ── */}
+      <div style={{ background: announcementBg || "#000", borderBottom: `1px solid ${brc}`, overflow: "hidden" }}>
+        <div style={{ padding: "7px 0" }}>
+          <div style={{ display: "flex", width: "max-content", animation: "cp-mq 16s linear infinite", willChange: "transform" }}>
+            {[0, 1].map((k) => (
+              <span key={k} style={{ display: "inline-flex", alignItems: "center", paddingRight: 56, whiteSpace: "nowrap" }}>
+                {announceMessages.map((msg, i) => (
+                  <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
+                    {i > 0 && <span style={{ margin: "0 10px", color: annColor, opacity: 0.45 }}>★</span>}
+                    <span style={{ color: annColor, fontSize: 11, fontWeight: 600 }}>{msg}</span>
+                  </span>
+                ))}
+              </span>
             ))}
           </div>
-        )}
+        </div>
       </div>
 
       {/* ── Cart steps progress ── */}
@@ -476,7 +509,7 @@ function CartDrawerPreview({
 
         {/* Track + milestone circles */}
         <div style={{ position: "relative", height: 34, marginBottom: 8 }}>
-          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 8, background: "#e5e7eb", borderRadius: 999, transform: "translateY(-50%)" }}>
+          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 8, background: brc, borderRadius: 999, transform: "translateY(-50%)" }}>
             <div style={{ height: "100%", width: `${progressFill}%`, background: pc, borderRadius: 999 }} />
           </div>
           {steps.map((step, i) => {
@@ -484,14 +517,14 @@ function CartDrawerPreview({
             const done = pct <= progressFill;
             const iconSrc = iconForChoice(step.rule.iconChoice, step.rule._defaultIcon);
             return (
-              <div key={step.slot} style={{ position: "absolute", top: "50%", left: `${pct}%`, transform: "translate(-50%, -50%)", width: 32, height: 32, borderRadius: "50%", background: done ? pc : "#e5e7eb", border: "2.5px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 5px rgba(0,0,0,0.15)", zIndex: 1 }}>
-                <PreviewIcon source={iconSrc} size={15} color={done ? blc : "#888"} />
+              <div key={step.slot} style={{ position: "absolute", top: "50%", left: `${pct}%`, transform: "translate(-50%, -50%)", width: 32, height: 32, borderRadius: "50%", background: done ? pc : brc, border: "2.5px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 5px rgba(0,0,0,0.15)", zIndex: 1 }}>
+                <PreviewIcon source={iconSrc} size={15} color={done ? blc : ic} />
               </div>
             );
           })}
           {steps.length === 0 && (
-            <div style={{ position: "absolute", top: "50%", left: "70%", transform: "translate(-50%, -50%)", width: 32, height: 32, borderRadius: "50%", background: "#e5e7eb", border: "2.5px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 5px rgba(0,0,0,0.15)", zIndex: 1 }}>
-              <PreviewIcon source={DeliveryIcon} size={15} color="#888" />
+            <div style={{ position: "absolute", top: "50%", left: "70%", transform: "translate(-50%, -50%)", width: 32, height: 32, borderRadius: "50%", background: brc, border: "2.5px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 5px rgba(0,0,0,0.15)", zIndex: 1 }}>
+              <PreviewIcon source={DeliveryIcon} size={15} color={ic} />
             </div>
           )}
         </div>
@@ -500,47 +533,19 @@ function CartDrawerPreview({
         <div style={{ position: "relative", height: 20, marginBottom: 4 }}>
           {steps.map((step, i) => {
             const pct = Math.round(((i + 1) / (totalSteps + 1)) * 100);
-            const label = step.rule.campaignName || step.rule.cartStepName || `Step ${step.slot}`;
             return (
               <div key={step.slot} style={{ position: "absolute", left: `${pct}%`, transform: "translateX(-50%)", fontSize: 9, color: tc, opacity: 0.7, textAlign: "center", whiteSpace: "nowrap", maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis" }}>
-                {label}
+                {ruleStepLabel(step.rule)}
               </div>
             );
           })}
           {steps.length === 0 && (
             <div style={{ position: "absolute", left: "70%", transform: "translateX(-50%)", fontSize: 9, color: tc, opacity: 0.5, textAlign: "center" }}>
-              Free Shipping
+              Free Shipping!
             </div>
           )}
         </div>
       </div>
-
-      {/* ── Step list (cards) ── */}
-      {steps.length > 0 && (
-        <div style={{ padding: "0 16px 10px" }}>
-          <BlockStack gap="150">
-            {steps.map((step) => {
-              const rule = step.rule;
-              const iconSrc = iconForChoice(rule.iconChoice, rule._defaultIcon);
-              const amount = rule._ruleType === "shipping" ? rule.minSubtotal : rule.minPurchase;
-              const text = resolveStepText(rule.progressTextBefore, amount) || rule.campaignName || `Step ${step.slot}`;
-              return (
-                <div key={step.slot} style={{ display: "flex", alignItems: "center", gap: 10, background: "#f8f9fa", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 12px" }}>
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: pc + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <PreviewIcon source={iconSrc} size={14} color={pc} />
-                  </div>
-                  <BlockStack gap="0">
-                    <Text variant="bodySm" as="p" tone="subdued" fontWeight="semibold">
-                      <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.5px" }}>Cart Step {step.slot}</span>
-                    </Text>
-                    <span style={{ fontSize: 11, color: tc, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{text}</span>
-                  </BlockStack>
-                </div>
-              );
-            })}
-          </BlockStack>
-        </div>
-      )}
 
       {/* ── Cart items ── */}
       <CartItem name="Sample Product" variant="Small / Black" price="300 INR" />
@@ -548,10 +553,10 @@ function CartDrawerPreview({
 
       {/* ── Free gift reward row ── */}
       {hasFreeGift && (
-        <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+        <div style={{ padding: "12px 16px", borderTop: `1px solid ${brc}` }}>
           <InlineStack align="start" blockAlign="center" gap="300" wrap={false}>
             <div style={{ width: 48, height: 48, background: "#f0f0f0", borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <PreviewIcon source={iconForChoice(fgRule?.iconChoice, GiftCardIcon)} size={22} color="#aaa" />
+              <PreviewIcon source={iconForChoice(fgRule?.iconChoice, GiftCardIcon)} size={22} color={ic} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <Text variant="bodySm" as="p" fontWeight="semibold">{fgLabel}</Text>
@@ -559,11 +564,11 @@ function CartDrawerPreview({
                 <Text variant="bodySm" as="span" tone="subdued">{fgText}</Text>
               </div>
               <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                {[0, 1, 2].map((n) => <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : "#ddd" }} />)}
+                {[0, 1, 2].map((n) => <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : brc }} />)}
               </div>
             </div>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid #ddd", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <PreviewIcon source={ChevronRightIcon} size={14} color="#999" />
+            <div style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${brc}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <PreviewIcon source={ChevronRightIcon} size={14} color={ic} />
             </div>
           </InlineStack>
         </div>
@@ -571,23 +576,23 @@ function CartDrawerPreview({
 
       {/* ── Upsell section ── */}
       {showUpsell && (
-        <div style={{ padding: "12px 16px 14px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+        <div style={{ padding: "12px 16px 14px", borderTop: `1px solid ${brc}` }}>
           <div style={{ textAlign: "center", marginBottom: 10 }}>
             <Text variant="bodySm" as="p" fontWeight="semibold">You may also like...</Text>
           </div>
           <InlineStack align="space-between" blockAlign="center" gap="200" wrap={false}>
-            <PreviewIcon source={ChevronLeftIcon} size={18} color="#ccc" />
+            <PreviewIcon source={ChevronLeftIcon} size={18} color={ic} />
             <div style={{ width: 44, height: 44, background: "#2d2d2d", borderRadius: 10, flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <Text variant="bodySm" as="p" fontWeight="semibold">Gray Jordans</Text>
               <Text variant="bodySm" as="p" tone="subdued">300 INR</Text>
             </div>
             <div style={{ background: bc, color: blc, borderRadius: Math.max(r, 4), padding: "6px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</div>
-            <PreviewIcon source={ChevronRightIcon} size={18} color="#ccc" />
+            <PreviewIcon source={ChevronRightIcon} size={18} color={ic} />
           </InlineStack>
           <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 10 }}>
             {Array.from({ length: 6 }).map((_, n) => (
-              <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : "#e5e7eb" }} />
+              <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : brc }} />
             ))}
           </div>
         </div>
@@ -595,7 +600,7 @@ function CartDrawerPreview({
 
       {/* ── Discount code input ── */}
       {discountCodeApply && (
-        <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+        <div style={{ padding: "10px 16px", borderTop: `1px solid ${brc}` }}>
           <InlineStack gap="200" blockAlign="end" wrap={false}>
             <div style={{ flex: 1 }}>
               <TextField
@@ -613,7 +618,7 @@ function CartDrawerPreview({
       )}
 
       {/* ── Total + Checkout ── */}
-      <div style={{ display: "flex", alignItems: "stretch", borderTop: "1px solid rgba(0,0,0,0.1)" }}>
+      <div style={{ display: "flex", alignItems: "stretch", borderTop: `1px solid ${brc}` }}>
         <div style={{ flex: 1, padding: "12px 16px" }}>
           <BlockStack gap="050">
             <Text variant="bodySm" as="p" tone="subdued">Total</Text>
@@ -989,6 +994,8 @@ export default function CustomizePreview() {
                   bxgyRules={bxgyRules}
                   codeDiscountRules={codeDiscountRules}
                   discountCodeApply={discountCodeApply}
+                  borderColor={borderColor}
+                  iconColor={iconColor}
                   drawerBgMode={drawerBgMode}
                   drawerImage={drawerImage}
                 />
