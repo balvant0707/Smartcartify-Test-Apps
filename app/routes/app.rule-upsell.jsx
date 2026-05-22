@@ -300,18 +300,6 @@ export default function RuleUpsell() {
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
 
-  // Which selection type is active in manual mode
-  const [selectionType, setSelectionType] = useState(
-    () => (parseStoredIds(r?.selectedCollectionIds).length > 0 && parseStoredIds(r?.selectedProductIds).length === 0)
-      ? "collections" : "products"
-  );
-
-  const handleSelectionTypeChange = (type) => {
-    setSelectionType(type);
-    if (type === "products") setProductPickerOpen(true);
-    else setCollectionPickerOpen(true);
-  };
-
   // Parse stored GID arrays
   const parseStoredIds = (raw) => {
     if (!raw) return [];
@@ -324,6 +312,18 @@ export default function RuleUpsell() {
       }
       return [];
     }
+  };
+
+  // Which selection type is active in manual mode
+  const [selectionType, setSelectionType] = useState(
+    () => (parseStoredIds(r?.selectedCollectionIds).length > 0 && parseStoredIds(r?.selectedProductIds).length === 0)
+      ? "collections" : "products"
+  );
+
+  const handleSelectionTypeChange = (type) => {
+    setSelectionType(type);
+    if (type === "products") setProductPickerOpen(true);
+    else setCollectionPickerOpen(true);
   };
 
   // Display
