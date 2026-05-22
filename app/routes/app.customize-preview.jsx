@@ -37,6 +37,7 @@ const CART_ICON_ALLOWED_TYPES = new Map([
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_STYLE = {
+  font: "Inter, sans-serif",
   base: "12",
   headingScale: "1.25",
   radius: "0",
@@ -195,6 +196,7 @@ export const action = async ({ request }) => {
   const mode = ["image", "gradient"].includes(modeRaw) ? modeRaw : "color";
 
   const settings = {
+    font: parseText(d.font) || DEFAULT_STYLE.font,
     base: d.base || DEFAULT_STYLE.base,
     headingScale: d.headingScale || DEFAULT_STYLE.headingScale,
     radius: d.radius || DEFAULT_STYLE.radius,
@@ -386,16 +388,20 @@ function PreviewIcon({ source, size = 14, color = "currentColor" }) {
 }
 
 function CartDrawerPreview({
-  bg, textColor, headerColor, buttonColor, buttonLabelColor, progress, radius, checkoutText,
+  bg, textColor, progressTextColor, headerColor, buttonColor, buttonLabelColor,
+  progress, radius, base, checkoutText,
   announcementBg, announcementText, announcementBarText,
   shippingRules, discountRules, freeGiftRules, upsellSettings,
   bxgyRules, codeDiscountRules,
   drawerBgMode, drawerImage,
   discountCodeApply,
   borderColor, iconColor,
+  cartIconUrl,
 }) {
   const r = Number(radius) || 0;
-  const tc = textColor || "#000";
+  const fs = Number(base) || 12;
+  const tc = textColor || "#000";       // body text (--sc-drawer-text-color)
+  const ptc = progressTextColor || tc;  // progress/step text (--sc-text)
   const hc = headerColor || "#1a1a1a";
   const bc = buttonColor || "#000";
   const blc = buttonLabelColor || "#fff";
@@ -510,14 +516,19 @@ function CartDrawerPreview({
   const annColor = announcementText || "#fff";
 
   return (
-    <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", background: bg || "#fff", userSelect: "none", minHeight: 700 }}>
+    <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", background: bg || "#fff", userSelect: "none", minHeight: 700, fontSize: `${fs}px` }}>
       {/* Marquee keyframes */}
       <style>{`@keyframes cp-mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
 
       {/* ── Header ── */}
       <div style={{ ...headerBgStyle, padding: "14px 16px" }}>
         <InlineStack align="space-between" blockAlign="center">
-          <span style={{ color: hc, fontWeight: 700, fontSize: 17, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>Cart</span>
+          <InlineStack gap="200" blockAlign="center">
+            {cartIconUrl ? (
+              <img src={cartIconUrl} alt="Cart icon" style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0 }} />
+            ) : null}
+            <span style={{ color: hc, fontWeight: 700, fontSize: 17, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>Cart</span>
+          </InlineStack>
           <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.88)", borderRadius: 20, padding: "4px 12px", cursor: "pointer" }}>
             <PreviewIcon source={XIcon} size={12} color={ic} />
             <Text variant="bodySm" as="span">Close</Text>
@@ -546,7 +557,7 @@ function CartDrawerPreview({
       {/* ── Cart steps progress ── */}
       <div style={{ padding: "14px 16px 4px" }}>
         <div style={{ textAlign: "center", marginBottom: 12 }}>
-          <Text variant="bodySm" as="p" tone="subdued">{nextGoalText}</Text>
+          <span style={{ fontSize: 11, color: ptc, opacity: 0.7 }}>{nextGoalText}</span>
         </div>
 
         {/* Track + milestone circles */}
@@ -576,76 +587,17 @@ function CartDrawerPreview({
           {steps.map((step) => {
             const pct = step.slot * 25;
             return (
-              <div key={step.slot} style={{ position: "absolute", left: `${pct}%`, transform: "translateX(-50%)", fontSize: 9, color: tc, opacity: 0.7, textAlign: "center", whiteSpace: "nowrap", maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div key={step.slot} style={{ position: "absolute", left: `${pct}%`, transform: "translateX(-50%)", fontSize: 9, color: ptc, opacity: 0.7, textAlign: "center", whiteSpace: "nowrap", maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis" }}>
                 {ruleStepLabel(step.rule)}
               </div>
             );
           })}
           {steps.length === 0 && (
-            <div style={{ position: "absolute", left: "70%", transform: "translateX(-50%)", fontSize: 9, color: tc, opacity: 0.5, textAlign: "center" }}>
+            <div style={{ position: "absolute", left: "70%", transform: "translateX(-50%)", fontSize: 9, color: ptc, opacity: 0.5, textAlign: "center" }}>
               Free Shipping!
             </div>
           )}
         </div>
-      </div>
-
-      {/* ── Step before/after messages ── */}
-      <div style={{ padding: "0 16px 12px" }}>
-        <BlockStack gap="150">
-          {steps.length > 0 ? steps.map((step) => {
-            const rule = step.rule;
-            const iconSrc = iconForChoice(rule.iconChoice, rule._defaultIcon);
-            const amount = rule._ruleType === "shipping" ? rule.minSubtotal : rule.minPurchase;
-            const discountOpts = rule._ruleType === "discount"
-              ? { value: rule.value, valueType: rule.valueType }
-              : rule._ruleType === "bxgy"
-              ? { x: rule.xQty, y: rule.yQty }
-              : {};
-            const beforeText = resolveStepText(rule.progressTextBefore, amount, discountOpts)
-              || buildDefaultProgressBefore(rule);
-            const afterText = resolveStepText(rule.progressTextAfter, amount, discountOpts)
-              || buildDefaultProgressAfter(rule);
-            return (
-              <div key={step.slot} style={{ display: "flex", gap: 10, padding: "8px 10px", background: "#f8f9fa", border: `1px solid ${brc}`, borderRadius: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: pc + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                  <PreviewIcon source={iconSrc} size={14} color={pc} />
-                </div>
-                <BlockStack gap="100">
-                  <span style={{ fontSize: 9, fontWeight: 700, color: tc, opacity: 0.45, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    {ruleStepLabel(rule)}
-                  </span>
-                  <div style={{ fontSize: 11, color: tc, display: "flex", gap: 4, alignItems: "flex-start" }}>
-                    <span style={{ color: pc, fontWeight: 700, flexShrink: 0 }}>→</span>
-                    <span>{beforeText}</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: tc, opacity: 0.6, display: "flex", gap: 4, alignItems: "flex-start" }}>
-                    <span style={{ color: "#27ae60", flexShrink: 0 }}>✓</span>
-                    <span style={{ fontStyle: "italic" }}>{afterText}</span>
-                  </div>
-                </BlockStack>
-              </div>
-            );
-          }) : (
-            <div style={{ display: "flex", gap: 10, padding: "8px 10px", background: "#f8f9fa", border: `1px solid ${brc}`, borderRadius: 8, opacity: 0.55 }}>
-              <div style={{ width: 28, height: 28, borderRadius: "50%", background: pc + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                <PreviewIcon source={DeliveryIcon} size={14} color={pc} />
-              </div>
-              <BlockStack gap="100">
-                <span style={{ fontSize: 9, fontWeight: 700, color: tc, opacity: 0.45, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Free Shipping
-                </span>
-                <div style={{ fontSize: 11, color: tc, display: "flex", gap: 4, alignItems: "flex-start" }}>
-                  <span style={{ color: pc, fontWeight: 700, flexShrink: 0 }}>→</span>
-                  <span>Spend $50 more for free shipping</span>
-                </div>
-                <div style={{ fontSize: 10, color: tc, opacity: 0.6, display: "flex", gap: 4, alignItems: "flex-start" }}>
-                  <span style={{ color: "#27ae60", flexShrink: 0 }}>✓</span>
-                  <span style={{ fontStyle: "italic" }}>Free shipping unlocked! 🎉</span>
-                </div>
-              </BlockStack>
-            </div>
-          )}
-        </BlockStack>
       </div>
 
       {/* ── Cart items ── */}
@@ -726,7 +678,7 @@ function CartDrawerPreview({
             <Text variant="headingMd" as="p" fontWeight="bold">750 INR</Text>
           </BlockStack>
         </div>
-        <div style={{ background: bc, color: blc, padding: "0 22px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, cursor: "pointer", minWidth: 120 }}>
+        <div style={{ background: bc, color: blc, padding: "0 22px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, cursor: "pointer", minWidth: 120, borderRadius: `0 0 ${r}px 0` }}>
           {checkoutText || "Checkout"}
         </div>
       </div>
@@ -830,7 +782,7 @@ export default function CustomizePreview() {
     }, { method: "post", encType: "application/json" });
   };
 
-  const previewBg = drawerBgMode === "color" ? (drawerBg || "#fff") : drawerBgMode === "gradient" ? `linear-gradient(180deg, ${drawerGradientStart}, ${drawerGradientEnd})` : "#fff";
+  const previewBg = drawerBgMode === "color" ? (drawerBg || bg || "#fff") : drawerBgMode === "gradient" ? `linear-gradient(180deg, ${drawerGradientStart}, ${drawerGradientEnd})` : "#fff";
 
   return (
     <Page
@@ -1078,12 +1030,14 @@ export default function CustomizePreview() {
               <div style={{ padding: "16px" }}>
                 <CartDrawerPreview
                   bg={previewBg}
-                  textColor={drawerTextColor}
+                  textColor={textColor}
+                  progressTextColor={drawerTextColor}
                   headerColor={drawerHeaderColor}
                   buttonColor={buttonColor}
                   buttonLabelColor={buttonLabelColor}
                   progress={progress}
                   radius={radius}
+                  base={base}
                   checkoutText={checkoutButtonText}
                   announcementBg={announcementBg}
                   announcementText={announcementText}
@@ -1099,6 +1053,7 @@ export default function CustomizePreview() {
                   iconColor={iconColor}
                   drawerBgMode={drawerBgMode}
                   drawerImage={drawerImage}
+                  cartIconUrl={cartIconUrl}
                 />
               </div>
             </div>

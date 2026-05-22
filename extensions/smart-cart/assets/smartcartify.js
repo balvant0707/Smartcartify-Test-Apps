@@ -2270,6 +2270,9 @@
     el.classList.add("show");
   };
 
+  const shouldSuppressCartActionMessage = (message) =>
+    isQuantityLimitMessage(message);
+
   const setLineInputValue = (line, qty) => {
     const input = drawer.querySelector(`.sc-item[data-line="${line}"] input[data-qty="input"]`);
     if (!(input instanceof HTMLInputElement)) return;
@@ -2307,7 +2310,11 @@
       console.error("[SmartCartify] quantity update failed:", err);
       const msg =
         trimToNull(err?.message) || "Couldn't update quantity. Please try again.";
-      showCartActionMessage(msg, isQuantityLimitMessage(msg) ? "warn" : "error");
+      if (!shouldSuppressCartActionMessage(msg)) {
+        showCartActionMessage(msg, "error");
+      } else {
+        showCartActionMessage("");
+      }
       try {
         CART = await fetchCart({ force: true });
         renderAllFromCache();
@@ -5517,10 +5524,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const belowRaw = trimToNull(getProgressBelow(rule));
 
-      const title = (() => {
-        const campaign = trimToNull(rule?.campaignName);
-        if (campaign) return campaign;
-        if (belowRaw) return belowRaw;
+      // Type-based reward label — never includes campaignName so milestone circles
+      // always show the reward type, not the merchant's internal campaign name.
+      const rewardLabel = (() => {
         if (type === "shipping") {
           const rt = String(rule?.rewardType ?? rule?.reward_type ?? "").trim().toLowerCase();
           if (rt === "reduce" && (rule?.amount ?? rule?.rateAmount)) {
@@ -5536,6 +5542,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         }
         if (type === "free") return "Free Gift";
         return "Reward";
+      })();
+
+      const title = (() => {
+        const campaign = trimToNull(rule?.campaignName);
+        if (campaign) return campaign;
+        if (belowRaw) return belowRaw;
+        return rewardLabel;
       })();
 
       const progressMetric = getRuleProgressMetric(type, rule);
@@ -5621,12 +5634,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         title,
 
         progressTextBelow: replaceProgressText({
-          text: belowRaw || title,
+          text: belowRaw || rewardLabel,
           type,
           rule,
           subtotalRupees,
           useRemainingForGoal: false,
-        }),
+        }) || rewardLabel,
 
         progressTextBefore: resolvedBefore || defaultBeforeText,
         progressTextAfter: resolvedAfter || defaultAfterText,
@@ -8306,10 +8319,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             trimToNull(text) ||
             "Add to cart failed";
           openDrawer();
-          showCartActionMessage(
-            addErrMessage,
-            isQuantityLimitMessage(addErrMessage) ? "warn" : "error"
-          );
+          if (shouldSuppressCartActionMessage(addErrMessage)) {
+            showCartActionMessage("");
+          } else {
+            showCartActionMessage(addErrMessage, "error");
+          }
           throw new Error(addErrMessage);
         }
 
