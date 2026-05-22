@@ -411,7 +411,7 @@ function PreviewIcon({ source, size = 14, color = "currentColor" }) {
 }
 
 function CartDrawerPreview({
-  bg, textColor, progressTextColor, headerColor, buttonColor, buttonLabelColor,
+  bg, uiBg, textColor, progressTextColor, headerColor, buttonColor, buttonLabelColor,
   progress, radius, base, checkoutText,
   announcementBg, announcementText, announcementBarText,
   shippingRules, discountRules, freeGiftRules, upsellSettings,
@@ -506,7 +506,7 @@ function CartDrawerPreview({
   const headerHasImage = drawerBgMode === "image" && drawerImage;
   const headerBgStyle = headerHasImage
     ? { backgroundImage: `url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
-    : { background: bg || "#f5f0e8" };
+    : { background: uiBg || bg || "#f5f0e8" };
 
   // Cart item row using Polaris layout
   const CartItem = ({ name, variant, price }) => (
@@ -515,20 +515,20 @@ function CartDrawerPreview({
         <div style={{ width: 56, height: 56, background: "#f0f0f0", borderRadius: 10, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <InlineStack align="space-between" blockAlign="start">
-            <Text variant="bodySm" as="span" fontWeight="semibold">{name}</Text>
+            <span style={{ color: tc, fontWeight: 600 }}>{name}</span>
             <PreviewIcon source={DeleteIcon} size={14} color={ic} />
           </InlineStack>
           <div style={{ marginTop: 2 }}>
-            <Text variant="bodySm" as="span" tone="subdued">{variant}</Text>
+            <span style={{ color: tc, opacity: 0.65 }}>{variant}</span>
           </div>
           <div style={{ marginTop: 8 }}>
             <InlineStack align="space-between" blockAlign="center">
               <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f3f4f6", borderRadius: 20, padding: "3px 10px" }}>
                 <span style={{ color: tc, fontSize: 15, lineHeight: 1, fontWeight: 500 }}>−</span>
-                <Text variant="bodySm" as="span" fontWeight="bold">1</Text>
+                <span style={{ color: tc, fontWeight: 700 }}>1</span>
                 <span style={{ color: tc, fontSize: 15, lineHeight: 1, fontWeight: 500 }}>+</span>
               </div>
-              <Text variant="bodySm" as="span" fontWeight="bold">{price}</Text>
+              <span style={{ color: tc, fontWeight: 700 }}>{price}</span>
             </InlineStack>
           </div>
         </div>
@@ -539,7 +539,7 @@ function CartDrawerPreview({
   const annColor = announcementText || "#fff";
 
   return (
-    <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", background: bg || "#fff", userSelect: "none", minHeight: 600, fontSize: `${fs}px` }}>
+    <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", background: bg || "#fff", color: tc, userSelect: "none", minHeight: 600, fontSize: `${fs}px` }}>
       {/* Marquee keyframes */}
       <style>{`@keyframes cp-mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
 
@@ -578,7 +578,7 @@ function CartDrawerPreview({
       </div>
 
       {/* ── Cart steps progress ── */}
-      <div style={{ padding: "14px 16px 4px" }}>
+      <div style={{ padding: "14px 16px 4px", background: uiBg || "transparent" }}>
         <div style={{ textAlign: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 11, color: ptc, opacity: 0.7 }}>{nextGoalText}</span>
         </div>
@@ -635,9 +635,9 @@ function CartDrawerPreview({
               <PreviewIcon source={iconForChoice(fgRule?.iconChoice, GiftCardIcon)} size={22} color={ic} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <Text variant="bodySm" as="p" fontWeight="semibold">{fgLabel}</Text>
+              <div style={{ color: tc, fontWeight: 600 }}>{fgLabel}</div>
               <div style={{ marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                <Text variant="bodySm" as="span" tone="subdued">{fgText}</Text>
+                <span style={{ color: tc, opacity: 0.65 }}>{fgText}</span>
               </div>
               <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
                 {[0, 1, 2].map((n) => <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : brc }} />)}
@@ -660,8 +660,8 @@ function CartDrawerPreview({
             <PreviewIcon source={ChevronLeftIcon} size={18} color={ic} />
             <div style={{ width: 44, height: 44, background: "#2d2d2d", borderRadius: 10, flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <Text variant="bodySm" as="p" fontWeight="semibold">Gray Jordans</Text>
-              <Text variant="bodySm" as="p" tone="subdued">300 INR</Text>
+              <div style={{ color: tc, fontWeight: 600 }}>Gray Jordans</div>
+              <div style={{ color: tc, opacity: 0.65 }}>300 INR</div>
             </div>
             <div style={{ background: bc, color: blc, borderRadius: Math.max(r, 4), padding: "6px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</div>
             <PreviewIcon source={ChevronRightIcon} size={18} color={ic} />
@@ -697,8 +697,8 @@ function CartDrawerPreview({
       <div style={{ display: "flex", alignItems: "stretch", borderTop: `1px solid ${brc}` }}>
         <div style={{ flex: 1, padding: "12px 16px" }}>
           <BlockStack gap="050">
-            <Text variant="bodySm" as="p" tone="subdued">Total</Text>
-            <Text variant="headingMd" as="p" fontWeight="bold">750 INR</Text>
+            <span style={{ color: tc, opacity: 0.65 }}>Total</span>
+            <span style={{ color: tc, fontSize: 16, fontWeight: 700 }}>750 INR</span>
           </BlockStack>
         </div>
         <div style={{ background: bc, color: blc, padding: "0 36px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, cursor: "pointer", minWidth: 260, borderRadius: `0 0 ${r}px 0` }}>
@@ -1053,8 +1053,9 @@ export default function CustomizePreview() {
               <div style={{ padding: "16px" }}>
                 <CartDrawerPreview
                   bg={previewBg}
-                  textColor={textColor}
-                  progressTextColor={drawerTextColor}
+                  uiBg={bg}
+                  textColor={drawerTextColor}
+                  progressTextColor={textColor}
                   headerColor={drawerHeaderColor}
                   buttonColor={buttonColor}
                   buttonLabelColor={buttonLabelColor}
