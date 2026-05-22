@@ -46,6 +46,7 @@ const DEFAULT_STYLE = {
   iconColor: "#000000",
   announcementBarBackgroundColor: "#000000",
   announcementBarTextColor: "#ffffff",
+  announcementBarText: "Free shipping on orders over $50! 🎉",
   cartDrawerBackgroundMode: "color",
   cartDrawerBackground: "#ffffff",
   cartDrawerImage: "",
@@ -188,6 +189,7 @@ export const action = async ({ request }) => {
     iconColor: parseText(d.iconColor) || DEFAULT_STYLE.iconColor,
     announcementBarBackgroundColor: parseText(d.announcementBarBackgroundColor) || DEFAULT_STYLE.announcementBarBackgroundColor,
     announcementBarTextColor: parseText(d.announcementBarTextColor) || DEFAULT_STYLE.announcementBarTextColor,
+    announcementBarText: parseText(d.announcementBarText) || DEFAULT_STYLE.announcementBarText,
     cartDrawerBackgroundMode: mode,
     cartDrawerBackground: mode === "color" ? (parseText(d.cartDrawerBackground) || DEFAULT_STYLE.cartDrawerBackground) : null,
     cartDrawerImage: mode === "image" ? parseText(d.cartDrawerImage) : null,
@@ -257,21 +259,6 @@ function ColorField({ label, value, onChange }) {
   );
 }
 
-// ─── Swatch row ───────────────────────────────────────────────────────────────
-
-function SwatchRow({ colors }) {
-  return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      {colors.map(({ label, value }) => (
-        <div key={label} title={`${label}: ${value}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 6, background: value || "#ccc", border: "1px solid #e1e3e5" }} />
-          <Text variant="bodySm" tone="subdued" as="span">{label}</Text>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ─── Cart drawer preview ──────────────────────────────────────────────────────
 
 function fmtAmount(val) {
@@ -286,7 +273,7 @@ function resolveStepText(textBefore, amount) {
 
 function CartDrawerPreview({
   bg, textColor, headerColor, buttonColor, buttonLabelColor, progress, radius, checkoutText,
-  announcementBg, announcementText,
+  announcementBg, announcementText, announcementBarText,
   shippingRules, discountRules, freeGiftRules, upsellSettings,
   drawerBgMode, drawerImage,
 }) {
@@ -342,7 +329,7 @@ function CartDrawerPreview({
     : { background: bg || "#f5f0e8" };
 
   return (
-    <div style={{ border: "1px solid #e1e3e5", borderRadius: 12, overflow: "hidden", background: bg || "#fff", fontSize: 12, userSelect: "none", maxHeight: 540, overflowY: "auto" }}>
+    <div style={{ border: "1px solid #e1e3e5", borderRadius: 12, overflow: "hidden", background: bg || "#fff", fontSize: 12, userSelect: "none" }}>
 
       {/* ── Header with optional bg image ── */}
       <div style={{ ...headerBgStyle, padding: "14px 14px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -357,7 +344,7 @@ function CartDrawerPreview({
       {/* ── Announcement bar ── */}
       <div style={{ background: announcementBg || "#fff8f0", padding: "6px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
         <span style={{ color: announcementText || "#c0392b", fontSize: 11, fontWeight: 500 }}>
-          Cart Announcement Goes here
+          {announcementBarText || "Cart Announcement Goes here"}
         </span>
         <span style={{ color: announcementText || "#c0392b", fontSize: 11 }}>▶</span>
       </div>
@@ -496,6 +483,7 @@ export default function CustomizePreview() {
   const [iconColor, setIconColor] = useState(s.iconColor ?? DEFAULT_STYLE.iconColor);
   const [announcementBg, setAnnouncementBg] = useState(s.announcementBarBackgroundColor ?? DEFAULT_STYLE.announcementBarBackgroundColor);
   const [announcementText, setAnnouncementText] = useState(s.announcementBarTextColor ?? DEFAULT_STYLE.announcementBarTextColor);
+  const [announcementBarMsg, setAnnouncementBarMsg] = useState(s.announcementBarText ?? DEFAULT_STYLE.announcementBarText);
 
   // Checkout
   const [checkoutButtonText, setCheckoutButtonText] = useState(s.checkoutButtonText ?? DEFAULT_STYLE.checkoutButtonText);
@@ -540,7 +528,7 @@ export default function CustomizePreview() {
     submit({
       base, headingScale, radius,
       textColor, bg, progress, buttonColor, buttonLabelColor, borderColor, iconColor,
-      announcementBarBackgroundColor: announcementBg, announcementBarTextColor: announcementText,
+      announcementBarBackgroundColor: announcementBg, announcementBarTextColor: announcementText, announcementBarText: announcementBarMsg,
       checkoutButtonText, discountCodeApply,
       cartIconUrl,
       cartDrawerBackgroundMode: drawerBgMode,
@@ -562,7 +550,7 @@ export default function CustomizePreview() {
       title="Customize & Preview"
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
     >
-      <style>{`.cp-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.cp-layout{grid-template-columns:1fr}}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}`}</style>
+      <style>{`.cp-layout{display:grid;grid-template-columns:1fr 420px;gap:24px;align-items:start}@media(max-width:1000px){.cp-layout{grid-template-columns:1fr}}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.cp-preview-sticky{position:sticky;top:80px}`}</style>
 
       {actionData?.error && (
         <Box paddingBlockEnd="400">
@@ -631,6 +619,14 @@ export default function CustomizePreview() {
                 </div>
                 <Divider />
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Announcement bar</Text>
+                <TextField
+                  label="Announcement text"
+                  value={announcementBarMsg}
+                  onChange={setAnnouncementBarMsg}
+                  autoComplete="off"
+                  placeholder="Free shipping on orders over $50! 🎉"
+                  helpText="Text shown in the announcement strip at the top of the cart drawer."
+                />
                 <div className="cp-color-grid">
                   <ColorField label="Background" value={announcementBg} onChange={setAnnouncementBg} />
                   <ColorField label="Text color" value={announcementText} onChange={setAnnouncementText} />
@@ -784,40 +780,14 @@ export default function CustomizePreview() {
 
           </BlockStack>
 
-          {/* ── Sidebar ── */}
-          <BlockStack gap="300">
-
-            {/* Color palette summary */}
-            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", overflow: "hidden" }}>
-              <Box padding="300" borderBlockEndWidth="025" borderColor="border">
-                <Text variant="bodyMd" fontWeight="semibold" as="p">Color palette</Text>
-              </Box>
-              <Box padding="300">
-                <BlockStack gap="300">
-                  <SwatchRow colors={[
-                    { label: "Text", value: textColor },
-                    { label: "BG", value: bg },
-                    { label: "Progress", value: progress },
-                    { label: "Button", value: buttonColor },
-                    { label: "Border", value: borderColor },
-                    { label: "Icon", value: iconColor },
-                  ]} />
-                  <Divider />
-                  <Text variant="bodySm" tone="subdued" as="p">Announcement bar</Text>
-                  <SwatchRow colors={[
-                    { label: "Bar BG", value: announcementBg },
-                    { label: "Bar text", value: announcementText },
-                  ]} />
-                </BlockStack>
-              </Box>
-            </div>
-
-            {/* Live mini preview */}
-            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", overflow: "hidden" }}>
-              <Box padding="300" borderBlockEndWidth="025" borderColor="border">
-                <Text variant="bodyMd" fontWeight="semibold" as="p">Cart drawer preview</Text>
-              </Box>
-              <Box padding="300">
+          {/* ── Sidebar: full-size preview only ── */}
+          <div className="cp-preview-sticky">
+            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #e1e3e5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Text variant="bodyMd" fontWeight="semibold" as="p">Live Preview</Text>
+                <Text variant="bodySm" tone="subdued" as="p">Updates as you change settings</Text>
+              </div>
+              <div style={{ padding: "16px" }}>
                 <CartDrawerPreview
                   bg={previewBg}
                   textColor={drawerTextColor}
@@ -829,6 +799,7 @@ export default function CustomizePreview() {
                   checkoutText={checkoutButtonText}
                   announcementBg={announcementBg}
                   announcementText={announcementText}
+                  announcementBarText={announcementBarMsg}
                   shippingRules={shippingRules}
                   discountRules={discountRules}
                   freeGiftRules={freeGiftRules}
@@ -836,29 +807,9 @@ export default function CustomizePreview() {
                   drawerBgMode={drawerBgMode}
                   drawerImage={drawerImage}
                 />
-              </Box>
+              </div>
             </div>
-
-            {/* Typography summary */}
-            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", padding: "16px" }}>
-              <BlockStack gap="200">
-                <Text variant="bodyMd" fontWeight="semibold" as="p">Typography</Text>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center" }}>
-                  {[
-                    { label: "Base", value: `${base}px` },
-                    { label: "Heading", value: `×${headingScale}` },
-                    { label: "Radius", value: `${radius}px` },
-                  ].map(({ label, value }) => (
-                    <div key={label} style={{ background: "#f7f7f7", borderRadius: 8, padding: "8px 4px", border: "1px solid #e1e3e5" }}>
-                      <Text variant="headingSm" fontWeight="bold" as="p">{value}</Text>
-                      <Text variant="bodySm" tone="subdued" as="p">{label}</Text>
-                    </div>
-                  ))}
-                </div>
-              </BlockStack>
-            </div>
-
-          </BlockStack>
+          </div>
         </div>
       </Box>
     </Page>
