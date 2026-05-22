@@ -1,4 +1,4 @@
-// app/routes/app.customize-preview.jsx
+// app/routes/app.shipping-rules.jsx
 import React from "react";
 import { useLoaderData, useLocation, useNavigate, useRouteError } from "react-router";
 import { randomUUID } from "node:crypto";
@@ -8697,7 +8697,7 @@ export const shouldRevalidate = ({ currentUrl, nextUrl }) => {
 
 /* ---------------- main ---------------- */
 
-export default function CustomizePreview() {
+export default function ShippingRulesPage() {
   const loaderData = useLoaderData() ?? {};
   const location = useLocation();
   const {
@@ -8736,11 +8736,11 @@ export default function CustomizePreview() {
 
   const tabs = [
     {
-      id: "style",
-      label: "Customize & Preview",
-      icon: ThemeIcon,
-      content: buildTabContent("Customize & Preview", ThemeIcon),
-      guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/customize-preview-tab",
+      id: "shipping",
+      label: "Shipping Rules",
+      icon: DeliveryIcon,
+      content: buildTabContent("Shipping Rules", DeliveryIcon),
+      guideUrl: "https://cartliftcartdrawerupsell.tawk.help/article/shipping-rule-tab",
     },
   ];
 
@@ -8759,7 +8759,7 @@ export default function CustomizePreview() {
     if (!tabParam) return;
 
     const tabIndexMap = {
-      style: 0,
+      shipping: 0,
     };
 
     const nextIndex = tabIndexMap[tabParam];
@@ -14597,7 +14597,7 @@ export default function CustomizePreview() {
   );
 
   const panelConfigs = [
-    { content: StylePanel },
+    { content: ShippingPanel, preview: ShippingPreviewCard },
   ];
   const activePanelConfig = panelConfigs[selected] ?? panelConfigs[0];
   const ActivePanel = activePanelConfig.content;
@@ -14670,7 +14670,7 @@ export default function CustomizePreview() {
       <style>{RULES_PAGE_CSS}</style>
       <style dangerouslySetInnerHTML={{ __html: LEFT_ALIGN_BUTTON_CSS }} />
       <Page
-        title="Customize & Preview"
+        title="Shipping Rules"
         fullWidth
       >
         <Modal
