@@ -288,110 +288,176 @@ function CartDrawerPreview({
   bg, textColor, headerColor, buttonColor, buttonLabelColor, progress, radius, checkoutText,
   announcementBg, announcementText,
   shippingRules, discountRules, freeGiftRules, upsellSettings,
+  drawerBgMode, drawerImage,
 }) {
   const r = Number(radius) || 0;
   const tc = textColor || "#000";
-  const hc = headerColor || "#000";
+  const hc = headerColor || "#1a1a1a";
   const bc = buttonColor || "#000";
   const blc = buttonLabelColor || "#fff";
   const pc = progress || "#000";
 
-  // Build ordered cart steps from all rule types
-  const cartSteps = [
-    ...(shippingRules || []).map((rule) => ({
-      text: resolveStepText(rule.progressTextBefore, rule.minSubtotal) || `Add ${fmtAmount(rule.minSubtotal)} more for free shipping`,
-      pct: 55,
-    })),
-    ...(discountRules || []).map((rule) => ({
-      text: resolveStepText(rule.progressTextBefore, rule.minPurchase) || `Add ${fmtAmount(rule.minPurchase)} more for a discount`,
-      pct: 30,
-    })),
-    ...(freeGiftRules || []).map((rule) => ({
-      text: resolveStepText(rule.progressTextBefore, rule.minPurchase) || `Add ${fmtAmount(rule.minPurchase)} more for a free gift`,
-      pct: 70,
-    })),
-  ];
+  // Build milestone list: freeGift → discount → shipping order
+  const milestones = [];
+  (freeGiftRules || []).forEach((rule) =>
+    milestones.push({ label: rule.cartStepName || rule.progressTextAfter || "Free Gift!!", icon: "🎁" })
+  );
+  (discountRules || []).forEach((rule) =>
+    milestones.push({ label: rule.cartStepName || rule.progressTextAfter || `${rule.value || "20"}% Off!`, icon: "%" })
+  );
+  (shippingRules || []).forEach((rule) =>
+    milestones.push({ label: rule.cartStepName || rule.progressTextAfter || "Free Shipping!", icon: "🚚" })
+  );
+  if (milestones.length === 0) milestones.push({ label: "Free Shipping!", icon: "🚚" });
 
-  const hasSteps = cartSteps.length > 0;
+  // Evenly distribute milestone positions across the bar
+  const milestonePcts = milestones.map((_, i) =>
+    Math.round(((i + 1) / (milestones.length + 1)) * 100)
+  );
+  const progressFill = 30; // static fill % for preview
+
+  // Next-goal label above the bar
+  const firstFG = (freeGiftRules || [])[0];
+  const firstSH = (shippingRules || [])[0];
+  const nextGoalText = firstFG
+    ? resolveStepText(firstFG.progressTextBefore, firstFG.minPurchase) || "Add more to get Free Gift with this order"
+    : firstSH
+    ? resolveStepText(firstSH.progressTextBefore, firstSH.minSubtotal) || "Add more to get Free Shipping"
+    : "Add more to get Free Shipping with this order";
+
+  // Free gift item (shown as a locked reward row below cart items)
+  const hasFreeGift = (freeGiftRules || []).length > 0;
+  const fgRule = freeGiftRules?.[0];
+  const fgLabel = fgRule?.cartStepName || "Free Gift!!";
+  const fgText =
+    resolveStepText(fgRule?.progressTextBefore, fgRule?.minPurchase) ||
+    "Add more to get Free Gift with this order";
+
   const showUpsell = upsellSettings?.enabled === true;
 
-  // Announcement bar text: use first shipping rule's text or placeholder
-  const announcementLabel =
-    shippingRules?.[0]
-      ? resolveStepText(shippingRules[0].progressTextBefore, shippingRules[0].minSubtotal) || "Free shipping available on this order!"
-      : "Free shipping on orders over $50!";
+  // Header background: image if configured
+  const headerHasImage = drawerBgMode === "image" && drawerImage;
+  const headerBgStyle = headerHasImage
+    ? { backgroundImage: `url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+    : { background: bg || "#f5f0e8" };
 
   return (
-    <div style={{ border: "1px solid #e1e3e5", borderRadius: 12, overflow: "hidden", background: bg || "#fff", fontSize: 12, userSelect: "none" }}>
+    <div style={{ border: "1px solid #e1e3e5", borderRadius: 12, overflow: "hidden", background: bg || "#fff", fontSize: 12, userSelect: "none", maxHeight: 540, overflowY: "auto" }}>
 
-      {/* Announcement bar — always shown to reflect colors */}
-      <div style={{ background: announcementBg || "#000", color: announcementText || "#fff", padding: "5px 14px", textAlign: "center", fontSize: 11, fontWeight: 500 }}>
-        {announcementLabel}
+      {/* ── Header with optional bg image ── */}
+      <div style={{ ...headerBgStyle, padding: "14px 14px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: hc, fontWeight: 700, fontSize: 16, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>
+          Cart
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.88)", borderRadius: 20, padding: "3px 10px", fontSize: 11, color: "#333", fontWeight: 500, cursor: "pointer" }}>
+          <span>✕</span><span>Close</span>
+        </div>
       </div>
 
-      {/* Header */}
-      <div style={{ padding: "10px 14px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: hc, fontWeight: 600, fontSize: 13 }}>Your Cart (2)</span>
-        <span style={{ color: hc, fontSize: 16, lineHeight: 1, cursor: "pointer" }}>✕</span>
+      {/* ── Announcement bar ── */}
+      <div style={{ background: announcementBg || "#fff8f0", padding: "6px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+        <span style={{ color: announcementText || "#c0392b", fontSize: 11, fontWeight: 500 }}>
+          Cart Announcement Goes here
+        </span>
+        <span style={{ color: announcementText || "#c0392b", fontSize: 11 }}>▶</span>
       </div>
 
-      {/* Cart step progress bars */}
-      {hasSteps
-        ? cartSteps.map((step, i) => (
-            <div key={i} style={{ padding: i === 0 ? "8px 14px 4px" : "4px 14px" }}>
-              <div style={{ height: 4, background: "#e1e3e5", borderRadius: 999, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${step.pct}%`, background: pc, borderRadius: 999 }} />
-              </div>
-              <div style={{ fontSize: 10, color: tc, opacity: 0.75, marginTop: 2 }}>{step.text}</div>
-            </div>
-          ))
-        : (
-          <div style={{ padding: "8px 14px 4px" }}>
-            <div style={{ height: 4, background: "#e1e3e5", borderRadius: 999, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: "55%", background: pc, borderRadius: 999 }} />
-            </div>
-            <div style={{ fontSize: 10, color: tc, opacity: 0.6, marginTop: 2 }}>Add $20 more for free shipping</div>
+      {/* ── Progress section ── */}
+      <div style={{ padding: "10px 14px 4px", background: bg || "#fff" }}>
+        <div style={{ fontSize: 11, color: tc, textAlign: "center", marginBottom: 9, opacity: 0.85 }}>
+          {nextGoalText}
+        </div>
+        {/* Track + milestone circles */}
+        <div style={{ position: "relative", height: 28, marginBottom: 4 }}>
+          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 6, background: "#e5e7eb", borderRadius: 999, transform: "translateY(-50%)" }}>
+            <div style={{ height: "100%", width: `${progressFill}%`, background: pc, borderRadius: 999 }} />
           </div>
-        )
-      }
-
-      {/* Cart item */}
-      <div style={{ padding: "10px 14px", display: "flex", gap: 8, alignItems: "center", borderTop: "1px solid #e1e3e5", marginTop: 4 }}>
-        <div style={{ width: 38, height: 38, background: "#f3f4f6", borderRadius: 6, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: tc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Sample Product</div>
-          <div style={{ fontSize: 11, color: tc, opacity: 0.6 }}>$29.00</div>
+          {milestonePcts.map((pct, i) => (
+            <div key={i} style={{ position: "absolute", top: "50%", left: `${pct}%`, transform: "translate(-50%, -50%)", width: 20, height: 20, borderRadius: "50%", background: pct <= progressFill ? pc : "#e5e7eb", border: "2px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, boxShadow: "0 1px 3px rgba(0,0,0,0.18)", zIndex: 1 }}>
+              {milestones[i].icon}
+            </div>
+          ))}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 3, background: "#f3f4f6", borderRadius: 6, padding: "2px 6px", flexShrink: 0 }}>
-          <span style={{ color: tc, fontSize: 13 }}>−</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: tc }}>1</span>
-          <span style={{ color: tc, fontSize: 13 }}>+</span>
+        {/* Milestone labels */}
+        <div style={{ position: "relative", height: 16 }}>
+          {milestonePcts.map((pct, i) => (
+            <div key={i} style={{ position: "absolute", left: `${pct}%`, transform: "translateX(-50%)", fontSize: 9, color: tc, opacity: 0.7, textAlign: "center", whiteSpace: "nowrap", maxWidth: 58, overflow: "hidden", textOverflow: "ellipsis" }}>
+              {milestones[i].label}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Upsell section */}
+      {/* ── Cart item ── */}
+      <div style={{ padding: "10px 14px", display: "flex", gap: 10, alignItems: "flex-start", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+        <div style={{ width: 50, height: 50, background: "#f0f0f0", borderRadius: 8, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: tc }}>Sample Product</span>
+            <span style={{ color: "#bbb", fontSize: 13, cursor: "pointer", marginLeft: 6, lineHeight: 1 }}>✕</span>
+          </div>
+          <div style={{ fontSize: 10, color: tc, opacity: 0.55, marginTop: 2 }}>Small</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 7 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f3f4f6", borderRadius: 20, padding: "3px 10px" }}>
+              <span style={{ color: tc, fontSize: 14, lineHeight: 1, fontWeight: 500 }}>−</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: tc, minWidth: 12, textAlign: "center" }}>1</span>
+              <span style={{ color: tc, fontSize: 14, lineHeight: 1, fontWeight: 500 }}>+</span>
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: tc }}>300 INR</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Free gift reward row ── */}
+      {hasFreeGift && (
+        <div style={{ padding: "8px 14px", display: "flex", gap: 10, alignItems: "center", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+          <div style={{ width: 42, height: 42, background: "#f0f0f0", borderRadius: 8, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: tc }}>{fgLabel}</div>
+            <div style={{ fontSize: 10, color: tc, opacity: 0.55, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fgText}</div>
+            <div style={{ display: "flex", gap: 4, marginTop: 5 }}>
+              {[0, 1, 2].map((n) => (
+                <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : "#ddd" }} />
+              ))}
+            </div>
+          </div>
+          <div style={{ width: 24, height: 24, borderRadius: "50%", border: "1px solid #ddd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#999", flexShrink: 0, cursor: "pointer" }}>▶</div>
+        </div>
+      )}
+
+      {/* ── Upsell section ── */}
       {showUpsell && (
-        <div style={{ padding: "8px 14px", borderTop: "1px solid #e1e3e5" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: tc, marginBottom: 6 }}>You may also like</div>
-          <div style={{ display: "flex", gap: 6 }}>
-            {[1, 2].map((n) => (
-              <div key={n} style={{ flex: 1, background: "#f9fafb", border: "1px solid #e1e3e5", borderRadius: 6, padding: "6px 4px", textAlign: "center" }}>
-                <div style={{ height: 32, background: "#e5e7eb", borderRadius: 4, marginBottom: 4 }} />
-                <div style={{ fontSize: 10, color: tc, fontWeight: 600 }}>Product {n}</div>
-                <div style={{ fontSize: 10, color: tc, opacity: 0.6 }}>$19.00</div>
-                <div style={{ marginTop: 4, background: bc, color: blc, borderRadius: Math.max(r - 2, 2), padding: "2px 0", fontSize: 9, fontWeight: 600 }}>Add</div>
-              </div>
+        <div style={{ padding: "8px 14px 10px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: tc, textAlign: "center", marginBottom: 8 }}>You may also like...</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#ccc", fontSize: 14, lineHeight: 1, cursor: "pointer" }}>◀</span>
+            <div style={{ width: 38, height: 38, background: "#2d2d2d", borderRadius: 8, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: tc }}>Gray Jordans</div>
+              <div style={{ fontSize: 10, color: tc, opacity: 0.55 }}>300 INR</div>
+            </div>
+            <div style={{ background: bc, color: blc, borderRadius: Math.max(r, 4), padding: "5px 12px", fontSize: 10, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</div>
+            <span style={{ color: "#ccc", fontSize: 14, lineHeight: 1, cursor: "pointer" }}>▶</span>
+          </div>
+          <div style={{ display: "flex", gap: 3, justifyContent: "center", marginTop: 7 }}>
+            {Array.from({ length: 6 }).map((_, n) => (
+              <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : "#e5e7eb" }} />
             ))}
           </div>
         </div>
       )}
 
-      {/* Checkout button */}
-      <div style={{ padding: "10px 14px 14px", borderTop: "1px solid #e1e3e5" }}>
-        <div style={{ background: bc, color: blc, borderRadius: r, padding: "8px 0", textAlign: "center", fontSize: 12, fontWeight: 600 }}>
+      {/* ── Total + Checkout footer ── */}
+      <div style={{ display: "flex", alignItems: "stretch", borderTop: "1px solid rgba(0,0,0,0.1)" }}>
+        <div style={{ flex: 1, padding: "10px 14px" }}>
+          <div style={{ fontSize: 10, color: tc, opacity: 0.55 }}>Total</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: tc }}>327 INR</div>
+        </div>
+        <div style={{ background: bc, color: blc, padding: "0 18px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, cursor: "pointer", minWidth: 110 }}>
           {checkoutText || "Checkout"}
         </div>
       </div>
+
     </div>
   );
 }
@@ -767,6 +833,8 @@ export default function CustomizePreview() {
                   discountRules={discountRules}
                   freeGiftRules={freeGiftRules}
                   upsellSettings={upsellSettings}
+                  drawerBgMode={drawerBgMode}
+                  drawerImage={drawerImage}
                 />
               </Box>
             </div>
