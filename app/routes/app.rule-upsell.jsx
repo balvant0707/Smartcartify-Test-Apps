@@ -346,6 +346,7 @@ export default function RuleUpsell() {
   const [textColor, setTextColor] = useState(r?.textColor ?? "#111827");
   const [borderColor, setBorderColor] = useState(r?.borderColor ?? "#e1e3e5");
   const [arrowColor, setArrowColor] = useState(r?.arrowColor ?? "#6b7280");
+  const [previewIndex, setPreviewIndex] = useState(0);
 
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle") {
@@ -412,6 +413,39 @@ export default function RuleUpsell() {
     recommendationMode === "manual" &&
     ((selectionType === "products" && selectedProductIds.length === 0) ||
       (selectionType === "collections" && selectedCollectionIds.length === 0));
+  const activePreviewIndex = previewCards.length
+    ? Math.min(previewIndex, previewCards.length - 1)
+    : 0;
+  const activePreviewProduct = previewCards[activePreviewIndex] || previewCards[0];
+  const formatPreviewPrice = (value, fallback = "₹12,333.00") => {
+    const raw = String(value || "").trim();
+    const numeric = Number(raw.replace(/[^0-9.]/g, ""));
+    if (!Number.isFinite(numeric) || numeric <= 0) return fallback;
+    return `₹${numeric.toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+  const previewPrice = formatPreviewPrice(
+    activePreviewProduct?.subtitle || activePreviewProduct?.price
+  );
+  const previewComparePrice = formatPreviewPrice(
+    activePreviewProduct?.compareAtPrice,
+    ""
+  );
+  const movePreview = (direction) => {
+    if (!previewCards.length) return;
+    setPreviewIndex((current) => {
+      const next = current + direction;
+      if (next < 0) return previewCards.length - 1;
+      if (next >= previewCards.length) return 0;
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    setPreviewIndex(0);
+  }, [recommendationMode, selectionType, selectedProductIds.length, selectedCollectionIds.length]);
 
   return (
     <Page
@@ -672,25 +706,18 @@ export default function RuleUpsell() {
             </div>
 
             {/* Preview */}
-            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", overflow: "hidden" }}>
-              <Box padding="300" borderBlockEndWidth="025" borderColor="border">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
-                  <Text variant="bodySm" tone={enabled ? "success" : "subdued"} as="p">
-                    {enabled ? "Active" : "Hidden"}
-                  </Text>
-                </InlineStack>
-              </Box>
-              <Box padding="300">
-                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px", background: "#fff" }}>
-                  {/* Cart header */}
-                  <div style={{ background: "#f9fafb", padding: "8px 12px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between" }}>
-                    <Text variant="bodySm" fontWeight="semibold" as="p">Your Cart</Text>
-                    <Text variant="bodySm" tone="subdued" as="p">1 item</Text>
-                  </div>
-                  {/* Cart item */}
-                  <div style={{ padding: "8px 12px", borderBottom: "1px solid #e1e3e5" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ background: "#fff", border: "1px solid #dedede", borderRadius: "6px", boxShadow: "0 1px 2px rgba(0,0,0,0.08)", overflow: "hidden" }}>
+              <Box padding="500">
+                <Text variant="headingSm" fontWeight="semibold" as="h3">Preview</Text>
+                <div style={{ marginTop: "14px", background: backgroundColor || "#fff", opacity: enabled ? 1 : 0.52, padding: "0 8px 6px" }}>
+                  <div style={{ textAlign: "center", marginBottom: "12px" }}>
+                    <div style={{ color: textColor || "#333", fontSize: "15px", lineHeight: "20px", fontWeight: 700 }}>
+                      {sectionTitle || "You may also like"}
+                    </div>
+                    <div style={{ color: "#8a8a8a", fontSize: "10px", lineHeight: "14px", marginTop: "2px" }}>
+                      {previewSelectionLabel}
+                    </div>
+                    <div style={{ display: "none" }}>
                       <div style={{ width: "36px", height: "36px", background: "#e5e7eb", borderRadius: "4px", flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <Text variant="bodySm" fontWeight="semibold" as="p">Your Product</Text>
@@ -701,9 +728,8 @@ export default function RuleUpsell() {
                       </div>
                     </div>
                   </div>
-                  {/* Upsell section */}
-                  <div style={{ background: backgroundColor || "#fff", padding: "10px 12px", opacity: enabled ? 1 : 0.58 }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+                  <div style={{ background: backgroundColor || "#fff", opacity: enabled ? 1 : 0.58 }}>
+                    <div style={{ display: "none" }}>
                       <div style={{ minWidth: 0 }}>
                         <Text variant="bodySm" fontWeight="semibold" as="p">
                           <span style={{ color: textColor || "#111827" }}>{sectionTitle || "You may also like"}</span>
@@ -724,82 +750,232 @@ export default function RuleUpsell() {
                           Select {selectionType === "collections" ? "collections" : "products"} to preview the upsell items.
                         </Text>
                       </div>
+                    ) : showAsSlider ? (
+                      <div style={{ marginTop: "8px" }}>
+                        {[activePreviewProduct].filter(Boolean).map((p) => (
+                          <div
+                            key={p.id || p.title}
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "22px 72px minmax(0, 1fr) auto 22px",
+                                gap: "10px",
+                                alignItems: "center",
+                                minHeight: "96px",
+                                padding: "14px 16px",
+                                background: "#f8fbff",
+                                border: `1px solid ${borderColor || "#dfe7ef"}`,
+                                borderRadius: "6px",
+                              }}
+                          >
+                            <button
+                              type="button"
+                              aria-label="Previous preview product"
+                              onClick={() => movePreview(-1)}
+                              disabled={previewCards.length < 2}
+                              style={{
+                                width: "28px",
+                                height: "28px",
+                                borderRadius: "50%",
+                                border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                background: "#fff",
+                                color: arrowColor || "#6b7280",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 0,
+                                fontSize: "22px",
+                                lineHeight: "22px",
+                                cursor: previewCards.length > 1 ? "pointer" : "default",
+                              }}
+                            >
+                              &lsaquo;
+                            </button>
+                            {p.image ? (
+                              <img
+                                src={p.image}
+                                alt={p.title}
+                                style={{
+                                  width: "72px",
+                                  height: "72px",
+                                  objectFit: "cover",
+                                  borderRadius: "6px",
+                                  border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                  display: "block",
+                                  background: "#f3f4f6",
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: "52px",
+                                  height: "42px",
+                                  borderRadius: "6px",
+                                  border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                  background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)",
+                                }}
+                              />
+                            )}
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  color: textColor || "#111827",
+                                  fontSize: "14px",
+                                  lineHeight: "18px",
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {p.title || p.name || "Product"}
+                              </div>
+                              <div style={{ display: "flex", gap: "5px", alignItems: "baseline", minWidth: 0 }}>
+                                <span
+                                  style={{
+                                    color: "#8c8c8c",
+                                    fontSize: "11px",
+                                    lineHeight: "14px",
+                                    textDecoration: "line-through",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {previewComparePrice || ""}
+                                </span>
+                                <span
+                                  style={{
+                                    color: textColor || "#111827",
+                                    fontSize: "12px",
+                                    lineHeight: "14px",
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {previewPrice}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              style={{
+                                background: buttonColor || "#fff",
+                                border: `1px solid ${borderColor || "#d8dee4"}`,
+                                borderRadius: "5px",
+                                color: "#1f2937",
+                                fontSize: "12px",
+                                lineHeight: "16px",
+                                fontWeight: 700,
+                                padding: "8px 14px",
+                                minWidth: "110px",
+                                maxWidth: "130px",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              + {buttonText || "Add to cart"}
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Next preview product"
+                              onClick={() => movePreview(1)}
+                              disabled={previewCards.length < 2}
+                              style={{
+                                width: "28px",
+                                height: "28px",
+                                borderRadius: "50%",
+                                border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                background: "#fff",
+                                color: arrowColor || "#6b7280",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 0,
+                                fontSize: "22px",
+                                lineHeight: "22px",
+                                cursor: previewCards.length > 1 ? "pointer" : "default",
+                              }}
+                            >
+                              &rsaquo;
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <div
-                        style={{
-                          display: showAsSlider ? "flex" : "grid",
-                          gridTemplateColumns: showAsSlider ? undefined : "repeat(2, minmax(0, 1fr))",
-                          gap: "8px",
-                          marginTop: "8px",
-                          overflowX: showAsSlider ? "auto" : "visible",
-                          paddingBottom: showAsSlider ? "2px" : 0,
-                        }}
-                      >
-                        {previewCards.map((p) => (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px", marginTop: "8px" }}>
+                        {previewCards.slice(0, 2).map((p) => (
                           <div
                             key={p.id || p.title}
                             style={{
-                              flex: showAsSlider ? "0 0 112px" : undefined,
-                              minWidth: 0,
+                              display: "grid",
+                              gridTemplateColumns: "48px minmax(0, 1fr) auto",
+                              gap: "8px",
+                              alignItems: "center",
                               border: `1px solid ${borderColor || "#e1e3e5"}`,
                               borderRadius: "7px",
                               padding: "7px",
                               background: "#fff",
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                             }}
                           >
                             {p.image ? (
                               <img
                                 src={p.image}
                                 alt={p.title}
-                                style={{ height: "58px", width: "100%", objectFit: "cover", borderRadius: "5px", marginBottom: "6px", display: "block", background: "#f3f4f6" }}
+                                style={{ width: "48px", height: "42px", objectFit: "cover", borderRadius: "5px", display: "block", background: "#f3f4f6" }}
                               />
                             ) : (
-                              <div style={{ height: "58px", background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)", borderRadius: "5px", marginBottom: "6px" }} />
+                              <div style={{ width: "48px", height: "42px", background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)", borderRadius: "5px" }} />
                             )}
-                            <div style={{ color: textColor || "#111827", fontSize: "11px", lineHeight: "14px", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {p.title || p.name || "Product"}
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ color: textColor || "#111827", fontSize: "12px", lineHeight: "15px", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {p.title || p.name || "Product"}
+                              </div>
+                              <div style={{ color: "#6b7280", fontSize: "11px", lineHeight: "14px" }}>
+                                {p.subtitle || p.price || ""}
+                              </div>
                             </div>
-                            <div style={{ color: "#6b7280", fontSize: "10px", lineHeight: "14px", minHeight: "14px" }}>
-                              {p.subtitle || p.price || ""}
-                            </div>
-                            <div style={{ marginTop: "6px", background: buttonColor || "#111827", borderRadius: "5px", padding: "5px 6px", textAlign: "center", overflow: "hidden" }}>
-                              <span style={{ color: "#fff", fontSize: "10px", lineHeight: "12px", fontWeight: 700, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {buttonText || "Add to cart"}
-                              </span>
-                            </div>
+                            <button
+                              type="button"
+                              style={{ background: buttonColor || "#111827", border: "none", borderRadius: "5px", color: "#fff", fontSize: "11px", fontWeight: 700, padding: "7px 9px", maxWidth: "68px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                            >
+                              {buttonText || "Add"}
+                            </button>
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {showAsSlider && autoplay && enabled && !previewEmptyManualSelection && (
+                    {showAsSlider && enabled && !previewEmptyManualSelection && (
                       <div style={{ display: "flex", gap: "4px", justifyContent: "center", marginTop: "8px" }}>
-                        {[0, 1, 2].map((dot) => (
-                          <span
-                            key={dot}
+                        {previewCards.map((p, dot) => (
+                          <button
+                            key={p.id || dot}
+                            type="button"
+                            aria-label={`Show preview product ${dot + 1}`}
+                            onClick={() => setPreviewIndex(dot)}
                             style={{
-                              width: dot === 0 ? "14px" : "5px",
+                              width: dot === activePreviewIndex ? "18px" : "7px",
                               height: "5px",
                               borderRadius: "999px",
-                              background: dot === 0 ? buttonColor || "#111827" : borderColor || "#d1d5db",
+                              border: "none",
+                              background: dot === activePreviewIndex ? buttonColor || "#6b7280" : "#e5e7eb",
                               display: "block",
+                              padding: 0,
+                              cursor: "pointer",
                             }}
                           />
                         ))}
                       </div>
                     )}
                   </div>
-                  {/* Footer */}
-                  <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>
+                  <div style={{ display: "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <Text variant="bodySm" tone="subdued" as="p">Subtotal</Text>
                       <Text variant="bodySm" as="p">$39.99</Text>
                     </div>
                   </div>
                 </div>
-                <Box paddingBlockStart="200">
-                  <Text variant="bodySm" tone="subdued" as="p">Live preview · cart drawer view</Text>
+                <Box paddingBlockStart="0">
+                  <span style={{ display: "none" }}>Live preview</span>
                 </Box>
               </Box>
             </div>
