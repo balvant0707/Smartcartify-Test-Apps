@@ -707,10 +707,10 @@ export default function RuleUpsell() {
 
             {/* Preview */}
             <div style={{ background: "#fff", border: "1px solid #dfe3e8", borderRadius: "10px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)", overflow: "hidden" }}>
-              <Box padding="500">
+              <Box padding="300">
                 <Text variant="headingSm" fontWeight="semibold" as="h3">Preview</Text>
-                <div style={{ marginTop: "18px", background: backgroundColor || "#fff", opacity: enabled ? 1 : 0.55, padding: "0 4px 8px" }}>
-                  <div style={{ textAlign: "center", marginBottom: "12px" }}>
+                <div style={{ marginTop: "10px", background: backgroundColor || "#fff", opacity: enabled ? 1 : 0.55, padding: "0" }}>
+                  <div style={{ textAlign: "center", marginBottom: "8px" }}>
                     <div style={{ color: textColor || "#1f2937", fontSize: "18px", lineHeight: "24px", fontWeight: 800 }}>
                       {sectionTitle || "You may also like"}
                     </div>
@@ -755,7 +755,7 @@ export default function RuleUpsell() {
                         style={{
                           display: "grid",
                           gridTemplateColumns: "32px minmax(0, 1fr) 32px",
-                          gap: "12px",
+                          gap: "6px",
                           alignItems: "center",
                           marginTop: "8px",
                         }}
@@ -790,11 +790,11 @@ export default function RuleUpsell() {
                             <div
                               style={{
                                 display: "grid",
-                                gridTemplateColumns: "86px minmax(0, 1fr)",
-                                gap: "16px",
+                                gridTemplateColumns: "64px minmax(0, 1fr)",
+                                gap: "10px",
                                 alignItems: "center",
-                                minHeight: "116px",
-                                padding: "16px",
+                                minHeight: "92px",
+                                padding: "10px",
                                 background: "#f8fbff",
                                 border: `1px solid ${borderColor || "#dfe7ef"}`,
                                 borderRadius: "8px",
@@ -805,8 +805,8 @@ export default function RuleUpsell() {
                                   src={p.image}
                                   alt={p.title}
                                   style={{
-                                    width: "86px",
-                                    height: "78px",
+                                    width: "64px",
+                                    height: "64px",
                                     objectFit: "cover",
                                     borderRadius: "8px",
                                     display: "block",
@@ -816,20 +816,20 @@ export default function RuleUpsell() {
                               ) : (
                                 <div
                                   style={{
-                                    width: "86px",
-                                    height: "78px",
+                                    width: "64px",
+                                    height: "64px",
                                     borderRadius: "8px",
                                     background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)",
                                   }}
                                 />
                               )}
                               <div style={{ minWidth: 0 }}>
-                                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "12px", alignItems: "start" }}>
+                                <div style={{ display: "grid", gap: "4px" }}>
                                   <div
                                     style={{
                                       color: textColor || "#4b5563",
-                                      fontSize: "16px",
-                                      lineHeight: "21px",
+                                      fontSize: "15px",
+                                      lineHeight: "20px",
                                       fontWeight: 800,
                                       whiteSpace: "nowrap",
                                       overflow: "hidden",
@@ -838,7 +838,7 @@ export default function RuleUpsell() {
                                   >
                                     {p.title || p.name || "Product"}
                                   </div>
-                                  <div style={{ color: textColor || "#374151", fontSize: "15px", lineHeight: "21px", fontWeight: 800, whiteSpace: "nowrap" }}>
+                                  <div style={{ color: textColor || "#374151", fontSize: "14px", lineHeight: "18px", fontWeight: 800, whiteSpace: "nowrap" }}>
                                     {previewPrice}
                                   </div>
                                 </div>
@@ -872,7 +872,7 @@ export default function RuleUpsell() {
                                     lineHeight: "18px",
                                     fontWeight: 800,
                                     padding: "9px 14px",
-                                    marginTop: "12px",
+                                    marginTop: "8px",
                                     maxWidth: "160px",
                                     whiteSpace: "nowrap",
                                     overflow: "hidden",
