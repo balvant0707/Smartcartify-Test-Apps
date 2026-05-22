@@ -447,6 +447,16 @@ export default function RuleUpsell() {
     setPreviewIndex(0);
   }, [recommendationMode, selectionType, selectedProductIds.length, selectedCollectionIds.length]);
 
+  useEffect(() => {
+    if (!enabled || !showAsSlider || !autoplay || previewCards.length < 2) return undefined;
+
+    const timer = window.setInterval(() => {
+      setPreviewIndex((current) => (current + 1) % previewCards.length);
+    }, 2500);
+
+    return () => window.clearInterval(timer);
+  }, [enabled, showAsSlider, autoplay, previewCards.length]);
+
   return (
     <Page
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
@@ -754,7 +764,7 @@ export default function RuleUpsell() {
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "32px minmax(0, 1fr) 32px",
+                          gridTemplateColumns: "28px minmax(0, 1fr) 28px",
                           gap: "6px",
                           alignItems: "center",
                           marginTop: "8px",
@@ -768,8 +778,8 @@ export default function RuleUpsell() {
                               onClick={() => movePreview(-1)}
                               disabled={previewCards.length < 2}
                               style={{
-                                width: "32px",
-                                height: "32px",
+                                width: "28px",
+                                height: "28px",
                                 borderRadius: "50%",
                                 border: `1px solid ${borderColor || "#dfe3e8"}`,
                                 background: "#fff",
@@ -790,13 +800,13 @@ export default function RuleUpsell() {
                             <div
                               style={{
                                 display: "grid",
-                                gridTemplateColumns: "64px minmax(0, 1fr)",
-                                gap: "10px",
+                                gridTemplateColumns: "54px minmax(0, 1fr)",
+                                gap: "14px",
                                 alignItems: "center",
                                 minHeight: "92px",
                                 padding: "10px",
-                                background: "#f8fbff",
-                                border: `1px solid ${borderColor || "#dfe7ef"}`,
+                                background: "transparent",
+                                border: "none",
                                 borderRadius: "8px",
                               }}
                             >
@@ -805,8 +815,8 @@ export default function RuleUpsell() {
                                   src={p.image}
                                   alt={p.title}
                                   style={{
-                                    width: "64px",
-                                    height: "64px",
+                                    width: "54px",
+                                    height: "54px",
                                     objectFit: "cover",
                                     borderRadius: "8px",
                                     display: "block",
@@ -816,8 +826,8 @@ export default function RuleUpsell() {
                               ) : (
                                 <div
                                   style={{
-                                    width: "64px",
-                                    height: "64px",
+                                    width: "54px",
+                                    height: "54px",
                                     borderRadius: "8px",
                                     background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)",
                                   }}
@@ -890,8 +900,8 @@ export default function RuleUpsell() {
                               onClick={() => movePreview(1)}
                               disabled={previewCards.length < 2}
                               style={{
-                                width: "32px",
-                                height: "32px",
+                                width: "28px",
+                                height: "28px",
                                 borderRadius: "50%",
                                 border: `1px solid ${borderColor || "#dfe3e8"}`,
                                 background: "#fff",
