@@ -299,7 +299,29 @@ const RULE_TYPES = [
         "Show upsell items as an autoplay slider for a seamless experience.",
       ],
     },
-  }
+  },
+  {
+    id: "customize-preview",
+    category: "customize",
+    title: "Customize & Preview",
+    subtitle: "Personalize cart drawer colors, fonts, and layout",
+    icon: ICO("campaign-ico-automation.svg"),
+    preview: {
+      title: "Customize & Preview",
+      description:
+        "Personalize every aspect of your cart drawer — colors, button styles, background, font sizes, and more. Preview changes with real products in real-time before saving.",
+      banner: ICO("campaign-banner-automation.svg"),
+      bannerBg: "#faf5ff",
+      aovBoost: "Better UX",
+      setupTime: "1-2 mins",
+      actionLabel: "Open Customize & Preview",
+      usecases: [
+        "Match cart drawer colors and fonts to your brand identity.",
+        "Preview the live cart drawer with real products before saving.",
+        "Adjust button styles, icon, and background for higher conversions.",
+      ],
+    },
+  },
 ];
 
 const TABS = [
@@ -308,6 +330,7 @@ const TABS = [
   { id: "discounts", content: "Discounts" },
   { id: "free-products", content: "Free Products" },
   { id: "upsell", content: "Upsell" },
+  { id: "customize", content: "Customize" },
 ];
 
 // Maps rule-type ID → dedicated editor route
@@ -573,6 +596,10 @@ export default function CampaignSelector() {
           {
             label: "Upsell",
             items: RULE_TYPES.filter((r) => r.category === "upsell"),
+          },
+          {
+            label: "Customize",
+            items: RULE_TYPES.filter((r) => r.category === "customize"),
           },
         ]
       : [
