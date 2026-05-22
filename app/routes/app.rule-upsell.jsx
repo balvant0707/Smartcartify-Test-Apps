@@ -457,7 +457,7 @@ export default function RuleUpsell() {
         onAction: () => setEnabled(v => !v),
       }]}
     >
-      <style>{`.up-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.up-layout{grid-template-columns:1fr}}`}</style>
+      <style>{`.up-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:20px;align-items:start}@media(max-width:1100px){.up-layout{grid-template-columns:minmax(0,1fr) 380px}}@media(max-width:900px){.up-layout{grid-template-columns:1fr}}`}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
           <Banner tone="critical" title="Save failed">{actionData.error}</Banner>
