@@ -714,7 +714,7 @@ export default function RuleUpsell() {
                     <div style={{ color: textColor || "#1f2937", fontSize: "18px", lineHeight: "24px", fontWeight: 800 }}>
                       {sectionTitle || "You may also like"}
                     </div>
-                    <div style={{ color: "#6b7280", fontSize: "12px", lineHeight: "16px", marginTop: "2px" }}>
+                    <div style={{ display: "none", color: "#6b7280", fontSize: "12px", lineHeight: "16px", marginTop: "2px" }}>
                       {previewSelectionLabel}
                     </div>
                     <div style={{ display: "none" }}>
@@ -755,7 +755,7 @@ export default function RuleUpsell() {
                         style={{
                           display: "grid",
                           gridTemplateColumns: "32px minmax(0, 1fr) 32px",
-                          gap: "10px",
+                          gap: "12px",
                           alignItems: "center",
                           marginTop: "8px",
                         }}
@@ -793,7 +793,7 @@ export default function RuleUpsell() {
                                 gridTemplateColumns: "86px minmax(0, 1fr)",
                                 gap: "16px",
                                 alignItems: "center",
-                                minHeight: "126px",
+                                minHeight: "116px",
                                 padding: "16px",
                                 background: "#f8fbff",
                                 border: `1px solid ${borderColor || "#dfe7ef"}`,
@@ -806,7 +806,7 @@ export default function RuleUpsell() {
                                   alt={p.title}
                                   style={{
                                     width: "86px",
-                                    height: "86px",
+                                    height: "78px",
                                     objectFit: "cover",
                                     borderRadius: "8px",
                                     display: "block",
@@ -817,27 +817,32 @@ export default function RuleUpsell() {
                                 <div
                                   style={{
                                     width: "86px",
-                                    height: "86px",
+                                    height: "78px",
                                     borderRadius: "8px",
                                     background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)",
                                   }}
                                 />
                               )}
                               <div style={{ minWidth: 0 }}>
-                                <div
-                                  style={{
-                                    color: textColor || "#111827",
-                                    fontSize: "16px",
-                                    lineHeight: "21px",
-                                    fontWeight: 800,
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                >
-                                  {p.title || p.name || "Product"}
+                                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: "12px", alignItems: "start" }}>
+                                  <div
+                                    style={{
+                                      color: textColor || "#4b5563",
+                                      fontSize: "16px",
+                                      lineHeight: "21px",
+                                      fontWeight: 800,
+                                      whiteSpace: "nowrap",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                    }}
+                                  >
+                                    {p.title || p.name || "Product"}
+                                  </div>
+                                  <div style={{ color: textColor || "#374151", fontSize: "15px", lineHeight: "21px", fontWeight: 800, whiteSpace: "nowrap" }}>
+                                    {previewPrice}
+                                  </div>
                                 </div>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "baseline", minWidth: 0, marginTop: "6px" }}>
+                                <div style={{ display: previewComparePrice ? "flex" : "none", flexWrap: "wrap", gap: "6px", alignItems: "baseline", minWidth: 0, marginTop: "2px" }}>
                                   {previewComparePrice && (
                                     <span
                                       style={{
@@ -851,17 +856,6 @@ export default function RuleUpsell() {
                                       {previewComparePrice}
                                     </span>
                                   )}
-                                  <span
-                                    style={{
-                                      color: textColor || "#111827",
-                                    fontSize: "14px",
-                                    lineHeight: "18px",
-                                    fontWeight: 800,
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
-                                    {previewPrice}
-                                  </span>
                                 </div>
                                 <button
                                   type="button"
@@ -870,15 +864,15 @@ export default function RuleUpsell() {
                                     alignItems: "center",
                                     justifyContent: "center",
                                     gap: "6px",
-                                    background: buttonColor || "#111827",
-                                    border: `1px solid ${buttonColor || "#111827"}`,
+                                    background: "#fff",
+                                    border: `1px solid ${borderColor || "#dfe3e8"}`,
                                     borderRadius: "6px",
-                                    color: "#fff",
+                                    color: textColor || "#374151",
                                     fontSize: "13px",
                                     lineHeight: "18px",
                                     fontWeight: 800,
                                     padding: "9px 14px",
-                                    marginTop: "14px",
+                                    marginTop: "12px",
                                     maxWidth: "160px",
                                     whiteSpace: "nowrap",
                                     overflow: "hidden",
