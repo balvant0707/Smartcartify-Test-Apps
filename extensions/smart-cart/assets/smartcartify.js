@@ -3500,8 +3500,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   color:#111827;
   font-weight:600;
 }
-.sc-drawer.sc-empty-state .sc-announce,
-.sc-drawer.sc-empty-state .sc-progress,
 .sc-drawer.sc-empty-state .sc-items-footer,
 .sc-drawer.sc-empty-state .sc-footer{
   display:none !important;
@@ -6032,15 +6030,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
 
     const checkoutButton = drawer.querySelector("[data-checkout]");
-    const announceEl = drawer.querySelector("[data-sc-announce]");
-    const progressEl = drawer.querySelector(".sc-progress");
     const itemsFooter = drawer.querySelector(".sc-items-footer");
     const footerEl = drawer.querySelector(".sc-footer");
     const isEmpty = !items.length;
     updateDiscountPanelVisibility({ isEmpty });
     if (checkoutButton) checkoutButton.hidden = isEmpty;
-    if (announceEl) announceEl.hidden = isEmpty;
-    if (progressEl) progressEl.hidden = isEmpty;
     if (itemsFooter) itemsFooter.hidden = isEmpty;
     if (footerEl) footerEl.hidden = isEmpty;
     drawer.classList.toggle("sc-empty-state", isEmpty);
@@ -7232,6 +7226,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           })
           : false;
 
+        firePaperEffect(2800);
         rewardPopupShown = true;
       }
 
@@ -7271,6 +7266,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const celebrationText =
         trimToNull(newlyUnlocked?.progressTextAfter) || newlyUnlocked?.title || "Reward Unlocked";
 
+      firePaperEffect(2800);
       let popupShown = false;
       const stepSlot = trimToNull(newlyUnlocked?.slot);
       const stepGuardKey =

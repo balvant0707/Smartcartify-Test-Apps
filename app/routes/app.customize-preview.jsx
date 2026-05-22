@@ -293,6 +293,8 @@ function resolveStepText(text, amount, discountOpts = {}) {
       : fmtAmount(discountOpts.value);
     result = result.replace(/\{\{discount\}\}/gi, ds);
   }
+  if (discountOpts.x !== undefined) result = result.replace(/\{\{x\}\}/gi, String(discountOpts.x));
+  if (discountOpts.y !== undefined) result = result.replace(/\{\{y\}\}/gi, String(discountOpts.y));
   result = result.replace(/\{\{[^}]+\}\}/g, "").trim();
   return result || null;
 }
@@ -405,11 +407,14 @@ function CartDrawerPreview({
   const announceMessages = [];
   if (announcementBarText) announceMessages.push(announcementBarText);
   (bxgyRules || []).forEach((r) => {
-    const msg = r.beforeOfferUnlockMessage || r.afterOfferUnlockMessage;
-    if (msg) {
+    const x = String(r.xQty || "");
+    const y = String(r.yQty || "");
+    const raw = r.beforeOfferUnlockMessage || r.afterOfferUnlockMessage;
+    if (raw) {
+      const msg = raw.replace(/\{\{x\}\}/gi, x).replace(/\{\{y\}\}/gi, y);
       announceMessages.push(msg);
-    } else if (r.xQty && r.yQty) {
-      announceMessages.push(`Buy ${r.xQty} Get ${r.yQty} Free!`);
+    } else if (x && y) {
+      announceMessages.push(`Buy ${x} Get ${y} Free!`);
     }
   });
   (codeDiscountRules || []).forEach((r) => {
@@ -446,7 +451,6 @@ function CartDrawerPreview({
     .map((n) => ({ slot: n, rule: slotMap[n] }))
     .filter((s) => s.rule !== null);
 
-  const totalSteps = steps.length || 1;
   const progressFill = 30;
 
   // Label above bar: first pending step's progressTextBefore (with all placeholders resolved)
@@ -550,8 +554,8 @@ function CartDrawerPreview({
           <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 8, background: brc, borderRadius: 999, transform: "translateY(-50%)" }}>
             <div style={{ height: "100%", width: `${progressFill}%`, background: pc, borderRadius: 999 }} />
           </div>
-          {steps.map((step, i) => {
-            const pct = Math.round(((i + 1) / (totalSteps + 1)) * 100);
+          {steps.map((step) => {
+            const pct = step.slot * 25;
             const done = pct <= progressFill;
             const iconSrc = iconForChoice(step.rule.iconChoice, step.rule._defaultIcon);
             return (
@@ -569,8 +573,8 @@ function CartDrawerPreview({
 
         {/* Step labels */}
         <div style={{ position: "relative", height: 20, marginBottom: 4 }}>
-          {steps.map((step, i) => {
-            const pct = Math.round(((i + 1) / (totalSteps + 1)) * 100);
+          {steps.map((step) => {
+            const pct = step.slot * 25;
             return (
               <div key={step.slot} style={{ position: "absolute", left: `${pct}%`, transform: "translateX(-50%)", fontSize: 9, color: tc, opacity: 0.7, textAlign: "center", whiteSpace: "nowrap", maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis" }}>
                 {ruleStepLabel(step.rule)}
@@ -586,44 +590,63 @@ function CartDrawerPreview({
       </div>
 
       {/* ── Step before/after messages ── */}
-      {steps.length > 0 && (
-        <div style={{ padding: "0 16px 12px" }}>
-          <BlockStack gap="150">
-            {steps.map((step) => {
-              const rule = step.rule;
-              const iconSrc = iconForChoice(rule.iconChoice, rule._defaultIcon);
-              const amount = rule._ruleType === "shipping" ? rule.minSubtotal : rule.minPurchase;
-              const discountOpts = rule._ruleType === "discount"
-                ? { value: rule.value, valueType: rule.valueType }
-                : {};
-              const beforeText = resolveStepText(rule.progressTextBefore, amount, discountOpts)
-                || buildDefaultProgressBefore(rule);
-              const afterText = resolveStepText(rule.progressTextAfter, amount, discountOpts)
-                || buildDefaultProgressAfter(rule);
-              return (
-                <div key={step.slot} style={{ display: "flex", gap: 10, padding: "8px 10px", background: "#f8f9fa", border: `1px solid ${brc}`, borderRadius: 8 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: pc + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                    <PreviewIcon source={iconSrc} size={14} color={pc} />
-                  </div>
-                  <BlockStack gap="100">
-                    <span style={{ fontSize: 9, fontWeight: 700, color: tc, opacity: 0.45, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      {ruleStepLabel(rule)}
-                    </span>
-                    <div style={{ fontSize: 11, color: tc, display: "flex", gap: 4, alignItems: "flex-start" }}>
-                      <span style={{ color: pc, fontWeight: 700, flexShrink: 0 }}>→</span>
-                      <span>{beforeText}</span>
-                    </div>
-                    <div style={{ fontSize: 10, color: tc, opacity: 0.6, display: "flex", gap: 4, alignItems: "flex-start" }}>
-                      <span style={{ color: "#27ae60", flexShrink: 0 }}>✓</span>
-                      <span style={{ fontStyle: "italic" }}>{afterText}</span>
-                    </div>
-                  </BlockStack>
+      <div style={{ padding: "0 16px 12px" }}>
+        <BlockStack gap="150">
+          {steps.length > 0 ? steps.map((step) => {
+            const rule = step.rule;
+            const iconSrc = iconForChoice(rule.iconChoice, rule._defaultIcon);
+            const amount = rule._ruleType === "shipping" ? rule.minSubtotal : rule.minPurchase;
+            const discountOpts = rule._ruleType === "discount"
+              ? { value: rule.value, valueType: rule.valueType }
+              : rule._ruleType === "bxgy"
+              ? { x: rule.xQty, y: rule.yQty }
+              : {};
+            const beforeText = resolveStepText(rule.progressTextBefore, amount, discountOpts)
+              || buildDefaultProgressBefore(rule);
+            const afterText = resolveStepText(rule.progressTextAfter, amount, discountOpts)
+              || buildDefaultProgressAfter(rule);
+            return (
+              <div key={step.slot} style={{ display: "flex", gap: 10, padding: "8px 10px", background: "#f8f9fa", border: `1px solid ${brc}`, borderRadius: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: pc + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                  <PreviewIcon source={iconSrc} size={14} color={pc} />
                 </div>
-              );
-            })}
-          </BlockStack>
-        </div>
-      )}
+                <BlockStack gap="100">
+                  <span style={{ fontSize: 9, fontWeight: 700, color: tc, opacity: 0.45, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    {ruleStepLabel(rule)}
+                  </span>
+                  <div style={{ fontSize: 11, color: tc, display: "flex", gap: 4, alignItems: "flex-start" }}>
+                    <span style={{ color: pc, fontWeight: 700, flexShrink: 0 }}>→</span>
+                    <span>{beforeText}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: tc, opacity: 0.6, display: "flex", gap: 4, alignItems: "flex-start" }}>
+                    <span style={{ color: "#27ae60", flexShrink: 0 }}>✓</span>
+                    <span style={{ fontStyle: "italic" }}>{afterText}</span>
+                  </div>
+                </BlockStack>
+              </div>
+            );
+          }) : (
+            <div style={{ display: "flex", gap: 10, padding: "8px 10px", background: "#f8f9fa", border: `1px solid ${brc}`, borderRadius: 8, opacity: 0.55 }}>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", background: pc + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                <PreviewIcon source={DeliveryIcon} size={14} color={pc} />
+              </div>
+              <BlockStack gap="100">
+                <span style={{ fontSize: 9, fontWeight: 700, color: tc, opacity: 0.45, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Free Shipping
+                </span>
+                <div style={{ fontSize: 11, color: tc, display: "flex", gap: 4, alignItems: "flex-start" }}>
+                  <span style={{ color: pc, fontWeight: 700, flexShrink: 0 }}>→</span>
+                  <span>Spend $50 more for free shipping</span>
+                </div>
+                <div style={{ fontSize: 10, color: tc, opacity: 0.6, display: "flex", gap: 4, alignItems: "flex-start" }}>
+                  <span style={{ color: "#27ae60", flexShrink: 0 }}>✓</span>
+                  <span style={{ fontStyle: "italic" }}>Free shipping unlocked! 🎉</span>
+                </div>
+              </BlockStack>
+            </div>
+          )}
+        </BlockStack>
+      </div>
 
       {/* ── Cart items ── */}
       <CartItem name="Sample Product" variant="Small / Black" price="300 INR" />
