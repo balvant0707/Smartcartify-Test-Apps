@@ -8697,7 +8697,7 @@ export const shouldRevalidate = ({ currentUrl, nextUrl }) => {
 
 /* ---------------- main ---------------- */
 
-export default function AppRules() {
+export default function AppRules({ initialTab = null } = {}) {
   const loaderData = useLoaderData() ?? {};
   const location = useLocation();
   const {
@@ -8714,7 +8714,7 @@ export default function AppRules() {
     currencyCode: loaderCurrencyCode = "USD",
   } = loaderData;
 
-  const [selected, setSelected] = React.useState(0);
+  const [selected, setSelected] = React.useState(initialTab === "style" ? 6 : 0);
   const currencyCode = String(loaderCurrencyCode || "USD").toUpperCase();
   const currencySymbol = React.useMemo(
     () => getCurrencySymbol(currencyCode),

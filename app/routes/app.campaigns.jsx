@@ -303,18 +303,18 @@ const RULE_TYPES = [
   {
     id: "customize-preview",
     category: "customize-preview",
-    title: "Customize and Preview",
+    title: "Customize & Preview",
     subtitle: "Customize the cart drawer style and preview the shopper experience",
     icon: ICO("campaign-ico-automation.svg"),
     preview: {
-      title: "Customize and Preview",
+      title: "Customize & Preview",
       description:
         "Adjust the cart drawer design, colors, icon, checkout button, announcement bar, mobile layout, and preview how the drawer looks before shoppers see it.",
       banner: ICO("campaign-banner-automation.svg"),
       bannerBg: "#f8fafc",
       aovBoost: "Brand fit",
       setupTime: "2-5 mins",
-      actionLabel: "Customize and preview",
+      actionLabel: "Customize & preview",
       usecases: [
         "Match the cart drawer colors and buttons to your store branding.",
         "Preview shipping, discount, free product, and upsell content together.",
@@ -330,7 +330,7 @@ const TABS = [
   { id: "discounts", content: "Discounts" },
   { id: "free-products", content: "Free Products" },
   { id: "upsell", content: "Upsell" },
-  { id: "customize-preview", content: "Customize" },
+  { id: "customize-preview", content: "Customize & Preview" },
 ];
 
 // Maps rule-type ID → dedicated editor route
@@ -341,7 +341,7 @@ const RULE_ROUTES = {
   "code-discount": "/app/rule-code-discount",
   "buy-x-get-y": "/app/rule-bxgy",
   "upsell": "/app/rule-upsell",
-  "customize-preview": "/app/rules?tab=style",
+  "customize-preview": "/app/customize-preview",
 };
 
 const STATUS_TONE = {
@@ -639,6 +639,8 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+const RulesTable = null;
+
 export default function CampaignSelector() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -705,7 +707,7 @@ export default function CampaignSelector() {
             items: RULE_TYPES.filter((r) => r.category === "upsell"),
           },
           {
-            label: "Customize and Preview",
+            label: "Customize & Preview",
             items: RULE_TYPES.filter((r) => r.category === "customize-preview"),
           },
         ]
@@ -766,7 +768,7 @@ export default function CampaignSelector() {
         </Modal>
       )}
 
-      {rules.length > 0 && (
+      {typeof RulesTable === "function" && rules.length > 0 && (
         <Box paddingBlockEnd="600">
           <RulesTable
             rules={rules}
