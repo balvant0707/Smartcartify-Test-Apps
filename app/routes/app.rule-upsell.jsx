@@ -278,7 +278,7 @@ export default function RuleUpsell() {
   const productFetcher = useFetcher();
   useEffect(() => {
     if (productFetcher.state === "idle" && !productFetcher.data) {
-      productFetcher.load("/api/products");
+      productFetcher.load("/api/products?includeCollectionProducts=1");
     }
   }, []);
   const allProducts = productFetcher.data?.products || [];
@@ -375,6 +375,43 @@ export default function RuleUpsell() {
   };
 
   const isLoadingPicker = productFetcher.state === "loading";
+  const selectedProductsForPreview = selectedProductIds
+    .map((id) => productPickerItems.find((product) => product.id === id))
+    .filter(Boolean);
+  const selectedCollectionsForPreview = selectedCollectionIds
+    .map((id) => allCollections.find((collection) => collection.id === id))
+    .filter(Boolean);
+  const collectionProductsForPreview = selectedCollectionsForPreview
+    .flatMap((collection) => collection.products || [])
+    .map((product) => ({
+      id: product.id,
+      title: product.title,
+      subtitle: product.price ? `$${product.price}` : undefined,
+      image: product.image,
+    }));
+  const autoPreviewProducts = productPickerItems.slice(0, 4);
+  const fallbackPreviewProducts = [
+    { id: "preview-a", title: "Classic Tee", subtitle: "$24.00" },
+    { id: "preview-b", title: "Canvas Tote", subtitle: "$18.00" },
+    { id: "preview-c", title: "Travel Mug", subtitle: "$16.00" },
+  ];
+  const previewProducts =
+    recommendationMode === "manual" && selectionType === "products"
+      ? selectedProductsForPreview
+      : recommendationMode === "manual" && selectionType === "collections"
+        ? collectionProductsForPreview
+        : autoPreviewProducts;
+  const previewCards = (previewProducts.length ? previewProducts : fallbackPreviewProducts).slice(0, 4);
+  const previewSelectionLabel =
+    recommendationMode === "manual" && selectionType === "products"
+      ? `${selectedProductIds.length} selected product${selectedProductIds.length === 1 ? "" : "s"}`
+      : recommendationMode === "manual" && selectionType === "collections"
+        ? `${selectedCollectionIds.length} selected collection${selectedCollectionIds.length === 1 ? "" : "s"}`
+        : "Automatic recommendations";
+  const previewEmptyManualSelection =
+    recommendationMode === "manual" &&
+    ((selectionType === "products" && selectedProductIds.length === 0) ||
+      (selectionType === "collections" && selectedCollectionIds.length === 0));
 
   return (
     <Page
@@ -637,10 +674,15 @@ export default function RuleUpsell() {
             {/* Preview */}
             <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "10px", overflow: "hidden" }}>
               <Box padding="300" borderBlockEndWidth="025" borderColor="border">
-                <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Preview</Text>
+                  <Text variant="bodySm" tone={enabled ? "success" : "subdued"} as="p">
+                    {enabled ? "Active" : "Hidden"}
+                  </Text>
+                </InlineStack>
               </Box>
               <Box padding="300">
-                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px" }}>
+                <div style={{ border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden", fontSize: "12px", background: "#fff" }}>
                   {/* Cart header */}
                   <div style={{ background: "#f9fafb", padding: "8px 12px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between" }}>
                     <Text variant="bodySm" fontWeight="semibold" as="p">Your Cart</Text>
@@ -660,68 +702,93 @@ export default function RuleUpsell() {
                     </div>
                   </div>
                   {/* Upsell section */}
-                  <div style={{ background: backgroundColor || "#fff", padding: "10px 12px" }}>
-                    <Text variant="bodySm" fontWeight="semibold" as="p">
-                      <span style={{ color: textColor || "#111827" }}>{sectionTitle || "You may also like"}</span>
-                    </Text>
-                    {/* Product cards */}
-                    {(() => {
-                      // Determine which products to show in preview
-                      let previewProducts = [];
-                      let isCollectionsMode = recommendationMode === "manual" && selectionType === "collections" && selectedCollectionIds.length > 0 && selectedProductIds.length === 0;
-                      if (recommendationMode === "manual" && selectionType === "products" && selectedProductIds.length > 0) {
-                        previewProducts = selectedProductIds
-                          .slice(0, 2)
-                          .map(id => productPickerItems.find(p => p.id === id))
-                          .filter(Boolean);
-                      }
-                      if (isCollectionsMode) {
-                        return (
-                          <div style={{ marginTop: "8px", padding: "8px", background: "#f0f7ff", borderRadius: "6px", textAlign: "center" }}>
-                            <Text variant="bodySm" tone="subdued" as="p">
-                              Products from {selectedCollectionIds.length} collection{selectedCollectionIds.length !== 1 ? "s" : ""} will appear here
-                            </Text>
-                          </div>
-                        );
-                      }
-                      const cards = previewProducts.length > 0
-                        ? previewProducts
-                        : [{ id: "a", title: "Item A", subtitle: "$19.99" }, { id: "b", title: "Item B", subtitle: "$24.99" }];
-                      return (
-                        <div style={{ display: "flex", gap: "6px", marginTop: "8px", overflowX: "auto", paddingBottom: "2px" }}>
-                          {cards.map((p) => (
-                            <div
-                              key={p.id || p.title}
-                              style={{
-                                flex: "0 0 90px",
-                                border: `1px solid ${borderColor || "#e1e3e5"}`,
-                                borderRadius: "6px",
-                                padding: "6px",
-                                background: "#f9fafb",
-                                textAlign: "center",
-                              }}
-                            >
-                              {p.image ? (
-                                <img
-                                  src={p.image}
-                                  alt={p.title}
-                                  style={{ height: "48px", width: "100%", objectFit: "cover", borderRadius: "4px", marginBottom: "5px", display: "block" }}
-                                />
-                              ) : (
-                                <div style={{ height: "48px", background: "#e5e7eb", borderRadius: "4px", marginBottom: "5px" }} />
-                              )}
-                              <Text variant="bodySm" as="p" truncate>{p.title || p.name}</Text>
-                              <Text variant="bodySm" tone="subdued" as="p">{p.subtitle || p.price || ""}</Text>
-                              <div style={{ marginTop: "5px", background: buttonColor || "#111827", borderRadius: "4px", padding: "3px 4px" }}>
-                                <span style={{ color: "#fff", fontSize: "10px", fontWeight: 600 }}>
-                                  {buttonText || "Add to cart"}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                  <div style={{ background: backgroundColor || "#fff", padding: "10px 12px", opacity: enabled ? 1 : 0.58 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <Text variant="bodySm" fontWeight="semibold" as="p">
+                          <span style={{ color: textColor || "#111827" }}>{sectionTitle || "You may also like"}</span>
+                        </Text>
+                        <Text variant="bodySm" tone="subdued" as="p">{previewSelectionLabel}</Text>
+                      </div>
+                      {showAsSlider && (
+                        <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+                          <span style={{ width: "20px", height: "20px", borderRadius: "50%", border: `1px solid ${borderColor || "#e1e3e5"}`, color: arrowColor || "#6b7280", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "12px", lineHeight: 1 }}>&lt;</span>
+                          <span style={{ width: "20px", height: "20px", borderRadius: "50%", border: `1px solid ${borderColor || "#e1e3e5"}`, color: arrowColor || "#6b7280", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "12px", lineHeight: 1 }}>&gt;</span>
                         </div>
-                      );
-                    })()}
+                      )}
+                    </div>
+
+                    {previewEmptyManualSelection ? (
+                      <div style={{ marginTop: "8px", padding: "10px", background: "#f9fafb", border: `1px dashed ${borderColor || "#d1d5db"}`, borderRadius: "6px", textAlign: "center" }}>
+                        <Text variant="bodySm" tone="subdued" as="p">
+                          Select {selectionType === "collections" ? "collections" : "products"} to preview the upsell items.
+                        </Text>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: showAsSlider ? "flex" : "grid",
+                          gridTemplateColumns: showAsSlider ? undefined : "repeat(2, minmax(0, 1fr))",
+                          gap: "8px",
+                          marginTop: "8px",
+                          overflowX: showAsSlider ? "auto" : "visible",
+                          paddingBottom: showAsSlider ? "2px" : 0,
+                        }}
+                      >
+                        {previewCards.map((p) => (
+                          <div
+                            key={p.id || p.title}
+                            style={{
+                              flex: showAsSlider ? "0 0 112px" : undefined,
+                              minWidth: 0,
+                              border: `1px solid ${borderColor || "#e1e3e5"}`,
+                              borderRadius: "7px",
+                              padding: "7px",
+                              background: "#fff",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                            }}
+                          >
+                            {p.image ? (
+                              <img
+                                src={p.image}
+                                alt={p.title}
+                                style={{ height: "58px", width: "100%", objectFit: "cover", borderRadius: "5px", marginBottom: "6px", display: "block", background: "#f3f4f6" }}
+                              />
+                            ) : (
+                              <div style={{ height: "58px", background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)", borderRadius: "5px", marginBottom: "6px" }} />
+                            )}
+                            <div style={{ color: textColor || "#111827", fontSize: "11px", lineHeight: "14px", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {p.title || p.name || "Product"}
+                            </div>
+                            <div style={{ color: "#6b7280", fontSize: "10px", lineHeight: "14px", minHeight: "14px" }}>
+                              {p.subtitle || p.price || ""}
+                            </div>
+                            <div style={{ marginTop: "6px", background: buttonColor || "#111827", borderRadius: "5px", padding: "5px 6px", textAlign: "center", overflow: "hidden" }}>
+                              <span style={{ color: "#fff", fontSize: "10px", lineHeight: "12px", fontWeight: 700, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {buttonText || "Add to cart"}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {showAsSlider && autoplay && enabled && !previewEmptyManualSelection && (
+                      <div style={{ display: "flex", gap: "4px", justifyContent: "center", marginTop: "8px" }}>
+                        {[0, 1, 2].map((dot) => (
+                          <span
+                            key={dot}
+                            style={{
+                              width: dot === 0 ? "14px" : "5px",
+                              height: "5px",
+                              borderRadius: "999px",
+                              background: dot === 0 ? buttonColor || "#111827" : borderColor || "#d1d5db",
+                              display: "block",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {/* Footer */}
                   <div style={{ padding: "8px 12px", borderTop: "1px solid #e1e3e5", background: "#f9fafb" }}>
