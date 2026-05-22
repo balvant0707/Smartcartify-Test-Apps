@@ -300,6 +300,28 @@ const RULE_TYPES = [
       ],
     },
   },
+  {
+    id: "customize-preview",
+    category: "customize-preview",
+    title: "Customize and Preview",
+    subtitle: "Customize the cart drawer style and preview the shopper experience",
+    icon: ICO("campaign-ico-automation.svg"),
+    preview: {
+      title: "Customize and Preview",
+      description:
+        "Adjust the cart drawer design, colors, icon, checkout button, announcement bar, mobile layout, and preview how the drawer looks before shoppers see it.",
+      banner: ICO("campaign-banner-automation.svg"),
+      bannerBg: "#f8fafc",
+      aovBoost: "Brand fit",
+      setupTime: "2-5 mins",
+      actionLabel: "Customize and preview",
+      usecases: [
+        "Match the cart drawer colors and buttons to your store branding.",
+        "Preview shipping, discount, free product, and upsell content together.",
+        "Tune checkout, icon, announcement bar, and mobile drawer settings.",
+      ],
+    },
+  },
 ];
 
 const TABS = [
@@ -308,6 +330,7 @@ const TABS = [
   { id: "discounts", content: "Discounts" },
   { id: "free-products", content: "Free Products" },
   { id: "upsell", content: "Upsell" },
+  { id: "customize-preview", content: "Customize" },
 ];
 
 // Maps rule-type ID → dedicated editor route
@@ -318,6 +341,7 @@ const RULE_ROUTES = {
   "code-discount": "/app/rule-code-discount",
   "buy-x-get-y": "/app/rule-bxgy",
   "upsell": "/app/rule-upsell",
+  "customize-preview": "/app/rules?tab=style",
 };
 
 const STATUS_TONE = {
@@ -430,7 +454,7 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
           disabled={creating}
           onClick={onCreate}
         >
-          Create this rule
+          {ruleType.preview.actionLabel || "Create this rule"}
         </Button>
 
         {/* Stats */}
@@ -629,10 +653,16 @@ export default function CampaignSelector() {
 
   // Build URL for a rule editor page, appending host if present.
   const toRulePage = (base, extraParams = {}) => {
-    const params = new URLSearchParams(extraParams);
+    const [pathname, search = ""] = String(base).split("?");
+    const params = new URLSearchParams(search);
+    Object.entries(extraParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.set(key, value);
+      }
+    });
     if (host) params.set("host", host);
     const qs = params.toString();
-    return qs ? `${base}?${qs}` : base;
+    return qs ? `${pathname}?${qs}` : pathname;
   };
 
   const handleEdit = (rule) => {
@@ -673,6 +703,10 @@ export default function CampaignSelector() {
           {
             label: "Upsell",
             items: RULE_TYPES.filter((r) => r.category === "upsell"),
+          },
+          {
+            label: "Customize and Preview",
+            items: RULE_TYPES.filter((r) => r.category === "customize-preview"),
           },
         ]
       : [

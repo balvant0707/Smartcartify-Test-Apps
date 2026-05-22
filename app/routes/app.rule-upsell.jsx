@@ -16,19 +16,52 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
+const DEFAULT_STYLE_SETTINGS = {
+  font: "inter",
+  base: "16",
+  headingScale: "1.25",
+  radius: "0",
+  textColor: "#000000",
+  bg: "#ffffff",
+  progress: "#000000",
+  buttonColor: "#000000",
+  buttonLabelColor: "#ffffff",
+  borderColor: "#e1e3e5",
+  iconColor: "#000000",
+  checkoutButtonText: "Checkout",
+  announcementBarBackgroundColor: "#000000",
+  announcementBarTextColor: "#ffffff",
+  cartDrawerBackgroundMode: "color",
+  cartDrawerBackground: "#ffffff",
+  cartDrawerImage: "",
+  cartDrawerTextColor: "#111111",
+  cartDrawerHeaderColor: "#111111",
+  cartIconUrl: "",
+  discountCodeApply: false,
+  drawerAutoOpen: true,
+  stickyCheckout: true,
+  drawerPosition: "right",
+  mobileLayout: "drawer",
+};
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   let record = null;
+  let styleRecord = null;
   try {
     record = await prisma.upsellSettings.findUnique({
       where: { shop: session.shop },
     });
+    styleRecord = await prisma.styleSettings.findFirst({
+      where: { shop: session.shop },
+      orderBy: { updatedAt: "desc" },
+    });
   } catch {
     // Table may not exist yet
   }
-  return { record };
+  return { record, styleRecord };
 };
 
 // ─── Action ──────────────────────────────────────────────────────────────────
