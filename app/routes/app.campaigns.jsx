@@ -308,7 +308,6 @@ const TABS = [
   { id: "discounts", content: "Discounts" },
   { id: "free-products", content: "Free Products" },
   { id: "upsell", content: "Upsell" },
-  { id: "customize-preview", content: "Customize & Preview" },
 ];
 
 // Maps rule-type ID → dedicated editor route
@@ -574,10 +573,6 @@ export default function CampaignSelector() {
           {
             label: "Upsell",
             items: RULE_TYPES.filter((r) => r.category === "upsell"),
-          },
-          {
-            label: "Customize & Preview",
-            items: RULE_TYPES.filter((r) => r.category === "customize-preview"),
           },
         ]
       : [
