@@ -208,6 +208,7 @@ export default function App() {
         <s-app-nav>
           {/* <s-link href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</s-link> */}
           <s-link href={host ? `/app/rules?host=${encodeURIComponent(host)}` : "/app/rules"}>Cart Rule</s-link>
+          <s-link href={host ? `/app/customize-preview?host=${encodeURIComponent(host)}` : "/app/customize-preview"}>Customize Preview</s-link>
           <s-link href={host ? `/app/campaigns?host=${encodeURIComponent(host)}` : "/app/campaigns"}>Create Campaign</s-link>
           <s-link href={host ? `/app/my-rules?host=${encodeURIComponent(host)}` : "/app/my-rules"}>My Rules</s-link>
           <s-link href={host ? `/app/cartbar?host=${encodeURIComponent(host)}` : "/app/cartbar"}>Add to Cart Bar</s-link>
