@@ -1,4 +1,4 @@
-// app/routes/app.rules.jsx
+// app/routes/app.customize-preview.jsx
 import React from "react";
 import { useLoaderData, useLocation, useNavigate, useRouteError } from "react-router";
 import { randomUUID } from "node:crypto";
