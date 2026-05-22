@@ -12,6 +12,8 @@ import {
 import {
   ThemeIcon, MinimizeIcon, MaximizeIcon,
   ColorIcon, SettingsIcon, CartIcon,
+  GiftCardIcon, DiscountIcon, DeliveryIcon,
+  XIcon, ChevronRightIcon, ChevronLeftIcon, DeleteIcon,
 } from "@shopify/polaris-icons";
 import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
@@ -271,6 +273,16 @@ function resolveStepText(textBefore, amount) {
   return textBefore.replace(/\{\{amount\}\}/gi, fmtAmount(amount));
 }
 
+// Renders a Polaris icon constrained to a given px size
+function PreviewIcon({ source, size = 14, color = "currentColor" }) {
+  const s = `${size}px`;
+  return (
+    <span style={{ display: "flex", width: s, height: s, flexShrink: 0, color }}>
+      <Icon source={source} />
+    </span>
+  );
+}
+
 function CartDrawerPreview({
   bg, textColor, headerColor, buttonColor, buttonLabelColor, progress, radius, checkoutText,
   announcementBg, announcementText, announcementBarText,
@@ -284,26 +296,24 @@ function CartDrawerPreview({
   const blc = buttonLabelColor || "#fff";
   const pc = progress || "#000";
 
-  // Build milestone list: freeGift → discount → shipping order
+  // Build milestone list: freeGift → discount → shipping
   const milestones = [];
   (freeGiftRules || []).forEach((rule) =>
-    milestones.push({ label: rule.cartStepName || rule.progressTextAfter || "Free Gift!!", icon: "🎁" })
+    milestones.push({ label: rule.cartStepName || rule.progressTextAfter || "Free Gift!!", iconSource: GiftCardIcon })
   );
   (discountRules || []).forEach((rule) =>
-    milestones.push({ label: rule.cartStepName || rule.progressTextAfter || `${rule.value || "20"}% Off!`, icon: "%" })
+    milestones.push({ label: rule.cartStepName || rule.progressTextAfter || `${rule.value || "20"}% Off!`, iconSource: DiscountIcon })
   );
   (shippingRules || []).forEach((rule) =>
-    milestones.push({ label: rule.cartStepName || rule.progressTextAfter || "Free Shipping!", icon: "🚚" })
+    milestones.push({ label: rule.cartStepName || rule.progressTextAfter || "Free Shipping!", iconSource: DeliveryIcon })
   );
-  if (milestones.length === 0) milestones.push({ label: "Free Shipping!", icon: "🚚" });
+  if (milestones.length === 0) milestones.push({ label: "Free Shipping!", iconSource: DeliveryIcon });
 
-  // Evenly distribute milestone positions across the bar
   const milestonePcts = milestones.map((_, i) =>
     Math.round(((i + 1) / (milestones.length + 1)) * 100)
   );
-  const progressFill = 30; // static fill % for preview
+  const progressFill = 30;
 
-  // Next-goal label above the bar
   const firstFG = (freeGiftRules || [])[0];
   const firstSH = (shippingRules || [])[0];
   const nextGoalText = firstFG
@@ -312,7 +322,6 @@ function CartDrawerPreview({
     ? resolveStepText(firstSH.progressTextBefore, firstSH.minSubtotal) || "Add more to get Free Shipping"
     : "Add more to get Free Shipping with this order";
 
-  // Free gift item (shown as a locked reward row below cart items)
   const hasFreeGift = (freeGiftRules || []).length > 0;
   const fgRule = freeGiftRules?.[0];
   const fgLabel = fgRule?.cartStepName || "Free Gift!!";
@@ -322,111 +331,127 @@ function CartDrawerPreview({
 
   const showUpsell = upsellSettings?.enabled === true;
 
-  // Header background: image if configured
   const headerHasImage = drawerBgMode === "image" && drawerImage;
   const headerBgStyle = headerHasImage
     ? { backgroundImage: `url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
     : { background: bg || "#f5f0e8" };
 
-  return (
-    <div style={{ border: "1px solid #e1e3e5", borderRadius: 12, overflow: "hidden", background: bg || "#fff", fontSize: 12, userSelect: "none" }}>
+  // Shared cart item renderer
+  const CartItem = ({ name, variant, price }) => (
+    <div style={{ padding: "12px 16px", display: "flex", gap: 12, alignItems: "flex-start", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+      <div style={{ width: 56, height: 56, background: "#f0f0f0", borderRadius: 10, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: tc }}>{name}</span>
+          <span style={{ color: "#bbb", cursor: "pointer", marginLeft: 6, display: "flex" }}>
+            <PreviewIcon source={DeleteIcon} size={14} color="#bbb" />
+          </span>
+        </div>
+        <div style={{ fontSize: 10, color: tc, opacity: 0.55, marginTop: 2 }}>{variant}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f3f4f6", borderRadius: 20, padding: "4px 12px" }}>
+            <span style={{ color: tc, fontSize: 16, lineHeight: 1, fontWeight: 500 }}>−</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: tc, minWidth: 14, textAlign: "center" }}>1</span>
+            <span style={{ color: tc, fontSize: 16, lineHeight: 1, fontWeight: 500 }}>+</span>
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 700, color: tc }}>{price}</span>
+        </div>
+      </div>
+    </div>
+  );
 
-      {/* ── Header with optional bg image ── */}
-      <div style={{ ...headerBgStyle, padding: "14px 14px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: hc, fontWeight: 700, fontSize: 16, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>
+  return (
+    <div style={{ border: "1px solid #e1e3e5", borderRadius: 12, overflow: "hidden", background: bg || "#fff", fontSize: 12, userSelect: "none", minHeight: 700 }}>
+
+      {/* ── Header ── */}
+      <div style={{ ...headerBgStyle, padding: "16px 16px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: hc, fontWeight: 700, fontSize: 17, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>
           Cart
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.88)", borderRadius: 20, padding: "3px 10px", fontSize: 11, color: "#333", fontWeight: 500, cursor: "pointer" }}>
-          <span>✕</span><span>Close</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.88)", borderRadius: 20, padding: "4px 12px", fontSize: 12, color: "#333", fontWeight: 500, cursor: "pointer" }}>
+          <PreviewIcon source={XIcon} size={12} color="#555" />
+          <span>Close</span>
         </div>
       </div>
 
       {/* ── Announcement bar ── */}
-      <div style={{ background: announcementBg || "#fff8f0", padding: "6px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+      <div style={{ background: announcementBg || "#fff8f0", padding: "7px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
         <span style={{ color: announcementText || "#c0392b", fontSize: 11, fontWeight: 500 }}>
           {announcementBarText || "Cart Announcement Goes here"}
         </span>
-        <span style={{ color: announcementText || "#c0392b", fontSize: 11 }}>▶</span>
+        <PreviewIcon source={ChevronRightIcon} size={16} color={announcementText || "#c0392b"} />
       </div>
 
       {/* ── Progress section ── */}
-      <div style={{ padding: "10px 14px 4px", background: bg || "#fff" }}>
-        <div style={{ fontSize: 11, color: tc, textAlign: "center", marginBottom: 9, opacity: 0.85 }}>
+      <div style={{ padding: "14px 16px 6px", background: bg || "#fff" }}>
+        <div style={{ fontSize: 11, color: tc, textAlign: "center", marginBottom: 10, opacity: 0.85, lineHeight: 1.4 }}>
           {nextGoalText}
         </div>
         {/* Track + milestone circles */}
-        <div style={{ position: "relative", height: 28, marginBottom: 4 }}>
-          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 6, background: "#e5e7eb", borderRadius: 999, transform: "translateY(-50%)" }}>
+        <div style={{ position: "relative", height: 32, marginBottom: 6 }}>
+          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 8, background: "#e5e7eb", borderRadius: 999, transform: "translateY(-50%)" }}>
             <div style={{ height: "100%", width: `${progressFill}%`, background: pc, borderRadius: 999 }} />
           </div>
           {milestonePcts.map((pct, i) => (
-            <div key={i} style={{ position: "absolute", top: "50%", left: `${pct}%`, transform: "translate(-50%, -50%)", width: 20, height: 20, borderRadius: "50%", background: pct <= progressFill ? pc : "#e5e7eb", border: "2px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, boxShadow: "0 1px 3px rgba(0,0,0,0.18)", zIndex: 1 }}>
-              {milestones[i].icon}
+            <div key={i} style={{ position: "absolute", top: "50%", left: `${pct}%`, transform: "translate(-50%, -50%)", width: 30, height: 30, borderRadius: "50%", background: pct <= progressFill ? pc : "#e5e7eb", border: "2px solid #fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.18)", zIndex: 1 }}>
+              <PreviewIcon source={milestones[i].iconSource} size={14} color={pct <= progressFill ? blc : "#888"} />
             </div>
           ))}
         </div>
         {/* Milestone labels */}
-        <div style={{ position: "relative", height: 16 }}>
+        <div style={{ position: "relative", height: 18 }}>
           {milestonePcts.map((pct, i) => (
-            <div key={i} style={{ position: "absolute", left: `${pct}%`, transform: "translateX(-50%)", fontSize: 9, color: tc, opacity: 0.7, textAlign: "center", whiteSpace: "nowrap", maxWidth: 58, overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div key={i} style={{ position: "absolute", left: `${pct}%`, transform: "translateX(-50%)", fontSize: 9, color: tc, opacity: 0.7, textAlign: "center", whiteSpace: "nowrap", maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis" }}>
               {milestones[i].label}
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Cart item ── */}
-      <div style={{ padding: "10px 14px", display: "flex", gap: 10, alignItems: "flex-start", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
-        <div style={{ width: 50, height: 50, background: "#f0f0f0", borderRadius: 8, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: tc }}>Sample Product</span>
-            <span style={{ color: "#bbb", fontSize: 13, cursor: "pointer", marginLeft: 6, lineHeight: 1 }}>✕</span>
-          </div>
-          <div style={{ fontSize: 10, color: tc, opacity: 0.55, marginTop: 2 }}>Small</div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 7 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f3f4f6", borderRadius: 20, padding: "3px 10px" }}>
-              <span style={{ color: tc, fontSize: 14, lineHeight: 1, fontWeight: 500 }}>−</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: tc, minWidth: 12, textAlign: "center" }}>1</span>
-              <span style={{ color: tc, fontSize: 14, lineHeight: 1, fontWeight: 500 }}>+</span>
-            </div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: tc }}>300 INR</span>
-          </div>
-        </div>
-      </div>
+      {/* ── Cart items ── */}
+      <CartItem name="Sample Product" variant="Small / Black" price="300 INR" />
+      <CartItem name="Another Product" variant="M / White" price="450 INR" />
 
       {/* ── Free gift reward row ── */}
       {hasFreeGift && (
-        <div style={{ padding: "8px 14px", display: "flex", gap: 10, alignItems: "center", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
-          <div style={{ width: 42, height: 42, background: "#f0f0f0", borderRadius: 8, flexShrink: 0 }} />
+        <div style={{ padding: "12px 16px", display: "flex", gap: 12, alignItems: "center", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+          <div style={{ width: 48, height: 48, background: "#f0f0f0", borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <PreviewIcon source={GiftCardIcon} size={22} color="#aaa" />
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: tc }}>{fgLabel}</div>
-            <div style={{ fontSize: 10, color: tc, opacity: 0.55, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fgText}</div>
-            <div style={{ display: "flex", gap: 4, marginTop: 5 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: tc }}>{fgLabel}</div>
+            <div style={{ fontSize: 10, color: tc, opacity: 0.55, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fgText}</div>
+            <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
               {[0, 1, 2].map((n) => (
                 <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : "#ddd" }} />
               ))}
             </div>
           </div>
-          <div style={{ width: 24, height: 24, borderRadius: "50%", border: "1px solid #ddd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#999", flexShrink: 0, cursor: "pointer" }}>▶</div>
+          <div style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid #ddd", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer" }}>
+            <PreviewIcon source={ChevronRightIcon} size={14} color="#999" />
+          </div>
         </div>
       )}
 
       {/* ── Upsell section ── */}
       {showUpsell && (
-        <div style={{ padding: "8px 14px 10px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: tc, textAlign: "center", marginBottom: 8 }}>You may also like...</div>
+        <div style={{ padding: "12px 16px 14px", borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: tc, textAlign: "center", marginBottom: 10 }}>You may also like...</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ color: "#ccc", fontSize: 14, lineHeight: 1, cursor: "pointer" }}>◀</span>
-            <div style={{ width: 38, height: 38, background: "#2d2d2d", borderRadius: 8, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: tc }}>Gray Jordans</div>
-              <div style={{ fontSize: 10, color: tc, opacity: 0.55 }}>300 INR</div>
+            <div style={{ cursor: "pointer", display: "flex" }}>
+              <PreviewIcon source={ChevronLeftIcon} size={18} color="#ccc" />
             </div>
-            <div style={{ background: bc, color: blc, borderRadius: Math.max(r, 4), padding: "5px 12px", fontSize: 10, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</div>
-            <span style={{ color: "#ccc", fontSize: 14, lineHeight: 1, cursor: "pointer" }}>▶</span>
+            <div style={{ width: 44, height: 44, background: "#2d2d2d", borderRadius: 10, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: tc }}>Gray Jordans</div>
+              <div style={{ fontSize: 11, color: tc, opacity: 0.55, marginTop: 2 }}>300 INR</div>
+            </div>
+            <div style={{ background: bc, color: blc, borderRadius: Math.max(r, 4), padding: "6px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</div>
+            <div style={{ cursor: "pointer", display: "flex" }}>
+              <PreviewIcon source={ChevronRightIcon} size={18} color="#ccc" />
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 3, justifyContent: "center", marginTop: 7 }}>
+          <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 10 }}>
             {Array.from({ length: 6 }).map((_, n) => (
               <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : "#e5e7eb" }} />
             ))}
@@ -435,12 +460,12 @@ function CartDrawerPreview({
       )}
 
       {/* ── Total + Checkout footer ── */}
-      <div style={{ display: "flex", alignItems: "stretch", borderTop: "1px solid rgba(0,0,0,0.1)" }}>
-        <div style={{ flex: 1, padding: "10px 14px" }}>
-          <div style={{ fontSize: 10, color: tc, opacity: 0.55 }}>Total</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: tc }}>327 INR</div>
+      <div style={{ display: "flex", alignItems: "stretch", borderTop: "1px solid rgba(0,0,0,0.1)", marginTop: "auto" }}>
+        <div style={{ flex: 1, padding: "12px 16px" }}>
+          <div style={{ fontSize: 11, color: tc, opacity: 0.55 }}>Total</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: tc }}>750 INR</div>
         </div>
-        <div style={{ background: bc, color: blc, padding: "0 18px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, cursor: "pointer", minWidth: 110 }}>
+        <div style={{ background: bc, color: blc, padding: "0 22px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, cursor: "pointer", minWidth: 120 }}>
           {checkoutText || "Checkout"}
         </div>
       </div>

@@ -2850,6 +2850,19 @@
       }
     }
 
+    // Static announcement text set in Customize & Preview settings
+    const staticAnnounce = trimToNull(
+      PROXY?.styleSettings?.announcementBarText ??
+      PROXY?.styleSettings?.announcementBarMsg ??
+      ""
+    );
+    if (staticAnnounce) {
+      const staticLower = staticAnnounce.trim().toLowerCase();
+      if (!unique.some((m) => String(m).trim().toLowerCase() === staticLower)) {
+        unique.unshift(staticAnnounce);
+      }
+    }
+
     setAnnouncementMessages(unique);
   };
 
@@ -7150,7 +7163,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ruleKey: firstCompleted.ruleKey,
         });
         if (firstCompleted?.ruleKey) markPopupShown("buyxgety", firstCompleted.ruleKey);
-        firePaperEffect(2800);
       } else if (bxgyCompleteNow && !LAST_BXGY_DONE) {
         const popupShown = bxgyNow
           ? openRewardPopupFor({
@@ -7161,11 +7173,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           })
           : false;
 
-        if (!popupShown) {
-          firePaperEffect(2800);
-          const msg = trimToNull(bxgyNow?.afterMsg) || trimToNull(bxgyNow?.currentMsg) || "Offer Unlocked";
-          showCenterCelebratePopup("🎉 Congratulations!", msg, 5000);
-        }
         rewardPopupShown = true;
       }
 
@@ -7231,7 +7238,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               slot: trimToNull(slot),
             });
           }
-          firePaperEffect(2800);
           popupShown = true;
         } else if (!slot || canShowPopupFor("free", slot)) {
           popupShown = openRewardPopupFor({
@@ -7241,14 +7247,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             title: trimToNull(newlyUnlocked?.title) || "Free product unlocked",
           });
           if (popupShown) drawer.__sc_free_popup_for = newlyUnlocked.slot;
-          if (popupShown) firePaperEffect(2800);
         }
-      }
-
-      if (!popupShown && canShowStepPopup) {
-        firePaperEffect(2800);
-        showCenterCelebratePopup("🎉 Congratulations!", celebrationText, 5000);
-        if (stepGuardKey) markPopupShown("step", stepGuardKey);
       }
     }
 
