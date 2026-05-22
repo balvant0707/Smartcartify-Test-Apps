@@ -92,6 +92,8 @@ export const action = async ({ request }) => {
       rewardQty: yQty || "1",
       rewardType: giftType || "free_product",
       rewardDiscount: null,
+      scope,
+      appliesTo,
     });
     if (shopifyId) dbData.buyxgetyId = shopifyId;
 

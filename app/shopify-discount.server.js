@@ -116,6 +116,113 @@ function discountScheduleFields({ enabled = true, startsAt, endsAt } = {}) {
   };
 }
 
+const edgeNodes = (connection) =>
+  connection?.edges?.map((edge) => edge?.node).filter(Boolean) || [];
+
+const normalizeIds = (value) =>
+  Array.isArray(value)
+    ? [...new Set(value.map(String).map((id) => id.trim()).filter(Boolean))]
+    : [];
+
+function normalizeBxgyScope(scope) {
+  switch (scope) {
+    case "store":
+    case "entire_store":
+      return "store";
+    case "collection":
+    case "collections":
+    case "specific_collections":
+      return "collection";
+    case "product":
+    case "products":
+    case "specific_products":
+      return "product";
+    default:
+      return "product";
+  }
+}
+
+function parseBxgyAppliesTo(appliesTo, scope) {
+  const normalizedScope = normalizeBxgyScope(scope);
+  let parsed = appliesTo;
+
+  if (typeof appliesTo === "string" && appliesTo.trim()) {
+    try {
+      parsed = JSON.parse(appliesTo);
+    } catch {
+      parsed = appliesTo
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
+  }
+
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    return {
+      products: normalizeIds(parsed.products),
+      collections: normalizeIds(parsed.collections),
+    };
+  }
+
+  const ids = normalizeIds(parsed);
+  return normalizedScope === "collection"
+    ? { products: [], collections: ids }
+    : { products: ids, collections: [] };
+}
+
+async function fetchBxgyStoreProductIds(admin) {
+  const res = await admin.graphql(`#graphql
+    query BxgyStoreProducts {
+      products(first: 250, sortKey: TITLE) {
+        edges {
+          node {
+            id
+          }
+        }
+      }
+    }`);
+  const data = await res.json();
+  return normalizeIds(edgeNodes(data?.data?.products).map((product) => product.id));
+}
+
+function buildBxgyItemsInput(selection = {}) {
+  const products = normalizeIds(selection.products);
+  const collections = normalizeIds(selection.collections);
+
+  if (products.length) {
+    return { products: { productsToAdd: products } };
+  }
+
+  if (collections.length) {
+    return { collections: { add: collections } };
+  }
+
+  throw new Error(
+    "Shopify Buy X Get Y discounts require selected products or collections for customer buys and customer gets"
+  );
+}
+
+async function resolveBxgySelection(admin, { scope, appliesTo } = {}) {
+  const normalizedScope = normalizeBxgyScope(scope);
+  const parsed = parseBxgyAppliesTo(appliesTo, normalizedScope);
+
+  if (normalizedScope === "collection") {
+    if (parsed.collections.length) return { collections: parsed.collections };
+    throw new Error("Select at least one collection for this Buy X Get Y discount");
+  }
+
+  if (normalizedScope === "store") {
+    const products = parsed.products.length
+      ? parsed.products
+      : await fetchBxgyStoreProductIds(admin);
+    if (products.length) return { products };
+    throw new Error("No products found for this Buy X Get Y discount");
+  }
+
+  if (parsed.products.length) return { products: parsed.products };
+  throw new Error("Select at least one product for this Buy X Get Y discount");
+}
+
 function graphqlTopLevelErrorMessage(errors = []) {
   return errors
     .map((err) => [err?.message, err?.extensions?.code].filter(Boolean).join(" "))
@@ -508,18 +615,21 @@ export async function upsertAutomaticBasic(admin, {
  */
 export async function upsertBxgy(admin, {
   existingId, title, startsAt, endsAt, minReqType, minQty, minSpend, rewardQty, rewardType, rewardDiscount, enabled = true,
+  scope, appliesTo,
 }) {
+  const selection = await resolveBxgySelection(admin, { scope, appliesTo });
+  const items = buildBxgyItemsInput(selection);
   const input = {
     title: withAppNameTitle(title, "Buy X Get Y Discount"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
     customerBuys: {
-      items: { all: true },
+      items,
       value: minReqType === "spend"
         ? { subtotalAmount: { amount: String(parseFloat(minSpend || "0")), currencyCode: "USD" } }
         : { quantity: String(parseInt(minQty || "1", 10)) },
     },
     customerGets: {
-      items: { all: true },
+      items,
       value: {
         discountOnQuantity: {
           quantity: String(parseInt(rewardQty || "1", 10)),
