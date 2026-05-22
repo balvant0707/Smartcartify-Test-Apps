@@ -2603,6 +2603,9 @@
 
       const replaced = replaceTokensRaw(text, {
         goal: goalToken,
+        amount: goalToken,
+        remaining: remainingText,
+        goal_amount: goalText,
         discount: discountTokens.value,
         discount_value: discountTokens.value,
         discount_value_with_off: discountTokens.valueWithOff,

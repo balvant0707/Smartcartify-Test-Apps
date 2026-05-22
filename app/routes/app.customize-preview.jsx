@@ -262,12 +262,15 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
 
 // ─── ColorField ───────────────────────────────────────────────────────────────
 
+const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
+const toColorInputValue = (value) => (HEX_COLOR_RE.test(String(value || "")) ? value : "#000000");
+
 function ColorField({ label, value, onChange }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
       <input
         type="color"
-        value={value || "#000000"}
+        value={toColorInputValue(value)}
         onChange={(e) => onChange(e.target.value)}
         style={{ width: 36, height: 36, padding: 2, border: "1px solid #e1e3e5", borderRadius: 6, cursor: "pointer", flexShrink: 0 }}
         title={label}
