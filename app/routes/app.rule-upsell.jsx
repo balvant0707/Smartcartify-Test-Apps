@@ -706,15 +706,15 @@ export default function RuleUpsell() {
             </div>
 
             {/* Preview */}
-            <div style={{ background: "#fff", border: "1px solid #dedede", borderRadius: "6px", boxShadow: "0 1px 2px rgba(0,0,0,0.08)", overflow: "hidden" }}>
+            <div style={{ background: "#fff", border: "1px solid #dfe3e8", borderRadius: "10px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)", overflow: "hidden" }}>
               <Box padding="500">
                 <Text variant="headingSm" fontWeight="semibold" as="h3">Preview</Text>
-                <div style={{ marginTop: "14px", background: backgroundColor || "#fff", opacity: enabled ? 1 : 0.52, padding: "0 8px 6px" }}>
+                <div style={{ marginTop: "18px", background: backgroundColor || "#fff", opacity: enabled ? 1 : 0.55, padding: "0 4px 8px" }}>
                   <div style={{ textAlign: "center", marginBottom: "12px" }}>
-                    <div style={{ color: textColor || "#333", fontSize: "15px", lineHeight: "20px", fontWeight: 700 }}>
+                    <div style={{ color: textColor || "#1f2937", fontSize: "18px", lineHeight: "24px", fontWeight: 800 }}>
                       {sectionTitle || "You may also like"}
                     </div>
-                    <div style={{ color: "#8a8a8a", fontSize: "10px", lineHeight: "14px", marginTop: "2px" }}>
+                    <div style={{ color: "#6b7280", fontSize: "12px", lineHeight: "16px", marginTop: "2px" }}>
                       {previewSelectionLabel}
                     </div>
                     <div style={{ display: "none" }}>
@@ -745,7 +745,7 @@ export default function RuleUpsell() {
                     </div>
 
                     {previewEmptyManualSelection ? (
-                      <div style={{ marginTop: "8px", padding: "10px", background: "#f9fafb", border: `1px dashed ${borderColor || "#d1d5db"}`, borderRadius: "6px", textAlign: "center" }}>
+                      <div style={{ padding: "22px 14px", background: "#f8fafc", border: `1px dashed ${borderColor || "#d1d5db"}`, borderRadius: "8px", textAlign: "center" }}>
                         <Text variant="bodySm" tone="subdued" as="p">
                           Select {selectionType === "collections" ? "collections" : "products"} to preview the upsell items.
                         </Text>
@@ -754,8 +754,8 @@ export default function RuleUpsell() {
                       <div
                         style={{
                           display: "grid",
-                          gridTemplateColumns: "28px minmax(0, 1fr) 28px",
-                          gap: "8px",
+                          gridTemplateColumns: "32px minmax(0, 1fr) 32px",
+                          gap: "10px",
                           alignItems: "center",
                           marginTop: "8px",
                         }}
@@ -768,20 +768,21 @@ export default function RuleUpsell() {
                               onClick={() => movePreview(-1)}
                               disabled={previewCards.length < 2}
                               style={{
-                                width: "28px",
-                                height: "28px",
+                                width: "32px",
+                                height: "32px",
                                 borderRadius: "50%",
-                                border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                border: `1px solid ${borderColor || "#dfe3e8"}`,
                                 background: "#fff",
                                 color: arrowColor || "#6b7280",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 padding: 0,
-                                fontSize: "22px",
-                                lineHeight: "22px",
+                                fontSize: "24px",
+                                lineHeight: "24px",
                                 cursor: previewCards.length > 1 ? "pointer" : "default",
                                 opacity: previewCards.length > 1 ? 1 : 0.45,
+                                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                               }}
                             >
                               &lsaquo;
@@ -789,14 +790,14 @@ export default function RuleUpsell() {
                             <div
                               style={{
                                 display: "grid",
-                                gridTemplateColumns: "72px minmax(0, 1fr)",
-                                gap: "14px",
+                                gridTemplateColumns: "86px minmax(0, 1fr)",
+                                gap: "16px",
                                 alignItems: "center",
-                                minHeight: "96px",
-                                padding: "14px 16px",
+                                minHeight: "126px",
+                                padding: "16px",
                                 background: "#f8fbff",
                                 border: `1px solid ${borderColor || "#dfe7ef"}`,
-                                borderRadius: "6px",
+                                borderRadius: "8px",
                               }}
                             >
                               {p.image ? (
@@ -804,11 +805,10 @@ export default function RuleUpsell() {
                                   src={p.image}
                                   alt={p.title}
                                   style={{
-                                    width: "72px",
-                                    height: "72px",
+                                    width: "86px",
+                                    height: "86px",
                                     objectFit: "cover",
-                                    borderRadius: "6px",
-                                    border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                    borderRadius: "8px",
                                     display: "block",
                                     background: "#f3f4f6",
                                   }}
@@ -816,10 +816,9 @@ export default function RuleUpsell() {
                               ) : (
                                 <div
                                   style={{
-                                    width: "72px",
-                                    height: "72px",
-                                    borderRadius: "6px",
-                                    border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                    width: "86px",
+                                    height: "86px",
+                                    borderRadius: "8px",
                                     background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)",
                                   }}
                                 />
@@ -828,9 +827,9 @@ export default function RuleUpsell() {
                                 <div
                                   style={{
                                     color: textColor || "#111827",
-                                    fontSize: "14px",
-                                    lineHeight: "18px",
-                                    fontWeight: 700,
+                                    fontSize: "16px",
+                                    lineHeight: "21px",
+                                    fontWeight: 800,
                                     whiteSpace: "nowrap",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
@@ -838,7 +837,7 @@ export default function RuleUpsell() {
                                 >
                                   {p.title || p.name || "Product"}
                                 </div>
-                                <div style={{ display: "flex", gap: "5px", alignItems: "baseline", minWidth: 0, marginTop: "4px" }}>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "baseline", minWidth: 0, marginTop: "6px" }}>
                                   {previewComparePrice && (
                                     <span
                                       style={{
@@ -855,9 +854,9 @@ export default function RuleUpsell() {
                                   <span
                                     style={{
                                       color: textColor || "#111827",
-                                      fontSize: "12px",
-                                      lineHeight: "14px",
-                                      fontWeight: 700,
+                                    fontSize: "14px",
+                                    lineHeight: "18px",
+                                    fontWeight: 800,
                                       whiteSpace: "nowrap",
                                     }}
                                   >
@@ -867,22 +866,27 @@ export default function RuleUpsell() {
                                 <button
                                   type="button"
                                   style={{
-                                    background: buttonColor || "#fff",
-                                    border: `1px solid ${borderColor || "#d8dee4"}`,
-                                    borderRadius: "5px",
-                                    color: "#1f2937",
-                                    fontSize: "12px",
-                                    lineHeight: "16px",
-                                    fontWeight: 700,
-                                    padding: "8px 14px",
-                                    marginTop: "12px",
-                                    maxWidth: "140px",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "6px",
+                                    background: buttonColor || "#111827",
+                                    border: `1px solid ${buttonColor || "#111827"}`,
+                                    borderRadius: "6px",
+                                    color: "#fff",
+                                    fontSize: "13px",
+                                    lineHeight: "18px",
+                                    fontWeight: 800,
+                                    padding: "9px 14px",
+                                    marginTop: "14px",
+                                    maxWidth: "160px",
                                     whiteSpace: "nowrap",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
                                   }}
                                 >
-                                  + {buttonText || "Add to cart"}
+                                  <span style={{ fontSize: "16px", lineHeight: "16px" }}>+</span>
+                                  <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{buttonText || "Add to cart"}</span>
                                 </button>
                               </div>
                             </div>
@@ -892,20 +896,21 @@ export default function RuleUpsell() {
                               onClick={() => movePreview(1)}
                               disabled={previewCards.length < 2}
                               style={{
-                                width: "28px",
-                                height: "28px",
+                                width: "32px",
+                                height: "32px",
                                 borderRadius: "50%",
-                                border: `1px solid ${borderColor || "#e1e3e5"}`,
+                                border: `1px solid ${borderColor || "#dfe3e8"}`,
                                 background: "#fff",
                                 color: arrowColor || "#6b7280",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 padding: 0,
-                                fontSize: "22px",
-                                lineHeight: "22px",
+                                fontSize: "24px",
+                                lineHeight: "24px",
                                 cursor: previewCards.length > 1 ? "pointer" : "default",
                                 opacity: previewCards.length > 1 ? 1 : 0.45,
+                                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                               }}
                             >
                               &rsaquo;
@@ -914,19 +919,19 @@ export default function RuleUpsell() {
                         ))}
                       </div>
                     ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px", marginTop: "8px" }}>
-                        {previewCards.slice(0, 2).map((p) => (
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {previewCards.slice(0, 3).map((p) => (
                           <div
                             key={p.id || p.title}
                             style={{
                               display: "grid",
-                              gridTemplateColumns: "48px minmax(0, 1fr) auto",
-                              gap: "8px",
+                              gridTemplateColumns: "58px minmax(0, 1fr) auto",
+                              gap: "10px",
                               alignItems: "center",
                               border: `1px solid ${borderColor || "#e1e3e5"}`,
                               borderRadius: "7px",
-                              padding: "7px",
-                              background: "#fff",
+                              padding: "10px",
+                              background: "#f8fbff",
                             }}
                           >
                             {p.image ? (
@@ -934,10 +939,10 @@ export default function RuleUpsell() {
                                 src={p.image}
                                 alt={p.title}
                                 style={{
-                                  width: "48px",
-                                  height: "42px",
+                                  width: "58px",
+                                  height: "58px",
                                   objectFit: "cover",
-                                  borderRadius: "5px",
+                                  borderRadius: "7px",
                                   display: "block",
                                   background: "#f3f4f6",
                                 }}
@@ -945,9 +950,9 @@ export default function RuleUpsell() {
                             ) : (
                               <div
                                 style={{
-                                  width: "48px",
-                                  height: "42px",
-                                  borderRadius: "5px",
+                                  width: "58px",
+                                  height: "58px",
+                                  borderRadius: "7px",
                                   background: "linear-gradient(135deg,#f3f4f6,#e5e7eb)",
                                 }}
                               />
@@ -956,9 +961,9 @@ export default function RuleUpsell() {
                               <div
                                 style={{
                                   color: textColor || "#111827",
-                                  fontSize: "12px",
-                                  lineHeight: "15px",
-                                  fontWeight: 700,
+                                  fontSize: "13px",
+                                  lineHeight: "17px",
+                                  fontWeight: 800,
                                   whiteSpace: "nowrap",
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
@@ -966,8 +971,8 @@ export default function RuleUpsell() {
                               >
                                 {p.title || p.name || "Product"}
                               </div>
-                              <div style={{ color: "#6b7280", fontSize: "11px", lineHeight: "14px" }}>
-                                {p.subtitle || p.price || ""}
+                              <div style={{ color: "#6b7280", fontSize: "12px", lineHeight: "16px", marginTop: "2px" }}>
+                                {formatPreviewPrice(p.subtitle || p.price)}
                               </div>
                             </div>
                             <button
@@ -975,12 +980,12 @@ export default function RuleUpsell() {
                               style={{
                                 background: buttonColor || "#111827",
                                 border: "none",
-                                borderRadius: "5px",
+                                borderRadius: "6px",
                                 color: "#fff",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                padding: "7px 9px",
-                                maxWidth: "68px",
+                                fontSize: "12px",
+                                fontWeight: 800,
+                                padding: "8px 10px",
+                                maxWidth: "76px",
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
@@ -993,7 +998,7 @@ export default function RuleUpsell() {
                       </div>
                     )}
                     {showAsSlider && enabled && !previewEmptyManualSelection && (
-                      <div style={{ display: "flex", gap: "4px", justifyContent: "center", marginTop: "8px" }}>
+                      <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginTop: "12px" }}>
                         {previewCards.map((p, dot) => (
                           <button
                             key={p.id || dot}
@@ -1001,11 +1006,11 @@ export default function RuleUpsell() {
                             aria-label={`Show preview product ${dot + 1}`}
                             onClick={() => setPreviewIndex(dot)}
                             style={{
-                              width: dot === activePreviewIndex ? "18px" : "7px",
-                              height: "5px",
+                              width: dot === activePreviewIndex ? "22px" : "7px",
+                              height: "6px",
                               borderRadius: "999px",
                               border: "none",
-                              background: dot === activePreviewIndex ? buttonColor || "#6b7280" : "#e5e7eb",
+                              background: dot === activePreviewIndex ? buttonColor || "#111827" : "#e5e7eb",
                               display: "block",
                               padding: 0,
                               cursor: "pointer",
