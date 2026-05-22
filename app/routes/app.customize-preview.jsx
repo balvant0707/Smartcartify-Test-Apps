@@ -111,10 +111,32 @@ const loadCartIconUrl = async (styleRow) => {
   } catch { return styleRow; }
 };
 
-const saveCartIconUrl = async (shop, cartIconUrl) => {
-  await ensureCartIconColumn();
-  await prisma.$executeRaw`UPDATE stylesettings SET cartIconUrl = ${cartIconUrl} WHERE shop = ${shop}`;
-};
+const saveSingleStyleSettings = async (shop, settings) =>
+  prisma.$transaction(async (tx) => {
+    const rows = await tx.styleSettings.findMany({
+      where: { shop },
+      orderBy: { id: "desc" },
+      select: { id: true },
+    });
+
+    if (!rows.length) {
+      return tx.styleSettings.create({ data: { shop, ...settings } });
+    }
+
+    const [latest, ...older] = rows;
+    const saved = await tx.styleSettings.update({
+      where: { id: latest.id },
+      data: settings,
+    });
+
+    if (older.length) {
+      await tx.styleSettings.deleteMany({
+        where: { id: { in: older.map((row) => row.id) } },
+      });
+    }
+
+    return saved;
+  });
 
 // ─── Loader ───────────────────────────────────────────────────────────────────
 
@@ -222,12 +244,10 @@ export const action = async ({ request }) => {
     stickyCheckout: Boolean(d.stickyCheckout),
     mobileLayout: ["drawer", "bottom_sheet"].includes(String(d.mobileLayout)) ? String(d.mobileLayout) : DEFAULT_STYLE.mobileLayout,
   };
-  const cartIconUrl = parseText(d.cartIconUrl) || null;
+  settings.cartIconUrl = parseText(d.cartIconUrl);
 
   try {
-    const updated = await prisma.styleSettings.updateMany({ where: { shop }, data: settings });
-    if (updated.count === 0) await prisma.styleSettings.create({ data: { shop, ...settings } });
-    if (cartIconUrl) await saveCartIconUrl(shop, cartIconUrl);
+    await saveSingleStyleSettings(shop, settings);
     invalidateShopCache(shop);
     return json({ success: true });
   } catch (err) {
@@ -237,7 +257,7 @@ export const action = async ({ request }) => {
 
 // ─── SectionCard ─────────────────────────────────────────────────────────────
 
-function SectionCard({ icon, title, children, defaultOpen = true }) {
+function SectionCard({ icon, title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden" }}>
@@ -519,7 +539,7 @@ function CartDrawerPreview({
   const annColor = announcementText || "#fff";
 
   return (
-    <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", background: bg || "#fff", userSelect: "none", minHeight: 700, fontSize: `${fs}px` }}>
+    <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", background: bg || "#fff", userSelect: "none", minHeight: 600, fontSize: `${fs}px` }}>
       {/* Marquee keyframes */}
       <style>{`@keyframes cp-mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
 
@@ -681,7 +701,7 @@ function CartDrawerPreview({
             <Text variant="headingMd" as="p" fontWeight="bold">750 INR</Text>
           </BlockStack>
         </div>
-        <div style={{ background: bc, color: blc, padding: "0 22px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, cursor: "pointer", minWidth: 120, borderRadius: `0 0 ${r}px 0` }}>
+        <div style={{ background: bc, color: blc, padding: "0 36px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, cursor: "pointer", minWidth: 260, borderRadius: `0 0 ${r}px 0` }}>
           {checkoutText || "Checkout"}
         </div>
       </div>
