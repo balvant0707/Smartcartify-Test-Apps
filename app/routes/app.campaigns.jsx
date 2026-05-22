@@ -530,112 +530,112 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
 
 // ─── RulesTable ───────────────────────────────────────────────────────────────
 
-function RulesTable({ rules, onEdit, onDelete }) {
-  if (!rules.length) return null;
-  return (
-    <div style={{ border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
-      {/* Header */}
-      <div style={{ padding: "12px 20px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Text variant="headingSm" fontWeight="semibold" as="h3">My rules</Text>
-        <Badge>{rules.length}</Badge>
-      </div>
+// function RulesTable({ rules, onEdit, onDelete }) {
+//   if (!rules.length) return null;
+//   return (
+//     <div style={{ border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
+//       {/* Header */}
+//       <div style={{ padding: "12px 20px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+//         <Text variant="headingSm" fontWeight="semibold" as="h3">My rules</Text>
+//         <Badge>{rules.length}</Badge>
+//       </div>
 
-      {/* Column headers */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(180px, 2fr) 150px 120px 110px 120px 90px",
-        gap: "12px",
-        padding: "8px 20px",
-        background: "#f9fafb",
-        borderBottom: "1px solid #e1e3e5",
-      }}>
-        {["Rule", "Type", "Cart Step", "Status", "Last updated", "Actions"].map((h) => (
-          <Text key={h} variant="bodySm" fontWeight="semibold" tone="subdued" as="p">{h}</Text>
-        ))}
-      </div>
+//       {/* Column headers */}
+//       <div style={{
+//         display: "grid",
+//         gridTemplateColumns: "minmax(180px, 2fr) 150px 120px 110px 120px 90px",
+//         gap: "12px",
+//         padding: "8px 20px",
+//         background: "#f9fafb",
+//         borderBottom: "1px solid #e1e3e5",
+//       }}>
+//         {["Rule", "Type", "Cart Step", "Status", "Last updated", "Actions"].map((h) => (
+//           <Text key={h} variant="bodySm" fontWeight="semibold" tone="subdued" as="p">{h}</Text>
+//         ))}
+//       </div>
 
-      {/* Rows */}
-      {rules.map((rule, i) => {
-        const meta = RULE_META[rule.ruleType] || {};
-        const isLast = i === rules.length - 1;
-        return (
-          <div
-            key={`${rule.ruleType}-${rule.id}`}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(180px, 2fr) 150px 120px 110px 120px 90px",
-              gap: "12px",
-              padding: "12px 20px",
-              alignItems: "center",
-              borderBottom: isLast ? "none" : "1px solid #f1f3f5",
-              transition: "background 0.1s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
-            {/* Rule name + meta */}
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-              <div style={{
-                width: "34px", height: "34px", borderRadius: "8px", flexShrink: 0,
-                background: meta.bg || "#f3f4f6",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <span style={{ color: meta.color || "#6b7280" }}>
-                  <Icon source={meta.icon || DiscountIcon} />
-                </span>
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <Text variant="bodyMd" fontWeight="semibold" as="p" truncate>{rule.name}</Text>
-                <Text variant="bodySm" tone="subdued" as="p">{rule.meta}</Text>
-              </div>
-            </div>
+//       {/* Rows */}
+//       {rules.map((rule, i) => {
+//         const meta = RULE_META[rule.ruleType] || {};
+//         const isLast = i === rules.length - 1;
+//         return (
+//           <div
+//             key={`${rule.ruleType}-${rule.id}`}
+//             style={{
+//               display: "grid",
+//               gridTemplateColumns: "minmax(180px, 2fr) 150px 120px 110px 120px 90px",
+//               gap: "12px",
+//               padding: "12px 20px",
+//               alignItems: "center",
+//               borderBottom: isLast ? "none" : "1px solid #f1f3f5",
+//               transition: "background 0.1s",
+//             }}
+//             onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
+//             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+//           >
+//             {/* Rule name + meta */}
+//             <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+//               <div style={{
+//                 width: "34px", height: "34px", borderRadius: "8px", flexShrink: 0,
+//                 background: meta.bg || "#f3f4f6",
+//                 display: "flex", alignItems: "center", justifyContent: "center",
+//               }}>
+//                 <span style={{ color: meta.color || "#6b7280" }}>
+//                   <Icon source={meta.icon || DiscountIcon} />
+//                 </span>
+//               </div>
+//               <div style={{ minWidth: 0 }}>
+//                 <Text variant="bodyMd" fontWeight="semibold" as="p" truncate>{rule.name}</Text>
+//                 <Text variant="bodySm" tone="subdued" as="p">{rule.meta}</Text>
+//               </div>
+//             </div>
 
-            {/* Type badge */}
-            <div>
-              <span style={{
-                display: "inline-block",
-                fontSize: "11px", fontWeight: 600,
-                padding: "3px 8px", borderRadius: "4px",
-                background: meta.bg || "#f3f4f6",
-                color: meta.color || "#374151",
-                border: `1px solid ${meta.color ? meta.color + "33" : "#e1e3e5"}`,
-                whiteSpace: "nowrap",
-              }}>
-                {meta.label || rule.ruleType}
-              </span>
-            </div>
+//             {/* Type badge */}
+//             <div>
+//               <span style={{
+//                 display: "inline-block",
+//                 fontSize: "11px", fontWeight: 600,
+//                 padding: "3px 8px", borderRadius: "4px",
+//                 background: meta.bg || "#f3f4f6",
+//                 color: meta.color || "#374151",
+//                 border: `1px solid ${meta.color ? meta.color + "33" : "#e1e3e5"}`,
+//                 whiteSpace: "nowrap",
+//               }}>
+//                 {meta.label || rule.ruleType}
+//               </span>
+//             </div>
 
-            {/* Cart Step */}
-            <Text variant="bodySm" tone={rule.cartStep ? undefined : "subdued"} as="p">
-              {rule.cartStep || "—"}
-            </Text>
+//             {/* Cart Step */}
+//             <Text variant="bodySm" tone={rule.cartStep ? undefined : "subdued"} as="p">
+//               {rule.cartStep || "—"}
+//             </Text>
 
-            {/* Status */}
-            <Badge tone={STATUS_TONE[rule.status] || "info"}>
-              {rule.status === "active" ? "Active" : "Disabled"}
-            </Badge>
+//             {/* Status */}
+//             <Badge tone={STATUS_TONE[rule.status] || "info"}>
+//               {rule.status === "active" ? "Active" : "Disabled"}
+//             </Badge>
 
-            {/* Date */}
-            <Text variant="bodySm" tone="subdued" as="p">
-              {new Date(rule.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-            </Text>
+//             {/* Date */}
+//             <Text variant="bodySm" tone="subdued" as="p">
+//               {new Date(rule.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+//             </Text>
 
-            {/* Actions */}
-            <InlineStack gap="200">
-              <Button size="slim" icon={EditIcon} onClick={() => onEdit(rule)} accessibilityLabel="Edit" />
-              <Button size="slim" icon={DeleteIcon} tone="critical" variant="plain" onClick={() => onDelete(rule)} accessibilityLabel="Delete" />
-            </InlineStack>
-          </div>
-        );
-      })}
+//             {/* Actions */}
+//             <InlineStack gap="200">
+//               <Button size="slim" icon={EditIcon} onClick={() => onEdit(rule)} accessibilityLabel="Edit" />
+//               <Button size="slim" icon={DeleteIcon} tone="critical" variant="plain" onClick={() => onDelete(rule)} accessibilityLabel="Delete" />
+//             </InlineStack>
+//           </div>
+//         );
+//       })}
 
-      {/* Footer */}
-      <div style={{ padding: "8px 20px", borderTop: "1px solid #f1f3f5", background: "#f9fafb" }}>
-        <Text variant="bodySm" tone="subdued" as="p">{rules.length} rule{rules.length !== 1 ? "s" : ""}</Text>
-      </div>
-    </div>
-  );
-}
+//       {/* Footer */}
+//       <div style={{ padding: "8px 20px", borderTop: "1px solid #f1f3f5", background: "#f9fafb" }}>
+//         <Text variant="bodySm" tone="subdued" as="p">{rules.length} rule{rules.length !== 1 ? "s" : ""}</Text>
+//       </div>
+//     </div>
+//   );
+// }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
