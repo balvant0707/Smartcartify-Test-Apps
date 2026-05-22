@@ -641,54 +641,56 @@ export default function RuleUpsell() {
               </SectionCard>
             )}
 
-            {/* Content */}
-            <SectionCard icon={EditIcon} title="Content">
-              <BlockStack gap="300">
-                <TextField
-                  label="Section title"
-                  value={sectionTitle}
-                  onChange={setSectionTitle}
-                  autoComplete="off"
-                  placeholder="You may also like"
-                  helpText="Heading shown above the upsell product list in the cart drawer."
-                />
-                <TextField
-                  label="Add to cart button text"
-                  value={buttonText}
-                  onChange={setButtonText}
-                  autoComplete="off"
-                  placeholder="Add to cart"
-                  helpText="Text on the button that adds the upsell product to the cart."
-                />
-              </BlockStack>
-            </SectionCard>
-
-            {/* Style */}
-            <SectionCard icon={SettingsIcon} title="Style" defaultOpen={false}>
+            {/* Customize & Preview */}
+            <SectionCard icon={SettingsIcon} title="Customize & Preview">
               <BlockStack gap="400">
-                <Text variant="bodyMd" fontWeight="semibold" as="p">Colors</Text>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                  {[
-                    { label: "Button color", value: buttonColor, onChange: setButtonColor },
-                    { label: "Background color", value: backgroundColor, onChange: setBackgroundColor },
-                    { label: "Text color", value: textColor, onChange: setTextColor },
-                    { label: "Border color", value: borderColor, onChange: setBorderColor },
-                    { label: "Arrow / icon color", value: arrowColor, onChange: setArrowColor },
-                  ].map(({ label, value, onChange }) => (
-                    <div key={label}>
-                      <Text variant="bodySm" as="p" tone="subdued">{label}</Text>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
-                        <input
-                          type="color"
-                          value={value || "#000000"}
-                          onChange={(e) => onChange(e.target.value)}
-                          style={{ width: "36px", height: "36px", border: "1px solid #e1e3e5", borderRadius: "6px", cursor: "pointer", padding: "2px" }}
-                        />
-                        <Text variant="bodySm" as="p">{value || "#000000"}</Text>
+                <BlockStack gap="300">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Content</Text>
+                  <TextField
+                    label="Section title"
+                    value={sectionTitle}
+                    onChange={setSectionTitle}
+                    autoComplete="off"
+                    placeholder="You may also like"
+                    helpText="Heading shown above the upsell product list in the cart drawer."
+                  />
+                  <TextField
+                    label="Add to cart button text"
+                    value={buttonText}
+                    onChange={setButtonText}
+                    autoComplete="off"
+                    placeholder="Add to cart"
+                    helpText="Text on the button that adds the upsell product to the cart."
+                  />
+                </BlockStack>
+
+                <Divider />
+
+                <BlockStack gap="300">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Colors</Text>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    {[
+                      { label: "Button color", value: buttonColor, onChange: setButtonColor },
+                      { label: "Background color", value: backgroundColor, onChange: setBackgroundColor },
+                      { label: "Text color", value: textColor, onChange: setTextColor },
+                      { label: "Border color", value: borderColor, onChange: setBorderColor },
+                      { label: "Arrow / icon color", value: arrowColor, onChange: setArrowColor },
+                    ].map(({ label, value, onChange }) => (
+                      <div key={label}>
+                        <Text variant="bodySm" as="p" tone="subdued">{label}</Text>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                          <input
+                            type="color"
+                            value={value || "#000000"}
+                            onChange={(e) => onChange(e.target.value)}
+                            style={{ width: "36px", height: "36px", border: "1px solid #e1e3e5", borderRadius: "6px", cursor: "pointer", padding: "2px" }}
+                          />
+                          <Text variant="bodySm" as="p">{value || "#000000"}</Text>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </BlockStack>
               </BlockStack>
             </SectionCard>
 
@@ -806,7 +808,7 @@ export default function RuleUpsell() {
                                 minHeight: "92px",
                                 padding: "10px",
                                 background: "transparent",
-                                border: "none",
+                                border: `1px solid ${borderColor || "#dfe7ef"}`,
                                 borderRadius: "8px",
                               }}
                             >
