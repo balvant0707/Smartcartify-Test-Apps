@@ -5556,6 +5556,62 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const beforeRaw = trimToNull(getProgressBefore(rule)) || "";
       const afterRaw = trimToNull(getProgressAfter(rule)) || "";
 
+      // Resolve configured text (with all {{token}} replacements)
+      const resolvedBefore = replaceProgressText({
+        text: beforeRaw,
+        type,
+        rule,
+        subtotalRupees,
+        useRemainingForGoal: true,
+      });
+      const resolvedAfter = replaceProgressText({
+        text: afterRaw,
+        type,
+        rule,
+        subtotalRupees,
+        useRemainingForGoal: false,
+      });
+
+      // Generate value-aware fallback messages when merchant has not configured them
+      const goalAmt = progressMetric.goal != null
+        ? formatMoney(amountToCurrencyMinorUnits(progressMetric.goal), CART?.currency)
+        : "";
+      const defaultBeforeText = (() => {
+        if (!goalAmt) return title;
+        const rt = String(rule?.rewardType ?? rule?.reward_type ?? "").trim().toLowerCase();
+        if (type === "shipping") {
+          if (rt === "reduce" && (rule?.amount ?? rule?.rateAmount)) {
+            const shipAmt = formatMoney(amountToCurrencyMinorUnits(rule.amount ?? rule.rateAmount), CART?.currency);
+            return `Spend ${goalAmt} more to get ${shipAmt} shipping`;
+          }
+          return `Spend ${goalAmt} more for free shipping`;
+        }
+        if (type === "discount") {
+          const tokens = getDiscountValueTokens(rule);
+          const discLabel = tokens?.valueWithOff || "a discount";
+          return `Spend ${goalAmt} more to get ${discLabel}`;
+        }
+        if (type === "free") return `Spend ${goalAmt} more for a free gift`;
+        return `Spend ${goalAmt} more to unlock your reward`;
+      })();
+      const defaultAfterText = (() => {
+        const rt = String(rule?.rewardType ?? rule?.reward_type ?? "").trim().toLowerCase();
+        if (type === "shipping") {
+          if (rt === "reduce" && (rule?.amount ?? rule?.rateAmount)) {
+            const shipAmt = formatMoney(amountToCurrencyMinorUnits(rule.amount ?? rule.rateAmount), CART?.currency);
+            return `${shipAmt} shipping unlocked! 🎉`;
+          }
+          return "Free shipping unlocked! 🎉";
+        }
+        if (type === "discount") {
+          const tokens = getDiscountValueTokens(rule);
+          const discLabel = tokens?.valueWithOff || "Discount";
+          return `${discLabel} unlocked! 🎉`;
+        }
+        if (type === "free") return "Free gift unlocked! 🎉";
+        return "Reward unlocked! 🎉";
+      })();
+
       assignment[slot] = {
         slot,
         type,
@@ -5574,21 +5630,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           useRemainingForGoal: false,
         }),
 
-        progressTextBefore: replaceProgressText({
-          text: beforeRaw,
-          type,
-          rule,
-          subtotalRupees,
-          useRemainingForGoal: true,
-        }),
-
-        progressTextAfter: replaceProgressText({
-          text: afterRaw,
-          type,
-          rule,
-          subtotalRupees,
-          useRemainingForGoal: false,
-        }),
+        progressTextBefore: resolvedBefore || defaultBeforeText,
+        progressTextAfter: resolvedAfter || defaultAfterText,
       };
       assignedRuleKeys.add(ruleKey);
     };

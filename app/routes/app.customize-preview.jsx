@@ -313,6 +313,44 @@ function ruleStepLabel(rule) {
   return rule.campaignName || "Reward";
 }
 
+// Generates a default "before" progress message when merchant hasn't configured one
+function buildDefaultProgressBefore(rule) {
+  const amt = rule._ruleType === "shipping"
+    ? fmtAmount(rule.minSubtotal)
+    : fmtAmount(rule.minPurchase || "0");
+  if (rule._ruleType === "shipping") {
+    if (rule.rewardType === "reduce" && rule.amount)
+      return `Spend ${amt} more to get ${fmtAmount(rule.amount)} shipping`;
+    return `Spend ${amt} more for free shipping`;
+  }
+  if (rule._ruleType === "discount") {
+    const lbl = !rule.value ? "a discount"
+      : rule.valueType === "percent" ? `${parseFloat(rule.value)}% off`
+      : `${fmtAmount(rule.value)} off`;
+    return `Spend ${amt} more to get ${lbl}`;
+  }
+  if (rule._ruleType === "free") return `Spend ${amt} more for a free gift`;
+  return `Spend ${amt} more to unlock your reward`;
+}
+
+// Generates a default "after" progress message when merchant hasn't configured one
+function buildDefaultProgressAfter(rule) {
+  if (rule._ruleType === "shipping") {
+    if (rule.rewardType === "reduce" && rule.amount)
+      return `${fmtAmount(rule.amount)} shipping unlocked! 🎉`;
+    return "Free shipping unlocked! 🎉";
+  }
+  if (rule._ruleType === "discount") {
+    if (!rule.value) return "Discount unlocked! 🎉";
+    const lbl = rule.valueType === "percent"
+      ? `${parseFloat(rule.value)}% off`
+      : `${fmtAmount(rule.value)} off`;
+    return `${lbl} unlocked! 🎉`;
+  }
+  if (rule._ruleType === "free") return "Free gift unlocked! 🎉";
+  return "Reward unlocked! 🎉";
+}
+
 // Maps iconChoice string → Polaris icon component
 const ICON_CHOICE_MAP = {
   truck: DeliveryIcon, delivery: DeliveryIcon, shipping: DeliveryIcon,
@@ -546,6 +584,46 @@ function CartDrawerPreview({
           )}
         </div>
       </div>
+
+      {/* ── Step before/after messages ── */}
+      {steps.length > 0 && (
+        <div style={{ padding: "0 16px 12px" }}>
+          <BlockStack gap="150">
+            {steps.map((step) => {
+              const rule = step.rule;
+              const iconSrc = iconForChoice(rule.iconChoice, rule._defaultIcon);
+              const amount = rule._ruleType === "shipping" ? rule.minSubtotal : rule.minPurchase;
+              const discountOpts = rule._ruleType === "discount"
+                ? { value: rule.value, valueType: rule.valueType }
+                : {};
+              const beforeText = resolveStepText(rule.progressTextBefore, amount, discountOpts)
+                || buildDefaultProgressBefore(rule);
+              const afterText = resolveStepText(rule.progressTextAfter, amount, discountOpts)
+                || buildDefaultProgressAfter(rule);
+              return (
+                <div key={step.slot} style={{ display: "flex", gap: 10, padding: "8px 10px", background: "#f8f9fa", border: `1px solid ${brc}`, borderRadius: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: pc + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                    <PreviewIcon source={iconSrc} size={14} color={pc} />
+                  </div>
+                  <BlockStack gap="100">
+                    <span style={{ fontSize: 9, fontWeight: 700, color: tc, opacity: 0.45, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      {ruleStepLabel(rule)}
+                    </span>
+                    <div style={{ fontSize: 11, color: tc, display: "flex", gap: 4, alignItems: "flex-start" }}>
+                      <span style={{ color: pc, fontWeight: 700, flexShrink: 0 }}>→</span>
+                      <span>{beforeText}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: tc, opacity: 0.6, display: "flex", gap: 4, alignItems: "flex-start" }}>
+                      <span style={{ color: "#27ae60", flexShrink: 0 }}>✓</span>
+                      <span style={{ fontStyle: "italic" }}>{afterText}</span>
+                    </div>
+                  </BlockStack>
+                </div>
+              );
+            })}
+          </BlockStack>
+        </div>
+      )}
 
       {/* ── Cart items ── */}
       <CartItem name="Sample Product" variant="Small / Black" price="300 INR" />
