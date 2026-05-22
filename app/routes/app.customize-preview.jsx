@@ -117,9 +117,37 @@ export const loader = async ({ request }) => {
   const { authenticate } = await import("../shopify.server");
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
-  let styleRow = await prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } });
-  styleRow = await loadCartIconUrl(styleRow);
-  return { style: styleRow || null, shop };
+
+  const [styleRow, shippingRules, discountRules, freeGiftRules, upsellSettings] = await Promise.all([
+    prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } }),
+    prisma.shippingRule.findMany({
+      where: { shop, enabled: true },
+      orderBy: { id: "asc" },
+      select: { progressTextBefore: true, progressTextAfter: true, minSubtotal: true, cartStepName: true },
+    }),
+    prisma.discountRule.findMany({
+      where: { shop, enabled: true, type: { not: "code" } },
+      orderBy: { id: "asc" },
+      select: { progressTextBefore: true, progressTextAfter: true, minPurchase: true, value: true, valueType: true, cartStepName: true },
+    }),
+    prisma.freeGiftRule.findMany({
+      where: { shop, enabled: true },
+      orderBy: { id: "asc" },
+      select: { progressTextBefore: true, progressTextAfter: true, minPurchase: true, cartStepName: true },
+    }),
+    prisma.upsellSettings.findUnique({ where: { shop } }).catch(() => null),
+  ]);
+
+  const styleWithIcon = await loadCartIconUrl(styleRow);
+
+  return {
+    style: styleWithIcon || null,
+    shippingRules: shippingRules || [],
+    discountRules: discountRules || [],
+    freeGiftRules: freeGiftRules || [],
+    upsellSettings: upsellSettings || null,
+    shop,
+  };
 };
 
 // ─── Action ───────────────────────────────────────────────────────────────────
@@ -244,40 +272,123 @@ function SwatchRow({ colors }) {
   );
 }
 
-// ─── Mini cart preview ────────────────────────────────────────────────────────
+// ─── Cart drawer preview ──────────────────────────────────────────────────────
 
-function MiniCartPreview({ bg, textColor, headerColor, buttonColor, buttonLabelColor, progress, radius, checkoutText }) {
+function fmtAmount(val) {
+  const n = parseFloat(val);
+  return isNaN(n) ? "$20" : `$${n % 1 === 0 ? n : n.toFixed(2)}`;
+}
+
+function resolveStepText(textBefore, amount) {
+  if (!textBefore) return null;
+  return textBefore.replace(/\{\{amount\}\}/gi, fmtAmount(amount));
+}
+
+function CartDrawerPreview({
+  bg, textColor, headerColor, buttonColor, buttonLabelColor, progress, radius, checkoutText,
+  announcementBg, announcementText,
+  shippingRules, discountRules, freeGiftRules, upsellSettings,
+}) {
   const r = Number(radius) || 0;
+  const tc = textColor || "#000";
+  const hc = headerColor || "#000";
+  const bc = buttonColor || "#000";
+  const blc = buttonLabelColor || "#fff";
+  const pc = progress || "#000";
+
+  // Build ordered cart steps from all rule types
+  const cartSteps = [
+    ...(shippingRules || []).map((rule) => ({
+      text: resolveStepText(rule.progressTextBefore, rule.minSubtotal) || `Add ${fmtAmount(rule.minSubtotal)} more for free shipping`,
+      pct: 55,
+    })),
+    ...(discountRules || []).map((rule) => ({
+      text: resolveStepText(rule.progressTextBefore, rule.minPurchase) || `Add ${fmtAmount(rule.minPurchase)} more for a discount`,
+      pct: 30,
+    })),
+    ...(freeGiftRules || []).map((rule) => ({
+      text: resolveStepText(rule.progressTextBefore, rule.minPurchase) || `Add ${fmtAmount(rule.minPurchase)} more for a free gift`,
+      pct: 70,
+    })),
+  ];
+
+  const hasSteps = cartSteps.length > 0;
+  const showUpsell = upsellSettings?.enabled === true;
+
+  // Announcement bar text: use first shipping rule's text or placeholder
+  const announcementLabel =
+    shippingRules?.[0]
+      ? resolveStepText(shippingRules[0].progressTextBefore, shippingRules[0].minSubtotal) || "Free shipping available on this order!"
+      : "Free shipping on orders over $50!";
+
   return (
     <div style={{ border: "1px solid #e1e3e5", borderRadius: 12, overflow: "hidden", background: bg || "#fff", fontSize: 12, userSelect: "none" }}>
+
+      {/* Announcement bar — always shown to reflect colors */}
+      <div style={{ background: announcementBg || "#000", color: announcementText || "#fff", padding: "5px 14px", textAlign: "center", fontSize: 11, fontWeight: 500 }}>
+        {announcementLabel}
+      </div>
+
       {/* Header */}
       <div style={{ padding: "10px 14px", borderBottom: "1px solid #e1e3e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Text variant="bodyMd" fontWeight="semibold" as="p" style={{ color: headerColor || "#000" }}>Your Cart</Text>
-        <span style={{ color: headerColor || "#000", fontSize: 16, lineHeight: 1, cursor: "pointer" }}>✕</span>
+        <span style={{ color: hc, fontWeight: 600, fontSize: 13 }}>Your Cart (2)</span>
+        <span style={{ color: hc, fontSize: 16, lineHeight: 1, cursor: "pointer" }}>✕</span>
       </div>
-      {/* Progress bar */}
-      <div style={{ padding: "8px 14px 0" }}>
-        <div style={{ height: 5, background: "#e1e3e5", borderRadius: 999, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: "60%", background: progress || "#000", borderRadius: 999 }} />
+
+      {/* Cart step progress bars */}
+      {hasSteps
+        ? cartSteps.map((step, i) => (
+            <div key={i} style={{ padding: i === 0 ? "8px 14px 4px" : "4px 14px" }}>
+              <div style={{ height: 4, background: "#e1e3e5", borderRadius: 999, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${step.pct}%`, background: pc, borderRadius: 999 }} />
+              </div>
+              <div style={{ fontSize: 10, color: tc, opacity: 0.75, marginTop: 2 }}>{step.text}</div>
+            </div>
+          ))
+        : (
+          <div style={{ padding: "8px 14px 4px" }}>
+            <div style={{ height: 4, background: "#e1e3e5", borderRadius: 999, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: "55%", background: pc, borderRadius: 999 }} />
+            </div>
+            <div style={{ fontSize: 10, color: tc, opacity: 0.6, marginTop: 2 }}>Add $20 more for free shipping</div>
+          </div>
+        )
+      }
+
+      {/* Cart item */}
+      <div style={{ padding: "10px 14px", display: "flex", gap: 8, alignItems: "center", borderTop: "1px solid #e1e3e5", marginTop: 4 }}>
+        <div style={{ width: 38, height: 38, background: "#f3f4f6", borderRadius: 6, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: tc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Sample Product</div>
+          <div style={{ fontSize: 11, color: tc, opacity: 0.6 }}>$29.00</div>
         </div>
-        <Text variant="bodySm" tone="subdued" as="p">Add $20 more for free shipping</Text>
+        <div style={{ display: "flex", alignItems: "center", gap: 3, background: "#f3f4f6", borderRadius: 6, padding: "2px 6px", flexShrink: 0 }}>
+          <span style={{ color: tc, fontSize: 13 }}>−</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: tc }}>1</span>
+          <span style={{ color: tc, fontSize: 13 }}>+</span>
+        </div>
       </div>
-      {/* Item */}
-      <div style={{ padding: "10px 14px", display: "flex", gap: 8, alignItems: "center" }}>
-        <div style={{ width: 36, height: 36, background: "#f3f4f6", borderRadius: 6, flexShrink: 0 }} />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: textColor || "#000" }}>Product Name</div>
-          <div style={{ fontSize: 11, color: textColor || "#000", opacity: 0.6 }}>$29.00</div>
+
+      {/* Upsell section */}
+      {showUpsell && (
+        <div style={{ padding: "8px 14px", borderTop: "1px solid #e1e3e5" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: tc, marginBottom: 6 }}>You may also like</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {[1, 2].map((n) => (
+              <div key={n} style={{ flex: 1, background: "#f9fafb", border: "1px solid #e1e3e5", borderRadius: 6, padding: "6px 4px", textAlign: "center" }}>
+                <div style={{ height: 32, background: "#e5e7eb", borderRadius: 4, marginBottom: 4 }} />
+                <div style={{ fontSize: 10, color: tc, fontWeight: 600 }}>Product {n}</div>
+                <div style={{ fontSize: 10, color: tc, opacity: 0.6 }}>$19.00</div>
+                <div style={{ marginTop: 4, background: bc, color: blc, borderRadius: Math.max(r - 2, 2), padding: "2px 0", fontSize: 9, fontWeight: 600 }}>Add</div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#f3f4f6", borderRadius: 6, padding: "2px 6px" }}>
-          <span style={{ color: textColor || "#000", fontSize: 14 }}>−</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: textColor || "#000" }}>1</span>
-          <span style={{ color: textColor || "#000", fontSize: 14 }}>+</span>
-        </div>
-      </div>
+      )}
+
       {/* Checkout button */}
-      <div style={{ padding: "10px 14px 14px" }}>
-        <div style={{ background: buttonColor || "#000", color: buttonLabelColor || "#fff", borderRadius: r, padding: "8px 0", textAlign: "center", fontSize: 12, fontWeight: 600 }}>
+      <div style={{ padding: "10px 14px 14px", borderTop: "1px solid #e1e3e5" }}>
+        <div style={{ background: bc, color: blc, borderRadius: r, padding: "8px 0", textAlign: "center", fontSize: 12, fontWeight: 600 }}>
           {checkoutText || "Checkout"}
         </div>
       </div>
@@ -298,6 +409,10 @@ export default function CustomizePreview() {
   const navigation = useNavigation();
   const submit = useSubmit();
   const s = loaderData?.style || {};
+  const shippingRules = loaderData?.shippingRules || [];
+  const discountRules = loaderData?.discountRules || [];
+  const freeGiftRules = loaderData?.freeGiftRules || [];
+  const upsellSettings = loaderData?.upsellSettings || null;
   const isSaving = navigation.state === "submitting";
 
   // Typography & Sizes
@@ -637,7 +752,7 @@ export default function CustomizePreview() {
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Cart drawer preview</Text>
               </Box>
               <Box padding="300">
-                <MiniCartPreview
+                <CartDrawerPreview
                   bg={previewBg}
                   textColor={drawerTextColor}
                   headerColor={drawerHeaderColor}
@@ -646,6 +761,12 @@ export default function CustomizePreview() {
                   progress={progress}
                   radius={radius}
                   checkoutText={checkoutButtonText}
+                  announcementBg={announcementBg}
+                  announcementText={announcementText}
+                  shippingRules={shippingRules}
+                  discountRules={discountRules}
+                  freeGiftRules={freeGiftRules}
+                  upsellSettings={upsellSettings}
                 />
               </Box>
             </div>
