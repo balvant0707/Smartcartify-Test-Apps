@@ -7,9 +7,6 @@ import { Page, Box, Text, Modal, TextField, BlockStack, InlineStack, Card, Butto
 
 import { Icon } from "@shopify/polaris";
 import {
-  PaintBrushFlatIcon,
-  ShippingLabelIcon,
-  BookOpenIcon,
   StarIcon,
   StarFilledIcon,
   InfoIcon,
@@ -43,17 +40,10 @@ s-section::part(heading),
 s-heading {
   font-size: 14px !important;
 }
-.dashboard-feature-card,
-.dashboard-app-card,
-.dashboard-status-card,
-.dashboard-shortcuts-card {
+.dashboard-status-card {
   border: 1px solid #dcdfe4;
   background: #ffffff;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
-}
-.dashboard-app-card:hover {
-  border-color: #b8c4d0;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 .dashboard-help-grid {
   display: grid;
@@ -425,33 +415,6 @@ export default function Index() {
     return url.pathname + url.search;
   };
 
-  const quickShortcuts = [
-    {
-      label: "Configure Rewards",
-      href: withHost("/app/rules"),
-      icon: ShippingLabelIcon,
-      external: false,
-    },
-    {
-      label: "Customize Style & Preview",
-      href: withHost("/app/rules?tab=style"),
-      icon: PaintBrushFlatIcon,
-      external: false,
-    },
-    {
-      label: "User Guide",
-      href: "https://cartliftcartdrawerupsell.tawk.help/article/dashboard-page",
-      icon: BookOpenIcon,
-      external: true,
-    },
-    {
-      label: "App Review",
-      href: "https://apps.shopify.com/cartlift-cart-drawer-upsell#modal-show=ReviewListingModal",
-      icon: StarIcon,
-      external: true,
-    },
-  ];
-
   const dashboardApps = [
     {
       title: "Fomoify Sales Popup & Proof",
@@ -747,86 +710,16 @@ export default function Index() {
         </BlockStack>
       </s-section>
 
-      <s-section heading="Quick shortcuts">
-        <s-box
-          className="dashboard-shortcuts-card"
-          padding="base"
-          background="white"
-          borderWidth="base"
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: "32px",
-              flexWrap: "wrap",
-              alignItems: "center",
-              padding: "6px 2px",
-            }}
-          >
-            {quickShortcuts.map((item) => {
-              const linkStyle = {
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                color: "#111111",
-                fontWeight: 700,
-                textDecoration: "none",
-              };
-              const inner = (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "20px",
-                      flexShrink: 0,
-                    }}
-                    aria-hidden="true"
-                  >
-                    <Icon source={item.icon} color="base" />
-                  </span>
-                  <span style={{ fontSize: "14px",fontWeight: 700,color: "#000000" }}>{item.label}</span>
-                </div>
-              );
-              return item.external ? (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={linkStyle}
-                >
-                  {inner}
-                </a>
-              ) : (
-                <s-link
-                  key={item.label}
-                  href={item.href}
-                  style={linkStyle}
-                >
-                  {inner}
-                </s-link>
-              );
-            })}
-          </div>
-        </s-box>
-      </s-section>
-
       <s-section heading="Recommended Our Growth Apps">
         <div className="app-dashboard-grid">
           {dashboardApps.map((app) => (
-            <s-box
+            <div
               key={app.title}
-              className="dashboard-app-card"
-              padding="base"
-              borderWidth="base"
-              background="white"
               style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: "14px",
-                minHeight: "190px",
+                minHeight: "160px",
                 justifyContent: "space-between",
               }}
             >
@@ -929,7 +822,7 @@ export default function Index() {
               >
                 View app
               </s-button>
-            </s-box>
+            </div>
           ))}
         </div>
       </s-section>
