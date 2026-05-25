@@ -46,12 +46,13 @@ s-heading {
 .dashboard-feature-card,
 .dashboard-app-card,
 .dashboard-status-card,
+.dashboard-metric-card,
 .dashboard-shortcuts-card {
   border: 1px solid #dcdfe4;
   background: #ffffff;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 }
-.dashboard-feature-card:hover,
+.dashboard-metric-card:hover,
 .dashboard-app-card:hover {
   border-color: #b8c4d0;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
@@ -270,7 +271,19 @@ export const loader = async ({ request }) => {
   const shop = session?.shop ?? null;
   const appEmbedOwnerId =
     process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_SMART_CART_ID || "";
-  const [shopRecord, shippingRuleCount, discountRuleCount, freeGiftRuleCount, bxgyRuleCount] =
+  const [
+    shopRecord,
+    shippingRuleCount,
+    discountRuleCount,
+    freeGiftRuleCount,
+    bxgyRuleCount,
+    activeShippingRuleCount,
+    activeDiscountRuleCount,
+    activeFreeGiftRuleCount,
+    activeBxgyRuleCount,
+    upsellSettings,
+    styleSettings,
+  ] =
     shop
       ? await Promise.all([
           prisma.shop.findUnique({
@@ -283,8 +296,21 @@ export const loader = async ({ request }) => {
           prisma.discountRule.count({ where: { shop } }),
           prisma.freeGiftRule.count({ where: { shop } }),
           prisma.bxgyRule.count({ where: { shop } }),
+          prisma.shippingRule.count({ where: { shop, enabled: true } }),
+          prisma.discountRule.count({ where: { shop, enabled: true } }),
+          prisma.freeGiftRule.count({ where: { shop, enabled: true } }),
+          prisma.bxgyRule.count({ where: { shop, enabled: true } }),
+          prisma.upsellSettings.findUnique({
+            where: { shop },
+            select: { enabled: true },
+          }).catch(() => null),
+          prisma.styleSettings.findFirst({
+            where: { shop },
+            orderBy: { id: "desc" },
+            select: { id: true },
+          }),
         ])
-      : [null, 0, 0, 0, 0];
+      : [null, 0, 0, 0, 0, 0, 0, 0, 0, null, null];
 
   let embedEnabled = false;
   let debug = null;
@@ -303,6 +329,18 @@ export const loader = async ({ request }) => {
     Number(discountRuleCount || 0) +
     Number(freeGiftRuleCount || 0) +
     Number(bxgyRuleCount || 0);
+  const activeRulesCount =
+    Number(activeShippingRuleCount || 0) +
+    Number(activeDiscountRuleCount || 0) +
+    Number(activeFreeGiftRuleCount || 0) +
+    Number(activeBxgyRuleCount || 0);
+  const configuredOfferTypes = [
+    shippingRuleCount,
+    discountRuleCount,
+    freeGiftRuleCount,
+    bxgyRuleCount,
+    upsellSettings ? 1 : 0,
+  ].filter((count) => Number(count || 0) > 0).length;
 
   const shouldShowReviewPopup = Boolean(
     shopRecord &&
@@ -317,6 +355,13 @@ export const loader = async ({ request }) => {
     appEmbedOwnerId,
     shouldShowReviewPopup,
     totalRulesCount,
+    dashboardStats: {
+      totalRulesCount,
+      activeRulesCount,
+      configuredOfferTypes,
+      upsellEnabled: Boolean(upsellSettings?.enabled),
+      styleConfigured: Boolean(styleSettings?.id),
+    },
   };
 };
 
@@ -369,7 +414,7 @@ export const action = async ({ request }) => {
 };
 
 export default function Index() {
-  const { shop, embedEnabled, appEmbedOwnerId, shouldShowReviewPopup } =
+  const { shop, embedEnabled, appEmbedOwnerId, shouldShowReviewPopup, dashboardStats } =
     useLoaderData() ?? {};
   const fetcher = useFetcher();
   const location = useLocation();
@@ -413,51 +458,6 @@ export default function Index() {
     url.searchParams.set("host", host);
     return url.pathname + url.search;
   };
-
-  const featureCards = [
-    {
-      title: "Shipping Rules",
-      body: "Create free or conditional shipping rules to increase average order value.",
-      imageSrc: "/images/Shipping.png",
-      imageAlt: "Shipping rules",
-      href: withHost("/app/rules?tab=shipping"),
-    },
-    {
-      title: "Discount Automations",
-      body: "Automate cart discounts based on value, or customer rules.",
-      imageSrc: "/images/AutomaticDiscount.png",
-      imageAlt: "Discount automations",
-      href: withHost("/app/rules?tab=discount"),
-    },
-    {
-      title: "Free Product gifting",
-      body: "Auto-add free gifts to cart with quantity limits and smart conditions.",
-      imageSrc: "/images/FreeProduct.png",
-      imageAlt: "Free product gifting",
-      href: withHost("/app/rules?tab=free"),
-    },
-    {
-      title: "Buy X Get Y bundles",
-      body: "Run Buy X Get Y offers with product, collection, or tag targeting.",
-      imageSrc: "/images/BuyXGetY.png",
-      imageAlt: "Buy X Get Y bundles",
-      href: withHost("/app/rules?tab=bxgy"),
-    },
-    {
-      title: "Code Discount",
-      body: "Manage discount codes with advanced include and exclude rules.",
-      imageSrc: "/images/CodeDiscount.png",
-      imageAlt: "Code discount",
-      href: withHost("/app/rules?tab=discount-code"),
-    },
-    {
-      title: "Upsell Product",
-      body: "Auto Show Product,Select Product,Select Collection & Customize.",
-      imageSrc: "/images/download.svg",
-      imageAlt: "Upsell product",
-      href: withHost("/app/rules?tab=upsell"),
-    },
-  ];
 
   const quickShortcuts = [
     {
@@ -536,6 +536,40 @@ export default function Index() {
     color: embedEnabled ? "#05422f" : "#b42318",
     background: embedEnabled ? "#d1fae5" : "#fee4e2",
   };
+  const dashboardSummaryCards = [
+    {
+      label: "Total reward rules",
+      value: String(dashboardStats?.totalRulesCount ?? 0),
+      detail: "Shipping, discounts, free gifts, and Buy X Get Y rules.",
+    },
+    {
+      label: "Active rules",
+      value: String(dashboardStats?.activeRulesCount ?? 0),
+      detail: "Rules currently enabled for the storefront cart.",
+    },
+    {
+      label: "Offer types configured",
+      value: `${dashboardStats?.configuredOfferTypes ?? 0}/5`,
+      detail: "Configured across rewards, discounts, bundles, and upsells.",
+    },
+    {
+      label: "Upsell product",
+      value: dashboardStats?.upsellEnabled ? "ON" : "OFF",
+      detail: "Product upsell module status.",
+      tone: dashboardStats?.upsellEnabled ? "success" : "muted",
+    },
+    {
+      label: "Cart style",
+      value: dashboardStats?.styleConfigured ? "Set" : "Default",
+      detail: "Drawer design and preview customization.",
+    },
+    {
+      label: "App embed",
+      value: embedStatusLabel,
+      detail: "Theme app embed status.",
+      tone: embedEnabled ? "success" : "critical",
+    },
+  ];
 
   return (
     <>
@@ -687,76 +721,60 @@ export default function Index() {
           </div>
         </s-box>
       </s-section>
-      <s-section heading="What you can orchestrate">
+      <s-section heading="CartLift dashboard">
         <div className="app-dashboard-grid">
-          {featureCards.map((card) => (
+          {dashboardSummaryCards.map((card) => (
             <s-box
-              key={card.title}
-              className="dashboard-feature-card"
+              key={card.label}
+              className="dashboard-metric-card"
               padding="base"
               borderWidth="base"
               background="white"
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: "12px",
-                minHeight: "190px",
+                gap: "10px",
+                minHeight: "132px",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <div
-                  style={{
-                    width: "40px !important",
-                    height: "40px !important",
-                    borderRadius: "4px",
-                    background: "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "26px",
-                    boxShadow: "0 12px 35px #ffffff",
-                  }}
-                >
-                  <img
-                    src={card.imageSrc}
-                    alt={card.imageAlt}
-                    style={{
-                      width: 40,
-                      height: 40,
-                      objectFit: "contain",
-                      display: "block",
-                    }}
-                  />
-                </div>
-                <span style={{ fontSize: "14px", fontWeight: "700", color: "#202223" }}>
-                  {card.title}
-                </span>
-              </div>
-
-              <div
+              <span
                 style={{
                   fontSize: "12px",
-                  lineHeight: 1.5,
-                  marginTop: "6px",
-                  marginBottom: "6px",
-                  color: "rgba(15,23,42,0.8)",
+                  fontWeight: 700,
+                  color: "#5c5f62",
+                  lineHeight: 1.3,
                 }}
               >
-                {card.body}
-              </div>
-
-              <s-button
-                href={card.href}
-                variant="primary"
-                style={{ backgroundColor: "#1f2937", color: "#ffffff", borderRadius: 4 }}
+                {card.label}
+              </span>
+              <span
+                style={{
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  color:
+                    card.tone === "success"
+                      ? "#05422f"
+                      : card.tone === "critical"
+                        ? "#b42318"
+                        : "#202223",
+                  lineHeight: 1,
+                }}
               >
-                Configure
-              </s-button>
+                {card.value}
+              </span>
+              <span
+                style={{
+                  fontSize: "12px",
+                  lineHeight: 1.45,
+                  color: "rgba(15,23,42,0.72)",
+                }}
+              >
+                {card.detail}
+              </span>
             </s-box>
           ))}
         </div>
       </s-section>
-
       <s-section heading="Quick shortcuts">
         <s-box
           className="dashboard-shortcuts-card"

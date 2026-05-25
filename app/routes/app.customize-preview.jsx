@@ -506,7 +506,7 @@ function CartDrawerPreview({
   const headerHasImage = drawerBgMode === "image" && drawerImage;
   const headerBgStyle = headerHasImage
     ? { backgroundImage: `url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
-    : { background: uiBg || bg || "#f5f0e8" };
+    : { background: bg || "#fff" };
 
   // Cart item row using Polaris layout
   const CartItem = ({ name, variant, price }) => (

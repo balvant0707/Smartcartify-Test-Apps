@@ -4804,7 +4804,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const baseBg = pickBackground(
       style,
-      ["cartDrawerBackground", "cartDrawerBg", "drawerTopBg", "topBg", "baseBg", "bg"],
+      ["cartDrawerBackground", "cartDrawerBg", "drawerTopBg", "topBg", "baseBg"],
       defaults.baseBg
     );
 
@@ -4857,7 +4857,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       "var(--sc-small-font-size)"
     );
 
-    const progressBg = pickBackground(style, ["progressBg", "progressBackground", "bg"], baseBg);
+    const progressBg = pickBackground(style, ["progressBg", "progressBackground", "bg"], "transparent");
 
     const drawerWidth = normalizeLen(
       pick(style, ["cartDrawerWidth", "drawerWidth", "width"], null),
@@ -5108,9 +5108,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-drawer-bg", gradientBg);
     } else {
       const solidBg =
-        pickColor(style, ["cartDrawerBackground", "cartDrawerBg", "drawerTopBg", "topBg", "baseBg", "bg"], null) ||
+        pickColor(style, ["cartDrawerBackground", "cartDrawerBg", "drawerTopBg", "topBg", "baseBg"], null) ||
         getFirstColorFromBackground(baseBg) ||
-        "#111827";
+        defaults.baseBg;
 
       r.setProperty("--sc-top-bg-color", String(solidBg));
       r.setProperty("--sc-top-bg-image", "none");
