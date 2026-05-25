@@ -400,6 +400,17 @@ function parseStepNum(cartStepName) {
   return n >= 1 && n <= 4 ? n : null;
 }
 
+function parseStoredIds(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return String(raw).split(",").map((id) => id.trim()).filter(Boolean);
+  }
+}
+
 // Renders a Polaris icon constrained to a given px size
 function PreviewIcon({ source, size = 14, color = "currentColor" }) {
   const s = `${size}px`;
@@ -502,6 +513,43 @@ function CartDrawerPreview({
     "Add more to unlock your free gift";
 
   const showUpsell = upsellSettings?.enabled === true;
+  const upsellProductIds = parseStoredIds(upsellSettings?.selectedProductIds);
+  const upsellCollectionIds = parseStoredIds(upsellSettings?.selectedCollectionIds);
+  const upsellMode = String(upsellSettings?.recommendationMode || "auto").toLowerCase();
+  const upsellSelectionKind =
+    upsellMode === "manual" && upsellCollectionIds.length && !upsellProductIds.length
+      ? "collections"
+      : upsellMode === "manual"
+        ? "products"
+        : "auto";
+  const upsellTitle = upsellSettings?.sectionTitle || "You may also like";
+  const upsellButtonText = upsellSettings?.buttonText || "Add";
+  const upsellBg = upsellSettings?.backgroundColor || "#f8fafc";
+  const upsellText = upsellSettings?.textColor || tc;
+  const upsellBorder = upsellSettings?.borderColor || brc;
+  const upsellButtonBg = upsellSettings?.buttonColor || bc;
+  const upsellArrowColor = upsellSettings?.arrowColor || ic;
+  const upsellSourceLabel =
+    upsellSelectionKind === "products"
+      ? `${upsellProductIds.length || 2} selected product${(upsellProductIds.length || 2) === 1 ? "" : "s"}`
+      : upsellSelectionKind === "collections"
+        ? `${upsellCollectionIds.length || 1} selected collection${(upsellCollectionIds.length || 1) === 1 ? "" : "s"}`
+        : "Whole-store recommendations";
+  const upsellPreviewProducts =
+    upsellSelectionKind === "products"
+      ? [
+          { title: "Selected Product", tag: "Curated pick", price: "300 INR" },
+          { title: "Matching Add-on", tag: "Manual upsell", price: "450 INR" },
+        ]
+      : upsellSelectionKind === "collections"
+        ? [
+            { title: "Collection Favorite", tag: "From selected collection", price: "300 INR" },
+            { title: "New Arrival", tag: "Collection item", price: "450 INR" },
+          ]
+        : [
+            { title: "Store Bestseller", tag: "Recommended for this cart", price: "300 INR" },
+            { title: "Popular Add-on", tag: "All products", price: "450 INR" },
+          ];
 
   const headerHasImage = drawerBgMode === "image" && drawerImage;
   const headerBgStyle = headerHasImage
@@ -652,24 +700,63 @@ function CartDrawerPreview({
 
       {/* ── Upsell section ── */}
       {showUpsell && (
-        <div style={{ padding: "12px 16px 14px", borderTop: `1px solid ${brc}` }}>
-          <div style={{ textAlign: "center", marginBottom: 10 }}>
-            <Text variant="bodySm" as="p" fontWeight="semibold">You may also like...</Text>
-          </div>
-          <InlineStack align="space-between" blockAlign="center" gap="200" wrap={false}>
-            <PreviewIcon source={ChevronLeftIcon} size={18} color={ic} />
-            <div style={{ width: 44, height: 44, background: "#2d2d2d", borderRadius: 10, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: tc, fontWeight: 600 }}>Gray Jordans</div>
-              <div style={{ color: tc, opacity: 0.65 }}>300 INR</div>
+        <div style={{ padding: "12px 16px 14px", borderTop: `1px solid ${brc}`, background: upsellBg }}>
+          <div style={{ border: `1px solid ${upsellBorder}`, borderRadius: 12, background: "rgba(255,255,255,0.82)", boxShadow: "0 8px 22px rgba(15,23,42,0.08)", overflow: "hidden" }}>
+            <div style={{ padding: "10px 12px 8px", display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: upsellText, fontSize: 13, lineHeight: "18px", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {upsellTitle}
+                </div>
+                <div style={{ color: upsellText, opacity: 0.62, fontSize: 10, lineHeight: "14px", marginTop: 1 }}>
+                  {upsellSourceLabel}
+                </div>
+              </div>
+              <span style={{ border: `1px solid ${upsellBorder}`, borderRadius: 999, color: upsellText, background: "#fff", fontSize: 9, fontWeight: 800, lineHeight: "12px", padding: "4px 8px", whiteSpace: "nowrap" }}>
+                {upsellSelectionKind === "auto" ? "All products" : upsellSelectionKind === "collections" ? "Collection" : "Selected"}
+              </span>
             </div>
-            <div style={{ background: bc, color: blc, borderRadius: Math.max(r, 4), padding: "6px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Add</div>
-            <PreviewIcon source={ChevronRightIcon} size={18} color={ic} />
-          </InlineStack>
-          <div style={{ display: "flex", gap: 4, justifyContent: "center", marginTop: 10 }}>
-            {Array.from({ length: 6 }).map((_, n) => (
-              <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : brc }} />
-            ))}
+
+            <div style={{ display: "grid", gridTemplateColumns: "24px minmax(0, 1fr) 24px", gap: 6, alignItems: "center", padding: "0 10px 12px" }}>
+              <button type="button" aria-label="Previous upsell product" style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+                <PreviewIcon source={ChevronLeftIcon} size={13} color={upsellArrowColor} />
+              </button>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                {upsellPreviewProducts.slice(0, upsellSettings?.showAsSlider === false ? 2 : 1).map((product, index) => (
+                  <div key={product.title} style={{ display: "grid", gridTemplateColumns: "50px minmax(0, 1fr) auto", gap: 10, alignItems: "center", padding: "9px", border: `1px solid ${upsellBorder}`, borderRadius: 10, background: "#ffffff" }}>
+                    <div style={{ width: 50, height: 50, borderRadius: 9, background: index === 0 ? "linear-gradient(135deg,#111827,#6b7280)" : "linear-gradient(135deg,#f3f4f6,#dbeafe)", display: "flex", alignItems: "center", justifyContent: "center", color: index === 0 ? "#fff" : upsellArrowColor }}>
+                      <PreviewIcon source={PackageFulfilledIcon} size={20} color="currentColor" />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: upsellText, fontSize: 12, lineHeight: "16px", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {product.title}
+                      </div>
+                      <div style={{ color: upsellText, opacity: 0.58, fontSize: 10, lineHeight: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {product.tag}
+                      </div>
+                      <div style={{ color: upsellText, fontSize: 11, lineHeight: "15px", fontWeight: 800, marginTop: 2 }}>
+                        {product.price}
+                      </div>
+                    </div>
+                    <button type="button" style={{ border: "none", borderRadius: Math.max(r, 6), background: upsellButtonBg, color: blc, fontSize: 11, lineHeight: "14px", fontWeight: 800, padding: "8px 10px", maxWidth: 86, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {upsellButtonText}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button type="button" aria-label="Next upsell product" style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+                <PreviewIcon source={ChevronRightIcon} size={13} color={upsellArrowColor} />
+              </button>
+            </div>
+
+            {upsellSettings?.showAsSlider !== false && (
+              <div style={{ display: "flex", gap: 5, justifyContent: "center", padding: "0 0 10px" }}>
+                {upsellPreviewProducts.map((product, n) => (
+                  <div key={product.title} style={{ width: n === 0 ? 18 : 6, height: 6, borderRadius: 999, background: n === 0 ? upsellButtonBg : upsellBorder }} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
