@@ -1,0 +1,14 @@
+<svg viewBox="0 0 76 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12.74 17.89c-.63 4.08-1.9 12.5-1.9 13.52l6.55 22.82 29.58 2.12L66.2 27.4l-40.57-4.44-12.89-5.07z" fill="#FF4D4D"></path>
+  <rect transform="rotate(15 44.03 15.27)" rx="2.63" stroke-width="2" stroke="#0F0F0F" fill="#fff" y="15.27" x="44.03" height="19.81" width="5.27"></rect>
+  <rect transform="rotate(15 29.58 35.48)" rx="2.63" stroke-width="2" stroke="#0F0F0F" fill="#fff" y="35.48" x="29.58" height="19.81" width="5.27"></rect>
+  <path d="M33.41 21.17a2.63 2.63 0 0 1 5.1 1.36l-.69 2.55-2.54-.68a2.63 2.63 0 0 1-1.87-3.23zm14.6 12.94a2.63 2.63 0 1 1 1.86 3.23l-2.54-.68.68-2.55zM35.75 46.16l2.54.69a2.63 2.63 0 1 1-3.22 1.86l.68-2.55zm-15.28-10.4a2.63 2.63 0 0 1 3.23-1.86l2.54.69-.68 2.54a2.63 2.63 0 1 1-5.09-1.36z" stroke-width="2" stroke="#0F0F0F" fill="#fff"></path>
+  <rect transform="rotate(105 36.93 28.42)" rx="2.63" stroke-width="2" stroke="#0F0F0F" fill="#fff" y="28.42" x="36.93" height="19.81" width="5.27"></rect>
+  <rect transform="rotate(105 57.14 42.87)" rx="2.63" stroke-width="2" stroke="#0F0F0F" fill="#fff" y="42.87" x="57.14" height="19.81" width="5.27"></rect>
+  <rect transform="rotate(15 43.03 14.27)" rx="2.63" stroke-width="2" stroke="#0F0F0F" fill="#fff" y="14.27" x="43.03" height="19.81" width="5.27"></rect>
+  <rect transform="rotate(15 28.58 34.48)" rx="2.63" stroke-width="2" stroke="#0F0F0F" fill="#fff" y="34.48" x="28.58" height="19.81" width="5.27"></rect>
+  <path d="M32.41 20.17a2.63 2.63 0 0 1 5.1 1.36l-.69 2.55-2.54-.68a2.63 2.63 0 0 1-1.87-3.23zm14.6 12.94a2.63 2.63 0 1 1 1.86 3.23l-2.54-.68.68-2.55zM34.75 45.16l2.54.69a2.63 2.63 0 1 1-3.22 1.86l.68-2.55zm-15.28-10.4a2.63 2.63 0 0 1 3.23-1.86l2.54.69-.68 2.54a2.63 2.63 0 1 1-5.09-1.36z" stroke-width="2" stroke="#0F0F0F" fill="#fff"></path>
+  <rect transform="rotate(105 35.93 27.42)" rx="2.63" stroke-width="2" stroke="#0F0F0F" fill="#fff" y="27.42" x="35.93" height="19.81" width="5.27"></rect>
+  <rect transform="rotate(105 56.14 41.87)" rx="2.63" stroke-width="2" stroke="#0F0F0F" fill="#fff" y="41.87" x="56.14" height="19.81" width="5.27"></rect>
+  <path d="M25.08 19.91c.19-.84-.16-1.22-5.13-2.32-1.25-.28-5.4-1.2-5.52-.63-.06.28 2.36 1.12 4.79 1.95 2.42.83 5.67 1.85 5.86 1zm40 21c.19-.84-.16-1.21-5.13-2.32-1.25-.28-5.4-1.2-5.52-.63-.06.28 2.36 1.12 4.79 1.95 2.42.83 5.67 1.85 5.86 1zM34.35 54.4c-.43-.15-.63-.02-1.39 2.13-.2.54-.82 2.33-.53 2.43.14.05.66-.98 1.18-2 .51-1.03 1.16-2.41.74-2.56z" fill="#0F0F0F"></path>
+</svg>

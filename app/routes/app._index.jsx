@@ -3,7 +3,7 @@ import React from "react";
 import { useFetcher, useLoaderData, useLocation, useRouteError } from "react-router";
 import { authenticate, apiVersion } from "../shopify.server";
 import prisma from "../db.server";
-import { Page, Box, Text, Modal, TextField, BlockStack, InlineStack } from "@shopify/polaris";
+import { Page, Box, Text, Modal, TextField, BlockStack, InlineStack, Card, Button } from "@shopify/polaris";
 
 import { Icon } from "@shopify/polaris";
 import {
@@ -46,16 +46,27 @@ s-heading {
 .dashboard-feature-card,
 .dashboard-app-card,
 .dashboard-status-card,
-.dashboard-metric-card,
 .dashboard-shortcuts-card {
   border: 1px solid #dcdfe4;
   background: #ffffff;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 }
-.dashboard-metric-card:hover,
 .dashboard-app-card:hover {
   border-color: #b8c4d0;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+.dashboard-help-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.dashboard-help-card {
+  height: 100%;
+}
+@media (max-width: 900px) {
+  .dashboard-help-grid {
+    grid-template-columns: 1fr;
+  }
 }
 `;
 
@@ -271,19 +282,7 @@ export const loader = async ({ request }) => {
   const shop = session?.shop ?? null;
   const appEmbedOwnerId =
     process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_SMART_CART_ID || "";
-  const [
-    shopRecord,
-    shippingRuleCount,
-    discountRuleCount,
-    freeGiftRuleCount,
-    bxgyRuleCount,
-    activeShippingRuleCount,
-    activeDiscountRuleCount,
-    activeFreeGiftRuleCount,
-    activeBxgyRuleCount,
-    upsellSettings,
-    styleSettings,
-  ] =
+  const [shopRecord, shippingRuleCount, discountRuleCount, freeGiftRuleCount, bxgyRuleCount] =
     shop
       ? await Promise.all([
           prisma.shop.findUnique({
@@ -296,21 +295,8 @@ export const loader = async ({ request }) => {
           prisma.discountRule.count({ where: { shop } }),
           prisma.freeGiftRule.count({ where: { shop } }),
           prisma.bxgyRule.count({ where: { shop } }),
-          prisma.shippingRule.count({ where: { shop, enabled: true } }),
-          prisma.discountRule.count({ where: { shop, enabled: true } }),
-          prisma.freeGiftRule.count({ where: { shop, enabled: true } }),
-          prisma.bxgyRule.count({ where: { shop, enabled: true } }),
-          prisma.upsellSettings.findUnique({
-            where: { shop },
-            select: { enabled: true },
-          }).catch(() => null),
-          prisma.styleSettings.findFirst({
-            where: { shop },
-            orderBy: { id: "desc" },
-            select: { id: true },
-          }),
         ])
-      : [null, 0, 0, 0, 0, 0, 0, 0, 0, null, null];
+      : [null, 0, 0, 0, 0];
 
   let embedEnabled = false;
   let debug = null;
@@ -329,19 +315,6 @@ export const loader = async ({ request }) => {
     Number(discountRuleCount || 0) +
     Number(freeGiftRuleCount || 0) +
     Number(bxgyRuleCount || 0);
-  const activeRulesCount =
-    Number(activeShippingRuleCount || 0) +
-    Number(activeDiscountRuleCount || 0) +
-    Number(activeFreeGiftRuleCount || 0) +
-    Number(activeBxgyRuleCount || 0);
-  const configuredOfferTypes = [
-    shippingRuleCount,
-    discountRuleCount,
-    freeGiftRuleCount,
-    bxgyRuleCount,
-    upsellSettings ? 1 : 0,
-  ].filter((count) => Number(count || 0) > 0).length;
-
   const shouldShowReviewPopup = Boolean(
     shopRecord &&
       totalRulesCount >= REVIEW_MODAL_RULE_THRESHOLD &&
@@ -355,13 +328,6 @@ export const loader = async ({ request }) => {
     appEmbedOwnerId,
     shouldShowReviewPopup,
     totalRulesCount,
-    dashboardStats: {
-      totalRulesCount,
-      activeRulesCount,
-      configuredOfferTypes,
-      upsellEnabled: Boolean(upsellSettings?.enabled),
-      styleConfigured: Boolean(styleSettings?.id),
-    },
   };
 };
 
@@ -414,7 +380,7 @@ export const action = async ({ request }) => {
 };
 
 export default function Index() {
-  const { shop, embedEnabled, appEmbedOwnerId, shouldShowReviewPopup, dashboardStats } =
+  const { shop, embedEnabled, appEmbedOwnerId, shouldShowReviewPopup } =
     useLoaderData() ?? {};
   const fetcher = useFetcher();
   const location = useLocation();
@@ -536,38 +502,27 @@ export default function Index() {
     color: embedEnabled ? "#05422f" : "#b42318",
     background: embedEnabled ? "#d1fae5" : "#fee4e2",
   };
-  const dashboardSummaryCards = [
+  const contactCards = [
     {
-      label: "Total reward rules",
-      value: String(dashboardStats?.totalRulesCount ?? 0),
-      detail: "Shipping, discounts, free gifts, and Buy X Get Y rules.",
+      title: "Need help?",
+      body: "Need help with setup? Have questions? Ping us in chat and we would be delighted to help you.",
+      button: "Chat with us",
+      imageSrc: "/images/home-chat.svg",
+      href: REVIEW_SUPPORT_URL,
     },
     {
-      label: "Active rules",
-      value: String(dashboardStats?.activeRulesCount ?? 0),
-      detail: "Rules currently enabled for the storefront cart.",
+      title: "Schedule a demo",
+      body: "Get a complete overview of features and learn best practices that can boost your average order value using CartLift.",
+      button: "Schedule a call",
+      imageSrc: "/images/home-call.svg",
+      href: REVIEW_SUPPORT_URL,
     },
     {
-      label: "Offer types configured",
-      value: `${dashboardStats?.configuredOfferTypes ?? 0}/5`,
-      detail: "Configured across rewards, discounts, bundles, and upsells.",
-    },
-    {
-      label: "Upsell product",
-      value: dashboardStats?.upsellEnabled ? "ON" : "OFF",
-      detail: "Product upsell module status.",
-      tone: dashboardStats?.upsellEnabled ? "success" : "muted",
-    },
-    {
-      label: "Cart style",
-      value: dashboardStats?.styleConfigured ? "Set" : "Default",
-      detail: "Drawer design and preview customization.",
-    },
-    {
-      label: "App embed",
-      value: embedStatusLabel,
-      detail: "Theme app embed status.",
-      tone: embedEnabled ? "success" : "critical",
+      title: "Join our slack channel",
+      body: "Get direct access to our development team by joining our dedicated Slack channel.",
+      button: "Join us on Slack",
+      imageSrc: "/images/home-slack.svg",
+      href: REVIEW_SUPPORT_URL,
     },
   ];
 
@@ -721,60 +676,83 @@ export default function Index() {
           </div>
         </s-box>
       </s-section>
-      <s-section heading="CartLift dashboard">
-        <div className="app-dashboard-grid">
-          {dashboardSummaryCards.map((card) => (
-            <s-box
-              key={card.label}
-              className="dashboard-metric-card"
-              padding="base"
-              borderWidth="base"
-              background="white"
+
+      <s-section>
+        <BlockStack gap="500">
+          <Card padding="600">
+            <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-                minHeight: "132px",
+                background: "#f4f4f4",
+                borderRadius: 14,
+                padding: "28px 32px",
               }}
             >
-              <span
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  color: "#5c5f62",
-                  lineHeight: 1.3,
-                }}
-              >
-                {card.label}
-              </span>
-              <span
-                style={{
-                  fontSize: "28px",
-                  fontWeight: 800,
-                  color:
-                    card.tone === "success"
-                      ? "#05422f"
-                      : card.tone === "critical"
-                        ? "#b42318"
-                        : "#202223",
-                  lineHeight: 1,
-                }}
-              >
-                {card.value}
-              </span>
-              <span
-                style={{
-                  fontSize: "12px",
-                  lineHeight: 1.45,
-                  color: "rgba(15,23,42,0.72)",
-                }}
-              >
-                {card.detail}
-              </span>
-            </s-box>
-          ))}
-        </div>
+              <InlineStack gap="600" blockAlign="center" wrap={false}>
+                <Box minWidth="0" width="34%">
+                  <img
+                    src="/images/campaigns/campaign-banner-cart-goal.svg"
+                    alt="Cart goal campaign preview"
+                    style={{
+                      width: "100%",
+                      maxWidth: 360,
+                      display: "block",
+                    }}
+                  />
+                </Box>
+                <Box minWidth="0" width="66%">
+                  <BlockStack gap="300">
+                    <Text as="h2" variant="headingMd">
+                      Offer gifts based on purchase milestones
+                    </Text>
+                    <Text as="p" variant="bodyMd" tone="subdued">
+                      Create a campaign that offers gifts to customers based on their purchase milestones. For example, offer a free gift when a customer spends $100.
+                    </Text>
+                    <InlineStack>
+                      <Button url={withHost("/app/rules?tab=free")} variant="primary">
+                        Create a cart goal campaign
+                      </Button>
+                    </InlineStack>
+                  </BlockStack>
+                </Box>
+              </InlineStack>
+            </div>
+          </Card>
+
+          <div className="dashboard-help-grid">
+            {contactCards.map((card) => (
+              <Card key={card.title} padding="500">
+                <div className="dashboard-help-card">
+                  <BlockStack gap="400">
+                    <img
+                      src={card.imageSrc}
+                      alt=""
+                      aria-hidden="true"
+                      style={{
+                        width: 86,
+                        height: 86,
+                        objectFit: "contain",
+                        display: "block",
+                      }}
+                    />
+                    <BlockStack gap="200">
+                      <Text as="h3" variant="headingMd">
+                        {card.title}
+                      </Text>
+                      <Text as="p" variant="bodyMd" tone="subdued">
+                        {card.body}
+                      </Text>
+                    </BlockStack>
+                    <Button url={card.href} fullWidth>
+                      {card.button}
+                    </Button>
+                  </BlockStack>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </BlockStack>
       </s-section>
+
       <s-section heading="Quick shortcuts">
         <s-box
           className="dashboard-shortcuts-card"
