@@ -716,131 +716,135 @@ export default function Index() {
       </div>
 
       <div style={{ marginTop: "16px" }}>
-        <Box paddingBlockEnd="300">
-          <Text as="h2" variant="headingMd">
-            Recommended Our Growth Apps
-          </Text>
-        </Box>
-        <div className="app-dashboard-grid">
-          {dashboardApps.map((app) => (
-            <s-box
-              key={app.title}
-              className="dashboard-app-card"
-              padding="base"
-              borderWidth="base"
-              background="white"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "14px",
-                minHeight: "190px",
-                justifyContent: "space-between",
-                backgroundColor: "#ffffff",
-                boxShadow: "0 2px 10px #ffffff",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "10px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 4,
-                        overflow: "hidden",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {app.imageSrc ? (
-                        <img
-                          src={app.imageSrc}
-                          alt={app.imageAlt}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            display: "block",
-                          }}
-                        />
-                      ) : (
-                        <span
-                          style={{
-                            color: "#0284c7",
-                            transform: "scale(1.2)",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <Icon source={app.icon} tone="base" />
-                        </span>
-                      )}
-                    </div>
-                    <span
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: 700,
-                        color: "#303030",
-                        lineHeight: 1.25,
-                      }}
-                    >
-                      {app.title}
-                    </span>
-                  </div>
-                  <span
+        <Card padding="500">
+          <div style={{ backgroundColor: "#ffffff" }}>
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Recommended Our Growth Apps
+              </Text>
+              <div className="app-dashboard-grid">
+                {dashboardApps.map((app) => (
+                  <s-box
+                    key={app.title}
+                    className="dashboard-app-card"
+                    padding="base"
+                    borderWidth="base"
+                    background="white"
                     style={{
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#6d6d6d",
-                      background: "#efefef",
-                      padding: "4px 10px",
-                      borderRadius: 4,
-                      flexShrink: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "14px",
+                      minHeight: "190px",
+                      justifyContent: "space-between",
+                      backgroundColor: "#ffffff",
+                      boxShadow: "0 2px 10px #ffffff",
                     }}
                   >
-                    {app.category}
-                  </span>
-                </div>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    lineHeight: 1.35,
-                    color: "#5c5f62",
-                  }}
-                >
-                  {app.description}
-                </span>
-              </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "10px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: 38,
+                              height: 38,
+                              borderRadius: 4,
+                              overflow: "hidden",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {app.imageSrc ? (
+                              <img
+                                src={app.imageSrc}
+                                alt={app.imageAlt}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                  display: "block",
+                                }}
+                              />
+                            ) : (
+                              <span
+                                style={{
+                                  color: "#0284c7",
+                                  transform: "scale(1.2)",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <Icon source={app.icon} tone="base" />
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "14px",
+                              fontWeight: 700,
+                              color: "#303030",
+                              lineHeight: 1.25,
+                            }}
+                          >
+                            {app.title}
+                          </span>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "#6d6d6d",
+                            background: "#efefef",
+                            padding: "4px 10px",
+                            borderRadius: 4,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {app.category}
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          lineHeight: 1.35,
+                          color: "#5c5f62",
+                        }}
+                      >
+                        {app.description}
+                      </span>
+                    </div>
 
-              <s-button
-                href={app.href}
-                target="_blank"
-                rel="noreferrer"
-                variant="primary"
-                style={{
-                  backgroundColor: "#1f1f1f",
-                  color: "#ffffff",
-                  borderRadius: 4,
-                  width: "100%",
-                  textAlign: "center",
-                  justifyContent: "center",
-                }}
-              >
-                View app
-              </s-button>
-            </s-box>
-          ))}
-        </div>
+                    <s-button
+                      href={app.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      variant="primary"
+                      style={{
+                        backgroundColor: "#1f1f1f",
+                        color: "#ffffff",
+                        borderRadius: 4,
+                        width: "100%",
+                        textAlign: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      View app
+                    </s-button>
+                  </s-box>
+                ))}
+              </div>
+            </BlockStack>
+          </div>
+        </Card>
       </div>
       </s-page>
     </>
