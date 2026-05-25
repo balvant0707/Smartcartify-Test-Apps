@@ -462,13 +462,15 @@ export default function Index() {
   const openAppEmbedsUrl = activateEmbedUrl || themeAdminUrl;
   const embedStatusLabel = embedEnabled ? "ON" : "OFF";
   const embedStatusStyle = {
-    borderRadius: 4,
-    padding: "6px 14px",
+    borderRadius: 999,
+    padding: "7px 14px",
     fontSize: 12,
-    fontWeight: 600,
+    fontWeight: 700,
     lineHeight: 1,
     color: embedEnabled ? "#05422f" : "#b42318",
     background: embedEnabled ? "#d1fae5" : "#fee4e2",
+    border: `1px solid ${embedEnabled ? "#9ce0c2" : "#fecaca"}`,
+    letterSpacing: 0,
   };
   const contactCards = [
     {
@@ -603,41 +605,55 @@ export default function Index() {
         dangerouslySetInnerHTML={{ __html: CUSTOM_ICON_CSS }}
       />
 
-      <s-section>
-        <s-box
-          className="dashboard-status-card"
-          padding="base"
-          background="white"
-          borderWidth="base"
-          borderRadius="base"
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <s-heading level="5" style={{ margin: 0, fontSize: "14px" }}>
-                App embed status
-              </s-heading>
-              <span style={embedStatusStyle}>{embedStatusLabel}</span>
+      <div style={{ marginTop: "16px" }}>
+        <Card padding="0">
+          <div
+            className="dashboard-status-card"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "6px 1fr",
+              overflow: "hidden",
+              borderRadius: 10,
+              backgroundColor: "#ffffff",
+            }}
+          >
+            <div
+              aria-hidden="true"
+              style={{
+                background: embedEnabled ? "#16a34a" : "#ef4444",
+              }}
+            />
+            <div style={{ padding: "22px 24px" }}>
+              <InlineStack align="space-between" blockAlign="start" gap="400" wrap>
+                <BlockStack gap="300">
+                  <BlockStack gap="100">
+                    <Text as="h2" variant="headingMd">
+                      App embed status
+                    </Text>
+                    <Text as="p" tone="subdued">
+                      Enable the CartLift app embed in your Shopify theme editor so the cart drawer can appear on your storefront.
+                    </Text>
+                  </BlockStack>
+                  <InlineStack gap="300" blockAlign="center" wrap>
+                    <Button
+                      url={openAppEmbedsUrl}
+                      variant="primary"
+                      target="_blank"
+                      disabled={!openAppEmbedsUrl}
+                    >
+                      Open App Embeds
+                    </Button>
+                    <Text as="p" tone="subdued">
+                      Save your theme changes after enabling it.
+                    </Text>
+                  </InlineStack>
+                </BlockStack>
+                <span style={embedStatusStyle}>{embedStatusLabel}</span>
+              </InlineStack>
             </div>
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <s-button
-                href={openAppEmbedsUrl}
-                variant="primary"
-                target="_blank"
-                rel="noreferrer"
-                disabled={!openAppEmbedsUrl}
-                style={{ backgroundColor: "#1f2937", borderColor: "#1f2937" }}
-              >
-                Open App Embeds
-              </s-button>
-            </div>
-
-            <p style={{ margin: 0, color: "#5c5f62", fontSize: 12, lineHeight: 1.65 }}>
-              You will be redirected to the Shopify theme editor, where you can enable CartLift: Cart Drawer & Upsell. Make sure to save your changes after enabling it.
-            </p>
           </div>
-        </s-box>
-      </s-section>
+        </Card>
+      </div>
 
       <div style={{ marginTop: "16px" }}>
         <BlockStack gap="500">
