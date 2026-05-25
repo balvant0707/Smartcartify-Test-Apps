@@ -735,6 +735,8 @@ export default function Index() {
                 gap: "14px",
                 minHeight: "190px",
                 justifyContent: "space-between",
+                backgroundColor: "#ffffff",
+                boxShadow: "0 2px 10px #ffffff",
               }}
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
