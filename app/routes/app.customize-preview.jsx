@@ -1,5 +1,5 @@
 // app/routes/app.customize-preview.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useNavigate, useSearchParams, useSubmit,
   useActionData, useLoaderData, useNavigation,
@@ -652,6 +652,42 @@ function CartDrawerPreview({
   const upsellPreviewProducts = configuredUpsellPreviewProducts.length
     ? configuredUpsellPreviewProducts
     : fallbackUpsellPreviewProducts;
+  const [upsellPreviewIndex, setUpsellPreviewIndex] = useState(0);
+  const activeUpsellIndex = upsellPreviewProducts.length
+    ? Math.min(upsellPreviewIndex, upsellPreviewProducts.length - 1)
+    : 0;
+  const displayedUpsellProducts = upsellIsSlider
+    ? upsellPreviewProducts.slice(activeUpsellIndex, activeUpsellIndex + 1)
+    : upsellPreviewProducts.slice(0, 3);
+  const canSlideUpsell = upsellIsSlider && upsellPreviewProducts.length > 1;
+  const moveUpsellPreview = (direction) => {
+    if (!canSlideUpsell) return;
+    setUpsellPreviewIndex((current) => {
+      const next = current + direction;
+      if (next < 0) return upsellPreviewProducts.length - 1;
+      if (next >= upsellPreviewProducts.length) return 0;
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    setUpsellPreviewIndex(0);
+  }, [
+    upsellMode,
+    upsellSelectionKind,
+    upsellIsSlider,
+    upsellPreviewProducts.length,
+    upsellSettings?.selectedProductIds,
+    upsellSettings?.selectedCollectionIds,
+  ]);
+
+  useEffect(() => {
+    if (!showUpsell || !canSlideUpsell || upsellSettings?.autoplay === false) return undefined;
+    const timer = window.setInterval(() => {
+      setUpsellPreviewIndex((current) => (current + 1) % upsellPreviewProducts.length);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [showUpsell, canSlideUpsell, upsellSettings?.autoplay, upsellPreviewProducts.length]);
 
   const headerHasImage = drawerBgMode === "image" && drawerImage;
   const headerBgStyle = headerHasImage
@@ -699,14 +735,20 @@ function CartDrawerPreview({
 
         <div style={{ display: "grid", gridTemplateColumns: upsellIsSlider ? "24px minmax(0, 1fr) 24px" : "minmax(0, 1fr)", gap: 6, alignItems: "center", padding: "0 8px 8px" }}>
           {upsellIsSlider && (
-            <button type="button" aria-label="Previous upsell product" style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+            <button
+              type="button"
+              aria-label="Previous upsell product"
+              onClick={() => moveUpsellPreview(-1)}
+              disabled={!canSlideUpsell}
+              style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, opacity: canSlideUpsell ? 1 : 0.45, cursor: canSlideUpsell ? "pointer" : "default" }}
+            >
               <PreviewIcon source={ChevronLeftIcon} size={13} color={upsellArrowColor} />
             </button>
           )}
 
           <div style={{ display: "grid", gap: 8 }}>
-            {upsellPreviewProducts.slice(0, upsellIsSlider ? 1 : 3).map((product, index) => (
-              <div key={product.title} style={{ display: "grid", gridTemplateColumns: "50px minmax(0, 1fr) auto", gap: 10, alignItems: "center", padding: "8px", border: `1px solid ${upsellBorder}`, borderRadius: 10, background: "#ffffff" }}>
+            {displayedUpsellProducts.map((product, index) => (
+              <div key={product.id || product.title || index} style={{ display: "grid", gridTemplateColumns: "50px minmax(0, 1fr) auto", gap: 10, alignItems: "center", padding: "8px", border: `1px solid ${upsellBorder}`, borderRadius: 10, background: "#ffffff" }}>
                 {product.image ? (
                   <img
                     src={product.image}
@@ -734,7 +776,13 @@ function CartDrawerPreview({
           </div>
 
           {upsellIsSlider && (
-            <button type="button" aria-label="Next upsell product" style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+            <button
+              type="button"
+              aria-label="Next upsell product"
+              onClick={() => moveUpsellPreview(1)}
+              disabled={!canSlideUpsell}
+              style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, opacity: canSlideUpsell ? 1 : 0.45, cursor: canSlideUpsell ? "pointer" : "default" }}
+            >
               <PreviewIcon source={ChevronRightIcon} size={13} color={upsellArrowColor} />
             </button>
           )}
@@ -743,7 +791,13 @@ function CartDrawerPreview({
         {upsellIsSlider && (
           <div style={{ display: "flex", gap: 5, justifyContent: "center", padding: "0 0 8px" }}>
             {upsellPreviewProducts.map((product, n) => (
-              <div key={product.title} style={{ width: n === 0 ? 18 : 6, height: 6, borderRadius: 999, background: n === 0 ? upsellButtonBg : upsellBorder }} />
+              <button
+                key={product.id || product.title || n}
+                type="button"
+                aria-label={`Show upsell product ${n + 1}`}
+                onClick={() => setUpsellPreviewIndex(n)}
+                style={{ width: n === activeUpsellIndex ? 18 : 6, height: 6, borderRadius: 999, background: n === activeUpsellIndex ? upsellButtonBg : upsellBorder, border: "none", padding: 0, cursor: "pointer" }}
+              />
             ))}
           </div>
         )}
