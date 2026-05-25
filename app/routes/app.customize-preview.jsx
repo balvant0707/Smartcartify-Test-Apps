@@ -140,9 +140,105 @@ const saveSingleStyleSettings = async (shop, settings) =>
 
 // ─── Loader ───────────────────────────────────────────────────────────────────
 
+const formatAdminMoney = (amount, currencyCode = "INR") => {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return "";
+  return `${value.toLocaleString("en-IN", {
+    maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+    minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+  })} ${currencyCode}`;
+};
+
+const productToUpsellPreview = (product, tag) => {
+  const variant = product?.variants?.nodes?.[0] || product?.variants?.edges?.[0]?.node || null;
+  return {
+    id: product?.id || product?.legacyResourceId || product?.title,
+    title: product?.title || "Product",
+    tag,
+    price: formatAdminMoney(variant?.price, variant?.currencyCode) || "300 INR",
+    image: product?.featuredImage?.url || product?.image?.url || product?.image || "",
+  };
+};
+
+const toShopifyGid = (type, id) => {
+  const raw = String(id || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("gid://")) return raw;
+  const match = raw.match(/(\d+)$/);
+  return match ? `gid://shopify/${type}/${match[1]}` : raw;
+};
+
+async function loadUpsellPreviewItems(admin, upsellSettings) {
+  if (!upsellSettings?.enabled) return [];
+  const productFields = `id title featuredImage { url } variants(first: 1) { nodes { price } }`;
+  const productIds = parseStoredIds(upsellSettings.selectedProductIds).map((id) => toShopifyGid("Product", id)).filter(Boolean);
+  const collectionIds = parseStoredIds(upsellSettings.selectedCollectionIds).map((id) => toShopifyGid("Collection", id)).filter(Boolean);
+  const mode = String(upsellSettings.recommendationMode || "auto").toLowerCase();
+
+  try {
+    if (mode === "manual" && productIds.length) {
+      const res = await admin.graphql(
+        `#graphql
+        query UpsellPreviewProducts($ids: [ID!]!) {
+          nodes(ids: $ids) {
+            ... on Product { ${productFields} }
+          }
+        }`,
+        { variables: { ids: productIds } }
+      );
+      const json = await res.json();
+      return (json?.data?.nodes || []).filter(Boolean).map((product) =>
+        productToUpsellPreview(product, "Selected product")
+      );
+    }
+
+    if (mode === "manual" && collectionIds.length) {
+      const res = await admin.graphql(
+        `#graphql
+        query UpsellPreviewCollections($ids: [ID!]!) {
+          nodes(ids: $ids) {
+            ... on Collection {
+              id
+              title
+              products(first: 4) {
+                nodes { ${productFields} }
+              }
+            }
+          }
+        }`,
+        { variables: { ids: collectionIds } }
+      );
+      const json = await res.json();
+      return (json?.data?.nodes || [])
+        .filter(Boolean)
+        .flatMap((collection) =>
+          (collection?.products?.nodes || []).map((product) =>
+            productToUpsellPreview(product, collection?.title ? `From ${collection.title}` : "Selected collection")
+          )
+        );
+    }
+
+    const res = await admin.graphql(
+      `#graphql
+      query UpsellPreviewStoreProducts {
+        products(first: 4, sortKey: UPDATED_AT, reverse: true) {
+          nodes { ${productFields} }
+        }
+      }`
+    );
+    const json = await res.json();
+    return (json?.data?.products?.nodes || []).map((product) =>
+      productToUpsellPreview(product, "All products")
+    );
+  } catch (err) {
+    console.warn("[app.customize-preview] Upsell preview product load failed:", err?.message);
+    return [];
+  }
+}
+
 export const loader = async ({ request }) => {
   const { authenticate } = await import("../shopify.server");
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
 
   const [
@@ -178,7 +274,10 @@ export const loader = async ({ request }) => {
     }),
   ]);
 
-  const styleWithIcon = await loadCartIconUrl(styleRow);
+  const [styleWithIcon, upsellPreviewItems] = await Promise.all([
+    loadCartIconUrl(styleRow),
+    loadUpsellPreviewItems(admin, upsellSettings),
+  ]);
 
   return {
     style: styleWithIcon || null,
@@ -186,6 +285,7 @@ export const loader = async ({ request }) => {
     discountRules: discountRules || [],
     freeGiftRules: freeGiftRules || [],
     upsellSettings: upsellSettings || null,
+    upsellPreviewItems,
     bxgyRules: bxgyRules || [],
     codeDiscountRules: codeDiscountRules || [],
     shop,
@@ -426,6 +526,7 @@ function CartDrawerPreview({
   progress, radius, base, checkoutText,
   announcementBg, announcementText, announcementBarText,
   shippingRules, discountRules, freeGiftRules, upsellSettings,
+  upsellPreviewItems,
   bxgyRules, codeDiscountRules,
   drawerBgMode, drawerImage,
   discountCodeApply,
@@ -524,6 +625,7 @@ function CartDrawerPreview({
         : "auto";
   const upsellTitle = upsellSettings?.sectionTitle || "You may also like";
   const upsellButtonText = upsellSettings?.buttonText || "Add";
+  const upsellIsSlider = upsellSettings?.showAsSlider !== false;
   const upsellBg = upsellSettings?.backgroundColor || "#f8fafc";
   const upsellText = upsellSettings?.textColor || tc;
   const upsellBorder = upsellSettings?.borderColor || brc;
@@ -535,7 +637,10 @@ function CartDrawerPreview({
       : upsellSelectionKind === "collections"
         ? `${upsellCollectionIds.length || 1} selected collection${(upsellCollectionIds.length || 1) === 1 ? "" : "s"}`
         : "Whole-store recommendations";
-  const upsellPreviewProducts =
+  const configuredUpsellPreviewProducts = Array.isArray(upsellPreviewItems)
+    ? upsellPreviewItems.filter(Boolean)
+    : [];
+  const fallbackUpsellPreviewProducts =
     upsellSelectionKind === "products"
       ? [
           { title: "Selected Product", tag: "Curated pick", price: "300 INR" },
@@ -550,6 +655,9 @@ function CartDrawerPreview({
             { title: "Store Bestseller", tag: "Recommended for this cart", price: "300 INR" },
             { title: "Popular Add-on", tag: "All products", price: "450 INR" },
           ];
+  const upsellPreviewProducts = configuredUpsellPreviewProducts.length
+    ? configuredUpsellPreviewProducts
+    : fallbackUpsellPreviewProducts;
 
   const headerHasImage = drawerBgMode === "image" && drawerImage;
   const headerBgStyle = headerHasImage
@@ -601,17 +709,27 @@ function CartDrawerPreview({
           </span>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "24px minmax(0, 1fr) 24px", gap: 6, alignItems: "center", padding: "0 10px 12px" }}>
-          <button type="button" aria-label="Previous upsell product" style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
-            <PreviewIcon source={ChevronLeftIcon} size={13} color={upsellArrowColor} />
-          </button>
+        <div style={{ display: "grid", gridTemplateColumns: upsellIsSlider ? "24px minmax(0, 1fr) 24px" : "minmax(0, 1fr)", gap: 6, alignItems: "center", padding: "0 10px 12px" }}>
+          {upsellIsSlider && (
+            <button type="button" aria-label="Previous upsell product" style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+              <PreviewIcon source={ChevronLeftIcon} size={13} color={upsellArrowColor} />
+            </button>
+          )}
 
           <div style={{ display: "grid", gap: 8 }}>
-            {upsellPreviewProducts.slice(0, upsellSettings?.showAsSlider === false ? 2 : 1).map((product, index) => (
+            {upsellPreviewProducts.slice(0, upsellIsSlider ? 1 : 3).map((product, index) => (
               <div key={product.title} style={{ display: "grid", gridTemplateColumns: "50px minmax(0, 1fr) auto", gap: 10, alignItems: "center", padding: "9px", border: `1px solid ${upsellBorder}`, borderRadius: 10, background: "#ffffff" }}>
-                <div style={{ width: 50, height: 50, borderRadius: 9, background: index === 0 ? "linear-gradient(135deg,#111827,#6b7280)" : "linear-gradient(135deg,#f3f4f6,#dbeafe)", display: "flex", alignItems: "center", justifyContent: "center", color: index === 0 ? "#fff" : upsellArrowColor }}>
-                  <PreviewIcon source={PackageFulfilledIcon} size={20} color="currentColor" />
-                </div>
+                {product.image ? (
+                  <img
+                    src={product.image}
+                    alt={product.title}
+                    style={{ width: 50, height: 50, borderRadius: 9, objectFit: "cover", display: "block", background: "#f3f4f6" }}
+                  />
+                ) : (
+                  <div style={{ width: 50, height: 50, borderRadius: 9, background: index === 0 ? "linear-gradient(135deg,#111827,#6b7280)" : "linear-gradient(135deg,#f3f4f6,#dbeafe)", display: "flex", alignItems: "center", justifyContent: "center", color: index === 0 ? "#fff" : upsellArrowColor }}>
+                    <PreviewIcon source={PackageFulfilledIcon} size={20} color="currentColor" />
+                  </div>
+                )}
                 <div style={{ minWidth: 0 }}>
                   <div style={{ color: upsellText, fontSize: 12, lineHeight: "16px", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {product.title}
@@ -630,12 +748,14 @@ function CartDrawerPreview({
             ))}
           </div>
 
-          <button type="button" aria-label="Next upsell product" style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
-            <PreviewIcon source={ChevronRightIcon} size={13} color={upsellArrowColor} />
-          </button>
+          {upsellIsSlider && (
+            <button type="button" aria-label="Next upsell product" style={{ width: 24, height: 24, borderRadius: "50%", border: `1px solid ${upsellBorder}`, background: "#fff", color: upsellArrowColor, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+              <PreviewIcon source={ChevronRightIcon} size={13} color={upsellArrowColor} />
+            </button>
+          )}
         </div>
 
-        {upsellSettings?.showAsSlider !== false && (
+        {upsellIsSlider && (
           <div style={{ display: "flex", gap: 5, justifyContent: "center", padding: "0 0 10px" }}>
             {upsellPreviewProducts.map((product, n) => (
               <div key={product.title} style={{ width: n === 0 ? 18 : 6, height: 6, borderRadius: 999, background: n === 0 ? upsellButtonBg : upsellBorder }} />
@@ -878,6 +998,7 @@ export default function CustomizePreview() {
   const discountRules = loaderData?.discountRules || [];
   const freeGiftRules = loaderData?.freeGiftRules || [];
   const upsellSettings = loaderData?.upsellSettings || null;
+  const upsellPreviewItems = loaderData?.upsellPreviewItems || [];
   const bxgyRules = loaderData?.bxgyRules || [];
   const codeDiscountRules = loaderData?.codeDiscountRules || [];
   const isSaving = navigation.state === "submitting";
@@ -1199,7 +1320,6 @@ export default function CustomizePreview() {
             <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden" }}>
               <div style={{ padding: "12px 16px", borderBottom: "1px solid #e1e3e5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Live Preview</Text>
-                <Text variant="bodySm" tone="subdued" as="p">Updates as you change settings</Text>
               </div>
               <div style={{ padding: "16px" }}>
                 <CartDrawerPreview
@@ -1221,6 +1341,7 @@ export default function CustomizePreview() {
                   discountRules={discountRules}
                   freeGiftRules={freeGiftRules}
                   upsellSettings={upsellSettings}
+                  upsellPreviewItems={upsellPreviewItems}
                   bxgyRules={bxgyRules}
                   codeDiscountRules={codeDiscountRules}
                   discountCodeApply={discountCodeApply}
