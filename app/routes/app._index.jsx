@@ -40,10 +40,15 @@ s-section::part(heading),
 s-heading {
   font-size: 14px !important;
 }
+.dashboard-app-card,
 .dashboard-status-card {
   border: 1px solid #dcdfe4;
   background: #ffffff;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+.dashboard-app-card:hover {
+  border-color: #b8c4d0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }
 .dashboard-help-grid {
   display: grid;
@@ -713,13 +718,17 @@ export default function Index() {
       <s-section heading="Recommended Our Growth Apps">
         <div className="app-dashboard-grid">
           {dashboardApps.map((app) => (
-            <div
+            <s-box
               key={app.title}
+              className="dashboard-app-card"
+              padding="base"
+              borderWidth="base"
+              background="white"
               style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: "14px",
-                minHeight: "160px",
+                minHeight: "190px",
                 justifyContent: "space-between",
               }}
             >
@@ -822,7 +831,7 @@ export default function Index() {
               >
                 View app
               </s-button>
-            </div>
+            </s-box>
           ))}
         </div>
       </s-section>
