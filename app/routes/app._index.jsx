@@ -639,7 +639,7 @@ export default function Index() {
         </s-box>
       </s-section>
 
-      <s-section>
+      <div style={{ marginTop: "16px" }}>
         <BlockStack gap="500">
           <Card padding="600">
             <div
@@ -713,9 +713,14 @@ export default function Index() {
             ))}
           </div>
         </BlockStack>
-      </s-section>
+      </div>
 
-      <s-section heading="Recommended Our Growth Apps">
+      <div style={{ marginTop: "16px" }}>
+        <Box paddingBlockEnd="300">
+          <Text as="h2" variant="headingMd">
+            Recommended Our Growth Apps
+          </Text>
+        </Box>
         <div className="app-dashboard-grid">
           {dashboardApps.map((app) => (
             <s-box
@@ -834,7 +839,7 @@ export default function Index() {
             </s-box>
           ))}
         </div>
-      </s-section>
+      </div>
       </s-page>
     </>
   );
