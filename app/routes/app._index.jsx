@@ -506,7 +506,7 @@ export default function Index() {
     {
       title: "Need help?",
       body: "Need help with setup? Have questions? Ping us in chat and we would be delighted to help you.",
-      button: "Chat with us",
+      button: "User Guide & Support",
       imageSrc: "/images/home-chat.svg",
       href: REVIEW_SUPPORT_URL,
     },
@@ -515,14 +515,14 @@ export default function Index() {
       body: "Get a complete overview of features and learn best practices that can boost your average order value using CartLift.",
       button: "Schedule a call",
       imageSrc: "/images/home-call.svg",
-      href: REVIEW_SUPPORT_URL,
+      href: "https://bookings.cloud.microsoft/book/ShopifyGrowthConsultationCall@m2webdesigning.com/?ismsaljsauthenabled=true",
     },
     {
-      title: "Join our slack channel",
-      body: "Get direct access to our development team by joining our dedicated Slack channel.",
-      button: "Join us on Slack",
+      title: "Review CartLift",
+      body: "Share your experience with CartLift and help other merchants discover the app.",
+      button: "Write a review",
       imageSrc: "/images/home-slack.svg",
-      href: REVIEW_SUPPORT_URL,
+      href: "https://apps.shopify.com/cartlift-cart-drawer-upsell#modal-show=WriteReviewModal",
     },
   ];
 
@@ -615,12 +615,6 @@ export default function Index() {
               autoComplete="off"
               placeholder="What should other merchants know about this app?"
             />
-            <InlineStack align="space-between" blockAlign="center">
-              <Text as="p" tone="subdued">
-                If your review is published on the Shopify App Store, we&apos;ll include some details about your store.
-              </Text>
-              <Icon source={InfoIcon} tone="subdued" />
-            </InlineStack>
             {reviewClientError ? (
               <Text as="p" tone="critical">
                 {reviewClientError}
@@ -708,7 +702,7 @@ export default function Index() {
                       Create a campaign that offers gifts to customers based on their purchase milestones. For example, offer a free gift when a customer spends $100.
                     </Text>
                     <InlineStack>
-                      <Button url={withHost("/app/rules?tab=free")} variant="primary">
+                      <Button url={withHost("/app/rules?tab=free")} variant="primary" target="_blank">
                         Create a cart goal campaign
                       </Button>
                     </InlineStack>
@@ -742,7 +736,7 @@ export default function Index() {
                         {card.body}
                       </Text>
                     </BlockStack>
-                    <Button url={card.href} fullWidth>
+                    <Button url={card.href} fullWidth target="_blank">
                       {card.button}
                     </Button>
                   </BlockStack>
