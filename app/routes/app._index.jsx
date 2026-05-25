@@ -44,11 +44,11 @@ s-heading {
 .dashboard-status-card {
   border: 1px solid #dcdfe4;
   background: #ffffff;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 .dashboard-app-card:hover {
   border-color: #b8c4d0;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 }
 .dashboard-help-grid {
   display: grid;
