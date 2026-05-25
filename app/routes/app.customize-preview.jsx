@@ -748,7 +748,20 @@ function CartDrawerPreview({
 
           <div style={{ display: "grid", gap: 8 }}>
             {displayedUpsellProducts.map((product, index) => (
-              <div key={product.id || product.title || index} style={{ display: "grid", gridTemplateColumns: "50px minmax(0, 1fr) auto", gap: 10, alignItems: "center", padding: "8px", border: `1px solid ${upsellBorder}`, borderRadius: 10, background: "#ffffff" }}>
+              <div
+                key={upsellIsSlider ? `${product.id || product.title || index}-${activeUpsellIndex}` : product.id || product.title || index}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "50px minmax(0, 1fr) auto",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "8px",
+                  border: `1px solid ${upsellBorder}`,
+                  borderRadius: 10,
+                  background: "#ffffff",
+                  animation: upsellIsSlider ? "cp-upsell-slide-in 220ms ease-out" : "none",
+                }}
+              >
                 {product.image ? (
                   <img
                     src={product.image}
@@ -810,7 +823,10 @@ function CartDrawerPreview({
   return (
     <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", background: bg || "#fff", color: tc, userSelect: "none", minHeight: 600, fontSize: `${fs}px` }}>
       {/* Marquee keyframes */}
-      <style>{`@keyframes cp-mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
+      <style>{`
+        @keyframes cp-mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+        @keyframes cp-upsell-slide-in{0%{opacity:0;transform:translateX(18px)}100%{opacity:1;transform:translateX(0)}}
+      `}</style>
 
       {/* ── Header ── */}
       <div style={{ ...headerBgStyle, padding: "14px 16px" }}>
