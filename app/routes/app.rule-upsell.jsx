@@ -73,7 +73,7 @@ export const action = async ({ request }) => {
   const {
     enabled, showAsSlider, autoplay, recommendationMode,
     sectionTitle, buttonText,
-    buttonColor, backgroundColor, textColor, borderColor, arrowColor,
+    buttonColor, buttonTextColor, backgroundColor, textColor, borderColor, arrowColor,
     selectedProductIds, selectedCollectionIds,
   } = body;
 
@@ -98,6 +98,7 @@ export const action = async ({ request }) => {
     sectionTitle: sectionTitle || "You may also like",
     buttonText: buttonText || "Add to cart",
     buttonColor: buttonColor || null,
+    buttonTextColor: buttonTextColor || null,
     backgroundColor: backgroundColor || null,
     textColor: textColor || null,
     borderColor: borderColor || null,
@@ -375,6 +376,7 @@ export default function RuleUpsell() {
 
   // Style
   const [buttonColor, setButtonColor] = useState(r?.buttonColor ?? "#111827");
+  const [buttonTextColor, setButtonTextColor] = useState(r?.buttonTextColor ?? "#ffffff");
   const [backgroundColor, setBackgroundColor] = useState(r?.backgroundColor ?? "#ffffff");
   const [textColor, setTextColor] = useState(r?.textColor ?? "#111827");
   const [borderColor, setBorderColor] = useState(r?.borderColor ?? "#e1e3e5");
@@ -399,6 +401,7 @@ export default function RuleUpsell() {
         selectedProductIds,
         selectedCollectionIds,
         buttonColor,
+        buttonTextColor,
         backgroundColor,
         textColor,
         borderColor,
@@ -704,6 +707,7 @@ export default function RuleUpsell() {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                     {[
                       { label: "Button background color", value: buttonColor, onChange: setButtonColor },
+                      { label: "Button text color", value: buttonTextColor, onChange: setButtonTextColor },
                       { label: "Background color", value: backgroundColor, onChange: setBackgroundColor },
                       { label: "Text color", value: textColor, onChange: setTextColor },
                       { label: "Border color", value: borderColor, onChange: setBorderColor },
@@ -912,7 +916,7 @@ export default function RuleUpsell() {
                                     backgroundColor: buttonColor || "#111827",
                                     border: "none",
                                     borderRadius: "6px",
-                                    color: "#fff",
+                                    color: buttonTextColor || "#ffffff",
                                     fontSize: "13px",
                                     lineHeight: "18px",
                                     fontWeight: 800,
@@ -1020,7 +1024,7 @@ export default function RuleUpsell() {
                                 background: buttonColor || "#111827",
                                 border: "none",
                                 borderRadius: "6px",
-                                color: "#fff",
+                                color: buttonTextColor || "#ffffff",
                                 fontSize: "12px",
                                 fontWeight: 800,
                                 padding: "8px 10px",

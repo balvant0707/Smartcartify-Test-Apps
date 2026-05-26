@@ -692,6 +692,7 @@ function CartDrawerPreview({
   const upsellText = upsellSettings?.textColor || tc;
   const upsellBorder = upsellSettings?.borderColor || brc;
   const upsellButtonBg = upsellSettings?.buttonColor || bc;
+  const upsellButtonTextColor = upsellSettings?.buttonTextColor || blc;
   const upsellArrowColor = upsellSettings?.arrowColor || ic;
   const configuredUpsellPreviewProducts = Array.isArray(upsellPreviewItems)
     ? upsellPreviewItems.filter(Boolean)
@@ -845,7 +846,7 @@ function CartDrawerPreview({
                     {product.price}
                   </div>
                 </div>
-                <button type="button" style={{ border: "none", borderRadius: Math.max(r, 6), backgroundColor: upsellButtonBg, color: blc, fontSize: 11, lineHeight: "14px", fontWeight: 800, padding: "8px 10px", maxWidth: 86, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <button type="button" style={{ border: "none", borderRadius: Math.max(r, 6), backgroundColor: upsellButtonBg, color: upsellButtonTextColor, fontSize: 11, lineHeight: "14px", fontWeight: 800, padding: "8px 10px", maxWidth: 86, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {upsellButtonText}
                 </button>
               </div>

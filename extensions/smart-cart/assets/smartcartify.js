@@ -945,6 +945,7 @@
       sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "Recommended Products"),
       buttonText: pickTextAny(raw, ["buttonText"], "add"),
       buttonColor: pickColor(raw, ["buttonColor", "button"], "#111111"),
+      buttonTextColor: pickColor(raw, ["buttonTextColor", "buttonLabelColor", "button_text_color"], "#ffffff"),
       backgroundColor: pickBackground(raw, ["backgroundColor", "background"], null),
       textColor: pickColor(raw, ["textColor", "text"], "#e2e8f0"),
       borderColor: pickColor(raw, ["borderColor", "border"], "#e2e8f0"),
@@ -1433,6 +1434,7 @@
     wrap.style.setProperty("--sc-upsell-bg", settings.backgroundColor || "var(--sc-drawer-bg, #ffffff)");
     wrap.style.setProperty("--sc-upsell-text", settings.textColor || "#111827");
     wrap.style.setProperty("--sc-upsell-button-bg", settings.buttonColor || "#111111");
+    wrap.style.setProperty("--sc-upsell-button-text", settings.buttonTextColor || "#ffffff");
     wrap.style.setProperty("--sc-border", settings.borderColor || "#e2e8f0");
     wrap.style.setProperty("--sc-upsell-arrow", settings.arrowColor || "#111827");
 
@@ -1517,7 +1519,7 @@
                 <div class="${controlsClass}">
                   ${selectMarkup}
                   <div class="sc-upsell-action">
-                    <button class="sc-upsell-btn" type="button" data-upsell-add="${addVariantId}" data-upsell-key="${safeKey}" ${available ? "" : "disabled hidden"} style="${available ? `background-color:${safe(settings.buttonColor || "#111111")};` : "display:none"}">
+                    <button class="sc-upsell-btn" type="button" data-upsell-add="${addVariantId}" data-upsell-key="${safeKey}" ${available ? "" : "disabled hidden"} style="${available ? `background-color:${safe(settings.buttonColor || "#111111")};color:${safe(settings.buttonTextColor || "#ffffff")};` : "display:none"}">
                       <span class="sc-upsell-btn-icon">+</span>
                       <span class="sc-upsell-btn-text">${safe(settings.buttonText)}</span>
                     </button>
@@ -3841,7 +3843,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   background: var(--sc-upsell-button-bg, #111111) !important;
   background-color: var(--sc-upsell-button-bg, #111111) !important;
   border: 1px solid var(--sc-border, #e2e8f0);
-  color: var(--sc-upsell-text, #ffffff);
+  color: var(--sc-upsell-button-text, #ffffff) !important;
   padding: 6px 10px;
   font-size: 12px;
   min-height: 32px;
