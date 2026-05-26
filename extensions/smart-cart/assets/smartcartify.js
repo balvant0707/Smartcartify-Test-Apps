@@ -1517,7 +1517,7 @@
                 <div class="${controlsClass}">
                   ${selectMarkup}
                   <div class="sc-upsell-action">
-                    <button class="sc-upsell-btn" type="button" data-upsell-add="${addVariantId}" data-upsell-key="${safeKey}" ${available ? "" : "disabled hidden"} style="${available ? "" : "display:none"}">
+                    <button class="sc-upsell-btn" type="button" data-upsell-add="${addVariantId}" data-upsell-key="${safeKey}" ${available ? "" : "disabled hidden"} style="${available ? `background-color:${safe(settings.buttonColor || "#111111")};` : "display:none"}">
                       <span class="sc-upsell-btn-icon">+</span>
                       <span class="sc-upsell-btn-text">${safe(settings.buttonText)}</span>
                     </button>
@@ -3838,7 +3838,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-size: 8px;
 }
 .sc-upsell-btn{
-  background: var(--sc-upsell-button-bg, #111111);
+  background: var(--sc-upsell-button-bg, #111111) !important;
+  background-color: var(--sc-upsell-button-bg, #111111) !important;
   border: 1px solid var(--sc-border, #e2e8f0);
   color: var(--sc-upsell-text, #ffffff);
   padding: 6px 10px;
@@ -4237,7 +4238,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .icon.icon-cart.cart-lift {
     height: 2.4rem !important;
     width: 2.4rem !important;
-    fill: none;
+    fill: var(--sc-base-font-size);
     vertical-align: middle;
 }
 /* confetti */
