@@ -5026,7 +5026,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     r.setProperty("--sc-border", borderColor);
     r.setProperty("--sc-muted", mutedColor);
-    r.setProperty("--sc-drawer-bg", String(drawerBg));
+    r.setProperty("--sc-drawer-bg", String(baseBg));
 
     r.setProperty("--sc-text", topTextColor);
     r.setProperty("--sc-drawer-header-color", headerColor);
