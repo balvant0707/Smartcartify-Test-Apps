@@ -7072,6 +7072,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }, 0);
   };
 
+  const isDrawerCartEmpty = () => {
+    const cartItems = Array.isArray(CART?.items) ? CART.items : [];
+    return cartItems.length === 0 && Math.max(0, Number(CART?.item_count || 0)) <= 0;
+  };
+
   const getProgressStepCurrent = (step, subtotalCents) =>
     step?.progressMetric === "quantity"
       ? Math.max(0, getNonRewardItemQty())
@@ -7141,9 +7146,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const stepsAll = buildSteps();
     const subtotal = getCartOriginalSubtotalCents();
+    const isEmptyCart = isDrawerCartEmpty();
 
     // ✅ ALWAYS refresh announcement regardless of steps
     refreshAnnouncementFromRules();
+    if (isEmptyCart && !ANNOUNCE_MESSAGES.length) {
+      setAnnouncementMessages(["Add products to your cart"]);
+    }
 
     const bxgyNow = getBxgyStatus();
     const bxgyCompleteNow = !!(bxgyNow && bxgyNow.complete);
@@ -7168,8 +7177,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     // ✅ If no steps configured, don't blank announcement anymore
     if (!stepsAll.length) {
-      setProgressVisible(false);
-      label.textContent = "Milestones not configured yet.";
+      setProgressVisible(isEmptyCart);
+      label.textContent = isEmptyCart
+        ? "Add products to unlock rewards"
+        : "Milestones not configured yet.";
       fill.style.width = "0%";
       dotsWrap.innerHTML = "";
       legends.innerHTML = "";
@@ -7190,8 +7201,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const configuredSteps = stepsAll.filter(isProgressStepConfigured);
 
     if (!configuredSteps.length) {
-      setProgressVisible(false);
-      label.textContent = "Milestones not configured yet.";
+      setProgressVisible(isEmptyCart);
+      label.textContent = isEmptyCart
+        ? "Add products to unlock rewards"
+        : "Milestones not configured yet.";
       fill.style.width = "0%";
       dotsWrap.innerHTML = "";
       legends.innerHTML = "";
