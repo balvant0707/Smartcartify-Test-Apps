@@ -116,7 +116,17 @@ const normalizeDefaultCartIcon = (value) => {
 };
 
 const ensureStyleSettingsColumns = async (prisma) => {
-  const addColumn = async (sql) => {
+  const rows = await prisma.$queryRaw`
+    SELECT COLUMN_NAME AS columnName
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'stylesettings'
+      AND COLUMN_NAME IN ('cartIconUrl', 'cartIconType', 'cartDefaultIcon')
+  `;
+  const existing = new Set((Array.isArray(rows) ? rows : []).map((row) => String(row.columnName)));
+
+  const addColumn = async (column, sql) => {
+    if (existing.has(column)) return;
     try {
       await prisma.$executeRawUnsafe(sql);
     } catch (err) {
@@ -125,9 +135,9 @@ const ensureStyleSettingsColumns = async (prisma) => {
       throw err;
     }
   };
-  await addColumn("ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL");
-  await addColumn("ALTER TABLE `stylesettings` ADD COLUMN `cartIconType` VARCHAR(32) NULL");
-  await addColumn("ALTER TABLE `stylesettings` ADD COLUMN `cartDefaultIcon` VARCHAR(64) NULL");
+  await addColumn("cartIconUrl", "ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL");
+  await addColumn("cartIconType", "ALTER TABLE `stylesettings` ADD COLUMN `cartIconType` VARCHAR(32) NULL");
+  await addColumn("cartDefaultIcon", "ALTER TABLE `stylesettings` ADD COLUMN `cartDefaultIcon` VARCHAR(64) NULL");
 };
 
 const ensureCartIconColumn = async (prisma) => {

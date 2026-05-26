@@ -3561,7 +3561,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-item{
   position:relative;
   display:grid;
-  grid-template-columns:88px minmax(0, 1fr);
+  grid-template-columns:50px minmax(0, 1fr);
   align-items:flex-start;
   gap:10px;
   padding:5px;
@@ -3572,8 +3572,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   border-bottom:1px solid var(--sc-item-border);
 }
 .sc-img{
-  width:88px;
-  height:88px;
+  width:50px;
+  height:50px;
   overflow:hidden;
   background:var(--sc-image-bg);
   border-radius:10px;
@@ -4023,12 +4023,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
     padding:0 8px;
   }
   .sc-item{
-    grid-template-columns:72px minmax(0, 1fr);
+    grid-template-columns:40px minmax(0, 1fr);
     gap:12px;
   }
   .sc-img{
-    width:72px;
-    height:72px;
+    width:40px;
+    height:40px;
   }
   .sc-name{
     font-size:clamp(17px, calc(var(--sc-base-font-size) * 1.25), 22px) !important;
