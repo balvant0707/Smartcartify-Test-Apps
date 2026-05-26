@@ -200,12 +200,12 @@ const RULE_TYPES = [
     category: "discounts",
     title: "Automatic Discount",
     subtitle: "Apply percentage or fixed discounts automatically",
-    icon: ICO("campaign-ico-discount.svg"),
+    icon: ICO("Automatic Discount.svg"),
     preview: {
       title: "Automatic Discount",
       description:
         "Automatically apply a percentage or fixed amount discount when the cart meets a minimum spend or quantity threshold. No code needed — the discount applies instantly at checkout.",
-      banner: ICO("campaign-ico-discount.svg"),
+      banner: ICO("autodiscount.svg"),
       bannerBg: "#fff7ed",
       aovBoost: "Upto 8%",
       setupTime: "2-4 mins",
@@ -221,12 +221,12 @@ const RULE_TYPES = [
     category: "free-products",
     title: "Free Product Discount",
     subtitle: "Add a free gift to the cart when thresholds are met",
-    icon: ICO("campaign-ico-bxgy.svg"),
+    icon: ICO("Free Product Discount.svg"),
     preview: {
       title: "Free Product Discount",
       description:
         "Automatically add a free gift product to the customer's cart when they meet a minimum spend or quantity threshold. Drive higher average order values with irresistible incentives.",
-      banner: ICO("campaign-ico-bxgy.svg"),
+      banner: ICO("Free Product Discounts.svg"),
       bannerBg: "#eef3ff",
       aovBoost: "Upto 9%",
       setupTime: "3-5 mins",
@@ -242,12 +242,12 @@ const RULE_TYPES = [
     category: "discounts",
     title: "Code Discount",
     subtitle: "Display discount codes inside the cart drawer",
-    icon: ICO("campaign-ico-discount.svg"),
+    icon: ICO("Code Discount.svg"),
     preview: {
       title: "Code Discount",
       description:
         "Showcase a discount code banner inside the cart drawer. Customers can copy or auto-apply the code for a percentage off or fixed amount discount on their order.",
-      banner: ICO("campaign-banner-cart-goal.svg"),
+      banner: ICO("codediscount.svg"),
       bannerBg: "#fffbeb",
       aovBoost: "Upto 4%",
       setupTime: "1-2 mins",
@@ -263,12 +263,12 @@ const RULE_TYPES = [
     category: "discounts",
     title: "Buy X Get Y Discount",
     subtitle: "Give free gifts when buying specific products",
-    icon: ICO("campaign-ico-bxgy.svg"),
+    icon: ICO("buyxgety.svg"),
     preview: {
       title: "Buy X Get Y Discount",
       description:
         "Reward customers with a free product or discount when they buy a specific product or reach a quantity threshold. Uses Shopify's native BXGY discount engine for seamless checkout integration.",
-      banner: ICO("campaign-ico-bxgy.svg"),
+      banner: ICO("Buy X Get Y Discount.svg"),
       bannerBg: "#eef3ff",
       aovBoost: "Upto 10%",
       setupTime: "5-8 mins",
@@ -284,12 +284,12 @@ const RULE_TYPES = [
     category: "upsell",
     title: "Upsell Product Rules",
     subtitle: "Recommend related products to boost order value",
-    icon: ICO("campaign-ico-one-click.svg"),
+    icon: ICO("Upsell Product Rules.svg"),
     preview: {
       title: "Upsell Product Rules",
       description:
         "Show a carousel or list of recommended products inside the cart drawer to encourage customers to add more. Supports automatic AI-style recommendations or manually selected items and collections.",
-      banner: ICO("campaign-ico-one-click.svg"),
+      banner: ICO("upsellproduct.svg"),
       bannerBg: "#f0fdf4",
       aovBoost: "Upto 12%",
       setupTime: "3-5 mins",
