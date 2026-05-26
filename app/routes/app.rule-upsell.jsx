@@ -703,7 +703,7 @@ export default function RuleUpsell() {
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Colors</Text>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                     {[
-                      { label: "Button color", value: buttonColor, onChange: setButtonColor },
+                      { label: "Button background color", value: buttonColor, onChange: setButtonColor },
                       { label: "Background color", value: backgroundColor, onChange: setBackgroundColor },
                       { label: "Text color", value: textColor, onChange: setTextColor },
                       { label: "Border color", value: borderColor, onChange: setBorderColor },
@@ -909,10 +909,10 @@ export default function RuleUpsell() {
                                     alignItems: "center",
                                     justifyContent: "center",
                                     gap: "6px",
-                                    background: "#fff",
-                                    border: `1px solid ${borderColor || "#dfe3e8"}`,
+                                    backgroundColor: buttonColor || "#111827",
+                                    border: "none",
                                     borderRadius: "6px",
-                                    color: textColor || "#374151",
+                                    color: "#fff",
                                     fontSize: "13px",
                                     lineHeight: "18px",
                                     fontWeight: 800,

@@ -781,7 +781,7 @@ function CartDrawerPreview({
                     {product.price}
                   </div>
                 </div>
-                <button type="button" style={{ border: "none", borderRadius: Math.max(r, 6), background: upsellButtonBg, color: blc, fontSize: 11, lineHeight: "14px", fontWeight: 800, padding: "8px 10px", maxWidth: 86, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <button type="button" style={{ border: "none", borderRadius: Math.max(r, 6), backgroundColor: upsellButtonBg, color: blc, fontSize: 11, lineHeight: "14px", fontWeight: 800, padding: "8px 10px", maxWidth: 86, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {upsellButtonText}
                 </button>
               </div>
