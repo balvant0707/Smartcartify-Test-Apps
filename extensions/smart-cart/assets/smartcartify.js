@@ -7150,8 +7150,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     // ✅ ALWAYS refresh announcement regardless of steps
     refreshAnnouncementFromRules();
-    if (isEmptyCart && !ANNOUNCE_MESSAGES.length) {
-      setAnnouncementMessages(["Add products to your cart"]);
+    if (isEmptyCart) {
+      setAnnouncementMessages([]);
+      setProgressVisible(false);
+      label.textContent = "";
+      fill.style.width = "0%";
+      dotsWrap.innerHTML = "";
+      legends.innerHTML = "";
+      document.documentElement.style.removeProperty("--sc-stepcount");
+      return;
     }
 
     const bxgyNow = getBxgyStatus();
@@ -7177,10 +7184,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     // ✅ If no steps configured, don't blank announcement anymore
     if (!stepsAll.length) {
-      setProgressVisible(isEmptyCart);
-      label.textContent = isEmptyCart
-        ? "Add products to unlock rewards"
-        : "Milestones not configured yet.";
+      setProgressVisible(false);
+      label.textContent = "Milestones not configured yet.";
       fill.style.width = "0%";
       dotsWrap.innerHTML = "";
       legends.innerHTML = "";
@@ -7201,10 +7206,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const configuredSteps = stepsAll.filter(isProgressStepConfigured);
 
     if (!configuredSteps.length) {
-      setProgressVisible(isEmptyCart);
-      label.textContent = isEmptyCart
-        ? "Add products to unlock rewards"
-        : "Milestones not configured yet.";
+      setProgressVisible(false);
+      label.textContent = "Milestones not configured yet.";
       fill.style.width = "0%";
       dotsWrap.innerHTML = "";
       legends.innerHTML = "";
