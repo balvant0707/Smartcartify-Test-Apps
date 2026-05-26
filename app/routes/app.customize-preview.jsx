@@ -12,6 +12,7 @@ import {
 import {
   ThemeIcon, MinimizeIcon, MaximizeIcon,
   ColorIcon, SettingsIcon, CartIcon,
+  CartFilledIcon, CartDiscountIcon, CartSaleIcon, CartUpIcon,
   GiftCardIcon, DiscountIcon, DeliveryIcon,
   XIcon, ChevronRightIcon, ChevronLeftIcon, DeleteIcon,
   DiscountCodeIcon, StarIcon, PackageFulfilledIcon, CashDollarIcon,
@@ -20,8 +21,6 @@ import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import prisma from "../db.server";
-import { invalidateShopCache } from "./app.proxy.smart.jsx";
 
 // ─── File upload constants ────────────────────────────────────────────────────
 
@@ -58,6 +57,8 @@ const DEFAULT_STYLE = {
   cartDrawerGradientEnd: "#f9f9f9",
   cartDrawerTextColor: "#000000",
   cartDrawerHeaderColor: "#000000",
+  cartIconType: "default",
+  cartDefaultIcon: "cart",
   cartIconUrl: "",
   discountCodeApply: false,
   checkoutButtonText: "Checkout",
@@ -90,11 +91,48 @@ const uploadCartIconFile = async (file) => {
   return APP_PUBLIC_URL ? `${APP_PUBLIC_URL}${publicPath}` : publicPath;
 };
 
-const ensureCartIconColumn = async () => {
+const CART_DEFAULT_ICON_OPTIONS = [
+  { label: "Cart", value: "cart" },
+  { label: "Cart filled", value: "cart-filled" },
+  { label: "Cart discount", value: "cart-discount" },
+  { label: "Cart sale", value: "cart-sale" },
+  { label: "Cart up", value: "cart-up" },
+];
+
+const CART_DEFAULT_ICON_MAP = {
+  cart: CartIcon,
+  "cart-filled": CartFilledIcon,
+  "cart-discount": CartDiscountIcon,
+  "cart-sale": CartSaleIcon,
+  "cart-up": CartUpIcon,
+};
+
+const normalizeCartIconType = (value) =>
+  String(value || "").toLowerCase() === "custom" ? "custom" : "default";
+
+const normalizeDefaultCartIcon = (value) => {
+  const icon = String(value || "").toLowerCase().trim();
+  return CART_DEFAULT_ICON_MAP[icon] ? icon : DEFAULT_STYLE.cartDefaultIcon;
+};
+
+const ensureStyleSettingsColumns = async (prisma) => {
+  const addColumn = async (sql) => {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (err) {
+      const msg = String(err?.message || "");
+      if (msg.includes("Duplicate column") || msg.includes("1060") || String(err?.code || "") === "P2010") return;
+      throw err;
+    }
+  };
+  await addColumn("ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL");
+  await addColumn("ALTER TABLE `stylesettings` ADD COLUMN `cartIconType` VARCHAR(32) NULL");
+  await addColumn("ALTER TABLE `stylesettings` ADD COLUMN `cartDefaultIcon` VARCHAR(64) NULL");
+};
+
+const ensureCartIconColumn = async (prisma) => {
   try {
-    await prisma.$executeRawUnsafe(
-      "ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL"
-    );
+    await ensureStyleSettingsColumns(prisma);
   } catch (err) {
     const msg = String(err?.message || "");
     if (msg.includes("Duplicate column") || msg.includes("1060") || String(err?.code || "") === "P2010") return;
@@ -102,16 +140,22 @@ const ensureCartIconColumn = async () => {
   }
 };
 
-const loadCartIconUrl = async (styleRow) => {
-  if (!styleRow?.shop || styleRow.cartIconUrl) return styleRow;
+const loadCartIconUrl = async (prisma, styleRow) => {
+  if (!styleRow?.shop) return styleRow;
   try {
-    await ensureCartIconColumn();
-    const rows = await prisma.$queryRaw`SELECT cartIconUrl FROM stylesettings WHERE id = ${styleRow.id} LIMIT 1`;
-    return { ...styleRow, cartIconUrl: (Array.isArray(rows) ? rows[0]?.cartIconUrl : null) || "" };
+    await ensureStyleSettingsColumns(prisma);
+    const rows = await prisma.$queryRaw`SELECT cartIconUrl, cartIconType, cartDefaultIcon FROM stylesettings WHERE id = ${styleRow.id} LIMIT 1`;
+    const row = Array.isArray(rows) ? rows[0] : null;
+    return {
+      ...styleRow,
+      cartIconUrl: row?.cartIconUrl || "",
+      cartIconType: normalizeCartIconType(row?.cartIconType),
+      cartDefaultIcon: normalizeDefaultCartIcon(row?.cartDefaultIcon),
+    };
   } catch { return styleRow; }
 };
 
-const saveSingleStyleSettings = async (shop, settings) =>
+const saveSingleStyleSettings = async (prisma, shop, settings) =>
   prisma.$transaction(async (tx) => {
     const rows = await tx.styleSettings.findMany({
       where: { shop },
@@ -238,6 +282,7 @@ async function loadUpsellPreviewItems(admin, upsellSettings) {
 
 export const loader = async ({ request }) => {
   const { authenticate } = await import("../shopify.server");
+  const { default: prisma } = await import("../db.server");
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
 
@@ -275,7 +320,7 @@ export const loader = async ({ request }) => {
   ]);
 
   const [styleWithIcon, upsellPreviewItems] = await Promise.all([
-    loadCartIconUrl(styleRow),
+    loadCartIconUrl(prisma, styleRow),
     loadUpsellPreviewItems(admin, upsellSettings),
   ]);
 
@@ -296,6 +341,7 @@ export const loader = async ({ request }) => {
 
 export const action = async ({ request }) => {
   const { authenticate } = await import("../shopify.server");
+  const { default: prisma } = await import("../db.server");
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
@@ -337,6 +383,8 @@ export const action = async ({ request }) => {
     cartDrawerImage: mode === "image" ? parseText(d.cartDrawerImage) : null,
     cartDrawerTextColor: parseText(d.cartDrawerTextColor) || DEFAULT_STYLE.cartDrawerTextColor,
     cartDrawerHeaderColor: parseText(d.cartDrawerHeaderColor) || DEFAULT_STYLE.cartDrawerHeaderColor,
+    cartIconType: normalizeCartIconType(d.cartIconType),
+    cartDefaultIcon: normalizeDefaultCartIcon(d.cartDefaultIcon),
     discountCodeApply: Boolean(d.discountCodeApply),
     checkoutButtonText: parseText(d.checkoutButtonText) || DEFAULT_STYLE.checkoutButtonText,
     drawerAutoOpen: Boolean(d.drawerAutoOpen),
@@ -347,7 +395,9 @@ export const action = async ({ request }) => {
   settings.cartIconUrl = parseText(d.cartIconUrl);
 
   try {
-    await saveSingleStyleSettings(shop, settings);
+    await ensureStyleSettingsColumns(prisma);
+    await saveSingleStyleSettings(prisma, shop, settings);
+    const { invalidateShopCache } = await import("./app.proxy.smart.jsx");
     invalidateShopCache(shop);
     return json({ success: true });
   } catch (err) {
@@ -532,6 +582,8 @@ function CartDrawerPreview({
   discountCodeApply,
   borderColor, iconColor,
   cartIconUrl,
+  cartIconType,
+  cartDefaultIcon,
 }) {
   const r = Number(radius) || 0;
   const fs = Number(base) || 12;
@@ -626,7 +678,7 @@ function CartDrawerPreview({
   const upsellTitle = upsellSettings?.sectionTitle || "You may also like";
   const upsellButtonText = upsellSettings?.buttonText || "Add";
   const upsellIsSlider = upsellSettings?.showAsSlider !== false;
-  const upsellBg = upsellSettings?.backgroundColor || "#f8fafc";
+  const upsellBg = upsellSettings?.backgroundColor || bg || uiBg || "#ffffff";
   const upsellText = upsellSettings?.textColor || tc;
   const upsellBorder = upsellSettings?.borderColor || brc;
   const upsellButtonBg = upsellSettings?.buttonColor || bc;
@@ -693,6 +745,8 @@ function CartDrawerPreview({
   const headerBgStyle = headerHasImage
     ? { backgroundImage: `url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
     : { background: bg || "#fff" };
+  const selectedCartIcon = CART_DEFAULT_ICON_MAP[normalizeDefaultCartIcon(cartDefaultIcon)] || CartIcon;
+  const showCustomCartIcon = normalizeCartIconType(cartIconType) === "custom" && cartIconUrl;
 
   // Cart item row using Polaris layout
   const CartItem = ({ name, variant, price }) => (
@@ -832,9 +886,11 @@ function CartDrawerPreview({
       <div style={{ ...headerBgStyle, padding: "14px 16px" }}>
         <InlineStack align="space-between" blockAlign="center">
           <InlineStack gap="200" blockAlign="center">
-            {cartIconUrl ? (
+            {showCustomCartIcon ? (
               <img src={cartIconUrl} alt="Cart icon" style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0 }} />
-            ) : null}
+            ) : (
+              <PreviewIcon source={selectedCartIcon} size={22} color={ic} />
+            )}
             <span style={{ color: hc, fontWeight: 700, fontSize: 17, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>Cart</span>
           </InlineStack>
           <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.88)", borderRadius: 20, padding: "4px 12px", cursor: "pointer" }}>
@@ -942,7 +998,7 @@ function CartDrawerPreview({
       {/* ── Discount code input ── */}
       {discountCodeApply && (
         <div style={{ padding: "10px 16px", borderTop: `1px solid ${brc}` }}>
-          <InlineStack gap="200" blockAlign="end" wrap={false}>
+          <InlineStack gap="200" blockAlign="stretch" wrap={false}>
             <div style={{ flex: 1 }}>
               <TextField
                 label="Discount code"
@@ -953,7 +1009,24 @@ function CartDrawerPreview({
                 autoComplete="off"
               />
             </div>
-            <Button>Apply</Button>
+            <button
+              type="button"
+              style={{
+                alignSelf: "stretch",
+                minHeight: 36,
+                minWidth: 96,
+                border: `1px solid ${bc}`,
+                borderRadius: Math.max(r, 6),
+                backgroundColor: bc,
+                color: blc,
+                fontSize: 13,
+                fontWeight: 700,
+                padding: "0 16px",
+                cursor: "pointer",
+              }}
+            >
+              Apply
+            </button>
           </InlineStack>
         </div>
       )}
@@ -1020,6 +1093,8 @@ export default function CustomizePreview() {
 
   // Cart icon
   const [cartIconUrl, setCartIconUrl] = useState(s.cartIconUrl ?? "");
+  const [cartIconType, setCartIconType] = useState(normalizeCartIconType(s.cartIconType ?? (s.cartIconUrl ? "custom" : DEFAULT_STYLE.cartIconType)));
+  const [cartDefaultIcon, setCartDefaultIcon] = useState(normalizeDefaultCartIcon(s.cartDefaultIcon ?? DEFAULT_STYLE.cartDefaultIcon));
   const [cartIconUploading, setCartIconUploading] = useState(false);
   const [cartIconError, setCartIconError] = useState("");
 
@@ -1059,7 +1134,7 @@ export default function CustomizePreview() {
       textColor, bg, progress, buttonColor, buttonLabelColor, borderColor, iconColor,
       announcementBarBackgroundColor: announcementBg, announcementBarTextColor: announcementText, announcementBarText: announcementBarMsg,
       checkoutButtonText, discountCodeApply,
-      cartIconUrl,
+      cartIconType, cartDefaultIcon, cartIconUrl,
       cartDrawerBackgroundMode: drawerBgMode,
       cartDrawerBackground: drawerBg,
       cartDrawerImage: drawerImage,
@@ -1166,6 +1241,32 @@ export default function CustomizePreview() {
             {/* Cart Icon */}
             <SectionCard icon={CartIcon} title="Cart Icon">
               <BlockStack gap="300">
+                <Select
+                  label="Icon type"
+                  options={[
+                    { label: "Default Icon", value: "default" },
+                    { label: "Custom Icon", value: "custom" },
+                  ]}
+                  value={cartIconType}
+                  onChange={setCartIconType}
+                />
+                {cartIconType === "default" && (
+                  <InlineStack gap="300" blockAlign="end" wrap={false}>
+                    <div style={{ flex: 1 }}>
+                      <Select
+                        label="Cart related Polaris icon"
+                        options={CART_DEFAULT_ICON_OPTIONS}
+                        value={cartDefaultIcon}
+                        onChange={setCartDefaultIcon}
+                      />
+                    </div>
+                    <div style={{ width: 44, height: 44, border: "1px solid #dcdfe4", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", color: iconColor || "#000000", flexShrink: 0 }}>
+                      <PreviewIcon source={CART_DEFAULT_ICON_MAP[cartDefaultIcon] || CartIcon} size={24} color="currentColor" />
+                    </div>
+                  </InlineStack>
+                )}
+                {cartIconType === "custom" && (
+                  <>
                 <Text variant="bodySm" tone="subdued" as="p">
                   Upload a custom icon shown on the cart button. PNG, JPG, WebP, GIF, or SVG up to 2 MB.
                   Leave empty to use the default cart icon.
@@ -1199,6 +1300,8 @@ export default function CustomizePreview() {
                 </DropZone>
                 {cartIconUrl && (
                   <Button variant="plain" tone="critical" onClick={() => setCartIconUrl("")}>Remove cart icon</Button>
+                )}
+                  </>
                 )}
               </BlockStack>
             </SectionCard>
@@ -1344,6 +1447,8 @@ export default function CustomizePreview() {
                   drawerBgMode={drawerBgMode}
                   drawerImage={drawerImage}
                   cartIconUrl={cartIconUrl}
+                  cartIconType={cartIconType}
+                  cartDefaultIcon={cartDefaultIcon}
                 />
               </div>
             </div>

@@ -225,6 +225,8 @@ model StyleSettings {
   cartDrawerBackground           String?
   cartDrawerTextColor            String?
   cartDrawerHeaderColor          String?
+  cartIconType                   String?  @db.VarChar(32)
+  cartDefaultIcon                String?  @db.VarChar(64)
   cartIconUrl                    String?
   discountCodeApply              Boolean  @default(false)
   cartDrawerImage                String?

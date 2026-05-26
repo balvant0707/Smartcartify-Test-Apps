@@ -309,37 +309,45 @@ const filterActiveScheduledRules = (rules = [], now = new Date(), context = {}) 
     .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
 
 const ensureStyleCartIconColumn = async () => {
-  try {
-    await prisma.$executeRawUnsafe(
-      "ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL"
-    );
-  } catch (error) {
-    const message = String(error?.message || "");
-    const code = String(error?.code || "");
-    if (
-      code === "P2010" ||
-      message.includes("Duplicate column") ||
-      message.includes("1060")
-    ) {
-      return;
+  const addColumn = async (sql) => {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (error) {
+      const message = String(error?.message || "");
+      const code = String(error?.code || "");
+      if (
+        code === "P2010" ||
+        message.includes("Duplicate column") ||
+        message.includes("1060")
+      ) {
+        return;
+      }
+      throw error;
     }
-    throw error;
-  }
+  };
+  await addColumn("ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL");
+  await addColumn("ALTER TABLE `stylesettings` ADD COLUMN `cartIconType` VARCHAR(32) NULL");
+  await addColumn("ALTER TABLE `stylesettings` ADD COLUMN `cartDefaultIcon` VARCHAR(64) NULL");
 };
 
 const mergeStyleCartIconUrl = async (styleSettings) => {
-  if (!styleSettings?.id || styleSettings.cartIconUrl) return styleSettings;
+  if (!styleSettings?.id) return styleSettings;
 
   try {
     await ensureStyleCartIconColumn();
     const rows = await prisma.$queryRaw`
-      SELECT cartIconUrl
+      SELECT cartIconUrl, cartIconType, cartDefaultIcon
       FROM stylesettings
       WHERE id = ${styleSettings.id}
       LIMIT 1
     `;
-    const cartIconUrl = Array.isArray(rows) ? rows[0]?.cartIconUrl : null;
-    return { ...styleSettings, cartIconUrl: cartIconUrl || "" };
+    const row = Array.isArray(rows) ? rows[0] : null;
+    return {
+      ...styleSettings,
+      cartIconUrl: row?.cartIconUrl || "",
+      cartIconType: row?.cartIconType || "default",
+      cartDefaultIcon: row?.cartDefaultIcon || "cart",
+    };
   } catch (error) {
     logger.warn("[proxy] Failed to load style cart icon URL", error);
     return styleSettings;

@@ -298,11 +298,37 @@
     '<path d="M1.11658 1H3.62284L6.95618 16.5639C7.07845 17.1339 7.39561 17.6435 7.85306 18.0048C8.3105 18.3662 8.87962 18.5568 9.46244 18.5439H21.7181C22.2885 18.5429 22.8415 18.3475 23.2858 17.9898C23.7301 17.6321 24.0391 17.1335 24.1617 16.5764L26.2294 7.26566H4.96369" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>' +
     "</svg>";
 
+  const POLARIS_CART_ICON_SVGS = {
+    cart:
+      '<svg class="icon icon-cart cart-lift" width="25" height="24" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
+      '<path fill-rule="evenodd" d="M2.5 3.75a.75.75 0 0 1 .75-.75h1.612a1.75 1.75 0 0 1 1.732 1.5h9.656a.75.75 0 0 1 .748.808l-.358 4.653a2.75 2.75 0 0 1-2.742 2.539h-6.351l.093.78a.25.25 0 0 0 .248.22h6.362a.75.75 0 0 1 0 1.5h-6.362a1.75 1.75 0 0 1-1.738-1.543l-1.04-8.737a.25.25 0 0 0-.248-.22h-1.612a.75.75 0 0 1-.75-.75Zm4.868 7.25h6.53a1.25 1.25 0 0 0 1.246-1.154l.296-3.846h-8.667l.595 5Z"></path><path d="M10 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path><path d="M15 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>' +
+      "</svg>",
+    "cart-filled":
+      '<svg class="icon icon-cart cart-lift" width="25" height="24" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M3.25 3a.75.75 0 0 0 0 1.5h1.612a.25.25 0 0 1 .248.22l1.04 8.737a1.75 1.75 0 0 0 1.738 1.543h6.362a.75.75 0 0 0 0-1.5h-6.362a.25.25 0 0 1-.248-.22l-.093-.78h6.35a2.75 2.75 0 0 0 2.743-2.54l.358-4.652a.75.75 0 0 0-.748-.808h-9.656a1.75 1.75 0 0 0-1.732-1.5h-1.612Z"></path><path d="M9 18a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path><path d="M15 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>' +
+      "</svg>",
+    "cart-discount":
+      '<svg class="icon icon-cart cart-lift" width="25" height="24" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M3.25 3a.75.75 0 0 0 0 1.5h1.612a.25.25 0 0 1 .248.22l1.04 8.737a1.75 1.75 0 0 0 1.738 1.543h6.362a.75.75 0 0 0 0-1.5h-6.362a.25.25 0 0 1-.248-.22l-.093-.78h6.35a2.75 2.75 0 0 0 2.743-2.54l.358-4.652a.75.75 0 0 0-1.496-.116l-.358 4.654a1.25 1.25 0 0 1-1.246 1.154h-6.53l-.768-6.457a1.75 1.75 0 0 0-1.738-1.543h-1.612Z"></path><path d="M9 6.25a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path><path d="M13.28 6.03a.75.75 0 0 0-1.06-1.06l-3.5 3.5a.75.75 0 0 0 1.06 1.06l3.5-3.5Z"></path><path d="M14 9.25a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path><path d="M10 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path><path d="M15 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>' +
+      "</svg>",
+    "cart-sale":
+      '<svg class="icon icon-cart cart-lift" width="25" height="24" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
+      '<path fill-rule="evenodd" d="M4.25 3a.75.75 0 0 0 0 1.5h1.612a.25.25 0 0 1 .248.22l1.04 8.737a1.75 1.75 0 0 0 1.738 1.543h5.362a.75.75 0 0 0 0-1.5h-5.362a.25.25 0 0 1-.248-.22l-.093-.78h5.35a2.75 2.75 0 0 0 2.743-2.54l.358-4.652a.75.75 0 0 0-.748-.808h-8.656a1.75 1.75 0 0 0-1.732-1.5h-1.612Zm9.648 8h-5.53l-.595-5h7.667l-.296 3.846a1.25 1.25 0 0 1-1.246 1.154Z"></path><path d="M2.75 6.5a.75.75 0 0 0 0 1.5h.5a.75.75 0 0 0 0-1.5h-.5Z"></path><path d="M2.75 9.5a.75.75 0 0 0 0 1.5h1.5a.75.75 0 0 0 0-1.5h-1.5Z"></path><path d="M2 13.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"></path><path d="M10 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path><path d="M15 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>' +
+      "</svg>",
+    "cart-up":
+      '<svg class="icon icon-cart cart-lift" width="25" height="24" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M3.25 3a.75.75 0 0 0 0 1.5h1.612a.25.25 0 0 1 .248.22l1.04 8.737a1.75 1.75 0 0 0 1.738 1.543h6.362a.75.75 0 0 0 0-1.5h-6.362a.25.25 0 0 1-.248-.22l-.093-.78h6.35a2.75 2.75 0 0 0 2.743-2.54l.358-4.652a.75.75 0 0 0-1.496-.116l-.358 4.654a1.25 1.25 0 0 1-1.246 1.154h-6.53l-.768-6.457a1.75 1.75 0 0 0-1.738-1.543h-1.612Z"></path><path d="M12 9.25a.75.75 0 0 1-1.5 0v-3.69l-1.22 1.22a.75.75 0 0 1-1.06-1.06l2.5-2.5a.75.75 0 0 1 1.06 0l2.5 2.5a.75.75 0 0 1-1.06 1.06l-1.22-1.22v3.69Z"></path><path d="M10 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path><path d="M15 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>' +
+      "</svg>",
+  };
+
   const getCartIconMarkup = () => {
-    const iconUrl = trimToNull(PROXY?.styleSettings?.cartIconUrl);
-    return iconUrl
+    const settings = PROXY?.styleSettings || {};
+    const iconType = String(settings.cartIconType || "default").toLowerCase();
+    const iconUrl = trimToNull(settings.cartIconUrl);
+    const defaultIcon = String(settings.cartDefaultIcon || "cart").toLowerCase();
+    return iconType === "custom" && iconUrl
       ? `<img class="sc-cart-icon-img" src="${safe(iconUrl)}" alt="" loading="lazy">`
-      : DEFAULT_CART_ICON_SVG;
+      : POLARIS_CART_ICON_SVGS[defaultIcon] || DEFAULT_CART_ICON_SVG;
   };
 
   const setCartIconMarkup = (node) => {
@@ -919,7 +945,7 @@
       sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "Recommended Products"),
       buttonText: pickTextAny(raw, ["buttonText"], "add"),
       buttonColor: pickColor(raw, ["buttonColor", "button"], "#111111"),
-      backgroundColor: pickBackground(raw, ["backgroundColor", "background"], "#f8fafc"),
+      backgroundColor: pickBackground(raw, ["backgroundColor", "background"], null),
       textColor: pickColor(raw, ["textColor", "text"], "#e2e8f0"),
       borderColor: pickColor(raw, ["borderColor", "border"], "#e2e8f0"),
       arrowColor: pickColor(raw, ["arrowColor", "arrow"], "#111827"),
@@ -1404,7 +1430,7 @@
     }
 
     wrap.hidden = false;
-    wrap.style.setProperty("--sc-upsell-bg", settings.backgroundColor || "#f8fafc");
+    wrap.style.setProperty("--sc-upsell-bg", settings.backgroundColor || "var(--sc-drawer-bg, #ffffff)");
     wrap.style.setProperty("--sc-upsell-text", settings.textColor || "#111827");
     wrap.style.setProperty("--sc-upsell-button-bg", settings.buttonColor || "#111111");
     wrap.style.setProperty("--sc-border", settings.borderColor || "#e2e8f0");
@@ -3927,8 +3953,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   min-width:110px;
   height:44px;
   border:1px solid var(--sc-apply-border);
-  background: var(--sc-checkout-bg);
-  color: var(--sc-checkout-text);
+  background: var(--sc-apply-bg);
+  color: var(--sc-apply-text);
   cursor:pointer;
   // border-radius: var(--sc-btn-radius);
 }
@@ -4945,7 +4971,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       defaults.footerBg
     );
 
-    const applyBtnBg = pickColor(style, ["applyBtnBg", "discountApplyBg", "applyButtonBg"], defaults.applyBtnBg);
+    const applyBtnBg = pickColor(style, ["applyBtnBg", "discountApplyBg", "applyButtonBg", "buttonColor"], defaults.applyBtnBg);
     const applyBtnText = pickColor(style, ["applyBtnText", "discountApplyText", "applyButtonText"], defaults.applyBtnText);
     const applyBtnBorder = pickColor(style, ["applyBtnBorder", "discountApplyBorder", "applyButtonBorder"], defaults.applyBtnBorder);
 
@@ -5000,6 +5026,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     r.setProperty("--sc-border", borderColor);
     r.setProperty("--sc-muted", mutedColor);
+    r.setProperty("--sc-drawer-bg", String(drawerBg));
 
     r.setProperty("--sc-text", topTextColor);
     r.setProperty("--sc-drawer-header-color", headerColor);
