@@ -179,12 +179,12 @@ const RULE_TYPES = [
     category: "shipping",
     title: "Shipping Rule",
     subtitle: "Offer free or discounted shipping based on cart value",
-    icon: ICO("campaign-ico-cart-goal.svg"),
+    icon: ICO("Shipping Rules.svg"),
     preview: {
       title: "Shipping Rule",
       description:
         "Automatically apply free shipping or a discounted shipping rate when the cart value reaches a threshold. Show real-time progress on a bar to motivate customers to add more.",
-      banner: ICO("campaign-banner-cart-goal.svg"),
+      banner: ICO("Shipping Rule - custome.svg"),
       bannerBg: "#f0f9ff",
       aovBoost: "Upto 5%",
       setupTime: "2-3 mins",

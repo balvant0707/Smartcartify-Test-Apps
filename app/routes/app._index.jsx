@@ -484,14 +484,14 @@ export default function Index() {
       title: "Schedule a demo",
       body: "Get a complete overview of features and learn best practices that can boost your average order value using CartLift.",
       button: "Schedule a call",
-      imageSrc: "/images/campaigns/Schedule a Demo.svg",
+      imageSrc: "/images/campaigns/Scheduled Demo.svg",
       href: "https://bookings.cloud.microsoft/book/ShopifyGrowthConsultationCall@m2webdesigning.com/?ismsaljsauthenabled=true",
     },
     {
       title: "Review CartLift",
       body: "Share your experience with CartLift and help other merchants discover the app.",
       button: "Write a review",
-      imageSrc: "/images/campaigns/Write a Review.svg",
+      imageSrc: "/images/campaigns/Review Us.svg",
       href: "https://apps.shopify.com/cartlift-cart-drawer-upsell#modal-show=WriteReviewModal",
     },
   ];
@@ -668,8 +668,9 @@ export default function Index() {
               <InlineStack gap="600" blockAlign="center" wrap={false}>
                 <Box minWidth="0" width="34%">
                   <img
-                    src="/images/campaigns/campaign-banner-cart-goal.svg"
-                    alt="Cart goal campaign preview"
+                    src="/images/campaigns/Offer gifts.svg"
+                    alt=""
+                    aria-hidden="true"
                     style={{
                       width: "100%",
                       maxWidth: 360,
