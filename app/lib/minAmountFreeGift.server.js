@@ -1,4 +1,4 @@
-import { apiVersion } from "../shopify.server";
+import { apiVersion } from "../shopify.server.js";
 import logger from "./logger.server.js";
 
 // ============ TTL Cache Implementation ============
