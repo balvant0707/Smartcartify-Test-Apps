@@ -5,39 +5,6 @@
   if (window.__SMARTCARTIFY_CARTDRAWER_V27__) return;
   window.__SMARTCARTIFY_CARTDRAWER_V27__ = true;
 
-  /* =========================================================
-   ✅ BLOCK THEME CART-DRAWER CUSTOM ELEMENT REGISTRATION
-   Prevents theme's cart-drawer.js from throwing:
-   "Cannot read properties of null (reading 'setAttribute')"
-   Must run before any theme script registers cart-drawer.
-  ========================================================= */
-  if (!window.__SC_CE_PATCHED__ && typeof customElements !== "undefined") {
-    window.__SC_CE_PATCHED__ = true;
-    const _origDefine = customElements.define.bind(customElements);
-    customElements.define = function (name, constructor, options) {
-      const blocked = [
-        "cart-drawer",
-        "cart-drawer-items",
-        "cart-notification",
-        "cart-notification-drawer",
-      ];
-      if (blocked.includes(name)) {
-        // Neutralize all prototype methods so direct `new CartDrawer()` calls don't crash
-        if (constructor?.prototype) {
-          Object.getOwnPropertyNames(constructor.prototype).forEach((key) => {
-            try {
-              if (key !== "constructor" && typeof constructor.prototype[key] === "function") {
-                constructor.prototype[key] = function () {};
-              }
-            } catch (_) {}
-          });
-        }
-        return;
-      }
-      return _origDefine(name, constructor, options);
-    };
-  }
-
   const root = document.getElementById("smart-embed-root");
   if (!root) return;
 
@@ -7896,26 +7863,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
     style.textContent = trimToNull(settings?.customCss) || "";
 
-    const code = trimToNull(settings?.customJs);
-    if (!code) {
-      ADD_TO_CART_BAR_STATE.customJsKey = "";
-      return;
-    }
-    const key = `${code}:${product?.key || ""}:${getAtcVariantId(variant) || ""}`;
-    if (ADD_TO_CART_BAR_STATE.customJsKey === key) return;
-    ADD_TO_CART_BAR_STATE.customJsKey = key;
-    try {
-      new Function("bar", "product", "variant", "settings", "cart", "proxy", code)(
-        addToCartBar,
-        product,
-        variant,
-        settings,
-        CART,
-        PROXY
-      );
-    } catch (err) {
-      console.error("[SmartCartify] add-to-cart bar custom JS failed:", err);
-    }
+    ADD_TO_CART_BAR_STATE.customJsKey = "";
   };
 
   const buildAtcBarHtml = ({ product, variant, settings, deviceSettings }) => {

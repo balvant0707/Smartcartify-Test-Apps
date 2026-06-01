@@ -267,12 +267,13 @@ const ruleMatchesCustomer = (rule = {}, context = {}) => {
   const target = String(rule.customerTarget || "all");
   if (target === "logged_in") return Boolean(context.customerLoggedIn);
   if (target === "guest") return !context.customerLoggedIn;
-  if (target === "tags") {
+  if (target === "tags" || target === "has_tag" || target === "no_tag") {
     const neededTags = parseDelimitedList(rule.customerTags).map((tag) =>
       tag.toLowerCase()
     );
     if (!neededTags.length) return true;
-    return neededTags.some((tag) => context.customerTags.includes(tag));
+    const hasMatchingTag = neededTags.some((tag) => context.customerTags.includes(tag));
+    return target === "no_tag" ? !hasMatchingTag : hasMatchingTag;
   }
   return true;
 };
@@ -308,43 +309,10 @@ const filterActiveScheduledRules = (rules = [], now = new Date(), context = {}) 
     .map((rule) => applyRuleTranslations(rule, context.locale))
     .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
 
-const ensureStyleCartIconColumn = async () => {
-  const rows = await prisma.$queryRaw`
-    SELECT COLUMN_NAME AS columnName
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'stylesettings'
-      AND COLUMN_NAME IN ('cartIconUrl', 'cartIconType', 'cartDefaultIcon')
-  `;
-  const existing = new Set((Array.isArray(rows) ? rows : []).map((row) => String(row.columnName)));
-
-  const addColumn = async (column, sql) => {
-    if (existing.has(column)) return;
-    try {
-      await prisma.$executeRawUnsafe(sql);
-    } catch (error) {
-      const message = String(error?.message || "");
-      const code = String(error?.code || "");
-      if (
-        code === "P2010" ||
-        message.includes("Duplicate column") ||
-        message.includes("1060")
-      ) {
-        return;
-      }
-      throw error;
-    }
-  };
-  await addColumn("cartIconUrl", "ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL");
-  await addColumn("cartIconType", "ALTER TABLE `stylesettings` ADD COLUMN `cartIconType` VARCHAR(32) NULL");
-  await addColumn("cartDefaultIcon", "ALTER TABLE `stylesettings` ADD COLUMN `cartDefaultIcon` VARCHAR(64) NULL");
-};
-
 const mergeStyleCartIconUrl = async (styleSettings) => {
   if (!styleSettings?.id) return styleSettings;
 
   try {
-    await ensureStyleCartIconColumn();
     const rows = await prisma.$queryRaw`
       SELECT cartIconUrl, cartIconType, cartDefaultIcon
       FROM stylesettings

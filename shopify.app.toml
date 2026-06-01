@@ -11,7 +11,7 @@ handle = "smartcartify-test-app"
 automatically_update_urls_on_dev = true
 
 [webhooks]
-api_version = "2025-01"
+api_version = "2025-10"
 
   [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
@@ -31,7 +31,7 @@ api_version = "2025-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_discounts,write_discounts,read_products,write_products,read_shipping,write_shipping,read_orders,write_orders"
+scopes = "read_discounts,write_discounts,read_products,write_products,read_shipping,write_shipping,read_themes,write_themes,read_orders,write_orders"
 
 [auth]
 redirect_urls = [
@@ -47,4 +47,3 @@ url = "https://smartcartify-test-apps.vercel.app/proxy/smart"
 
 [pos]
 embedded = true
-

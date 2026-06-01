@@ -17,6 +17,7 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { upsertBxgy } from "../shopify-discount.server";
+import { invalidateShopCache } from "./app.proxy.smart.jsx";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
@@ -105,6 +106,7 @@ export const action = async ({ request }) => {
     } else {
       record = await prisma.bxgyRule.create({ data: dbData });
     }
+    invalidateShopCache(shop);
     return { success: true, id: record.id };
   } catch (err) {
     return { error: err.message };

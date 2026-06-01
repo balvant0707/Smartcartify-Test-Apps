@@ -10,6 +10,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { invalidateShopCache } from "./app.proxy.smart.jsx";
 
 function formatCartStep(value) {
   if (value === undefined || value === null) return "";
@@ -246,6 +247,7 @@ export const action = async ({ request }) => {
       default:
         return Response.json({ error: "Unknown rule type" }, { status: 400 });
     }
+    invalidateShopCache(shop);
     return Response.json({ success: true });
   }
   return Response.json({ error: "Unknown action" }, { status: 400 });

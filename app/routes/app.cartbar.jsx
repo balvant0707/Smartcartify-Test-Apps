@@ -209,7 +209,7 @@ export async function loader({ request }) {
           homepageProductId: row.homepageProductId || "",
           homepageProductTitle: row.homepageProductTitle || "",
           customCss: row.customCss || "",
-          customJs: row.customJs || "",
+          customJs: "",
           mobileBgColor: row.mobileBgColor || DEFAULTS.mobileBgColor,
           mobileTextColor: row.mobileTextColor || DEFAULTS.mobileTextColor,
           mobileCtaBgColor: row.mobileCtaBgColor || DEFAULTS.mobileCtaBgColor,
@@ -282,7 +282,7 @@ export async function action({ request }) {
     homepageProductId: s("homepageProductId") || null,
     homepageProductTitle: s("homepageProductTitle") || null,
     customCss: s("customCss") || null,
-    customJs: s("customJs") || null,
+    customJs: null,
     desktopZIndex: n("desktopZIndex", 5000),
     mobileZIndex: n("mobileZIndex", 5000),
   };

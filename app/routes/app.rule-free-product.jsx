@@ -120,6 +120,7 @@ export const action = async ({ request }) => {
   const { authenticate } = await import("../shopify.server");
   const { syncFreeProductDiscountsToShopify } = await import("../lib/minAmountFreeGift.server");
   const { default: prisma } = await import("../db.server");
+  const { invalidateShopCache } = await import("./app.proxy.smart.jsx");
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
   const body = await request.json();
@@ -213,6 +214,7 @@ export const action = async ({ request }) => {
     } else {
       record = await prisma.freeGiftRule.create({ data: dbData });
     }
+    invalidateShopCache(shop);
     return { success: true, id: record.id };
   } catch (err) {
     return { error: err.message };

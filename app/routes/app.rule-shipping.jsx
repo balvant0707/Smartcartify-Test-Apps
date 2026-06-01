@@ -119,6 +119,7 @@ export const action = async ({ request }) => {
   const { authenticate } = await import("../shopify.server");
   const { upsertShippingRate } = await import("../shopify-discount.server");
   const { default: prisma } = await import("../db.server");
+  const { invalidateShopCache } = await import("./app.proxy.smart.jsx");
   const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const host = url.searchParams.get("host");
@@ -234,6 +235,7 @@ export const action = async ({ request }) => {
       }
     }
 
+    invalidateShopCache(shop);
     return redirect(campaignsUrl);
   } catch (err) {
     return { error: err.message };

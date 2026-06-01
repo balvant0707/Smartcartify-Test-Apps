@@ -31,10 +31,12 @@ const prismaSessionStorage = new PrismaSessionStorage(prisma, {
   ),
 });
 
+const SHOPIFY_ADMIN_API_VERSION = ApiVersion.October25;
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
-  apiVersion: ApiVersion.October25,
+  apiVersion: SHOPIFY_ADMIN_API_VERSION,
   scopes: process.env.SCOPES?.split(","),
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
@@ -71,7 +73,7 @@ const shopify = shopifyApp({
       let shopInfo = null;
       try {
         const restRes = await fetch(
-          `https://${shop}/admin/api/2025-01/shop.json`,
+          `https://${shop}/admin/api/${SHOPIFY_ADMIN_API_VERSION}/shop.json`,
           { headers: { "X-Shopify-Access-Token": accessToken, "Content-Type": "application/json" } },
         );
         if (!restRes.ok) {
@@ -294,7 +296,7 @@ const shopify = shopifyApp({
 });
 
 export default shopify;
-export const apiVersion = ApiVersion.October25;
+export const apiVersion = SHOPIFY_ADMIN_API_VERSION;
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;
 export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;

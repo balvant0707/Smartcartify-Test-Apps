@@ -678,6 +678,7 @@ export async function upsertBxgy(admin, {
 export async function upsertDiscountCode(admin, {
   existingId, title, code, startsAt, endsAt, isPercentage, discountValue, minSubtotal, enabled = true,
 }) {
+  const codeStr = String(code || "").toUpperCase().trim();
   const input = {
     title: withAppNameTitle(title, "Code Discount"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
@@ -693,6 +694,7 @@ export async function upsertDiscountCode(admin, {
       ? { subtotal: { greaterThanOrEqualToSubtotal: String(parseFloat(minSubtotal)) } }
       : undefined,
     combinesWith: COMBINES_WITH_ORDER_DISCOUNTS,
+    ...(codeStr ? { code: codeStr } : {}),
   };
 
   if (existingId) {
@@ -707,7 +709,6 @@ export async function upsertDiscountCode(admin, {
     return data?.data?.discountCodeBasicUpdate?.codeDiscountNode?.id || existingId;
   }
 
-  const codeStr = String(code || "").toUpperCase().trim();
   const createInput = { ...input, code: codeStr };
 
   let data = await gql(admin, CODE_BASIC_CREATE, { input: createInput });

@@ -18,8 +18,9 @@ module.exports = {
     browser: true,
     commonjs: true,
     es6: true,
+    node: true,
   },
-  ignorePatterns: ["!**/.server", "!**/.client"],
+  ignorePatterns: ["!**/.server", "!**/.client", "tmp*.js"],
 
   // Base config
   extends: ["eslint:recommended"],
@@ -50,6 +51,9 @@ module.exports = {
       },
       rules: {
         "react/no-unknown-property": ["error", { ignore: ["variant"] }],
+        "react/prop-types": "off",
+        "jsx-a11y/click-events-have-key-events": "warn",
+        "jsx-a11y/no-static-element-interactions": "warn",
       },
     },
 
@@ -91,6 +95,15 @@ module.exports = {
     },
   ],
   globals: {
-    shopify: "readonly"
+    shopify: "readonly",
+    globalThis: "readonly",
+    process: "readonly",
+  },
+  rules: {
+    "no-empty": ["warn", { allowEmptyCatch: true }],
+    "no-unused-vars": "warn",
+    "no-extra-boolean-cast": "warn",
+    "no-constant-condition": "warn",
+    "no-useless-escape": "warn",
   },
 };

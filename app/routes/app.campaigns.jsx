@@ -15,6 +15,7 @@ import {
 import { DeleteIcon, EditIcon, DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { invalidateShopCache } from "./app.proxy.smart.jsx";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
 // Reads from all four legacy rule tables: ShippingRule, DiscountRule,
@@ -166,6 +167,7 @@ export const action = async ({ request }) => {
       default:
         return { error: "Unknown rule type" };
     }
+    invalidateShopCache(shop);
     return { success: true };
   }
   return { error: "Unknown action" };
