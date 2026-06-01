@@ -80,6 +80,8 @@ export const loader = async ({ request }) => {
     return match ? `Cart Step ${match[1]}` : String(value).replace(/^Step\b/i, "Cart Step");
   };
 
+  const announcementBarLabel = "Announcement Bar";
+
   const rules = [
     ...shippingRows.map((r) => ({
       id: r.id,
@@ -119,7 +121,7 @@ export const loader = async ({ request }) => {
         status: r.enabled ? "active" : "disabled",
         updatedAt: r.updatedAt,
         meta: discountMeta(r),
-        cartStep: formatCartStep(r.cartStepName),
+        cartStep: announcementBarLabel,
       })),
     ...bxgyRows.map((r) => ({
       id: r.id,
@@ -128,7 +130,7 @@ export const loader = async ({ request }) => {
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
       meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " · Storewide" : ""}`,
-      cartStep: "",
+      cartStep: announcementBarLabel,
     })),
   ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
