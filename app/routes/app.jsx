@@ -204,16 +204,15 @@ export default function App() {
     <BridgeProvider embedded apiKey={apiKey} host={host} forceRedirect>
       <PolarisProvider i18n={en}>
         <style>{GLOBAL_POLARIS_RADIUS_CSS}</style>
-        {/* Old-style menu restored */}
-        <s-app-nav>
-          {/* <s-link href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</s-link> */}
-          <s-link href={host ? `/app/campaigns?host=${encodeURIComponent(host)}` : "/app/campaigns"}>Create Campaign</s-link>
-           <s-link href={host ? `/app/customize-preview?host=${encodeURIComponent(host)}` : "/app/customize-preview"}>Customize & Preview</s-link>
-          <s-link href={host ? `/app/my-rules?host=${encodeURIComponent(host)}` : "/app/my-rules"}>My Rules</s-link>
-          <s-link href={host ? `/app/cartbar?host=${encodeURIComponent(host)}` : "/app/cartbar"}>Add to Cart Bar</s-link>
-          <s-link href={analyticsHref}>Analytics</s-link>
-          <s-link href={docsHref}>Documents</s-link>
-        </s-app-nav>
+        <ui-nav-menu>
+          {/* <a href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</a> */}
+          <a href={host ? `/app/campaigns?host=${encodeURIComponent(host)}` : "/app/campaigns"}>Create Campaign</a>
+          <a href={host ? `/app/customize-preview?host=${encodeURIComponent(host)}` : "/app/customize-preview"}>Customize & Preview</a>
+          <a href={host ? `/app/my-rules?host=${encodeURIComponent(host)}` : "/app/my-rules"}>My Rules</a>
+          <a href={host ? `/app/cartbar?host=${encodeURIComponent(host)}` : "/app/cartbar"}>Add to Cart Bar</a>
+          <a href={analyticsHref}>Analytics</a>
+          <a href={docsHref}>Documents</a>
+        </ui-nav-menu>
 
         {/* Nested routes render here */}
         <Outlet />
