@@ -1628,7 +1628,6 @@
             throw new Error(`Upsell add failed (${res.status}) ${errText}`.trim());
           }
           await refreshFromNetwork();
-          schedulePostCartSync();
         } catch (err) {
           console.error("[SmartCartify] upsell add failed:", err);
         } finally {
@@ -6316,7 +6315,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       invalidateCartCache();
       await refreshFromNetwork();
-      schedulePostCartSync();
       return true;
     } catch (err) {
       err._httpStatus = err._httpStatus || err.httpStatus || 0;
@@ -8161,7 +8159,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (after === "openCartWidget") {
         openDrawer();
         renderAllFromCache();
-        schedulePostCartSync();
         return;
       }
       if (after === "showNotification") {
@@ -8357,7 +8354,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (shouldAutoOpen) openDrawer();
       await refreshFromNetwork();
       renderAllFromCache();
-      schedulePostCartSync();
     } catch (e) {
       console.error("[SmartCartify] auto open failed:", e);
     }
@@ -8475,14 +8471,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         console.error("[SmartCartify] passive cart refresh failed:", err);
       }
     }, Math.max(40, Number(delay) || 120));
-  };
-
-  const schedulePostCartSync = () => {
-    if (!drawer.classList.contains("open")) return;
-    schedulePassiveRefresh(120);
-    setTimeout(() => {
-      schedulePassiveRefresh(850);
-    }, 850);
   };
 
   /* =========================================================
@@ -8700,14 +8688,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       },
       true
     );
-  });
-
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") schedulePassiveRefresh(160);
-  });
-
-  window.addEventListener("focus", () => {
-    schedulePassiveRefresh(160);
   });
 
   window.addEventListener("resize", () => {
