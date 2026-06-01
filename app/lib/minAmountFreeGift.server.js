@@ -480,7 +480,7 @@ const buildMinAmountAutomaticInput = (rule, giftVariantId) => {
     },
     combinesWith: {
       orderDiscounts: true,
-      productDiscounts: false,
+      productDiscounts: true,
       shippingDiscounts: false,
     },
   };
@@ -652,7 +652,7 @@ const buildBxgyDiscountInput = (
     ...discountScheduleFields(rule),
     combinesWith: {
       orderDiscounts: true,
-      productDiscounts: false,
+      productDiscounts: true,
       shippingDiscounts: false,
     },
     customerBuys,

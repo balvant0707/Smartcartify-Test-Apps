@@ -87,7 +87,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const COMBINES_WITH_ORDER_DISCOUNTS = {
   orderDiscounts: true,
-  productDiscounts: false,
+  productDiscounts: true,
   shippingDiscounts: false,
 };
 
