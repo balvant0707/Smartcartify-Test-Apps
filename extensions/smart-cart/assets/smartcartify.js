@@ -5565,7 +5565,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           trimToNull(rule?.afterOfferUnlockMessage);
         const hasX = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy ?? 0) > 0;
         const hasY = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get ?? 0) > 0;
-        return t !== "code" && t !== "codediscount" && t !== "bxgy" && t !== "buyxgety" && !hasBxgyMsgs && !(hasX && hasY);
+        const isCodeDiscount = t === "code" || t === "codediscount";
+        const isBuyRule = t === "bxgy" || t === "buyxgety" || hasBxgyMsgs || (hasX && hasY);
+        return !isCodeDiscount && !isBuyRule;
       }
 
       return type === "free";
@@ -5732,6 +5734,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
 
     const steps = STEP_SLOTS.map((s) => assignment[s]).filter(Boolean);
+
+    if (DEBUG_TABLES) {
+      console.groupCollapsed("[SC] Progress Steps");
+      console.table(
+        steps.map((step) => ({
+          slot: step.slot,
+          type: step.type,
+          ruleType: step.rule?.type ?? step.rule?.ruleType ?? "",
+          campaignName: step.rule?.campaignName ?? "",
+          cartStepName: step.rule?.cartStepName ?? "",
+          goal: step.progressMetric === "quantity" ? step.unlockQuantity : step.unlockCents,
+        }))
+      );
+      console.groupEnd();
+    }
 
     return steps;
   };
