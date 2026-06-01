@@ -2410,7 +2410,14 @@
     const bar = drawer.querySelector("[data-sc-announce]");
     if (!bar) return;
 
-    if (!ANNOUNCE_MESSAGES.length) {
+    const cartItems = Array.isArray(CART?.items) ? CART.items : [];
+    const cartQuantity = Math.max(
+      0,
+      Number(CART?.item_count || 0) || getCartTotalQty()
+    );
+    const isEmptyCart = cartItems.length === 0 && cartQuantity <= 0;
+
+    if (isEmptyCart || !ANNOUNCE_MESSAGES.length) {
       bar.hidden = true;
       bar.innerHTML = "";
       return;
@@ -5543,17 +5550,40 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const getRuleKey = (type, rule) =>
       `${type}:${rule?.id ?? rule?.shopifyRateId ?? rule?.campaignName ?? JSON.stringify(rule)}`;
 
+    const nextAvailableStepSlot = () => STEP_SLOTS.find((s) => !assignment[s]) || null;
+
+    const shouldAutoAssignProgressStep = (type, rule) => {
+      if (type === "shipping") {
+        const rewardType = String(rule?.rewardType ?? rule?.reward_type ?? "")
+          .trim()
+          .toLowerCase()
+          .replace(/[_\s-]+/g, "");
+        return !rewardType || rewardType === "free" || rewardType === "freeshipping";
+      }
+
+      if (type === "discount") {
+        const t = normType(rule).replace(/[_\s-]+/g, "");
+        const hasBxgyMsgs =
+          trimToNull(rule?.beforeOfferUnlockMessage) ||
+          trimToNull(rule?.afterOfferUnlockMessage);
+        const hasX = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy ?? 0) > 0;
+        const hasY = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get ?? 0) > 0;
+        return t !== "code" && t !== "codediscount" && t !== "bxgy" && t !== "buyxgety" && !hasBxgyMsgs && !(hasX && hasY);
+      }
+
+      return type === "free";
+    };
+
     const pushRule = (type, rule) => {
       if (!rule) return;
       if (!isRuleEnabled(rule)) return;
       const ruleKey = getRuleKey(type, rule);
       if (assignedRuleKeys.has(ruleKey)) return;
 
-      // Only show rules that have an explicit cartStepName / step slot configured.
-      // Rules without a step assignment should not appear in the progress bar.
-      // Code discount and BXGY rules are included when they have a cartStepName set.
-      const slot = normalizeStepSlotFromAny(rule) || null;
+      const explicitSlot = normalizeStepSlotFromAny(rule) || null;
+      const slot = explicitSlot || (shouldAutoAssignProgressStep(type, rule) ? nextAvailableStepSlot() : null);
       if (!slot) return;
+      if (assignment[slot]) return;
 
       const belowRaw = trimToNull(getProgressBelow(rule));
 
