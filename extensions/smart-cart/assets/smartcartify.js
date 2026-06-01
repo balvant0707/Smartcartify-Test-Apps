@@ -5546,13 +5546,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
     });
 
-    const assignedRuleKeys = new Set();
     const getRuleKey = (type, rule) =>
       `${type}:${rule?.id ?? rule?.shopifyRateId ?? rule?.campaignName ?? JSON.stringify(rule)}`;
 
-    const nextAvailableStepSlot = () => STEP_SLOTS.find((s) => !assignment[s]) || null;
-
-    const shouldAutoAssignProgressStep = (type, rule) => {
+    const isProgressBarRuleType = (type, rule) => {
       if (type === "shipping") {
         const rewardType = String(rule?.rewardType ?? rule?.reward_type ?? "")
           .trim()
@@ -5574,16 +5571,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return type === "free";
     };
 
-    const pushRule = (type, rule) => {
+    const buildProgressStep = (type, rule, slot) => {
       if (!rule) return;
       if (!isRuleEnabled(rule)) return;
-      const ruleKey = getRuleKey(type, rule);
-      if (assignedRuleKeys.has(ruleKey)) return;
-
-      const explicitSlot = normalizeStepSlotFromAny(rule) || null;
-      const slot = explicitSlot || (shouldAutoAssignProgressStep(type, rule) ? nextAvailableStepSlot() : null);
       if (!slot) return;
-      if (assignment[slot]) return;
 
       const belowRaw = trimToNull(getProgressBelow(rule));
 
@@ -5686,7 +5677,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         return "Reward unlocked! 🎉";
       })();
 
-      assignment[slot] = {
+      return {
         slot,
         type,
         rule,
@@ -5707,12 +5698,38 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         progressTextBefore: resolvedBefore || defaultBeforeText,
         progressTextAfter: resolvedAfter || defaultAfterText,
       };
-      assignedRuleKeys.add(ruleKey);
     };
 
-    (Array.isArray(shippingList) ? shippingList : []).forEach((r) => pushRule("shipping", r));
-    (Array.isArray(discountList) ? discountList : []).forEach((r) => pushRule("discount", r));
-    (Array.isArray(freeList) ? freeList : []).forEach((r) => pushRule("free", r));
+    const progressCandidates = [
+      ...(Array.isArray(shippingList) ? shippingList : []).map((rule) => ({ type: "shipping", rule })),
+      ...(Array.isArray(discountList) ? discountList : []).map((rule) => ({ type: "discount", rule })),
+      ...(Array.isArray(freeList) ? freeList : []).map((rule) => ({ type: "free", rule })),
+    ].filter(({ type, rule }) => isRuleEnabled(rule) && isProgressBarRuleType(type, rule));
+
+    const assignedRuleKeys = new Set();
+    const assignCandidate = ({ type, rule }, slot) => {
+      if (!STEP_SLOTS.includes(slot)) return false;
+      if (assignment[slot]) return false;
+      const ruleKey = getRuleKey(type, rule);
+      if (assignedRuleKeys.has(ruleKey)) return false;
+      const step = buildProgressStep(type, rule, slot);
+      if (!step) return false;
+      assignment[slot] = step;
+      assignedRuleKeys.add(ruleKey);
+      return true;
+    };
+
+    progressCandidates.forEach((candidate) => {
+      const slot = normalizeStepSlotFromAny(candidate.rule);
+      if (slot) assignCandidate(candidate, slot);
+    });
+
+    progressCandidates.forEach((candidate) => {
+      const ruleKey = getRuleKey(candidate.type, candidate.rule);
+      if (assignedRuleKeys.has(ruleKey)) return;
+      const slot = STEP_SLOTS.find((s) => !assignment[s]);
+      if (slot) assignCandidate(candidate, slot);
+    });
 
     const steps = STEP_SLOTS.map((s) => assignment[s]).filter(Boolean);
 
