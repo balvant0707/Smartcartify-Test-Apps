@@ -349,12 +349,17 @@ function GoalCard({
                 icon={MenuHorizontalIcon}
                 onClick={(event) => event.stopPropagation()}
               />
-              <span className="cg-cardChevron" aria-hidden="true">
-                <Icon source={ChevronUpIcon} />
+              <span
+                className={`cg-cardChevron ${
+                  goal.expanded ? "cg-cardChevronOpen" : "cg-cardChevronClosed"
+                }`}
+                aria-hidden="true"
+              >
+                <Icon source={goal.expanded ? ChevronUpIcon : ChevronDownIcon} />
               </span>
               <Button
                 variant="plain"
-                icon={ChevronDownIcon}
+                icon={goal.expanded ? ChevronUpIcon : ChevronDownIcon}
                 onClick={(event) => {
                   event.stopPropagation();
                   onToggle(index);
@@ -910,7 +915,7 @@ export default function RuleCartGoal() {
       <style>{`
         .cg-layout {
           display: grid;
-          grid-template-columns: minmax(0, 7fr) minmax(320px, 3fr);
+          grid-template-columns: minmax(0, 6fr) minmax(380px, 4fr);
           gap: 20px;
           align-items: start;
         }
@@ -938,7 +943,7 @@ export default function RuleCartGoal() {
         }
         .cg-milestoneRow {
           display: grid;
-          grid-template-columns: 172px minmax(0, 1fr);
+          grid-template-columns: 124px minmax(0, 1fr);
           gap: 24px;
           align-items: start;
         }
@@ -947,13 +952,13 @@ export default function RuleCartGoal() {
           padding-left: 10px;
         }
         .cg-goalInput {
-          width: 168px;
+          width: 110px;
           max-width: 100%;
           margin-top: 8px;
         }
         .cg-goalArrow {
           display: flex;
-          width: 168px;
+          width: 110px;
           height: 26px;
           align-items: center;
           justify-content: center;
@@ -1002,6 +1007,14 @@ export default function RuleCartGoal() {
           color: #8c9196;
         }
         .cg-cardChevron .Polaris-Icon {
+          width: 100%;
+          height: 100%;
+        }
+        .cg-cardChevronOpen {
+          width: 28px;
+          height: 28px;
+        }
+        .cg-cardChevronClosed {
           width: 16px;
           height: 16px;
         }
@@ -1132,11 +1145,11 @@ export default function RuleCartGoal() {
           }
           .cg-goalInput {
             width: 100%;
-            max-width: 168px;
+            max-width: 110px;
           }
           .cg-goalArrow {
             width: 100%;
-            max-width: 168px;
+            max-width: 110px;
           }
         }
       `}</style>
