@@ -305,6 +305,27 @@ const RULE_TYPES = [
     },
   },
   {
+    id: "cart-goal",
+    category: "goals",
+    title: "Cart Goal",
+    subtitle: "Motivate customers to spend more with tiered rewards",
+    icon: ICO("Cart Goal.svg"),
+    preview: {
+      title: "Cart Goal",
+      description:
+        "Encourage higher order values by setting a cart goal. Show customers a progress bar indicating how close they are to unlocking special rewards.",
+      banner: ICO("cartgoal-banner.svg"),
+      bannerBg: "#fdf4ff",
+      aovBoost: "Upto 15%",
+      setupTime: "2-4 mins",
+      usecases: [
+        "Offer a tiered discount (e.g., 10% off $100, 20% off $200).",
+        "Show a progress bar for unlocking a special gift.",
+        "Motivate customers to add one more item to reach the goal.",
+      ],
+    },
+  },
+  {
     id: "customize-preview",
     category: "customize",
     title: "Customize & Preview",
@@ -334,6 +355,7 @@ const TABS = [
   { id: "discounts", content: "Discounts" },
   { id: "free-products", content: "Free Products" },
   { id: "upsell", content: "Upsell" },
+  { id: "goals", content: "Goals" },
   { id: "customize", content: "Customize" },
 ];
 
@@ -345,6 +367,7 @@ const RULE_ROUTES = {
   "code-discount": "/app/rule-code-discount",
   "buy-x-get-y": "/app/rule-bxgy",
   "upsell": "/app/rule-upsell",
+  "cart-goal": "/app/rule-cart-goal",
   "customize-preview": "/app/customize-preview",
 };
 
@@ -356,11 +379,12 @@ const STATUS_TONE = {
 };
 
 const RULE_META = {
-  "shipping":           { label: "Shipping Rule",        icon: DeliveryIcon,  color: "#0ea5e9", bg: "#f0f9ff" },
-  "automatic-discount": { label: "Automatic Discount",   icon: DiscountIcon,  color: "#f59e0b", bg: "#fffbeb" },
-  "free-product":       { label: "Free Product Discount",icon: GiftCardIcon,  color: "#8b5cf6", bg: "#f5f3ff" },
-  "code-discount":      { label: "Code Discount",        icon: CodeIcon,      color: "#10b981", bg: "#ecfdf5" },
-  "buy-x-get-y":        { label: "Buy X Get Y Discount", icon: GiftCardIcon,  color: "#ef4444", bg: "#fff1f2" },
+  "shipping": { label: "Shipping Rule", icon: DeliveryIcon, color: "#0ea5e9", bg: "#f0f9ff" },
+  "automatic-discount": { label: "Automatic Discount", icon: DiscountIcon, color: "#f59e0b", bg: "#fffbeb" },
+  "free-product": { label: "Free Product Discount", icon: GiftCardIcon, color: "#8b5cf6", bg: "#f5f3ff" },
+  "code-discount": { label: "Code Discount", icon: CodeIcon, color: "#10b981", bg: "#ecfdf5" },
+  "buy-x-get-y": { label: "Buy X Get Y Discount", icon: GiftCardIcon, color: "#ef4444", bg: "#fff1f2" },
+  "cart-goal": { label: "Cart Goal", icon: DiscountIcon, color: "#d946ef", bg: "#fdf4ff" },
 };
 
 // ─── RuleTypeListItem ─────────────────────────────────────────────────────────
@@ -585,33 +609,37 @@ export default function CampaignSelector() {
   const groupedTypes =
     activeCategory === "all"
       ? [
-          {
-            label: "Shipping",
-            items: RULE_TYPES.filter((r) => r.category === "shipping"),
-          },
-          {
-            label: "Discounts",
-            items: RULE_TYPES.filter((r) => r.category === "discounts"),
-          },
-          {
-            label: "Free Products",
-            items: RULE_TYPES.filter((r) => r.category === "free-products"),
-          },
-          {
-            label: "Upsell",
-            items: RULE_TYPES.filter((r) => r.category === "upsell"),
-          },
-          {
-            label: "Customize",
-            items: RULE_TYPES.filter((r) => r.category === "customize"),
-          },
-        ]
+        {
+          label: "Shipping",
+          items: RULE_TYPES.filter((r) => r.category === "shipping"),
+        },
+        {
+          label: "Discounts",
+          items: RULE_TYPES.filter((r) => r.category === "discounts"),
+        },
+        {
+          label: "Free Products",
+          items: RULE_TYPES.filter((r) => r.category === "free-products"),
+        },
+        {
+          label: "Upsell",
+          items: RULE_TYPES.filter((r) => r.category === "upsell"),
+        },
+        {
+          label: "Goals",
+          items: RULE_TYPES.filter((r) => r.category === "goals"),
+        },
+        {
+          label: "Customize",
+          items: RULE_TYPES.filter((r) => r.category === "customize"),
+        },
+      ]
       : [
-          {
-            label: null,
-            items: RULE_TYPES.filter((r) => r.category === activeCategory),
-          },
-        ];
+        {
+          label: null,
+          items: RULE_TYPES.filter((r) => r.category === activeCategory),
+        },
+      ];
 
   const handleTabSelect = (index) => {
     setCreatingRuleId(null);
