@@ -309,12 +309,12 @@ const RULE_TYPES = [
     category: "goals",
     title: "Cart Goal",
     subtitle: "Motivate customers to spend more with tiered rewards",
-    icon: ICO("Cart Goal.svg"),
+    icon: ICO("campaign-ico-cart-goal.svg"),
     preview: {
       title: "Cart Goal",
       description:
         "Encourage higher order values by setting a cart goal. Show customers a progress bar indicating how close they are to unlocking special rewards.",
-      banner: ICO("cartgoal-banner.svg"),
+      banner: ICO("campaign-banner-cart-goal.svg"),
       bannerBg: "#fdf4ff",
       aovBoost: "Upto 15%",
       setupTime: "2-4 mins",
@@ -724,7 +724,7 @@ export default function CampaignSelector() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "42% 58%",
+                gridTemplateColumns: "70% 30%",
                 minHeight: "560px",
               }}
             >
