@@ -396,27 +396,28 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "12px",
-        padding: "10px 12px",
-        borderRadius: "8px",
+        gap: "18px",
+        padding: "20px 22px",
+        borderRadius: "18px",
         cursor: "pointer",
-        backgroundColor: isSelected ? "#fff8f8" : "transparent",
-        border: isSelected ? "1.5px solid #fca5a5" : "1.5px solid transparent",
-        transition: "background-color 0.12s, border-color 0.12s",
+        backgroundColor: isSelected ? "#ffe2e2" : "#fff",
+        border: isSelected ? "1.5px solid #ffb2b2" : "1px solid #e1e3e5",
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+        transition: "background-color 0.12s, border-color 0.12s, box-shadow 0.12s",
       }}
     >
       <img
         src={ruleType.icon}
         alt={ruleType.title}
-        width={40}
-        height={40}
-        style={{ flexShrink: 0, borderRadius: "8px", objectFit: "contain" }}
+        width={58}
+        height={58}
+        style={{ flexShrink: 0, borderRadius: "10px", objectFit: "contain" }}
       />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Text variant="bodyMd" fontWeight="semibold" as="p">
+        <Text variant="headingSm" fontWeight="bold" as="p">
           {ruleType.title}
         </Text>
-        <Text variant="bodySm" tone="subdued" as="p">
+        <Text variant="bodyMd" tone="subdued" as="p">
           {ruleType.subtitle}
         </Text>
       </div>
@@ -432,65 +433,85 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
   return (
     <div
       style={{
-        backgroundColor: ruleType.preview.bannerBg,
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
+        backgroundColor: "#fff",
+        border: "1px solid #e1e3e5",
+        borderRadius: "16px",
         height: "100%",
         boxSizing: "border-box",
+        overflow: "hidden",
+        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
       }}
     >
-      {/* Illustration */}
       <div
         style={{
-          borderRadius: "12px",
-          overflow: "hidden",
-          marginBottom: "20px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#fff",
-          minHeight: isBanner ? "auto" : "160px",
-          padding: isBanner ? "0" : "24px",
+          backgroundColor: ruleType.preview.bannerBg,
+          padding: "24px 38px 0",
         }}
       >
-        <img
-          src={ruleType.preview.banner}
-          alt={ruleType.preview.title}
+        <div
           style={{
-            width: "100%",
-            height: isBanner ? "auto" : "120px",
-            objectFit: "contain",
-            display: "block",
+            borderRadius: "14px 14px 0 0",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: isBanner ? "transparent" : "#fff",
+            minHeight: isBanner ? "190px" : "220px",
+            padding: isBanner ? "0" : "30px",
           }}
-        />
+        >
+          <img
+            src={ruleType.preview.banner}
+            alt={ruleType.preview.title}
+            style={{
+              width: "100%",
+              height: isBanner ? "auto" : "170px",
+              objectFit: "contain",
+              display: "block",
+            }}
+          />
+        </div>
       </div>
 
-      <BlockStack gap="300">
-        <Text variant="headingMd" as="h2" fontWeight="bold">
-          {ruleType.preview.title}
-        </Text>
-        <Text variant="bodySm" tone="subdued" as="p">
-          {ruleType.preview.description}
-        </Text>
+      <div
+        style={{
+          padding: "28px 42px 34px",
+          textAlign: "center",
+        }}
+      >
+        <BlockStack gap="300">
+          <Text variant="headingXl" as="h2" fontWeight="bold">
+            {ruleType.preview.title}
+          </Text>
+          <Text variant="bodyLg" tone="subdued" as="p">
+            {ruleType.preview.description}
+          </Text>
 
-        <Button
-          variant="primary"
-          size="large"
-          fullWidth
-          loading={creating}
-          disabled={creating}
-          onClick={onCreate}
-        >
-          {ruleType.preview.actionLabel || "Create this rule"}
-        </Button>
+          <Button
+            variant="primary"
+            size="large"
+            fullWidth
+            loading={creating}
+            disabled={creating}
+            onClick={onCreate}
+          >
+            {ruleType.preview.actionLabel || "Create this campaign"}
+          </Button>
+        </BlockStack>
+      </div>
 
-        {/* Stats */}
+      <div
+        style={{
+          borderTop: "1px solid #e1e3e5",
+          backgroundColor: "#fafafa",
+          padding: "26px 24px 30px",
+        }}
+      >
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: "10px",
+            gap: "20px",
           }}
         >
           {[
@@ -501,63 +522,83 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
               key={stat.label}
               style={{
                 backgroundColor: "#fff",
-                borderRadius: "8px",
-                padding: "12px 14px",
+                borderRadius: "10px",
+                padding: "20px 18px",
                 textAlign: "center",
                 border: "1px solid #e1e3e5",
+                boxShadow: "0 1px 1px rgba(0, 0, 0, 0.04)",
               }}
             >
-              <Text variant="headingMd" fontWeight="bold" as="p">
+              <Text variant="headingXl" fontWeight="regular" as="p">
                 {stat.value}
               </Text>
-              <Text variant="bodySm" tone="subdued" as="p">
+              <Text variant="bodySm" tone="subdued" fontWeight="semibold" as="p">
                 {stat.label}
               </Text>
             </div>
           ))}
         </div>
 
-        {/* Usecases */}
-        <Box paddingBlockStart="100">
-          <BlockStack gap="200">
+        <Box paddingBlockStart="600">
+          <BlockStack gap="300">
             <Text
-              variant="bodySm"
+              variant="bodyMd"
               fontWeight="semibold"
               as="p"
               alignment="center"
             >
               Usecases
             </Text>
-            <BlockStack gap="150">
+            <div
+              style={{
+                border: "1px solid #e1e3e5",
+                borderRadius: "10px",
+                overflow: "hidden",
+                backgroundColor: "#fff",
+              }}
+            >
               {ruleType.preview.usecases.map((usecase, i) => (
                 <div
                   key={i}
                   style={{
-                    backgroundColor: "#fff",
-                    borderRadius: "8px",
-                    padding: "10px 14px",
-                    border: "1px solid #e1e3e5",
-                    display: "flex",
-                    gap: "10px",
-                    alignItems: "flex-start",
+                    padding: "18px 22px",
+                    borderTop: i === 0 ? "0" : "1px solid #e1e3e5",
+                    display: "grid",
+                    gridTemplateColumns: "28px minmax(0, 1fr)",
+                    gap: "14px",
+                    alignItems: "start",
+                    textAlign: "left",
                   }}
                 >
-                  <span style={{ color: "#8a8a8a", flexShrink: 0 }}>💡</span>
-                  <Text variant="bodySm" tone="subdued" as="p">
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: "22px",
+                      height: "22px",
+                      borderRadius: "999px",
+                      border: "1.5px solid #8a8a8a",
+                      color: "#6d7175",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "13px",
+                      lineHeight: "13px",
+                    }}
+                  >
+                    i
+                  </span>
+                  <Text variant="bodyMd" tone="subdued" as="p">
                     {usecase}
                   </Text>
                 </div>
               ))}
-            </BlockStack>
+            </div>
           </BlockStack>
         </Box>
-      </BlockStack>
+      </div>
     </div>
   );
 }
-
-// ─── Main component ───────────────────────────────────────────────────────────
-
 const RulesTable = null;
 
 export default function CampaignSelector() {
@@ -666,7 +707,7 @@ export default function CampaignSelector() {
         onAction: () =>
           navigate(host ? `/app?host=${encodeURIComponent(host)}` : "/app"),
       }}
-      title="Create New Campaigns"
+      title="Select a campaign type"
     >
       {deleteTarget && (
         <Modal
@@ -705,50 +746,41 @@ export default function CampaignSelector() {
         <Box paddingBlockStart="300">
           <div
             style={{
-              maxWidth: "1120px",
+              maxWidth: "1180px",
               width: "100%",
-              border: "1px solid #e1e3e5",
-              borderRadius: "12px",
-              overflow: "hidden",
-              backgroundColor: "#fff",
+              display: "grid",
+              gridTemplateColumns: "minmax(420px, 0.92fr) minmax(520px, 1.08fr)",
+              gap: "32px",
+              alignItems: "start",
             }}
           >
-            {/* Tabs */}
-            <div style={{ borderBottom: "1px solid #e1e3e5" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ marginBottom: "16px" }}>
               <Tabs
                 tabs={TABS}
                 selected={selectedTabIndex}
                 onSelect={handleTabSelect}
               />
-            </div>
+              </div>
 
-            {/* Two-column body */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 7fr) minmax(280px, 3fr)",
-                minHeight: "560px",
-              }}
-            >
-              {/* Left: rule type list */}
               <div
                 style={{
-                  borderRight: "1px solid #e1e3e5",
-                  padding: "10px 8px",
+                  maxHeight: "760px",
                   overflowY: "auto",
+                  padding: "0 12px 8px 0",
                 }}
               >
-                <BlockStack gap="0">
+                <BlockStack gap="300">
                   {groupedTypes.map((group, gi) => (
                     <div key={gi}>
                       {group.label && (
                         <Box
-                          paddingInlineStart="200"
-                          paddingBlockStart={gi > 0 ? "400" : "200"}
-                          paddingBlockEnd="100"
+                          paddingInlineStart="100"
+                          paddingBlockStart={gi > 0 ? "300" : "0"}
+                          paddingBlockEnd="200"
                         >
                           <Text
-                            variant="bodySm"
+                            variant="headingSm"
                             tone="subdued"
                             fontWeight="semibold"
                             as="p"
@@ -757,7 +789,7 @@ export default function CampaignSelector() {
                           </Text>
                         </Box>
                       )}
-                      <BlockStack gap="0">
+                      <BlockStack gap="250">
                         {group.items.map((ruleType) => (
                           <RuleTypeListItem
                             key={ruleType.id}
@@ -771,8 +803,9 @@ export default function CampaignSelector() {
                   ))}
                 </BlockStack>
               </div>
+            </div>
 
-              {/* Right: preview panel */}
+            <div style={{ minWidth: 0 }}>
               {selected && (
                 <PreviewPanel
                   ruleType={selected}
