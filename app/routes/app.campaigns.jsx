@@ -396,9 +396,9 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "18px",
-        padding: "20px 22px",
-        borderRadius: "18px",
+        gap: "10px",
+        padding: "5px 10px",
+        borderRadius: "10px",
         cursor: "pointer",
         backgroundColor: isSelected ? "#ffe2e2" : "#fff",
         border: isSelected ? "1.5px solid #ffb2b2" : "1px solid #e1e3e5",
@@ -756,11 +756,11 @@ export default function CampaignSelector() {
           >
             <div style={{ minWidth: 0 }}>
               <div style={{ marginBottom: "16px" }}>
-              <Tabs
-                tabs={TABS}
-                selected={selectedTabIndex}
-                onSelect={handleTabSelect}
-              />
+                <Tabs
+                  tabs={TABS}
+                  selected={selectedTabIndex}
+                  onSelect={handleTabSelect}
+                />
               </div>
 
               <div
