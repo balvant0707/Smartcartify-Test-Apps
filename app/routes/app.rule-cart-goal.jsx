@@ -29,7 +29,11 @@ import {
   TextField,
 } from "@shopify/polaris";
 import {
+  ArrowDownIcon,
   CalendarIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   ClockIcon,
   DeleteIcon,
   DeliveryIcon,
@@ -244,7 +248,15 @@ function SegmentControl({ options, value, onChange }) {
   );
 }
 
-function GoalCard({ goal, index, trackBy, onGoalChange, onToggle, onDelete }) {
+function GoalCard({
+  goal,
+  index,
+  isLast,
+  trackBy,
+  onGoalChange,
+  onToggle,
+  onDelete,
+}) {
   const icon = REWARD_CONFIG[goal.type].icon;
   const goalPrefix = trackBy === "quantity" ? "Qty" : "INR";
 
@@ -265,11 +277,32 @@ function GoalCard({ goal, index, trackBy, onGoalChange, onToggle, onDelete }) {
             autoComplete="off"
           />
         </div>
+        {!isLast && (
+          <span
+            className={`cg-goalArrow ${
+              goal.expanded ? "cg-goalArrow--expanded" : ""
+            }`}
+            aria-hidden="true"
+          >
+            <Icon source={ArrowDownIcon} />
+          </span>
+        )}
       </div>
 
       <div className="cg-roundedSurface">
         <Card padding="0">
-          <div className="cg-rewardHeader">
+          <div
+            className="cg-rewardHeader"
+            role="button"
+            tabIndex={0}
+            onClick={() => onToggle(index)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onToggle(index);
+              }
+            }}
+          >
             <InlineStack gap="300" blockAlign="center">
               <span className="cg-rewardIcon">
                 <Icon source={icon} />
@@ -285,16 +318,53 @@ function GoalCard({ goal, index, trackBy, onGoalChange, onToggle, onDelete }) {
             </InlineStack>
             <InlineStack gap="200" blockAlign="center">
               {goal.expanded ? (
-                <Button variant="plain" onClick={() => onToggle(index)}>
+                <Button
+                  variant="plain"
+                  icon={CheckIcon}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggle(index);
+                  }}
+                >
                   Done
                 </Button>
               ) : (
-                <Button icon={EditIcon} onClick={() => onToggle(index)}>
+                <Button
+                  icon={EditIcon}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggle(index);
+                  }}
+                >
                   Edit
                 </Button>
               )}
-              <Button icon={DeleteIcon} onClick={() => onDelete(index)} />
-              <Button variant="plain" icon={MenuHorizontalIcon} />
+              <Button
+                icon={DeleteIcon}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete(index);
+                }}
+              />
+              <Button
+                variant="plain"
+                icon={MenuHorizontalIcon}
+                onClick={(event) => event.stopPropagation()}
+              />
+              <span className="cg-cardChevron" aria-hidden="true">
+                <Icon source={ChevronUpIcon} />
+              </span>
+              <Button
+                variant="plain"
+                icon={ChevronDownIcon}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggle(index);
+                }}
+                accessibilityLabel={
+                  goal.expanded ? "Collapse goal" : "Expand goal"
+                }
+              />
             </InlineStack>
           </div>
 
@@ -864,12 +934,12 @@ export default function RuleCartGoal() {
         }
         .cg-milestoneList {
           display: grid;
-          gap: 20px;
+          gap: 28px;
         }
         .cg-milestoneRow {
           display: grid;
-          grid-template-columns: 150px minmax(0, 1fr);
-          gap: 18px;
+          grid-template-columns: 184px minmax(0, 1fr);
+          gap: 24px;
           align-items: start;
         }
         .cg-goalAmount {
@@ -877,16 +947,52 @@ export default function RuleCartGoal() {
           padding-left: 10px;
         }
         .cg-goalInput {
-          width: 110px;
+          width: 168px;
           max-width: 100%;
           margin-top: 8px;
+        }
+        .cg-goalArrow {
+          display: flex;
+          width: 168px;
+          height: 32px;
+          align-items: center;
+          justify-content: center;
+          color: #b5b5b5;
+          margin-top: 8px;
+          transition: height 0.12s ease;
+        }
+        .cg-goalArrow .Polaris-Icon {
+          width: 22px;
+          height: 22px;
+        }
+        .cg-goalArrow--expanded {
+          height: 190px;
+          align-items: flex-end;
+          position: relative;
+          padding-bottom: 6px;
+        }
+        .cg-goalArrow--expanded::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          bottom: 18px;
+          left: 50%;
+          border-left: 1px solid #c9cccf;
+          transform: translateX(-50%);
         }
         .cg-rewardHeader {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          padding: 16px 16px 14px;
+          min-height: 74px;
+          padding: 14px 16px;
+          cursor: pointer;
+          user-select: none;
+        }
+        .cg-rewardHeader:focus-visible {
+          outline: 2px solid #005bd3;
+          outline-offset: -2px;
         }
         .cg-rewardIcon {
           width: 24px;
@@ -902,6 +1008,18 @@ export default function RuleCartGoal() {
           padding: 6px;
           width: max-content;
           text-align: center;
+        }
+        .cg-cardChevron {
+          display: inline-flex;
+          width: 20px;
+          height: 20px;
+          align-items: center;
+          justify-content: center;
+          color: #8c9196;
+        }
+        .cg-cardChevron .Polaris-Icon {
+          width: 16px;
+          height: 16px;
         }
         .cg-paused {
           display: flex;
@@ -1030,7 +1148,11 @@ export default function RuleCartGoal() {
           }
           .cg-goalInput {
             width: 100%;
-            max-width: 110px;
+            max-width: 168px;
+          }
+          .cg-goalArrow {
+            width: 100%;
+            max-width: 168px;
           }
         }
       `}</style>
@@ -1081,6 +1203,7 @@ export default function RuleCartGoal() {
                         key={`${goal.type}-${index}`}
                         goal={goal}
                         index={index}
+                        isLast={index === goals.length - 1}
                         trackBy={trackBy}
                         onGoalChange={patchGoal}
                         onToggle={toggleGoal}
