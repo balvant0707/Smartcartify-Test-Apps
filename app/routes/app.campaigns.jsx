@@ -724,7 +724,7 @@ export default function CampaignSelector() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "70% 30%",
+                gridTemplateColumns: "minmax(0, 7fr) minmax(300px, 3fr)",
                 minHeight: "560px",
               }}
             >
