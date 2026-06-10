@@ -1031,16 +1031,14 @@ function PreviewPanel({
                   const isCompleted = cartValue >= Number(goal.goal || 0);
                   return (
                     <div
-                      className={`cg-previewMilestone ${
-                        isCompleted ? "cg-previewMilestoneCompleted" : ""
-                      }`}
+                      className={`cg-previewMilestone ${isCompleted ? "cg-previewMilestoneCompleted" : ""
+                        }`}
                       style={{ left }}
                       key={`${goal.id}-${index}`}
                     >
                       <span
-                        className={`cg-previewMarker ${
-                          isCompleted ? "cg-previewMarkerCompleted" : ""
-                        }`}
+                        className={`cg-previewMarker ${isCompleted ? "cg-previewMarkerCompleted" : ""
+                          }`}
                       >
                         <Icon source={isCompleted ? CheckIcon : REWARD_CONFIG[goal.type].icon} />
                       </span>
@@ -1343,7 +1341,7 @@ export default function RuleCartGoal() {
   const withHost = (path) => (host ? `${path}?host=${encodeURIComponent(host)}` : path);
 
   const [enabled, setEnabled] = useState(rule?.enabled ?? false);
-  const [campaignName, setCampaignName] = useState(rule?.campaignName ?? "Cart Goal 12");
+  const [campaignName, setCampaignName] = useState(rule?.campaignName ?? "Cart Goal 1");
   const [trackBy, setTrackBy] = useState(rule?.trackBy ?? "value");
   const [goals, setGoals] = useState(rule?.goals?.length ? rule.goals : defaultGoals());
   const [addMenuOpen, setAddMenuOpen] = useState(false);
