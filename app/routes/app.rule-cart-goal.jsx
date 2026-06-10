@@ -1167,15 +1167,32 @@ function TextEditModal({ goal, index, onClose, onChange }) {
   );
 }
 
-function SettingsSection({ open, onOpenChange }) {
-  const today = new Date();
-  const dateValue = today.toISOString().slice(0, 10);
-  const timeValue = today.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  const [endDate, setEndDate] = useState(false);
+function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
   const [targetMenuOpen, setTargetMenuOpen] = useState(false);
+  const targetingRules = Array.isArray(settings.targetingRules)
+    ? settings.targetingRules
+    : [];
+  const patchSettings = (patch) => onSettingsChange({ ...settings, ...patch });
+  const addTargetingRule = (field) => {
+    patchSettings({
+      customerTarget: field,
+      targetingRules: [...targetingRules, { field, operator: "is", value: "" }],
+    });
+    setTargetMenuOpen(false);
+  };
+  const removeTargetingRule = (index) => {
+    const nextRules = targetingRules.filter((_, ruleIndex) => ruleIndex !== index);
+    patchSettings({
+      customerTarget: nextRules[0]?.field || "all",
+      targetingRules: nextRules,
+    });
+  };
+  const targetItems = (items, extra = {}) =>
+    items.map((content) => ({
+      content,
+      ...extra,
+      onAction: () => addTargetingRule(content),
+    }));
 
   return (
     <SectionCard
@@ -1198,7 +1215,9 @@ function SettingsSection({ open, onOpenChange }) {
                 <div style={{ flex: 1 }}>
                   <TextField
                     label="Start date"
-                    value={dateValue}
+                    type="date"
+                    value={settings.startDate}
+                    onChange={(startDate) => patchSettings({ startDate })}
                     prefix={<Icon source={CalendarIcon} />}
                     autoComplete="off"
                   />
@@ -1206,13 +1225,41 @@ function SettingsSection({ open, onOpenChange }) {
                 <div style={{ flex: 1 }}>
                   <TextField
                     label="Start time"
-                    value={timeValue}
+                    value={settings.startTime}
+                    onChange={(startTime) => patchSettings({ startTime })}
                     prefix={<Icon source={ClockIcon} />}
                     autoComplete="off"
                   />
                 </div>
               </InlineStack>
-              <Checkbox label="Set end date" checked={endDate} onChange={setEndDate} />
+              <Checkbox
+                label="Set end date"
+                checked={settings.hasEndDate}
+                onChange={(hasEndDate) => patchSettings({ hasEndDate })}
+              />
+              {settings.hasEndDate ? (
+                <InlineStack gap="300" wrap={false}>
+                  <div style={{ flex: 1 }}>
+                    <TextField
+                      label="End date"
+                      type="date"
+                      value={settings.endDate}
+                      onChange={(endDate) => patchSettings({ endDate })}
+                      prefix={<Icon source={CalendarIcon} />}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <TextField
+                      label="End time"
+                      value={settings.endTime}
+                      onChange={(endTime) => patchSettings({ endTime })}
+                      prefix={<Icon source={ClockIcon} />}
+                      autoComplete="off"
+                    />
+                  </div>
+                </InlineStack>
+              ) : null}
             </BlockStack>
           </Card>
         </BlockStack>
@@ -1222,8 +1269,8 @@ function SettingsSection({ open, onOpenChange }) {
             Showcase free gifts in cart below item list
           </Text>
           <SegmentControl
-            value="hide"
-            onChange={() => { }}
+            value={settings.showcaseFreeGifts}
+            onChange={(showcaseFreeGifts) => patchSettings({ showcaseFreeGifts })}
             options={[
               { label: "Show", value: "show" },
               { label: "Hide", value: "hide" },
@@ -1236,8 +1283,8 @@ function SettingsSection({ open, onOpenChange }) {
             How other discounts affect cart progress bar
           </Text>
           <SegmentControl
-            value="after"
-            onChange={() => { }}
+            value={settings.discountProgressMode}
+            onChange={(discountProgressMode) => patchSettings({ discountProgressMode })}
             options={[
               {
                 label: "Use cart total after subtracting other discounts",
@@ -1256,8 +1303,10 @@ function SettingsSection({ open, onOpenChange }) {
             Is reward selection mandatory?
           </Text>
           <SegmentControl
-            value="yes"
-            onChange={() => { }}
+            value={settings.rewardSelectionMandatory}
+            onChange={(rewardSelectionMandatory) =>
+              patchSettings({ rewardSelectionMandatory })
+            }
             options={[
               { label: "Yes", value: "yes" },
               { label: "No", value: "no" },
@@ -1273,12 +1322,31 @@ function SettingsSection({ open, onOpenChange }) {
             <div className="cg-targetIcon">+</div>
             <BlockStack gap="100">
               <Text variant="bodyMd" as="p" fontWeight="semibold">
-                Targeting everyone
+                {targetingRules.length
+                  ? `Targeting ${targetingRules.length} rule${targetingRules.length === 1 ? "" : "s"}`
+                  : "Targeting everyone"}
               </Text>
               <Text variant="bodyMd" as="p" tone="subdued">
-                This campaign is currently visible to all customers. To show it
-                only to a specific group, add a targeting rule.
+                {targetingRules.length
+                  ? "This campaign is visible only to customers that match the selected targeting rules."
+                  : "This campaign is currently visible to all customers. To show it only to a specific group, add a targeting rule."}
               </Text>
+              {targetingRules.length ? (
+                <div className="cg-targetRules">
+                  {targetingRules.map((rule, index) => (
+                    <div className="cg-targetRule" key={`${rule.field}-${index}`}>
+                      <span>{rule.field}</span>
+                      <Button
+                        variant="plain"
+                        tone="critical"
+                        onClick={() => removeTargetingRule(index)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </BlockStack>
             <Popover
               active={targetMenuOpen}
@@ -1303,18 +1371,17 @@ function SettingsSection({ open, onOpenChange }) {
                     sections={[
                       {
                         title: "User Session",
-                        items: ["Country", "User Session count", "Logged-in status", "Device OS", "Market", "Locale/Language"].map((content) => ({ content })),
+                        items: targetItems(["Country", "User Session count", "Logged-in status", "Device OS", "Market", "Locale/Language"]),
                       },
                       {
                         title: "Logged in visitor data",
-                        items: ["Customer tags", "Order count", "Total spent", "First name", "Last name", "Customer ID"].map((content) => ({
-                          content,
+                        items: targetItems(["Customer tags", "Order count", "Total spent", "First name", "Last name", "Customer ID"], {
                           helpText: "Works only if logged in",
-                        })),
+                        }),
                       },
                       {
                         title: "UTM Tags",
-                        items: ["UTM Campaign", "UTM Source", "UTM Medium"].map((content) => ({ content })),
+                        items: targetItems(["UTM Campaign", "UTM Source", "UTM Medium"]),
                       },
                     ]}
                   />
@@ -1344,9 +1411,27 @@ export default function RuleCartGoal() {
   const [campaignName, setCampaignName] = useState(rule?.campaignName ?? "Cart Goal 1");
   const [trackBy, setTrackBy] = useState(rule?.trackBy ?? "value");
   const [goals, setGoals] = useState(rule?.goals?.length ? rule.goals : defaultGoals());
+  const settingsDefaults = useMemo(() => defaultSettings(), []);
+  const [settings, setSettings] = useState(() => ({
+    ...settingsDefaults,
+    ...(rule
+      ? {
+        startDate: rule.startDate || settingsDefaults.startDate,
+        startTime: rule.startTime || settingsDefaults.startTime,
+        hasEndDate: Boolean(rule.hasEndDate),
+        endDate: rule.endDate || "",
+        endTime: rule.endTime || "",
+        showcaseFreeGifts: rule.showcaseFreeGifts || "hide",
+        discountProgressMode: rule.discountProgressMode || "after",
+        rewardSelectionMandatory: rule.rewardSelectionMandatory || "yes",
+        customerTarget: rule.customerTarget || "all",
+        targetingRules: Array.isArray(rule.targetingRules) ? rule.targetingRules : [],
+      }
+      : {}),
+  }));
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [sliderValue, setSliderValue] = useState(0);
-  const [shownGoals, setShownGoals] = useState(3);
+  const [shownGoals, setShownGoals] = useState(rule?.shownGoals ?? 3);
   const [editingTextIndex, setEditingTextIndex] = useState(null);
   const [openSection, setOpenSection] = useState("goals");
   const [showGoalValidation, setShowGoalValidation] = useState(false);
@@ -1461,6 +1546,7 @@ export default function RuleCartGoal() {
         trackBy,
         goals: sortedGoals,
         shownGoals,
+        ...settings,
       },
       { method: "post", encType: "application/json" }
     );
@@ -1864,6 +1950,21 @@ export default function RuleCartGoal() {
           justify-content: center;
           font-weight: 800;
         }
+        .cg-targetRules {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 8px;
+        }
+        .cg-targetRule {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border: 1px solid #dfe3e8;
+          border-radius: 8px;
+          background: #f6f6f7;
+          padding: 6px 10px;
+        }
         @media (max-width: 1050px) {
           .cg-layout {
             grid-template-columns: 1fr;
@@ -2002,6 +2103,8 @@ export default function RuleCartGoal() {
             <SettingsSection
               open={openSection === "settings"}
               onOpenChange={(open) => setOpenSection(open ? "settings" : null)}
+              settings={settings}
+              onSettingsChange={setSettings}
             />
           </BlockStack>
 
