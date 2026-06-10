@@ -279,9 +279,7 @@ function GoalCard({
         </div>
         {!isLast && (
           <span
-            className={`cg-goalArrow ${
-              goal.expanded ? "cg-goalArrow--expanded" : ""
-            }`}
+            className="cg-goalArrow"
             aria-hidden="true"
           >
             <Icon source={ArrowDownIcon} />
@@ -820,7 +818,7 @@ export default function RuleCartGoal() {
 
   const [enabled, setEnabled] = useState(false);
   const [campaignName, setCampaignName] = useState("Cart Goal 12");
-  const [trackBy, setTrackBy] = useState("quantity");
+  const [trackBy, setTrackBy] = useState("value");
   const [goals, setGoals] = useState([
     makeGoal("gift", 0),
     makeGoal("discount", 1),
@@ -926,19 +924,21 @@ export default function RuleCartGoal() {
           padding: 14px 16px;
         }
         .cg-roundedSurface {
-          border-radius: 14px;
+          background: #fff;
+          border: 2px solid #e1e3e5;
+          border-radius: 10px;
           overflow: hidden;
         }
         .cg-roundedSurface > .Polaris-ShadowBevel {
-          border-radius: 14px;
+          border-radius: 10px;
         }
         .cg-milestoneList {
           display: grid;
-          gap: 28px;
+          gap: 34px;
         }
         .cg-milestoneRow {
           display: grid;
-          grid-template-columns: 184px minmax(0, 1fr);
+          grid-template-columns: 172px minmax(0, 1fr);
           gap: 24px;
           align-items: start;
         }
@@ -954,31 +954,15 @@ export default function RuleCartGoal() {
         .cg-goalArrow {
           display: flex;
           width: 168px;
-          height: 32px;
+          height: 26px;
           align-items: center;
           justify-content: center;
           color: #b5b5b5;
-          margin-top: 8px;
-          transition: height 0.12s ease;
+          margin-top: 10px;
         }
         .cg-goalArrow .Polaris-Icon {
-          width: 22px;
-          height: 22px;
-        }
-        .cg-goalArrow--expanded {
-          height: 190px;
-          align-items: flex-end;
-          position: relative;
-          padding-bottom: 6px;
-        }
-        .cg-goalArrow--expanded::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          bottom: 18px;
-          left: 50%;
-          border-left: 1px solid #c9cccf;
-          transform: translateX(-50%);
+          width: 20px;
+          height: 20px;
         }
         .cg-rewardHeader {
           display: flex;
