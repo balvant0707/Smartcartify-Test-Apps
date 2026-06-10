@@ -404,6 +404,7 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
         border: isSelected ? "1.5px solid #ffb2b2" : "1px solid #e1e3e5",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
         transition: "background-color 0.12s, border-color 0.12s, box-shadow 0.12s",
+        marginBottom: "5px",
       }}
     >
       <img
@@ -413,7 +414,7 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
         height={58}
         style={{ flexShrink: 0, borderRadius: "10px", objectFit: "contain" }}
       />
-      <div style={{ flex: 1, minWidth: 0, display: "grid", gap: "10px" }}>
+      <div style={{ flex: 1, minWidth: 0, display: "grid", gap: "3px" }}>
         <Text variant="headingSm" fontWeight="bold" as="p">
           {ruleType.title}
         </Text>
@@ -775,9 +776,9 @@ export default function CampaignSelector() {
                     <div key={gi}>
                       {group.label && (
                         <Box
-                          paddingInlineStart="100"
-                          paddingBlockStart={gi > 0 ? "300" : "0"}
-                          paddingBlockEnd="200"
+                          paddingInlineStart="0"
+                          paddingBlockStart={gi > 0 ? "0" : "0"}
+                          paddingBlockEnd="0"
                         >
                           <Text
                             variant="headingSm"
