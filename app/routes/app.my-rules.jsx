@@ -29,7 +29,7 @@ export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
-  const [shippingRows, discountRows, freeRows, bxgyRows] = await Promise.all([
+  const [shippingRows, discountRows, freeRows, bxgyRows, cartGoalRows] = await Promise.all([
     prisma.shippingRule.findMany({
       where: { shop },
       orderBy: { updatedAt: "desc" },
@@ -49,6 +49,11 @@ export const loader = async ({ request }) => {
       where: { shop },
       orderBy: { updatedAt: "desc" },
       select: { id: true, campaignName: true, enabled: true, updatedAt: true, xQty: true, yQty: true, scope: true },
+    }),
+    prisma.cartGoalRule.findMany({
+      where: { shop },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, trackBy: true, shownGoals: true },
     }),
   ]);
 
@@ -132,6 +137,15 @@ export const loader = async ({ request }) => {
       updatedAt: r.updatedAt,
       meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " · Storewide" : ""}`,
       cartStep: ANNOUNCEMENT_BAR_LABEL,
+    })),
+    ...cartGoalRows.map((r) => ({
+      id: r.id,
+      ruleType: "cart-goal",
+      name: r.campaignName || "Cart Goal",
+      status: r.enabled ? "active" : "disabled",
+      updatedAt: r.updatedAt,
+      meta: `${r.shownGoals || 3} goal${r.shownGoals === 1 ? "" : "s"} shown · ${r.trackBy === "quantity" ? "Quantity" : "Cart value"}`,
+      cartStep: "Cart Drawer",
     })),
   ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
@@ -244,6 +258,9 @@ export const action = async ({ request }) => {
         await prisma.bxgyRule.deleteMany({ where: { id, shop } });
         break;
       }
+      case "cart-goal":
+        await prisma.cartGoalRule.deleteMany({ where: { id, shop } });
+        break;
       default:
         return Response.json({ error: "Unknown rule type" }, { status: 400 });
     }
@@ -261,6 +278,7 @@ const RULE_ROUTES = {
   "free-product":       "/app/rule-free-product",
   "code-discount":      "/app/rule-code-discount",
   "buy-x-get-y":        "/app/rule-bxgy",
+  "cart-goal":          "/app/rule-cart-goal",
 };
 
 const RULE_META = {
@@ -269,6 +287,7 @@ const RULE_META = {
   "free-product":       { label: "Free Product Discount", icon: GiftCardIcon,  color: "#8b5cf6", bg: "#f5f3ff" },
   "code-discount":      { label: "Code Discount",        icon: CodeIcon,      color: "#10b981", bg: "#ecfdf5" },
   "buy-x-get-y":        { label: "Buy X Get Y Discount", icon: GiftCardIcon,  color: "#ef4444", bg: "#fff1f2" },
+  "cart-goal":          { label: "Cart Goal",            icon: DiscountIcon,  color: "#d946ef", bg: "#fdf4ff" },
 };
 
 const TABS = [
@@ -278,6 +297,7 @@ const TABS = [
   { id: "free-product",     content: "Free Product Discount" },
   { id: "code-discount",    content: "Code Discount" },
   { id: "buy-x-get-y",      content: "Buy X Get Y Discount" },
+  { id: "cart-goal",        content: "Cart Goal" },
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────

@@ -1,0 +1,26 @@
+CREATE TABLE `cartgoalrule` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `shop` VARCHAR(255) NOT NULL,
+  `campaignName` VARCHAR(255) NULL,
+  `enabled` BOOLEAN NOT NULL DEFAULT false,
+  `trackBy` VARCHAR(32) NOT NULL DEFAULT 'value',
+  `shownGoals` INTEGER NOT NULL DEFAULT 3,
+  `goals` LONGTEXT NOT NULL,
+  `startDate` VARCHAR(32) NULL,
+  `startTime` VARCHAR(32) NULL,
+  `hasEndDate` BOOLEAN NOT NULL DEFAULT false,
+  `endDate` VARCHAR(32) NULL,
+  `endTime` VARCHAR(32) NULL,
+  `showcaseFreeGifts` VARCHAR(32) NOT NULL DEFAULT 'hide',
+  `discountProgressMode` VARCHAR(32) NOT NULL DEFAULT 'after',
+  `rewardSelectionMandatory` VARCHAR(32) NOT NULL DEFAULT 'yes',
+  `customerTarget` VARCHAR(32) NOT NULL DEFAULT 'all',
+  `targetingRules` LONGTEXT NULL,
+  `analyticsImpressions` INTEGER NOT NULL DEFAULT 0,
+  `analyticsConversions` INTEGER NOT NULL DEFAULT 0,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+
+  PRIMARY KEY (`id`),
+  INDEX `cartgoalrule_shop_idx`(`shop`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

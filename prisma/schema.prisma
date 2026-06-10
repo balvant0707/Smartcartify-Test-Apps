@@ -210,6 +210,33 @@ model BxgyRule {
   @@map("bxgyrule")
 }
 
+model CartGoalRule {
+  id                       Int      @id @default(autoincrement())
+  shop                     String   @db.VarChar(255)
+  campaignName             String?  @db.VarChar(255)
+  enabled                  Boolean  @default(false)
+  trackBy                  String   @default("value") @db.VarChar(32)
+  shownGoals               Int      @default(3)
+  goals                    String   @db.LongText
+  startDate                String?  @db.VarChar(32)
+  startTime                String?  @db.VarChar(32)
+  hasEndDate               Boolean  @default(false)
+  endDate                  String?  @db.VarChar(32)
+  endTime                  String?  @db.VarChar(32)
+  showcaseFreeGifts        String   @default("hide") @db.VarChar(32)
+  discountProgressMode     String   @default("after") @db.VarChar(32)
+  rewardSelectionMandatory String   @default("yes") @db.VarChar(32)
+  customerTarget           String   @default("all") @db.VarChar(32)
+  targetingRules           String?  @db.LongText
+  analyticsImpressions     Int      @default(0)
+  analyticsConversions     Int      @default(0)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([shop])
+  @@map("cartgoalrule")
+}
+
 model StyleSettings {
   id                             Int      @id @default(autoincrement())
   shop                           String   @unique @db.VarChar(255)

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   useActionData,
+  useLoaderData,
   useNavigate,
   useNavigation,
   useSearchParams,
@@ -49,6 +50,8 @@ import {
   SettingsIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
+import { invalidateShopCache } from "./app.proxy.smart.jsx";
 
 const GOAL_TEXT_FIELDS = [
   {
@@ -136,17 +139,6 @@ const REWARD_CONFIG = {
   },
 };
 
-export const loader = async ({ request }) => {
-  await authenticate.admin(request);
-  return {};
-};
-
-export const action = async ({ request }) => {
-  await authenticate.admin(request);
-  await request.json().catch(() => ({}));
-  return { success: true };
-};
-
 const REWARD_ID_PREFIX = {
   gift: "GIFT",
   discount: "OFF",
@@ -174,6 +166,126 @@ function makeGoal(type, index, expanded = false) {
     texts: { ...config.texts },
   };
 }
+
+function defaultSettings() {
+  const today = new Date();
+  return {
+    startDate: today.toISOString().slice(0, 10),
+    startTime: today.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+    hasEndDate: false,
+    endDate: "",
+    endTime: "",
+    showcaseFreeGifts: "hide",
+    discountProgressMode: "after",
+    rewardSelectionMandatory: "yes",
+    customerTarget: "all",
+    targetingRules: [],
+  };
+}
+
+function defaultGoals() {
+  return [makeGoal("gift", 0), makeGoal("discount", 1), makeGoal("shipping", 2)];
+}
+
+function safeJsonParse(value, fallback) {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeGoal(goal, index) {
+  const type = REWARD_CONFIG[goal?.type] ? goal.type : "gift";
+  const base = makeGoal(type, index);
+  return {
+    ...base,
+    ...goal,
+    type,
+    id: goal?.id || makeRewardId(type, index),
+    goal: String(goal?.goal || base.goal),
+    value: goal?.value === undefined ? base.value : String(goal.value),
+    discountType: goal?.discountType || base.discountType,
+    expanded: Boolean(goal?.expanded),
+    texts: { ...base.texts, ...(goal?.texts || {}) },
+  };
+}
+
+function serializeGoals(goals) {
+  return JSON.stringify((Array.isArray(goals) ? goals : defaultGoals()).map(normalizeGoal));
+}
+
+export const loader = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const id = Number.parseInt(url.searchParams.get("id") || "", 10);
+
+  if (!Number.isFinite(id)) {
+    return { rule: null };
+  }
+
+  const row = await prisma.cartGoalRule.findFirst({
+    where: { id, shop: session.shop },
+  });
+
+  return {
+    rule: row
+      ? {
+        ...row,
+        goals: safeJsonParse(row.goals, defaultGoals()).map(normalizeGoal),
+        targetingRules: safeJsonParse(row.targetingRules, []),
+      }
+      : null,
+  };
+};
+
+export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const body = await request.json().catch(() => ({}));
+  const id = Number.parseInt(body.id || "", 10);
+  const goals = Array.isArray(body.goals) ? body.goals.map(normalizeGoal) : defaultGoals();
+  const targetingRules = Array.isArray(body.targetingRules) ? body.targetingRules : [];
+
+  const data = {
+    shop: session.shop,
+    campaignName: body.campaignName || "Cart Goal",
+    enabled: Boolean(body.enabled),
+    trackBy: body.trackBy === "quantity" ? "quantity" : "value",
+    shownGoals: Math.min(3, Math.max(1, Number(body.shownGoals) || 3)),
+    goals: serializeGoals(goals),
+    startDate: body.startDate || null,
+    startTime: body.startTime || null,
+    hasEndDate: Boolean(body.hasEndDate),
+    endDate: body.hasEndDate ? body.endDate || null : null,
+    endTime: body.hasEndDate ? body.endTime || null : null,
+    showcaseFreeGifts: body.showcaseFreeGifts === "show" ? "show" : "hide",
+    discountProgressMode: body.discountProgressMode === "before" ? "before" : "after",
+    rewardSelectionMandatory: body.rewardSelectionMandatory === "no" ? "no" : "yes",
+    customerTarget: body.customerTarget || "all",
+    targetingRules: JSON.stringify(targetingRules),
+  };
+
+  let record;
+  if (Number.isFinite(id)) {
+    const existing = await prisma.cartGoalRule.findFirst({
+      where: { id, shop: session.shop },
+      select: { id: true },
+    });
+    if (!existing) {
+      return { error: "Cart Goal campaign not found" };
+    }
+    record = await prisma.cartGoalRule.update({ where: { id }, data });
+  } else {
+    record = await prisma.cartGoalRule.create({ data });
+  }
+
+  invalidateShopCache(session.shop);
+  return { success: true, id: record.id };
+};
 
 function SectionCard({
   icon,
@@ -350,9 +462,8 @@ function GoalCard({
                 onClick={(event) => event.stopPropagation()}
               />
               <span
-                className={`cg-cardChevron ${
-                  goal.expanded ? "cg-cardChevronOpen" : "cg-cardChevronClosed"
-                }`}
+                className={`cg-cardChevron ${goal.expanded ? "cg-cardChevronOpen" : "cg-cardChevronClosed"
+                  }`}
                 aria-hidden="true"
               >
                 <Icon source={goal.expanded ? ChevronUpIcon : ChevronDownIcon} />
@@ -464,8 +575,8 @@ function PreviewPanel({
   const goalToken = trackBy === "quantity" ? remaining : `${remaining} INR`;
   const message = nextGoal
     ? nextGoal.texts.aboveBefore
-        .replace("{{goal}}", goalToken)
-        .replace("{{discount}}", `${nextGoal.value || 20}%`)
+      .replace("{{goal}}", goalToken)
+      .replace("{{discount}}", `${nextGoal.value || 20}%`)
     : "Select a reward type";
 
   return (
@@ -707,7 +818,7 @@ function SettingsSection({ open, onOpenChange }) {
           </Text>
           <SegmentControl
             value="hide"
-            onChange={() => {}}
+            onChange={() => { }}
             options={[
               { label: "Show", value: "show" },
               { label: "Hide", value: "hide" },
@@ -721,7 +832,7 @@ function SettingsSection({ open, onOpenChange }) {
           </Text>
           <SegmentControl
             value="after"
-            onChange={() => {}}
+            onChange={() => { }}
             options={[
               {
                 label: "Use cart total after subtracting other discounts",
@@ -741,7 +852,7 @@ function SettingsSection({ open, onOpenChange }) {
           </Text>
           <SegmentControl
             value="yes"
-            onChange={() => {}}
+            onChange={() => { }}
             options={[
               { label: "Yes", value: "yes" },
               { label: "No", value: "no" },
@@ -915,7 +1026,7 @@ export default function RuleCartGoal() {
       <style>{`
         .cg-layout {
           display: grid;
-          grid-template-columns: minmax(0, 6fr) minmax(380px, 4fr);
+          grid-template-columns: minmax(0, 6fr) minmax(340px, 3fr);
           gap: 20px;
           align-items: start;
         }
@@ -1029,6 +1140,9 @@ export default function RuleCartGoal() {
           color: #6a4c00;
           padding: 12px 18px;
         }
+        .cg-paused .Polaris-Icon {
+        margin: unset !important;
+        }
         .cg-previewCanvas {
           background: #f7f7f7;
           min-height: 156px;
@@ -1060,11 +1174,10 @@ export default function RuleCartGoal() {
           align-items: center;
           gap: 6px;
           min-width: 92px;
-          font-size: 13px;
-          line-height: 15px;
+          font-size: 10px;
+          line-height: 12px;
           text-align: center;
           color: #444;
-          font-weight: 650;
         }
         .cg-previewMarker {
           width: 20px;
