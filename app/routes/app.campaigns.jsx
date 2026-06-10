@@ -666,7 +666,7 @@ export default function CampaignSelector() {
         onAction: () =>
           navigate(host ? `/app?host=${encodeURIComponent(host)}` : "/app"),
       }}
-      title="Campaigns"
+      title="Create New Campaigns"
     >
       {deleteTarget && (
         <Modal
@@ -702,15 +702,6 @@ export default function CampaignSelector() {
       )}
 
       <Box paddingBlockEnd="600">
-        <Text
-          variant="headingSm"
-          fontWeight="semibold"
-          as="h3"
-          tone="subdued"
-        >
-          Create a new rule
-        </Text>
-
         <Box paddingBlockStart="300">
           <div
             style={{
