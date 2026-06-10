@@ -1011,8 +1011,8 @@ function PreviewPanel({
     : nextGoal?.texts.aboveBefore;
   const message = messageGoal && messageTemplate
     ? messageTemplate
-      .replace("{{goal}}", goalToken)
-      .replace("{{discount}}", formatDiscountValue(messageGoal))
+      .replaceAll("{{goal}}", goalToken)
+      .replaceAll("{{discount}}", formatDiscountValue(messageGoal))
     : "Select a reward type";
 
   return (
@@ -1067,8 +1067,9 @@ function PreviewPanel({
                   />
                 </div>
                 {activeGoals.map((goal, index) => {
-                  const left = `${((index + 0.5) / activeGoals.length) * 100}%`;
-                  const isCompleted = cartValue >= Number(goal.goal || 0);
+                  const goalValue = Number(goal.goal || 0);
+                  const left = `${Math.min(100, Math.max(0, (goalValue / maxGoal) * 100))}%`;
+                  const isCompleted = cartValue >= goalValue;
                   return (
                     <div
                       className={`cg-previewMilestone ${isCompleted ? "cg-previewMilestoneCompleted" : ""
