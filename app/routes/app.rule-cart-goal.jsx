@@ -11,12 +11,19 @@ import {
   BlockStack,
   Box,
   Button,
+  ButtonGroup,
+  Card,
   Checkbox,
+  ChoiceList,
   Collapsible,
+  Divider,
   Icon,
   InlineStack,
   Modal,
   Page,
+  Popover,
+  ActionList,
+  RangeSlider,
   Select,
   Text,
   TextField,
@@ -153,51 +160,55 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="cg-card">
-      <div className="cg-cardHeader">
+    <Card padding="0">
+      <Box paddingBlock="400" paddingInline="500">
         <InlineStack gap="200" blockAlign="center">
           <Icon source={icon} />
-          <Text variant="headingMd" as="h2" fontWeight="semibold">
-            {title}
-          </Text>
-        </InlineStack>
-        <Button
-          icon={open ? MinimizeIcon : MaximizeIcon}
-          onClick={() => setOpen((value) => !value)}
-        >
-          {open ? "Collapse" : "Expand"}
-        </Button>
-      </div>
-      <Collapsible open={open} id={`cart-goal-${title}`}>
-        <div className="cg-cardBody">{children}</div>
-        <div className="cg-cardFooter">
+          <div style={{ flex: 1 }}>
+            <Text variant="headingMd" as="h2" fontWeight="semibold">
+              {title}
+            </Text>
+          </div>
           <Button
-            variant="plain"
-            icon={MinimizeIcon}
-            onClick={() => setOpen(false)}
+            icon={open ? MinimizeIcon : MaximizeIcon}
+            onClick={() => setOpen((value) => !value)}
           >
-            Collapse
+            {open ? "Collapse" : "Expand"}
           </Button>
-        </div>
+        </InlineStack>
+      </Box>
+      {open && <Divider />}
+      <Collapsible open={open} id={`cart-goal-${title}`}>
+        <Box padding="500">{children}</Box>
+        <Box paddingBlockEnd="400" paddingInline="500">
+          <InlineStack align="end">
+            <Button
+              variant="plain"
+              icon={MinimizeIcon}
+              onClick={() => setOpen(false)}
+            >
+              Collapse
+            </Button>
+          </InlineStack>
+        </Box>
       </Collapsible>
-    </div>
+    </Card>
   );
 }
 
 function SegmentControl({ options, value, onChange }) {
   return (
-    <div className="cg-segment">
+    <ButtonGroup variant="segmented">
       {options.map((option) => (
-        <button
+        <Button
           key={option.value}
-          type="button"
-          className={value === option.value ? "is-active" : ""}
+          pressed={value === option.value}
           onClick={() => onChange(option.value)}
         >
           {option.label}
-        </button>
+        </Button>
       ))}
-    </div>
+    </ButtonGroup>
   );
 }
 
@@ -222,7 +233,7 @@ function GoalCard({ goal, index, isLast, onGoalChange, onToggle, onDelete }) {
         {!isLast && <div className="cg-downArrow">v</div>}
       </div>
 
-      <div className="cg-rewardCard">
+      <Card padding="0">
         <div className="cg-rewardHeader">
           <InlineStack gap="300" blockAlign="center">
             <span className="cg-rewardIcon">
@@ -249,19 +260,20 @@ function GoalCard({ goal, index, isLast, onGoalChange, onToggle, onDelete }) {
             )}
             <Button icon={DeleteIcon} onClick={() => onDelete(index)} />
             <Button variant="plain" icon={MenuHorizontalIcon} />
-            <button
-              type="button"
-              className="cg-iconOnly"
+            <Button
+              variant="plain"
               onClick={() => onToggle(index)}
-              aria-label={goal.expanded ? "Collapse goal" : "Expand goal"}
+              accessibilityLabel={goal.expanded ? "Collapse goal" : "Expand goal"}
             >
               {goal.expanded ? "^" : "v"}
-            </button>
+            </Button>
           </InlineStack>
         </div>
 
         {goal.expanded && (
-          <div className="cg-rewardBody">
+          <>
+            <Divider />
+            <Box padding="500">
             {goal.type === "gift" && (
               <BlockStack gap="300">
                 <Text variant="bodyMd" as="p" fontWeight="semibold">
@@ -288,13 +300,15 @@ function GoalCard({ goal, index, isLast, onGoalChange, onToggle, onDelete }) {
                 <Text variant="bodyMd" as="p" fontWeight="semibold">
                   Type of order discount
                 </Text>
-                <SegmentControl
-                  value={goal.discountType}
-                  onChange={(discountType) => onGoalChange(index, { discountType })}
-                  options={[
+                <ChoiceList
+                  title="Type of order discount"
+                  titleHidden
+                  choices={[
                     { label: "Percentage off", value: "percentage" },
                     { label: "Amount off", value: "amount" },
                   ]}
+                  selected={[goal.discountType]}
+                  onChange={([discountType]) => onGoalChange(index, { discountType })}
                 />
                 <TextField
                   label="Enter the value"
@@ -316,9 +330,10 @@ function GoalCard({ goal, index, isLast, onGoalChange, onToggle, onDelete }) {
                 <Button variant="plain">Click here to learn how</Button>
               </BlockStack>
             )}
-          </div>
+            </Box>
+          </>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -357,7 +372,7 @@ function PreviewPanel({
         </div>
       )}
 
-      <div className="cg-sideCard">
+      <Card>
         <BlockStack gap="300">
           <Select
             label="Status"
@@ -375,14 +390,15 @@ function PreviewPanel({
             autoComplete="off"
           />
         </BlockStack>
-      </div>
+      </Card>
 
-      <div className="cg-previewCard">
-        <div className="cg-previewHeader">
+      <Card padding="0">
+        <Box padding="400">
           <Text variant="headingSm" as="h3" fontWeight="semibold">
             Preview
           </Text>
-        </div>
+        </Box>
+        <Divider />
         <div className="cg-previewCanvas">
           <Text variant="bodySm" as="p" fontWeight="semibold" alignment="center">
             {nextGoal ? message : "Select a reward type"}
@@ -409,19 +425,16 @@ function PreviewPanel({
             </div>
           )}
         </div>
-        <div className="cg-previewSlider">
-          <Text variant="bodyLg" as="p">
-            Use this to adjust the progress bar
-          </Text>
-          <input
-            type="range"
-            min="0"
-            max="100"
+        <Box padding="500">
+          <RangeSlider
+            label="Use this to adjust the progress bar"
             value={sliderValue}
-            onChange={(event) => onSliderChange(Number(event.target.value))}
+            min={0}
+            max={100}
+            onChange={onSliderChange}
           />
-        </div>
-      </div>
+        </Box>
+      </Card>
     </BlockStack>
   );
 }
@@ -436,20 +449,21 @@ function ContentSection({ goals, shownGoals, onShownGoalsChange, onEditGoal }) {
           <Text variant="bodyMd" as="p" fontWeight="semibold">
             Number of goals shown at a time in the progress bar
           </Text>
-          <input
-            className="cg-contentRange"
-            type="range"
-            min="1"
-            max="3"
+          <RangeSlider
+            label="Number of goals shown at a time in the progress bar"
+            labelHidden
             value={shownGoals}
-            onChange={(event) => onShownGoalsChange(Number(event.target.value))}
+            min={1}
+            max={3}
+            step={1}
+            onChange={onShownGoalsChange}
           />
         </BlockStack>
 
         <Text variant="bodyMd" as="p" fontWeight="semibold">
           Edit content
         </Text>
-        <div className="cg-contentList">
+        <Card padding="0">
           {goals.map((goal, index) => (
             <div className="cg-contentItem" key={`${goal.type}-${index}`}>
               <div className="cg-contentItemHeader">
@@ -475,7 +489,7 @@ function ContentSection({ goals, shownGoals, onShownGoalsChange, onEditGoal }) {
               )}
             </div>
           ))}
-        </div>
+        </Card>
       </BlockStack>
     </SectionCard>
   );
@@ -501,9 +515,9 @@ function TextEditModal({ goal, index, onClose, onChange }) {
                 onChange={(value) => onChange(index, field.key, value)}
                 autoComplete="off"
               />
-              <button type="button" aria-label="Insert variable">
+              <Button accessibilityLabel="Insert variable">
                 {"{}"}
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -532,23 +546,29 @@ function SettingsSection() {
           <Text variant="bodyMd" as="p" tone="subdued">
             Based on your browser's timezone: Asia/Calcutta
           </Text>
-          <div className="cg-dateBox">
-            <TextField
-              label="Start date"
-              value={dateValue}
-              prefix={<Icon source={CalendarIcon} />}
-              autoComplete="off"
-            />
-            <TextField
-              label="Start time"
-              value={timeValue}
-              prefix={<Icon source={ClockIcon} />}
-              autoComplete="off"
-            />
-            <div className="cg-fullRow">
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack gap="300" wrap={false}>
+                <div style={{ flex: 1 }}>
+                  <TextField
+                    label="Start date"
+                    value={dateValue}
+                    prefix={<Icon source={CalendarIcon} />}
+                    autoComplete="off"
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <TextField
+                    label="Start time"
+                    value={timeValue}
+                    prefix={<Icon source={ClockIcon} />}
+                    autoComplete="off"
+                  />
+                </div>
+              </InlineStack>
               <Checkbox label="Set end date" checked={endDate} onChange={setEndDate} />
-            </div>
-          </div>
+            </BlockStack>
+          </Card>
         </BlockStack>
 
         <BlockStack gap="200">
@@ -614,44 +634,47 @@ function SettingsSection() {
                 only to a specific group, add a targeting rule.
               </Text>
             </BlockStack>
-            <div className="cg-targetAction">
-              <Button icon={PlusIcon} onClick={() => setTargetMenuOpen(true)}>
-                Add a targeting rule
-              </Button>
-              {targetMenuOpen && (
-                <div className="cg-targetMenu">
-                  <div className="cg-searchRow">
-                    <Icon source={SearchIcon} />
-                    <span>Search actions</span>
-                  </div>
-                  <Text variant="bodyMd" as="p" fontWeight="semibold">
-                    User Session
-                  </Text>
-                  {["Country", "User Session count", "Logged-in status", "Device OS", "Market", "Locale/Language"].map((item) => (
-                    <button type="button" key={item}>
-                      {item}
-                    </button>
-                  ))}
-                  <Text variant="bodyMd" as="p" fontWeight="semibold">
-                    Logged in visitor data
-                  </Text>
-                  {["Customer tags", "Order count", "Total spent", "First name", "Last name", "Customer ID"].map((item) => (
-                    <button type="button" key={item}>
-                      {item}
-                      <small>Works only if logged in</small>
-                    </button>
-                  ))}
-                  <Text variant="bodyMd" as="p" fontWeight="semibold">
-                    UTM Tags
-                  </Text>
-                  {["UTM Campaign", "UTM Source", "UTM Medium"].map((item) => (
-                    <button type="button" key={item}>
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <Popover
+              active={targetMenuOpen}
+              activator={
+                <Button icon={PlusIcon} onClick={() => setTargetMenuOpen(true)}>
+                  Add a targeting rule
+                </Button>
+              }
+              autofocusTarget="first-node"
+              onClose={() => setTargetMenuOpen(false)}
+            >
+              <Box padding="300" minWidth="300px">
+                <BlockStack gap="300">
+                  <TextField
+                    label="Search actions"
+                    labelHidden
+                    placeholder="Search actions"
+                    prefix={<Icon source={SearchIcon} />}
+                    autoComplete="off"
+                  />
+                  <ActionList
+                    sections={[
+                      {
+                        title: "User Session",
+                        items: ["Country", "User Session count", "Logged-in status", "Device OS", "Market", "Locale/Language"].map((content) => ({ content })),
+                      },
+                      {
+                        title: "Logged in visitor data",
+                        items: ["Customer tags", "Order count", "Total spent", "First name", "Last name", "Customer ID"].map((content) => ({
+                          content,
+                          helpText: "Works only if logged in",
+                        })),
+                      },
+                      {
+                        title: "UTM Tags",
+                        items: ["UTM Campaign", "UTM Source", "UTM Medium"].map((content) => ({ content })),
+                      },
+                    ]}
+                  />
+                </BlockStack>
+              </Box>
+            </Popover>
           </div>
         </BlockStack>
       </BlockStack>
@@ -742,7 +765,7 @@ export default function RuleCartGoal() {
       ]}
     >
       <style>{`
-        .cg-layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:20px;align-items:start}.cg-card,.cg-sideCard,.cg-previewCard{background:#fff;border:1px solid #e1e3e5;border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.06);overflow:hidden}.cg-cardHeader{display:flex;align-items:center;justify-content:space-between;padding:18px 28px 14px;border-bottom:1px solid #e8e8e8}.cg-cardBody{padding:26px 28px}.cg-cardFooter{display:flex;justify-content:flex-end;padding:8px 18px 16px}.cg-segment{display:inline-flex;background:#f0f0f0;border-radius:8px;padding:4px;max-width:100%;overflow:auto}.cg-segment button{border:0;background:transparent;border-radius:7px;padding:8px 12px;font-weight:600;color:#6d7175;white-space:nowrap;cursor:pointer}.cg-segment button.is-active{background:#fff;color:#303030;box-shadow:0 2px 6px rgba(0,0,0,.14)}.cg-addGoalWrap{position:relative;display:flex;justify-content:center}.cg-addGoal{width:70%;border:0;border-radius:8px;background:#e9e9e9;color:#444;padding:10px 18px;font-weight:650;cursor:pointer}.cg-addMenu{position:absolute;top:44px;z-index:20;background:#fff;border:1px solid #dfe3e8;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.18);padding:10px;min-width:180px}.cg-addMenu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:#fff;border-radius:8px;padding:10px 8px;font-weight:600;color:#444;cursor:pointer}.cg-addMenu button:hover{background:#f6f6f7}.cg-info{display:flex;align-items:flex-start;gap:12px;background:#e5f2ff;color:#00527c;border-radius:8px;padding:14px 16px}.cg-milestoneList{display:grid;gap:16px}.cg-milestoneRow{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px}.cg-goalAmount{padding-left:10px}.cg-downArrow{text-align:center;color:#b5b5b5;font-size:24px;line-height:32px}.cg-rewardCard{border:2px solid #e2e2e2;border-radius:10px;overflow:hidden;background:#fff}.cg-rewardHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 14px 12px}.cg-rewardIcon{width:24px;color:#444}.cg-rewardBody{border-top:2px solid #e8e8e8;padding:20px 22px}.cg-stepper{display:inline-grid;grid-template-columns:44px 64px 44px;align-items:center;gap:8px;background:#f1f1f1;border-radius:8px;padding:6px;width:max-content;text-align:center}.cg-iconOnly{border:0;background:transparent;color:#8c9196;cursor:pointer;font-weight:700}.cg-paused{display:flex;align-items:center;gap:10px;background:#fff8db;border:1px solid #f2d94e;border-bottom:2px solid #f2d94e;border-radius:12px 12px 0 0;color:#6a4c00;padding:12px 18px}.cg-sideCard{padding:18px}.cg-previewHeader{padding:18px;border-bottom:1px solid #e1e3e5}.cg-previewCanvas{background:#f7f7f7;min-height:140px;padding:18px 20px 28px;border-bottom:1px solid #e1e3e5}.cg-progressWrap{position:relative;margin-top:14px;padding:0 0 54px}.cg-previewTrack{height:6px;background:#e1e3e5;border-radius:999px;overflow:hidden}.cg-previewFill{height:100%;background:#303030;border-radius:999px}.cg-previewMilestone{position:absolute;top:-8px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;line-height:15px;text-align:center;color:#444;min-width:76px}.cg-previewMarker{width:20px;height:20px;border-radius:999px;background:#303030;color:#fff;display:flex;align-items:center;justify-content:center}.cg-previewSlider{padding:20px}.cg-previewSlider input,.cg-contentRange{width:100%;accent-color:#303030}.cg-contentList{border:2px solid #e2e2e2;border-radius:9px;overflow:hidden}.cg-contentItem+.cg-contentItem{border-top:2px solid #e2e2e2}.cg-contentItemHeader{display:flex;align-items:center;justify-content:space-between;padding:12px}.cg-contentItemBody{display:flex;align-items:center;justify-content:space-between;background:#f6f6f6;padding:14px 22px}.cg-modalFields{display:grid;gap:20px;max-height:660px;overflow:auto;padding-right:8px}.cg-tokenField{position:relative}.cg-tokenField button{position:absolute;right:0;top:0;border:1px solid #dfe3e8;background:#fff;border-radius:8px;padding:5px 8px;font-weight:700}.cg-dateBox{display:grid;grid-template-columns:1fr 1fr;gap:12px;border:2px solid #e2e2e2;border-radius:9px;padding:12px}.cg-fullRow{grid-column:1/-1}.cg-targetBox{position:relative;display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:center;border:2px solid #e2e2e2;border-radius:9px;padding:18px}.cg-targetIcon{width:44px;height:44px;border-radius:999px;background:#efe3ff;color:#7a36ff;display:flex;align-items:center;justify-content:center;font-weight:800}.cg-targetAction{position:relative}.cg-targetMenu{position:absolute;right:-20px;top:-630px;z-index:30;width:300px;max-height:620px;overflow:auto;background:#fff;border:1px solid #dfe3e8;border-radius:12px;box-shadow:0 5px 18px rgba(0,0,0,.22);padding:10px}.cg-searchRow{display:flex;align-items:center;gap:8px;border:2px solid #1a73e8;border-radius:9px;padding:10px 12px;color:#6d7175;margin-bottom:12px}.cg-targetMenu button{display:block;width:100%;border:0;background:#fff;border-radius:8px;padding:9px 10px;text-align:left;color:#444;font-size:14px;cursor:pointer}.cg-targetMenu button:hover{background:#f1f1f1}.cg-targetMenu small{display:block;color:#6d7175;font-size:12px;margin-top:2px}@media(max-width:1050px){.cg-layout{grid-template-columns:1fr}.cg-targetMenu{top:44px;right:0}}@media(max-width:700px){.cg-cardHeader,.cg-rewardHeader,.cg-contentItemHeader,.cg-contentItemBody{align-items:flex-start;flex-direction:column}.cg-cardBody{padding:18px}.cg-milestoneRow,.cg-dateBox,.cg-targetBox{grid-template-columns:1fr}.cg-addGoal{width:100%}}
+        .cg-layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:20px;align-items:start}.cg-info{display:flex;align-items:flex-start;gap:12px;background:#e5f2ff;color:#00527c;border-radius:8px;padding:14px 16px}.cg-milestoneList{display:grid;gap:16px}.cg-milestoneRow{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px}.cg-goalAmount{padding-left:10px}.cg-downArrow{text-align:center;color:#b5b5b5;font-size:24px;line-height:32px}.cg-rewardHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 14px 12px}.cg-rewardIcon{width:24px;color:#444}.cg-stepper{display:inline-grid;grid-template-columns:44px 64px 44px;align-items:center;gap:8px;background:#f1f1f1;border-radius:8px;padding:6px;width:max-content;text-align:center}.cg-paused{display:flex;align-items:center;gap:10px;background:#fff8db;border:1px solid #f2d94e;border-bottom:2px solid #f2d94e;border-radius:12px;color:#6a4c00;padding:12px 18px}.cg-previewCanvas{background:#f7f7f7;min-height:140px;padding:18px 20px 28px;border-bottom:1px solid #e1e3e5}.cg-progressWrap{position:relative;margin-top:14px;padding:0 0 54px}.cg-previewTrack{height:6px;background:#e1e3e5;border-radius:999px;overflow:hidden}.cg-previewFill{height:100%;background:#303030;border-radius:999px}.cg-previewMilestone{position:absolute;top:-8px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;line-height:15px;text-align:center;color:#444;min-width:76px}.cg-previewMarker{width:20px;height:20px;border-radius:999px;background:#303030;color:#fff;display:flex;align-items:center;justify-content:center}.cg-contentItem+.cg-contentItem{border-top:1px solid #e1e3e5}.cg-contentItemHeader{display:flex;align-items:center;justify-content:space-between;padding:12px}.cg-contentItemBody{display:flex;align-items:center;justify-content:space-between;background:#f6f6f6;padding:14px 22px}.cg-modalFields{display:grid;gap:20px;max-height:660px;overflow:auto;padding-right:8px}.cg-tokenField{position:relative}.cg-tokenField .Polaris-Button{position:absolute;right:0;top:0}.cg-targetBox{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:center;border:1px solid #e1e3e5;border-radius:9px;padding:18px}.cg-targetIcon{width:44px;height:44px;border-radius:999px;background:#efe3ff;color:#7a36ff;display:flex;align-items:center;justify-content:center;font-weight:800}@media(max-width:1050px){.cg-layout{grid-template-columns:1fr}}@media(max-width:700px){.cg-rewardHeader,.cg-contentItemHeader,.cg-contentItemBody{align-items:flex-start;flex-direction:column}.cg-milestoneRow,.cg-targetBox{grid-template-columns:1fr}}
       `}</style>
 
       <Box paddingBlockEnd="800">
@@ -801,38 +824,35 @@ export default function RuleCartGoal() {
                   </div>
                 )}
 
-                <div className="cg-addGoalWrap">
-                  <button
-                    type="button"
-                    className="cg-addGoal"
-                    onClick={() => setAddMenuOpen((value) => !value)}
+                <InlineStack align="center">
+                  <Popover
+                    active={addMenuOpen}
+                    activator={
+                      <Button
+                        icon={PlusIcon}
+                        onClick={() => setAddMenuOpen((value) => !value)}
+                      >
+                        Add a new goal
+                      </Button>
+                    }
+                    autofocusTarget="first-node"
+                    onClose={() => setAddMenuOpen(false)}
                   >
-                    + Add a new goal
-                  </button>
-                  {addMenuOpen && (
-                    <div className="cg-addMenu">
-                      {Object.values(REWARD_CONFIG).map((reward) => (
-                        <button
-                          type="button"
-                          key={reward.type}
-                          onClick={() => addGoal(reward.type)}
-                        >
-                          <Icon source={reward.icon} />
-                          {reward.menuLabel}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                    <ActionList
+                      items={Object.values(REWARD_CONFIG).map((reward) => ({
+                        content: reward.menuLabel,
+                        icon: reward.icon,
+                        onAction: () => addGoal(reward.type),
+                      }))}
+                    />
+                  </Popover>
+                </InlineStack>
 
-                <div className="cg-info">
-                  <span>i</span>
-                  <Text variant="bodyMd" as="p">
-                    Set your existing Shopify discounts to combine with product and
-                    order discounts to ensure that these rewards work well together.
-                    <strong> Learn more</strong>
-                  </Text>
-                </div>
+                <Banner tone="info">
+                  Set your existing Shopify discounts to combine with product and
+                  order discounts to ensure that these rewards work well together.
+                  <strong> Learn more</strong>
+                </Banner>
               </BlockStack>
             </SectionCard>
 
