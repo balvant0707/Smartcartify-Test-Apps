@@ -248,6 +248,34 @@ function getGoalValidationErrors(goals, trackBy) {
   });
 }
 
+function getRewardValidationErrors(goals) {
+  return goals.map((goal) => {
+    if (goal.type === "gift") {
+      const productIds = Array.isArray(goal.bonusProductIds)
+        ? goal.bonusProductIds.filter(Boolean)
+        : [goal.bonusProductId || goal.bonus || null].filter(Boolean);
+
+      return productIds.length ? "" : "Select at least one free product";
+    }
+
+    if (goal.type === "discount") {
+      const discountValue = Number(goal.value);
+
+      if (!Number.isFinite(discountValue) || discountValue <= 0) {
+        return goal.discountType === "amount"
+          ? "Enter order discount amount"
+          : "Enter order discount percentage";
+      }
+
+      if (goal.discountType !== "amount" && discountValue > 100) {
+        return "Percentage discount cannot be more than 100";
+      }
+    }
+
+    return "";
+  });
+}
+
 function cartGoalThreshold(goal, trackBy) {
   const value = Number(goal.goal || 0);
   return trackBy === "quantity"
@@ -378,16 +406,23 @@ export const action = async ({ request }) => {
   const existingGoalById = new Map(
     existingGoals.map((goal) => [goal?.id, goal]).filter(([goalId]) => goalId)
   );
+  const trackBy = body.trackBy === "quantity" ? "quantity" : "value";
   const submittedGoals = Array.isArray(body.goals) ? body.goals : defaultGoals();
   const goals = submittedGoals.map((goal, index) =>
     normalizeGoal({ ...(existingGoalById.get(goal?.id) || {}), ...goal }, index)
   );
+  const thresholdErrors = getGoalValidationErrors(goals, trackBy);
+  const rewardErrors = getRewardValidationErrors(goals);
   const targetingRules = Array.isArray(body.targetingRules) ? body.targetingRules : [];
-  const trackBy = body.trackBy === "quantity" ? "quantity" : "value";
   const enabled = Boolean(body.enabled);
 
   if (Number.isFinite(id) && !existingRule) {
     return { error: "Cart Goal campaign not found" };
+  }
+
+  const firstValidationError = [...thresholdErrors, ...rewardErrors].find(Boolean);
+  if (firstValidationError) {
+    return { error: firstValidationError };
   }
 
   let syncedGoals;
@@ -641,6 +676,7 @@ function GoalCard({
   isLast,
   trackBy,
   validationError,
+  rewardValidationError,
   productPickerItems,
   productPickerLoading,
   onOpenProductPicker,
@@ -790,6 +826,9 @@ function GoalCard({
               <Box padding="500">
                 {goal.type === "gift" && (
                   <BlockStack gap="300">
+                    {rewardValidationError && (
+                      <Banner tone="critical">{rewardValidationError}</Banner>
+                    )}
                     <Text variant="bodyMd" as="p" fontWeight="semibold">
                       Select products to give as free gifts
                     </Text>
@@ -915,6 +954,7 @@ function GoalCard({
                       suffix={goal.discountType === "percentage" ? "%" : undefined}
                       prefix={goal.discountType === "amount" ? "INR" : undefined}
                       autoComplete="off"
+                      error={rewardValidationError || undefined}
                       helpText={
                         goal.discountType === "amount"
                           ? "Fixed amount off the order."
@@ -1314,11 +1354,11 @@ function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
           />
         </BlockStack>
 
-        <BlockStack gap="200">
-          <Text variant="bodyMd" as="p" fontWeight="semibold">
+        <BlockStack gap="200" style={{ display: "none" }}>
+          <Text variant="bodyMd" as="p" fontWeight="semibold" style={{ display: "none" }}>
             Target an audience
           </Text>
-          <div className="cg-targetBox">
+          <div className="cg-targetBox" style={{ display: "none" }}>
             <div className="cg-targetIcon">+</div>
             <BlockStack gap="100">
               <Text variant="bodyMd" as="p" fontWeight="semibold">
@@ -1467,7 +1507,12 @@ export default function RuleCartGoal() {
     () => getGoalValidationErrors(goals, trackBy),
     [goals, trackBy]
   );
+  const rewardValidationErrors = useMemo(
+    () => getRewardValidationErrors(goals),
+    [goals]
+  );
   const hasGoalValidationErrors = goalValidationErrors.some(Boolean);
+  const hasRewardValidationErrors = rewardValidationErrors.some(Boolean);
 
   const addGoal = (type) => {
     setGoals((current) => [
@@ -1532,7 +1577,7 @@ export default function RuleCartGoal() {
   };
 
   const handleSave = () => {
-    if (hasGoalValidationErrors) {
+    if (hasGoalValidationErrors || hasRewardValidationErrors) {
       setShowGoalValidation(true);
       setOpenSection("goals");
       return;
@@ -2042,6 +2087,9 @@ export default function RuleCartGoal() {
                         trackBy={trackBy}
                         validationError={
                           showGoalValidation ? goalValidationErrors[index] : ""
+                        }
+                        rewardValidationError={
+                          showGoalValidation ? rewardValidationErrors[index] : ""
                         }
                         productPickerItems={productPickerItems}
                         productPickerLoading={productPickerLoading}

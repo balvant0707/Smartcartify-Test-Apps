@@ -463,7 +463,7 @@ export async function upsertFreeShipping(admin, {
     title: withAppNameTitle(title, "Free Shipping"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
     minimumRequirement: discountMinimumRequirement({ minReqType, minSubtotal, minQuantity }),
-    destinationSelection: { all: true },
+    destination: { all: true },
   };
 
   if (existingId) {
