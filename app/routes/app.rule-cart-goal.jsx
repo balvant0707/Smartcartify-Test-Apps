@@ -1028,14 +1028,21 @@ function PreviewPanel({
                 </div>
                 {activeGoals.map((goal, index) => {
                   const left = `${((index + 0.5) / activeGoals.length) * 100}%`;
+                  const isCompleted = cartValue >= Number(goal.goal || 0);
                   return (
                     <div
-                      className="cg-previewMilestone"
+                      className={`cg-previewMilestone ${
+                        isCompleted ? "cg-previewMilestoneCompleted" : ""
+                      }`}
                       style={{ left }}
                       key={`${goal.id}-${index}`}
                     >
-                      <span className="cg-previewMarker">
-                        <Icon source={REWARD_CONFIG[goal.type].icon} />
+                      <span
+                        className={`cg-previewMarker ${
+                          isCompleted ? "cg-previewMarkerCompleted" : ""
+                        }`}
+                      >
+                        <Icon source={isCompleted ? CheckIcon : REWARD_CONFIG[goal.type].icon} />
                       </span>
                       <span>
                         {goal.type === "discount"
@@ -1494,8 +1501,6 @@ export default function RuleCartGoal() {
         }
         .cg-roundedSurface {
           background: #fff;
-          border: 2px solid #e1e3e5;
-          border-radius: 10px;
           overflow: hidden;
         }
         .cg-roundedSurface > .Polaris-ShadowBevel {
@@ -1550,7 +1555,7 @@ export default function RuleCartGoal() {
           flex: 1;
           position: relative;
           width: 110px;
-          min-height: 42px;
+          min-height: 25px;
           color: #b5b5b5;
           margin-top: 8px;
           margin-bottom: 10px;
@@ -1789,6 +1794,10 @@ export default function RuleCartGoal() {
           text-align: center;
           color: #444;
         }
+        .cg-previewMilestoneCompleted {
+          color: #0a7f40;
+          font-weight: 700;
+        }
         .cg-previewMarker {
           width: 20px;
           height: 20px;
@@ -1798,6 +1807,13 @@ export default function RuleCartGoal() {
           display: flex;
           align-items: center;
           justify-content: center;
+        }
+        .cg-previewMarkerCompleted {
+          background: #0a7f40;
+        }
+        .cg-previewMarkerCompleted .Polaris-Icon {
+          width: 14px;
+          height: 14px;
         }
         .cg-contentItem + .cg-contentItem {
           border-top: 1px solid #e1e3e5;
