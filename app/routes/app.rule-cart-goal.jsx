@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   useActionData,
+  useFetcher,
   useLoaderData,
   useNavigate,
   useNavigation,
@@ -15,7 +16,6 @@ import {
   ButtonGroup,
   Card,
   Checkbox,
-  ChoiceList,
   Collapsible,
   Divider,
   Icon,
@@ -52,6 +52,11 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
+import {
+  upsertAutomaticBasic,
+  upsertFreeShipping,
+} from "../shopify-discount.server";
+import { syncFreeProductDiscountsToShopify } from "../lib/minAmountFreeGift.server";
 
 const GOAL_TEXT_FIELDS = [
   {
@@ -193,7 +198,8 @@ function defaultGoals() {
 function safeJsonParse(value, fallback) {
   if (!value) return fallback;
   try {
-    return JSON.parse(value);
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : fallback;
   } catch {
     return fallback;
   }
@@ -217,6 +223,118 @@ function normalizeGoal(goal, index) {
 
 function serializeGoals(goals) {
   return JSON.stringify((Array.isArray(goals) ? goals : defaultGoals()).map(normalizeGoal));
+}
+
+function formatDiscountValue(goal) {
+  const value = goal?.value || "0";
+  return goal?.discountType === "amount" ? `INR ${value}` : `${value}%`;
+}
+
+function getGoalValidationErrors(goals, trackBy) {
+  const label = trackBy === "quantity" ? "Quantity" : "Amount";
+  return goals.map((goal, index) => {
+    const value = Number(goal.goal);
+    const previousValue = index > 0 ? Number(goals[index - 1]?.goal) : null;
+
+    if (!Number.isFinite(value) || value <= 0) {
+      return `${label} is required`;
+    }
+
+    if (index > 0 && Number.isFinite(previousValue) && value <= previousValue) {
+      return `${label} must be greater than step ${index}`;
+    }
+
+    return "";
+  });
+}
+
+function cartGoalThreshold(goal, trackBy) {
+  const value = Number(goal.goal || 0);
+  return trackBy === "quantity"
+    ? { minReqType: "quantity", minQuantity: String(Math.max(1, Math.floor(value))) }
+    : { minReqType: "subtotal", minSubtotal: String(Math.max(0, value)) };
+}
+
+async function syncCartGoalDiscounts({
+  admin,
+  shop,
+  accessToken,
+  campaignName,
+  enabled,
+  trackBy,
+  goals,
+}) {
+  const syncedGoals = [];
+
+  for (let index = 0; index < goals.length; index += 1) {
+    const goal = goals[index];
+    const title = `${campaignName || "Cart Goal"} - Goal ${index + 1} ${goal.title}`;
+    const threshold = cartGoalThreshold(goal, trackBy);
+
+    if (goal.type === "shipping") {
+      const shopifyDiscountId = await upsertFreeShipping(admin, {
+        existingId: goal.shopifyDiscountId || null,
+        title,
+        enabled,
+        ...threshold,
+      });
+      syncedGoals.push({ ...goal, shopifyDiscountId });
+      continue;
+    }
+
+    if (goal.type === "discount") {
+      const shopifyDiscountId = await upsertAutomaticBasic(admin, {
+        existingId: goal.shopifyDiscountId || null,
+        title,
+        enabled,
+        isPercentage: goal.discountType !== "amount",
+        discountValue: goal.value || "0",
+        ...threshold,
+      });
+      syncedGoals.push({ ...goal, shopifyDiscountId });
+      continue;
+    }
+
+    if (goal.type === "gift") {
+      const bonusProductId = goal.bonusProductId || goal.bonus || null;
+
+      if (!bonusProductId) {
+        syncedGoals.push({
+          ...goal,
+          shopifySyncWarning: "Select a free product before Shopify discount sync can create this reward.",
+        });
+        continue;
+      }
+
+      const syncResults = await syncFreeProductDiscountsToShopify({
+        shopDomain: shop,
+        accessToken,
+        rules: [
+          {
+            bonus: String(bonusProductId),
+            minPurchase: trackBy === "value" ? goal.goal : null,
+            minQuantity: trackBy === "quantity" ? goal.goal : null,
+            triggerType: trackBy === "quantity" ? "quantity" : "amount",
+            qty: goal.qty || "1",
+            limit: goal.limitPerOrder || null,
+            enabled,
+          },
+        ],
+        existingDiscountIds: [goal.shopifyDiscountId || null],
+      });
+
+      syncedGoals.push({
+        ...goal,
+        shopifyDiscountId: syncResults?.[0]?.id || goal.shopifyDiscountId || null,
+        shopifySyncWarning: null,
+      });
+      continue;
+    }
+
+    syncedGoals.push(goal);
+  }
+
+  return syncedGoals;
 }
 
 export const loader = async ({ request }) => {
@@ -244,19 +362,53 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const body = await request.json().catch(() => ({}));
   const id = Number.parseInt(body.id || "", 10);
-  const goals = Array.isArray(body.goals) ? body.goals.map(normalizeGoal) : defaultGoals();
+  const existingRule = Number.isFinite(id)
+    ? await prisma.cartGoalRule.findFirst({
+        where: { id, shop: session.shop },
+        select: { id: true, goals: true },
+      })
+    : null;
+  const existingGoals = safeJsonParse(existingRule?.goals, []);
+  const existingGoalById = new Map(
+    existingGoals.map((goal) => [goal?.id, goal]).filter(([goalId]) => goalId)
+  );
+  const submittedGoals = Array.isArray(body.goals) ? body.goals : defaultGoals();
+  const goals = submittedGoals.map((goal, index) =>
+    normalizeGoal({ ...(existingGoalById.get(goal?.id) || {}), ...goal }, index)
+  );
   const targetingRules = Array.isArray(body.targetingRules) ? body.targetingRules : [];
+  const trackBy = body.trackBy === "quantity" ? "quantity" : "value";
+  const enabled = Boolean(body.enabled);
+
+  if (Number.isFinite(id) && !existingRule) {
+    return { error: "Cart Goal campaign not found" };
+  }
+
+  let syncedGoals;
+  try {
+    syncedGoals = await syncCartGoalDiscounts({
+      admin,
+      shop: session.shop,
+      accessToken: session.accessToken,
+      campaignName: body.campaignName || "Cart Goal",
+      enabled,
+      trackBy,
+      goals,
+    });
+  } catch (err) {
+    return { error: err?.message || "Shopify discount sync failed" };
+  }
 
   const data = {
     shop: session.shop,
     campaignName: body.campaignName || "Cart Goal",
-    enabled: Boolean(body.enabled),
-    trackBy: body.trackBy === "quantity" ? "quantity" : "value",
+    enabled,
+    trackBy,
     shownGoals: Math.min(3, Math.max(1, Number(body.shownGoals) || 3)),
-    goals: serializeGoals(goals),
+    goals: serializeGoals(syncedGoals),
     startDate: body.startDate || null,
     startTime: body.startTime || null,
     hasEndDate: Boolean(body.hasEndDate),
@@ -271,13 +423,6 @@ export const action = async ({ request }) => {
 
   let record;
   if (Number.isFinite(id)) {
-    const existing = await prisma.cartGoalRule.findFirst({
-      where: { id, shop: session.shop },
-      select: { id: true },
-    });
-    if (!existing) {
-      return { error: "Cart Goal campaign not found" };
-    }
     record = await prisma.cartGoalRule.update({ where: { id }, data });
   } else {
     record = await prisma.cartGoalRule.create({ data });
@@ -360,35 +505,162 @@ function SegmentControl({ options, value, onChange }) {
   );
 }
 
+function ProductPickerModal({
+  open,
+  onClose,
+  items,
+  loading,
+  selected,
+  onApply,
+}) {
+  const [search, setSearch] = useState("");
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setDraft(selected || "");
+      setSearch("");
+    }
+  }, [open, selected]);
+
+  const filtered = search
+    ? items.filter((item) =>
+        String(item.title || "").toLowerCase().includes(search.toLowerCase())
+      )
+    : items;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Select free product"
+      primaryAction={{
+        content: "Select product",
+        onAction: () => {
+          onApply(draft);
+          onClose();
+        },
+        disabled: !draft,
+      }}
+      secondaryActions={[{ content: "Cancel", onAction: onClose }]}
+    >
+      <Modal.Section>
+        <TextField
+          label="Search products"
+          labelHidden
+          placeholder="Search products"
+          value={search}
+          onChange={setSearch}
+          prefix={<Icon source={SearchIcon} />}
+          autoComplete="off"
+          clearButton
+          onClearButtonClick={() => setSearch("")}
+        />
+      </Modal.Section>
+      <Modal.Section>
+        <div className="cg-productPickerList">
+          {loading ? (
+            <Box padding="500">
+              <Text as="p" tone="subdued" alignment="center">
+                Loading products...
+              </Text>
+            </Box>
+          ) : filtered.length === 0 ? (
+            <Box padding="500">
+              <Text as="p" tone="subdued" alignment="center">
+                No products available.
+              </Text>
+            </Box>
+          ) : (
+            filtered.map((item) => {
+              const checked = draft === item.id;
+              return (
+                <button
+                  type="button"
+                  className={`cg-productPickerItem ${
+                    checked ? "cg-productPickerItemSelected" : ""
+                  }`}
+                  key={item.id}
+                  onClick={() => setDraft(item.id)}
+                >
+                  <Checkbox
+                    label=""
+                    labelHidden
+                    checked={checked}
+                    onChange={() => setDraft(item.id)}
+                  />
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="cg-productPickerImage"
+                    />
+                  ) : (
+                    <span className="cg-productPickerImage cg-productPickerImageEmpty">
+                      P
+                    </span>
+                  )}
+                  <span className="cg-productPickerText">
+                    <Text variant="bodySm" fontWeight="semibold" as="span">
+                      {item.title}
+                    </Text>
+                    {item.subtitle && (
+                      <Text variant="bodySm" tone="subdued" as="span">
+                        {item.subtitle}
+                      </Text>
+                    )}
+                  </span>
+                  {checked && <span className="cg-productPickerSelectedText">Selected</span>}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </Modal.Section>
+    </Modal>
+  );
+}
+
 function GoalCard({
   goal,
   index,
   isLast,
   trackBy,
+  validationError,
+  productPickerItems,
+  productPickerLoading,
+  onOpenProductPicker,
   onGoalChange,
   onToggle,
   onDelete,
 }) {
   const icon = REWARD_CONFIG[goal.type].icon;
   const goalPrefix = trackBy === "quantity" ? "Qty" : "INR";
+  const ordinal = `${index + 1}${index === 0 ? "st" : index === 1 ? "nd" : "rd"}`;
+  const selectedGiftProduct = productPickerItems.find(
+    (product) => product.id === goal.bonusProductId
+  );
 
   return (
     <div className="cg-milestoneRow">
       <div className="cg-goalAmount">
-        <Text variant="bodyMd" as="p" fontWeight="semibold">
-          {index + 1}
-          {index === 0 ? "st" : index === 1 ? "nd" : "rd"} goal
-        </Text>
-        <div className="cg-goalInput">
+        <div className={validationError ? "cg-goalLabel cg-goalLabelError" : "cg-goalLabel"}>
+          {ordinal} goal{validationError ? " *" : ""}
+        </div>
+        <div className={validationError ? "cg-goalInput cg-goalInputError" : "cg-goalInput"}>
           <TextField
             label="Goal amount"
             labelHidden
+            type="number"
+            min={0}
             prefix={goalPrefix}
             value={goal.goal}
             onChange={(value) => onGoalChange(index, { goal: value })}
             autoComplete="off"
+            error={Boolean(validationError)}
           />
         </div>
+        {validationError && <div className="cg-goalValidation">{validationError}</div>}
         {!isLast && (
           <span
             className="cg-goalArrow"
@@ -428,16 +700,19 @@ function GoalCard({
             </InlineStack>
             <InlineStack gap="200" blockAlign="center">
               {goal.expanded ? (
-                <Button
-                  variant="plain"
-                  icon={CheckIcon}
+                <button
+                  type="button"
+                  className="cg-doneButton"
                   onClick={(event) => {
                     event.stopPropagation();
                     onToggle(index);
                   }}
                 >
+                  <span className="cg-doneIcon">
+                    <Icon source={CheckIcon} />
+                  </span>
                   Done
-                </Button>
+                </button>
               ) : (
                 <Button
                   icon={EditIcon}
@@ -461,24 +736,19 @@ function GoalCard({
                 icon={MenuHorizontalIcon}
                 onClick={(event) => event.stopPropagation()}
               />
-              <span
-                className={`cg-cardChevron ${goal.expanded ? "cg-cardChevronOpen" : "cg-cardChevronClosed"
-                  }`}
-                aria-hidden="true"
-              >
-                <Icon source={goal.expanded ? ChevronUpIcon : ChevronDownIcon} />
-              </span>
-              <Button
-                variant="plain"
-                icon={goal.expanded ? ChevronUpIcon : ChevronDownIcon}
+              <button
+                type="button"
+                className={`cg-chevronButton ${
+                  goal.expanded ? "cg-chevronButtonOpen" : "cg-chevronButtonClosed"
+                }`}
                 onClick={(event) => {
                   event.stopPropagation();
                   onToggle(index);
                 }}
-                accessibilityLabel={
-                  goal.expanded ? "Collapse goal" : "Expand goal"
-                }
-              />
+                aria-label={goal.expanded ? "Collapse goal" : "Expand goal"}
+              >
+                <Icon source={goal.expanded ? ChevronUpIcon : ChevronDownIcon} />
+              </button>
             </InlineStack>
           </div>
 
@@ -491,46 +761,128 @@ function GoalCard({
                     <Text variant="bodyMd" as="p" fontWeight="semibold">
                       Select products to give as free gifts
                     </Text>
-                    <Button variant="primary" icon={PlusIcon}>
-                      Add a product
+                    <Button
+                      variant="primary"
+                      icon={PlusIcon}
+                      onClick={() => onOpenProductPicker(index)}
+                      loading={productPickerLoading}
+                    >
+                      {goal.bonusProductId ? "Change product" : "Add a product"}
                     </Button>
+                    {goal.bonusProductId && (
+                      <div className="cg-selectedProduct">
+                        {selectedGiftProduct?.image ? (
+                          <img
+                            src={selectedGiftProduct.image}
+                            alt={selectedGiftProduct.title}
+                            className="cg-selectedProductImage"
+                          />
+                        ) : (
+                          <span className="cg-selectedProductImage cg-selectedProductImageEmpty">
+                            P
+                          </span>
+                        )}
+                        <div className="cg-selectedProductText">
+                          <Text variant="bodySm" as="p" fontWeight="semibold">
+                            {selectedGiftProduct?.title ||
+                              goal.bonusProductTitle ||
+                              goal.bonusProductId.split("/").pop()}
+                          </Text>
+                          {(selectedGiftProduct?.subtitle || goal.bonusProductVariantId) && (
+                            <Text variant="bodySm" as="p" tone="subdued">
+                              {selectedGiftProduct?.subtitle || goal.bonusProductVariantId}
+                            </Text>
+                          )}
+                        </div>
+                        <Button
+                          size="slim"
+                          variant="plain"
+                          tone="critical"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onGoalChange(index, {
+                              bonusProductId: "",
+                              bonusProductTitle: "",
+                              bonusProductVariantId: "",
+                            });
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
+                    {goal.shopifySyncWarning && (
+                      <Banner tone="warning">{goal.shopifySyncWarning}</Banner>
+                    )}
                     <Text variant="bodyMd" as="p" fontWeight="semibold">
                       How many gifts can they choose from this list?
                     </Text>
                     <div className="cg-stepper">
-                      <Button>-</Button>
+                      <Button
+                        onClick={() =>
+                          onGoalChange(index, {
+                            qty: String(Math.max(1, Number(goal.qty || 1) - 1)),
+                          })
+                        }
+                      >
+                        -
+                      </Button>
                       <Text as="span" variant="bodyMd" fontWeight="semibold">
-                        1
+                        {goal.qty || "1"}
                       </Text>
-                      <Button>+</Button>
+                      <Button
+                        onClick={() =>
+                          onGoalChange(index, {
+                            qty: String(Math.max(1, Number(goal.qty || 1) + 1)),
+                          })
+                        }
+                      >
+                        +
+                      </Button>
                     </div>
                   </BlockStack>
                 )}
 
                 {goal.type === "discount" && (
                   <BlockStack gap="300">
-                    <Text variant="bodyMd" as="p" fontWeight="semibold">
-                      Type of order discount
-                    </Text>
-                    <ChoiceList
-                      title="Type of order discount"
-                      titleHidden
-                      choices={[
-                        { label: "Percentage off", value: "percentage" },
-                        { label: "Amount off", value: "amount" },
-                      ]}
-                      selected={[goal.discountType]}
-                      onChange={([discountType]) =>
-                        onGoalChange(index, { discountType })
-                      }
-                    />
+                    <BlockStack gap="200">
+                      <Text variant="bodyMd" as="p" fontWeight="semibold">
+                        Type of order discount
+                      </Text>
+                      <SegmentControl
+                        value={goal.discountType || "percentage"}
+                        onChange={(discountType) =>
+                          onGoalChange(index, {
+                            discountType,
+                            value:
+                              goal.value ||
+                              (discountType === "amount" ? "100" : "20"),
+                          })
+                        }
+                        options={[
+                          { label: "Percentage", value: "percentage" },
+                          { label: "Amount", value: "amount" },
+                        ]}
+                      />
+                    </BlockStack>
                     <TextField
-                      label="Enter the value"
+                      label={
+                        goal.discountType === "amount"
+                          ? "Discount amount"
+                          : "Discount percentage"
+                      }
+                      type="number"
+                      min={0}
                       value={goal.value}
                       onChange={(value) => onGoalChange(index, { value })}
                       suffix={goal.discountType === "percentage" ? "%" : undefined}
                       prefix={goal.discountType === "amount" ? "INR" : undefined}
                       autoComplete="off"
+                      helpText={
+                        goal.discountType === "amount"
+                          ? "Fixed amount off the order."
+                          : "Percentage off the order."
+                      }
                     />
                   </BlockStack>
                 )}
@@ -576,7 +928,7 @@ function PreviewPanel({
   const message = nextGoal
     ? nextGoal.texts.aboveBefore
       .replace("{{goal}}", goalToken)
-      .replace("{{discount}}", `${nextGoal.value || 20}%`)
+      .replace("{{discount}}", formatDiscountValue(nextGoal))
     : "Select a reward type";
 
   return (
@@ -641,7 +993,11 @@ function PreviewPanel({
                       <span className="cg-previewMarker">
                         <Icon source={REWARD_CONFIG[goal.type].icon} />
                       </span>
-                      <span>{goal.previewLabel}</span>
+                      <span>
+                        {goal.type === "discount"
+                          ? `${formatDiscountValue(goal)} Off`
+                          : goal.previewLabel}
+                      </span>
                     </div>
                   );
                 })}
@@ -927,26 +1283,41 @@ export default function RuleCartGoal() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
+  const id = searchParams.get("id");
+  const { rule } = useLoaderData();
   const actionData = useActionData();
   const navigation = useNavigation();
   const submit = useSubmit();
+  const productFetcher = useFetcher();
   const withHost = (path) => (host ? `${path}?host=${encodeURIComponent(host)}` : path);
 
-  const [enabled, setEnabled] = useState(false);
-  const [campaignName, setCampaignName] = useState("Cart Goal 12");
-  const [trackBy, setTrackBy] = useState("value");
-  const [goals, setGoals] = useState([
-    makeGoal("gift", 0),
-    makeGoal("discount", 1),
-    makeGoal("shipping", 2),
-  ]);
+  const [enabled, setEnabled] = useState(rule?.enabled ?? false);
+  const [campaignName, setCampaignName] = useState(rule?.campaignName ?? "Cart Goal 12");
+  const [trackBy, setTrackBy] = useState(rule?.trackBy ?? "value");
+  const [goals, setGoals] = useState(rule?.goals?.length ? rule.goals : defaultGoals());
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [sliderValue, setSliderValue] = useState(0);
   const [shownGoals, setShownGoals] = useState(3);
   const [editingTextIndex, setEditingTextIndex] = useState(null);
   const [openSection, setOpenSection] = useState("goals");
+  const [showGoalValidation, setShowGoalValidation] = useState(false);
+  const [productPickerGoalIndex, setProductPickerGoalIndex] = useState(null);
 
   const isSaving = navigation.state === "submitting";
+  const productPickerItems = (productFetcher.data?.products || []).map((product) => ({
+    id: product.id,
+    title: product.title,
+    subtitle: product.price ? `${product.price}` : undefined,
+    image: product.image,
+    variantId: product.variantId,
+  }));
+  const productPickerLoading = productFetcher.state === "loading";
+
+  useEffect(() => {
+    if (productFetcher.state === "idle" && !productFetcher.data) {
+      productFetcher.load("/api/products");
+    }
+  }, [productFetcher]);
 
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle") {
@@ -958,6 +1329,11 @@ export default function RuleCartGoal() {
     () => [...goals].sort((a, b) => Number(a.goal || 0) - Number(b.goal || 0)),
     [goals]
   );
+  const goalValidationErrors = useMemo(
+    () => getGoalValidationErrors(goals, trackBy),
+    [goals, trackBy]
+  );
+  const hasGoalValidationErrors = goalValidationErrors.some(Boolean);
 
   const addGoal = (type) => {
     setGoals((current) => [
@@ -973,6 +1349,7 @@ export default function RuleCartGoal() {
         goalIndex === index ? { ...goal, ...patch } : goal
       )
     );
+    setShowGoalValidation(true);
   };
 
   const toggleGoal = (index) => {
@@ -995,9 +1372,27 @@ export default function RuleCartGoal() {
     );
   };
 
+  const applyGiftProduct = (productId) => {
+    if (productPickerGoalIndex === null) return;
+    const product = productPickerItems.find((item) => item.id === productId);
+    patchGoal(productPickerGoalIndex, {
+      bonusProductId: productId,
+      bonusProductTitle: product?.title || "",
+      bonusProductVariantId: product?.variantId || "",
+      shopifySyncWarning: null,
+    });
+  };
+
   const handleSave = () => {
+    if (hasGoalValidationErrors) {
+      setShowGoalValidation(true);
+      setOpenSection("goals");
+      return;
+    }
+
     submit(
       {
+        id,
         campaignName,
         enabled,
         trackBy,
@@ -1050,35 +1445,58 @@ export default function RuleCartGoal() {
         }
         .cg-milestoneList {
           display: grid;
-          gap: 34px;
+          gap: 22px;
         }
         .cg-milestoneRow {
           display: grid;
           grid-template-columns: 124px minmax(0, 1fr);
-          gap: 24px;
+          gap: 26px;
           align-items: start;
         }
         .cg-goalAmount {
           min-width: 0;
           padding-left: 10px;
+          position: relative;
+        }
+        .cg-goalLabel {
+          color: #303030;
+          font-size: 14px;
+          font-weight: 650;
+          line-height: 18px;
+        }
+        .cg-goalLabelError {
+          color: #bf0711;
         }
         .cg-goalInput {
           width: 110px;
           max-width: 100%;
           margin-top: 8px;
         }
+        .cg-goalInputError .Polaris-TextField {
+          background: #fff4f4;
+          border-color: #d72c0d;
+          box-shadow: inset 0 0 0 1px #d72c0d;
+        }
+        .cg-goalValidation {
+          width: 110px;
+          margin-top: 6px;
+          color: #bf0711;
+          font-size: 12px;
+          line-height: 15px;
+          font-weight: 550;
+        }
         .cg-goalArrow {
           display: flex;
           width: 110px;
-          height: 26px;
+          height: 42px;
           align-items: center;
           justify-content: center;
           color: #b5b5b5;
-          margin-top: 10px;
+          margin-top: 8px;
         }
         .cg-goalArrow .Polaris-Icon {
-          width: 20px;
-          height: 20px;
+          width: 18px;
+          height: 18px;
         }
         .cg-rewardHeader {
           display: flex;
@@ -1109,23 +1527,120 @@ export default function RuleCartGoal() {
           width: max-content;
           text-align: center;
         }
-        .cg-cardChevron {
+        .cg-selectedProduct {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          border: 1px solid #bfdbfe;
+          border-radius: 8px;
+          background: #f0f7ff;
+          padding: 10px 12px;
+        }
+        .cg-selectedProductImage,
+        .cg-productPickerImage {
+          width: 44px;
+          height: 44px;
+          object-fit: cover;
+          border: 1px solid #e1e3e5;
+          border-radius: 6px;
+          flex-shrink: 0;
+        }
+        .cg-selectedProductImageEmpty,
+        .cg-productPickerImageEmpty {
           display: inline-flex;
-          width: 20px;
-          height: 20px;
           align-items: center;
           justify-content: center;
-          color: #8c9196;
+          background: #f1f3f5;
+          color: #6b7280;
+          font-weight: 700;
         }
-        .cg-cardChevron .Polaris-Icon {
+        .cg-selectedProductText,
+        .cg-productPickerText {
+          display: grid;
+          gap: 2px;
+          min-width: 0;
+          flex: 1;
+        }
+        .cg-productPickerList {
+          max-height: 360px;
+          overflow-y: auto;
+        }
+        .cg-productPickerItem {
+          display: flex;
+          width: 100%;
+          align-items: center;
+          gap: 12px;
+          border: 0;
+          border-bottom: 1px solid #f1f3f5;
+          border-radius: 6px;
+          background: transparent;
+          cursor: pointer;
+          padding: 10px 6px;
+          text-align: left;
+        }
+        .cg-productPickerItem:hover {
+          background: #f9fafb;
+        }
+        .cg-productPickerItemSelected {
+          background: #f0f7ff;
+        }
+        .cg-productPickerSelectedText {
+          color: #2563eb;
+          flex-shrink: 0;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .cg-doneButton {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          background: #fff;
+          color: #111827;
+          cursor: pointer;
+          font: inherit;
+          font-weight: 650;
+          min-height: 32px;
+          padding: 5px 8px;
+        }
+        .cg-doneButton:hover {
+          background: #f9fafb;
+        }
+        .cg-doneIcon {
+          display: inline-flex;
+          width: 16px;
+          height: 16px;
+          color: #111827;
+        }
+        .cg-doneIcon .Polaris-Icon {
           width: 100%;
           height: 100%;
         }
-        .cg-cardChevronOpen {
-          width: 28px;
-          height: 28px;
+        .cg-chevronButton {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border: 0;
+          border-radius: 6px;
+          background: transparent;
+          color: #8c9196;
+          cursor: pointer;
+          padding: 0;
         }
-        .cg-cardChevronClosed {
+        .cg-chevronButton:hover {
+          background: #f6f6f7;
+        }
+        .cg-chevronButton .Polaris-Icon {
+          width: 100%;
+          height: 100%;
+          margin: 0;
+        }
+        .cg-chevronButtonOpen {
+          width: 30px;
+          height: 30px;
+        }
+        .cg-chevronButtonClosed {
           width: 16px;
           height: 16px;
         }
@@ -1315,6 +1830,12 @@ export default function RuleCartGoal() {
                         index={index}
                         isLast={index === goals.length - 1}
                         trackBy={trackBy}
+                        validationError={
+                          showGoalValidation ? goalValidationErrors[index] : ""
+                        }
+                        productPickerItems={productPickerItems}
+                        productPickerLoading={productPickerLoading}
+                        onOpenProductPicker={setProductPickerGoalIndex}
                         onGoalChange={patchGoal}
                         onToggle={toggleGoal}
                         onDelete={(goalIndex) =>
@@ -1392,6 +1913,18 @@ export default function RuleCartGoal() {
         index={editingTextIndex || 0}
         onClose={() => setEditingTextIndex(null)}
         onChange={patchGoalText}
+      />
+      <ProductPickerModal
+        open={productPickerGoalIndex !== null}
+        onClose={() => setProductPickerGoalIndex(null)}
+        items={productPickerItems}
+        loading={productPickerLoading}
+        selected={
+          productPickerGoalIndex === null
+            ? ""
+            : goals[productPickerGoalIndex]?.bonusProductId || ""
+        }
+        onApply={applyGiftProduct}
       />
     </Page>
   );

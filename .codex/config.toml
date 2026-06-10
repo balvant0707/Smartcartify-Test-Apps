@@ -11,3 +11,12 @@ LIQUID = "true"
 
 [mcp_servers.shopify-dev-mcp.tools.validate_component_codeblocks]
 approval_mode = "approve"
+
+[mcp_servers.shopify-dev-mcp.tools.learn_shopify_api]
+approval_mode = "approve"
+
+[mcp_servers.shopify-dev-mcp.tools.search_docs_chunks]
+approval_mode = "approve"
+
+[mcp_servers.shopify-dev-mcp.tools.validate_graphql_codeblocks]
+approval_mode = "approve"

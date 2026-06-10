@@ -442,22 +442,40 @@ async function findDeliveryMethodDefinitionWithRetry(admin, profileId, name, pri
  * Create or update a free-shipping automatic discount.
  * Returns the Shopify discount GID string.
  */
-export async function upsertFreeShipping(admin, { existingId, title, startsAt, endsAt, minSubtotal, enabled = true }) {
+function discountMinimumRequirement({ minReqType, minSubtotal, minQuantity }) {
+  return minReqType === "quantity"
+    ? {
+        quantity: {
+          greaterThanOrEqualToQuantity: String(Math.max(1, Math.floor(Number(minQuantity || 1)))),
+        },
+      }
+    : {
+        subtotal: {
+          greaterThanOrEqualToSubtotal: String(parseFloat(minSubtotal || "0")),
+        },
+      };
+}
+
+export async function upsertFreeShipping(admin, {
+  existingId, title, startsAt, endsAt, minSubtotal, minQuantity, minReqType = "subtotal", enabled = true,
+}) {
   const input = {
     title: withAppNameTitle(title, "Free Shipping"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
-    minimumRequirement: {
-      subtotal: { greaterThanOrEqualToSubtotal: String(parseFloat(minSubtotal || "0")) },
-    },
+    minimumRequirement: discountMinimumRequirement({ minReqType, minSubtotal, minQuantity }),
     destinationSelection: { all: true },
   };
 
   if (existingId) {
     const data = await gql(admin, FREE_SHIPPING_UPDATE, { id: existingId, input });
+    assertDiscountMutationSuccess(data, "discountAutomaticFreeShippingUpdate", "Shopify free shipping discount update");
     return data?.data?.discountAutomaticFreeShippingUpdate?.automaticDiscountNode?.id || existingId;
   }
   const data = await gql(admin, FREE_SHIPPING_CREATE, { input });
-  return data?.data?.discountAutomaticFreeShippingCreate?.automaticDiscountNode?.id || null;
+  assertDiscountMutationSuccess(data, "discountAutomaticFreeShippingCreate", "Shopify free shipping discount create");
+  const createdId = data?.data?.discountAutomaticFreeShippingCreate?.automaticDiscountNode?.id;
+  if (!createdId) throw new Error("Shopify free shipping discount create failed: missing discount id");
+  return createdId;
 }
 
 /**
@@ -563,13 +581,13 @@ export async function upsertShippingRate(admin, { existingId, title, rewardType,
  * Returns the Shopify discount GID string.
  */
 export async function upsertAutomaticBasic(admin, {
-  existingId, title, startsAt, endsAt, minSubtotal, isPercentage, discountValue, enabled = true,
+  existingId, title, startsAt, endsAt, minSubtotal, minQuantity, minReqType = "subtotal", isPercentage, discountValue, enabled = true,
 }) {
   const input = {
     title: withAppNameTitle(title, "Automatic Discount"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
-    minimumRequirement: minSubtotal
-      ? { subtotal: { greaterThanOrEqualToSubtotal: String(parseFloat(minSubtotal)) } }
+    minimumRequirement: minReqType === "quantity" || minSubtotal
+      ? discountMinimumRequirement({ minReqType, minSubtotal, minQuantity })
       : undefined,
     customerGets: {
       value: isPercentage
