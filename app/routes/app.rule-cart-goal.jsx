@@ -146,11 +146,11 @@ export const action = async ({ request }) => {
   return { success: true };
 };
 
-function makeGoal(type, index) {
+function makeGoal(type, index, expanded = false) {
   const config = REWARD_CONFIG[type];
   return {
     ...config,
-    expanded: true,
+    expanded,
     goal: String(Number(config.goal) + Math.floor(index / 3) * 50),
     texts: { ...config.texts },
   };
@@ -222,14 +222,16 @@ function GoalCard({ goal, index, isLast, onGoalChange, onToggle, onDelete }) {
           {index + 1}
           {index === 0 ? "st" : index === 1 ? "nd" : "rd"} goal
         </Text>
-        <TextField
-          label="Goal amount"
-          labelHidden
-          prefix="INR"
-          value={goal.goal}
-          onChange={(value) => onGoalChange(index, { goal: value })}
-          autoComplete="off"
-        />
+        <div className="cg-goalInput">
+          <TextField
+            label="Goal amount"
+            labelHidden
+            prefix="INR"
+            value={goal.goal}
+            onChange={(value) => onGoalChange(index, { goal: value })}
+            autoComplete="off"
+          />
+        </div>
         {!isLast && <div className="cg-downArrow">v</div>}
       </div>
 
@@ -704,7 +706,11 @@ export default function RuleCartGoal() {
   const [enabled, setEnabled] = useState(false);
   const [campaignName, setCampaignName] = useState("Cart Goal 10");
   const [trackBy, setTrackBy] = useState("value");
-  const [goals, setGoals] = useState([]);
+  const [goals, setGoals] = useState([
+    makeGoal("gift", 0),
+    makeGoal("shipping", 1),
+    makeGoal("discount", 2),
+  ]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [sliderValue, setSliderValue] = useState(0);
   const [shownGoals, setShownGoals] = useState(3);
@@ -724,7 +730,10 @@ export default function RuleCartGoal() {
   );
 
   const addGoal = (type) => {
-    setGoals((current) => [...current, makeGoal(type, current.length)]);
+    setGoals((current) => [
+      ...current.map((goal) => ({ ...goal, expanded: false })),
+      makeGoal(type, current.length, true),
+    ]);
     setAddMenuOpen(false);
   };
 
@@ -734,6 +743,16 @@ export default function RuleCartGoal() {
         goalIndex === index ? { ...goal, ...patch } : goal
       )
     );
+  };
+
+  const toggleGoal = (index) => {
+    setGoals((current) => {
+      const isOpening = !current[index]?.expanded;
+      return current.map((goal, goalIndex) => ({
+        ...goal,
+        expanded: isOpening && goalIndex === index,
+      }));
+    });
   };
 
   const patchGoalText = (index, field, value) => {
@@ -775,7 +794,7 @@ export default function RuleCartGoal() {
       ]}
     >
       <style>{`
-        .cg-layout{display:grid;grid-template-columns:minmax(0,7fr) minmax(320px,3fr);gap:20px;align-items:start}.cg-info{display:flex;align-items:flex-start;gap:12px;background:#e5f2ff;color:#00527c;border-radius:8px;padding:14px 16px}.cg-milestoneList{display:grid;gap:16px}.cg-milestoneRow{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px}.cg-goalAmount{padding-left:10px}.cg-downArrow{text-align:center;color:#b5b5b5;font-size:24px;line-height:32px}.cg-rewardHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 14px 12px}.cg-rewardIcon{width:24px;color:#444}.cg-stepper{display:inline-grid;grid-template-columns:44px 64px 44px;align-items:center;gap:8px;background:#f1f1f1;border-radius:8px;padding:6px;width:max-content;text-align:center}.cg-paused{display:flex;align-items:center;gap:10px;background:#fff8db;border:1px solid #f2d94e;border-bottom:2px solid #f2d94e;border-radius:12px;color:#6a4c00;padding:12px 18px}.cg-previewCanvas{background:#f7f7f7;min-height:156px;padding:18px 20px 34px;border-bottom:1px solid #e1e3e5}.cg-progressWrap{position:relative;margin-top:18px;padding:0 0 72px}.cg-previewTrack{height:6px;background:#e1e3e5;border-radius:999px;overflow:hidden}.cg-previewFill{height:100%;background:#303030;border-radius:999px}.cg-previewMilestone{position:absolute;top:-22px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;line-height:15px;text-align:center;color:#444;min-width:82px}.cg-previewStep{font-size:11px;line-height:13px;color:#6d7175;font-weight:650}.cg-previewMarker{width:20px;height:20px;border-radius:999px;background:#303030;color:#fff;display:flex;align-items:center;justify-content:center}.cg-previewGoalValue{font-size:11px;line-height:13px;color:#6d7175}.cg-contentItem+.cg-contentItem{border-top:1px solid #e1e3e5}.cg-contentItemHeader{display:flex;align-items:center;justify-content:space-between;padding:12px}.cg-contentItemBody{display:flex;align-items:center;justify-content:space-between;background:#f6f6f6;padding:14px 22px}.cg-modalFields{display:grid;gap:20px;max-height:660px;overflow:auto;padding-right:8px}.cg-tokenField{position:relative}.cg-tokenField .Polaris-Button{position:absolute;right:0;top:0}.cg-targetBox{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:center;border:1px solid #e1e3e5;border-radius:9px;padding:18px}.cg-targetIcon{width:44px;height:44px;border-radius:999px;background:#efe3ff;color:#7a36ff;display:flex;align-items:center;justify-content:center;font-weight:800}@media(max-width:1050px){.cg-layout{grid-template-columns:1fr}}@media(max-width:700px){.cg-rewardHeader,.cg-contentItemHeader,.cg-contentItemBody{align-items:flex-start;flex-direction:column}.cg-milestoneRow,.cg-targetBox{grid-template-columns:1fr}}
+        .cg-layout{display:grid;grid-template-columns:minmax(0,7fr) minmax(320px,3fr);gap:20px;align-items:start}.cg-info{display:flex;align-items:flex-start;gap:12px;background:#e5f2ff;color:#00527c;border-radius:8px;padding:14px 16px}.cg-milestoneList{display:grid;gap:16px}.cg-milestoneRow{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px}.cg-goalAmount{padding-left:10px}.cg-goalInput{width:168px;max-width:100%;margin-top:6px}.cg-downArrow{text-align:center;color:#b5b5b5;font-size:24px;line-height:32px}.cg-rewardHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 14px 12px}.cg-rewardIcon{width:24px;color:#444}.cg-stepper{display:inline-grid;grid-template-columns:44px 64px 44px;align-items:center;gap:8px;background:#f1f1f1;border-radius:8px;padding:6px;width:max-content;text-align:center}.cg-paused{display:flex;align-items:center;gap:10px;background:#fff8db;border:1px solid #f2d94e;border-bottom:2px solid #f2d94e;border-radius:12px;color:#6a4c00;padding:12px 18px}.cg-previewCanvas{background:#f7f7f7;min-height:156px;padding:18px 20px 34px;border-bottom:1px solid #e1e3e5}.cg-progressWrap{position:relative;margin-top:18px;padding:0 0 72px}.cg-previewTrack{height:6px;background:#e1e3e5;border-radius:999px;overflow:hidden}.cg-previewFill{height:100%;background:#303030;border-radius:999px}.cg-previewMilestone{position:absolute;top:-22px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;line-height:15px;text-align:center;color:#444;min-width:82px}.cg-previewStep{font-size:11px;line-height:13px;color:#6d7175;font-weight:650}.cg-previewMarker{width:20px;height:20px;border-radius:999px;background:#303030;color:#fff;display:flex;align-items:center;justify-content:center}.cg-previewGoalValue{font-size:11px;line-height:13px;color:#6d7175}.cg-contentItem+.cg-contentItem{border-top:1px solid #e1e3e5}.cg-contentItemHeader{display:flex;align-items:center;justify-content:space-between;padding:12px}.cg-contentItemBody{display:flex;align-items:center;justify-content:space-between;background:#f6f6f6;padding:14px 22px}.cg-modalFields{display:grid;gap:20px;max-height:660px;overflow:auto;padding-right:8px}.cg-tokenField{position:relative}.cg-tokenField .Polaris-Button{position:absolute;right:0;top:0}.cg-targetBox{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:center;border:1px solid #e1e3e5;border-radius:9px;padding:18px}.cg-targetIcon{width:44px;height:44px;border-radius:999px;background:#efe3ff;color:#7a36ff;display:flex;align-items:center;justify-content:center;font-weight:800}@media(max-width:1050px){.cg-layout{grid-template-columns:1fr}}@media(max-width:700px){.cg-rewardHeader,.cg-contentItemHeader,.cg-contentItemBody{align-items:flex-start;flex-direction:column}.cg-milestoneRow,.cg-targetBox{grid-template-columns:1fr}.cg-goalInput{width:100%;max-width:220px}}
       `}</style>
 
       <Box paddingBlockEnd="800">
@@ -821,9 +840,7 @@ export default function RuleCartGoal() {
                         index={index}
                         isLast={index === goals.length - 1}
                         onGoalChange={patchGoal}
-                        onToggle={(goalIndex) =>
-                          patchGoal(goalIndex, { expanded: !goals[goalIndex].expanded })
-                        }
+                        onToggle={toggleGoal}
                         onDelete={(goalIndex) =>
                           setGoals((current) =>
                             current.filter((_, currentIndex) => currentIndex !== goalIndex)

@@ -705,6 +705,8 @@ export default function CampaignSelector() {
         <Box paddingBlockStart="300">
           <div
             style={{
+              maxWidth: "1120px",
+              width: "100%",
               border: "1px solid #e1e3e5",
               borderRadius: "12px",
               overflow: "hidden",
@@ -724,7 +726,7 @@ export default function CampaignSelector() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0, 7fr) minmax(300px, 3fr)",
+                gridTemplateColumns: "minmax(0, 7fr) minmax(280px, 3fr)",
                 minHeight: "560px",
               }}
             >
