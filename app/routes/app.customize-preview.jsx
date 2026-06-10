@@ -336,9 +336,9 @@ export const loader = async ({ request }) => {
 
   return {
     style: styleWithIcon || null,
-    shippingRules: shippingRules || [],
-    discountRules: discountRules || [],
-    freeGiftRules: freeGiftRules || [],
+    shippingRules: [],
+    discountRules: [],
+    freeGiftRules: [],
     upsellSettings: upsellSettings || null,
     upsellPreviewItems,
     bxgyRules: bxgyRules || [],

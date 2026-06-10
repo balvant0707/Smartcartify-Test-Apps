@@ -277,7 +277,7 @@ export const loader = async ({ request }) => {
   const shop = session?.shop ?? null;
   const appEmbedOwnerId =
     process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_SMART_CART_ID || "";
-  const [shopRecord, shippingRuleCount, discountRuleCount, freeGiftRuleCount, bxgyRuleCount] =
+  const [shopRecord, codeDiscountRuleCount, bxgyRuleCount] =
     shop
       ? await Promise.all([
           prisma.shop.findUnique({
@@ -286,12 +286,10 @@ export const loader = async ({ request }) => {
               reviewSubmittedAt: true,
             },
           }),
-          prisma.shippingRule.count({ where: { shop } }),
-          prisma.discountRule.count({ where: { shop } }),
-          prisma.freeGiftRule.count({ where: { shop } }),
+          prisma.discountRule.count({ where: { shop, type: "code" } }),
           prisma.bxgyRule.count({ where: { shop } }),
         ])
-      : [null, 0, 0, 0, 0];
+      : [null, 0, 0];
 
   let embedEnabled = false;
   let debug = null;
@@ -306,9 +304,7 @@ export const loader = async ({ request }) => {
   }
 
   const totalRulesCount =
-    Number(shippingRuleCount || 0) +
-    Number(discountRuleCount || 0) +
-    Number(freeGiftRuleCount || 0) +
+    Number(codeDiscountRuleCount || 0) +
     Number(bxgyRuleCount || 0);
   const shouldShowReviewPopup = Boolean(
     shopRecord &&

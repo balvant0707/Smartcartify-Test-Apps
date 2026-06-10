@@ -17,6 +17,8 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
 
+const HIDDEN_CAMPAIGN_TYPES = new Set(["shipping", "automatic-discount", "free-product"]);
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 // Reads from all four legacy rule tables: ShippingRule, DiscountRule,
 // FreeGiftRule, BxgyRule. Returns a unified `rules` array for the "My rules"
@@ -147,7 +149,9 @@ export const loader = async ({ request }) => {
       meta: `${r.shownGoals || 3} goal${r.shownGoals === 1 ? "" : "s"} shown · ${r.trackBy === "quantity" ? "Quantity" : "Cart value"}`,
       cartStep: "Cart Drawer",
     })),
-  ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  ]
+    .filter((rule) => !HIDDEN_CAMPAIGN_TYPES.has(rule.ruleType))
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
   return { rules };
 };
@@ -165,6 +169,9 @@ export const action = async ({ request }) => {
     const shop = session.shop;
 
     switch (body.ruleType) {
+      case "cart-goal":
+        await prisma.cartGoalRule.deleteMany({ where: { id, shop } });
+        break;
       case "shipping":
         await prisma.shippingRule.deleteMany({ where: { id, shop } });
         break;
@@ -177,9 +184,6 @@ export const action = async ({ request }) => {
         break;
       case "buy-x-get-y":
         await prisma.bxgyRule.deleteMany({ where: { id, shop } });
-        break;
-      case "cart-goal":
-        await prisma.cartGoalRule.deleteMany({ where: { id, shop } });
         break;
       default:
         return { error: "Unknown rule type" };
@@ -195,6 +199,27 @@ export const action = async ({ request }) => {
 const ICO = (name) => `/images/campaigns/${name}`;
 
 const RULE_TYPES = [
+  {
+    id: "cart-goal",
+    category: "goals",
+    title: "Cart Goal",
+    subtitle: "Motivate customers to spend more with tiered rewards",
+    icon: ICO("campaign-ico-cart-goal.svg"),
+    preview: {
+      title: "Cart Goal",
+      description:
+        "Encourage higher order values by setting a cart goal. Show customers a progress bar indicating how close they are to unlocking special rewards.",
+      banner: ICO("campaign-banner-cart-goal.svg"),
+      bannerBg: "#fdf4ff",
+      aovBoost: "Upto 15%",
+      setupTime: "2-4 mins",
+      usecases: [
+        "Offer a tiered discount (e.g., 10% off $100, 20% off $200).",
+        "Show a progress bar for unlocking a special gift.",
+        "Motivate customers to add one more item to reach the goal.",
+      ],
+    },
+  },
   {
     id: "shipping",
     category: "shipping",
@@ -321,27 +346,7 @@ const RULE_TYPES = [
       ],
     },
   },
-  {
-    id: "cart-goal",
-    category: "goals",
-    title: "Cart Goal",
-    subtitle: "Motivate customers to spend more with tiered rewards",
-    icon: ICO("campaign-ico-cart-goal.svg"),
-    preview: {
-      title: "Cart Goal",
-      description:
-        "Encourage higher order values by setting a cart goal. Show customers a progress bar indicating how close they are to unlocking special rewards.",
-      banner: ICO("campaign-banner-cart-goal.svg"),
-      bannerBg: "#fdf4ff",
-      aovBoost: "Upto 15%",
-      setupTime: "2-4 mins",
-      usecases: [
-        "Offer a tiered discount (e.g., 10% off $100, 20% off $200).",
-        "Show a progress bar for unlocking a special gift.",
-        "Motivate customers to add one more item to reach the goal.",
-      ],
-    },
-  },
+
   {
     id: "customize-preview",
     category: "customize",
@@ -368,13 +373,13 @@ const RULE_TYPES = [
 
 const TABS = [
   { id: "all", content: "All" },
-  { id: "shipping", content: "Shipping" },
   { id: "discounts", content: "Discounts" },
-  { id: "free-products", content: "Free Products" },
   { id: "upsell", content: "Upsell" },
   { id: "goals", content: "Goals" },
   { id: "customize", content: "Customize" },
 ];
+
+const AVAILABLE_RULE_TYPES = RULE_TYPES.filter((rule) => !HIDDEN_CAMPAIGN_TYPES.has(rule.id));
 
 // Maps rule-type ID → dedicated editor route
 const RULE_ROUTES = {
@@ -617,7 +622,114 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
     </div>
   );
 }
-const RulesTable = null;
+function RulesTable({ rules, onEdit, onDelete }) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e1e3e5",
+        borderRadius: "12px",
+        overflow: "hidden",
+      }}
+    >
+      <Box padding="400">
+        <Text variant="headingSm" as="h2" fontWeight="semibold">
+          Existing campaign rules
+        </Text>
+      </Box>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(220px, 1fr) 150px 130px 130px 104px",
+          gap: "12px",
+          padding: "10px 20px",
+          background: "#f9fafb",
+          borderTop: "1px solid #e1e3e5",
+          borderBottom: "1px solid #e1e3e5",
+        }}
+      >
+        {["Rule", "Type", "Status", "Updated", "Actions"].map((heading) => (
+          <Text key={heading} variant="bodySm" fontWeight="semibold" tone="subdued" as="p">
+            {heading}
+          </Text>
+        ))}
+      </div>
+
+      {rules.map((rule, index) => {
+        const meta = RULE_META[rule.ruleType] || {};
+        const isLast = index === rules.length - 1;
+        return (
+          <div
+            key={`${rule.ruleType}-${rule.id}`}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(220px, 1fr) 150px 130px 130px 104px",
+              gap: "12px",
+              alignItems: "center",
+              padding: "14px 20px",
+              borderBottom: isLast ? "none" : "1px solid #f1f3f5",
+            }}
+          >
+            <InlineStack gap="300" blockAlign="center" wrap={false}>
+              <span
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "8px",
+                  background: meta.bg || "#f3f4f6",
+                  color: meta.color || "#6b7280",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <Icon source={meta.icon || DiscountIcon} />
+              </span>
+              <Box minWidth="0">
+                <Text variant="bodyMd" fontWeight="semibold" as="p" truncate>
+                  {rule.name}
+                </Text>
+                <Text variant="bodySm" tone="subdued" as="p">
+                  {rule.meta}
+                </Text>
+              </Box>
+            </InlineStack>
+            <Text variant="bodySm" as="p">
+              {meta.label || rule.ruleType}
+            </Text>
+            <Badge tone={STATUS_TONE[rule.status] || "info"}>
+              {rule.status === "active" ? "Active" : "Disabled"}
+            </Badge>
+            <Text variant="bodySm" tone="subdued" as="p">
+              {new Date(rule.updatedAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </Text>
+            <InlineStack gap="200">
+              <Button
+                size="slim"
+                icon={EditIcon}
+                onClick={() => onEdit(rule)}
+                accessibilityLabel={`Edit ${rule.name}`}
+              />
+              <Button
+                size="slim"
+                icon={DeleteIcon}
+                tone="critical"
+                variant="plain"
+                onClick={() => onDelete(rule)}
+                accessibilityLabel={`Delete ${rule.name}`}
+              />
+            </InlineStack>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function CampaignSelector() {
   const navigate = useNavigate();
@@ -628,7 +740,7 @@ export default function CampaignSelector() {
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
-  const [selectedId, setSelectedId] = useState("shipping");
+  const [selectedId, setSelectedId] = useState("code-discount");
   const [creatingRuleId, setCreatingRuleId] = useState(null);
 
   // Build URL for a rule editor page, appending host if present.
@@ -663,40 +775,32 @@ export default function CampaignSelector() {
   };
 
   const activeCategory = TABS[selectedTabIndex].id;
-  const selected = RULE_TYPES.find((r) => r.id === selectedId);
+  const selected = AVAILABLE_RULE_TYPES.find((r) => r.id === selectedId);
 
   const groupedTypes =
     activeCategory === "all"
       ? [
         {
-          label: "Shipping",
-          items: RULE_TYPES.filter((r) => r.category === "shipping"),
-        },
-        {
           label: "Discounts",
-          items: RULE_TYPES.filter((r) => r.category === "discounts"),
-        },
-        {
-          label: "Free Products",
-          items: RULE_TYPES.filter((r) => r.category === "free-products"),
+          items: AVAILABLE_RULE_TYPES.filter((r) => r.category === "discounts"),
         },
         {
           label: "Upsell",
-          items: RULE_TYPES.filter((r) => r.category === "upsell"),
+          items: AVAILABLE_RULE_TYPES.filter((r) => r.category === "upsell"),
         },
         {
           label: "Goals",
-          items: RULE_TYPES.filter((r) => r.category === "goals"),
+          items: AVAILABLE_RULE_TYPES.filter((r) => r.category === "goals"),
         },
         {
           label: "Customize",
-          items: RULE_TYPES.filter((r) => r.category === "customize"),
+          items: AVAILABLE_RULE_TYPES.filter((r) => r.category === "customize"),
         },
       ]
       : [
         {
           label: null,
-          items: RULE_TYPES.filter((r) => r.category === activeCategory),
+          items: AVAILABLE_RULE_TYPES.filter((r) => r.category === activeCategory),
         },
       ];
 
@@ -706,8 +810,8 @@ export default function CampaignSelector() {
     const category = TABS[index].id;
     const first =
       category === "all"
-        ? RULE_TYPES[0]
-        : RULE_TYPES.find((r) => r.category === category);
+        ? AVAILABLE_RULE_TYPES[0]
+        : AVAILABLE_RULE_TYPES.find((r) => r.category === category);
     if (first) setSelectedId(first.id);
   };
 

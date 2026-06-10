@@ -461,7 +461,8 @@ export const action = async ({ request }) => {
 
   let record;
   if (Number.isFinite(id)) {
-    record = await prisma.cartGoalRule.update({ where: { id }, data });
+    await prisma.cartGoalRule.updateMany({ where: { id, shop: session.shop }, data });
+    record = { id };
   } else {
     record = await prisma.cartGoalRule.create({ data });
   }

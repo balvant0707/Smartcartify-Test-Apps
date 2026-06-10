@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   useNavigate, useSearchParams, useSubmit,
-  useActionData, useLoaderData, useNavigation, useFetcher,
+  useActionData, useLoaderData, useNavigation, useFetcher, redirect,
 } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
@@ -93,6 +93,8 @@ async function cartStepAlreadyUsed(prisma, shop, cartStepName, currentId = null)
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export const loader = async ({ request }) => {
+  return redirect("/app/campaigns");
+
   const { authenticate } = await import("../shopify.server");
   const { default: prisma } = await import("../db.server");
   const { session } = await authenticate.admin(request);
@@ -117,6 +119,8 @@ export const loader = async ({ request }) => {
 // ─── Action ──────────────────────────────────────────────────────────────────
 
 export const action = async ({ request }) => {
+  return redirect("/app/campaigns");
+
   const { authenticate } = await import("../shopify.server");
   const { syncFreeProductDiscountsToShopify } = await import("../lib/minAmountFreeGift.server");
   const { default: prisma } = await import("../db.server");

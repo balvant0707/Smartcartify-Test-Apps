@@ -359,6 +359,37 @@ const parseJsonArray = (value) => {
   }
 };
 
+const parseCartGoalArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const cartGoalScheduleDateTime = (date, time) => {
+  if (!date) return null;
+  const trimmedDate = String(date || "").trim();
+  const trimmedTime = String(time || "").trim();
+  if (!trimmedDate) return null;
+
+  const parsed = new Date(trimmedTime ? `${trimmedDate} ${trimmedTime}` : trimmedDate);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const mapCartGoalRuleForProxy = (rule = {}) => ({
+  ...rule,
+  goals: parseCartGoalArray(rule.goals),
+  targetingRules: parseCartGoalArray(rule.targetingRules),
+  startsAt: cartGoalScheduleDateTime(rule.startDate, rule.startTime),
+  endsAt: rule.hasEndDate
+    ? cartGoalScheduleDateTime(rule.endDate, rule.endTime)
+    : null,
+});
+
 const normalizeProductId = (value) => {
   const raw = String(value || "").trim();
   if (!raw) return null;
@@ -619,6 +650,7 @@ export const loader = async ({ request }) => {
         discountRules,
         freeGiftRules,
         bxgyRules,
+        cartGoalRules,
         styleSettings,
         upsellSettings,
         addToCartBarSettings,
@@ -628,6 +660,7 @@ export const loader = async ({ request }) => {
         safeDiscountRules(),
         safeFreeGiftRules(),
         prisma.bxgyRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
+        prisma.cartGoalRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
         prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } }),
         prisma.upsellSettings.findUnique({ where: { shop } }),
         safeCartBarSettings(),
@@ -723,6 +756,7 @@ export const loader = async ({ request }) => {
         _rawDiscountRules: discountRules,
         _rawFreeGiftRules: freeGiftRules,
         _rawBxgyRules: bxgyRules,
+        _rawCartGoalRules: cartGoalRules.map(mapCartGoalRuleForProxy),
         styleSettings: styleSettingsWithCartIcon ?? null,
         upsellSettings: upsellSettings ?? null,
         addToCartBarSettings: {
@@ -740,28 +774,27 @@ export const loader = async ({ request }) => {
     const scheduleNow = new Date();
     const ruleContext = getRequestContext(request);
 
+    const activeCodeDiscountRules = filterActiveScheduledRules(
+      shopData._rawDiscountRules,
+      scheduleNow,
+      ruleContext
+    ).filter((rule) => String(rule?.type || "").toLowerCase() === "code");
+
     return jsonResponse(
       {
         ok: true,
         shop,
         authorized: shopData.authorized,
         metadata: shopData.metadata,
-        shippingRules: filterActiveScheduledRules(
-          shopData._rawShippingRules,
-          scheduleNow,
-          ruleContext
-        ),
-        discountRules: filterActiveScheduledRules(
-          shopData._rawDiscountRules,
-          scheduleNow,
-          ruleContext
-        ),
-        freeGiftRules: filterActiveScheduledRules(
-          shopData._rawFreeGiftRules,
-          scheduleNow,
-          ruleContext
-        ),
+        shippingRules: [],
+        discountRules: activeCodeDiscountRules,
+        freeGiftRules: [],
         bxgyRules: filterActiveScheduledRules(shopData._rawBxgyRules, scheduleNow, ruleContext),
+        cartGoalRules: filterActiveScheduledRules(
+          shopData._rawCartGoalRules,
+          scheduleNow,
+          ruleContext
+        ),
         styleSettings: shopData.styleSettings,
         upsellSettings: shopData.upsellSettings,
         addToCartBarSettings: shopData.addToCartBarSettings,

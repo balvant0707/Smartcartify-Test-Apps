@@ -92,6 +92,8 @@ async function cartStepAlreadyUsed(prisma, shop, cartStepName, currentId = null)
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export const loader = async ({ request }) => {
+  return redirect("/app/campaigns");
+
   const { authenticate } = await import("../shopify.server");
   const { default: prisma } = await import("../db.server");
   const { session } = await authenticate.admin(request);
@@ -116,6 +118,8 @@ export const loader = async ({ request }) => {
 // ─── Action ──────────────────────────────────────────────────────────────────
 
 export const action = async ({ request }) => {
+  return redirect("/app/campaigns");
+
   const { authenticate } = await import("../shopify.server");
   const { upsertShippingRate } = await import("../shopify-discount.server");
   const { default: prisma } = await import("../db.server");

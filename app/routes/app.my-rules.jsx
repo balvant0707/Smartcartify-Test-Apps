@@ -12,6 +12,8 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
 
+const HIDDEN_CAMPAIGN_TYPES = new Set(["shipping", "automatic-discount", "free-product"]);
+
 function formatCartStep(value) {
   if (value === undefined || value === null) return "";
   const text = String(value).trim();
@@ -147,7 +149,9 @@ export const loader = async ({ request }) => {
       meta: `${r.shownGoals || 3} goal${r.shownGoals === 1 ? "" : "s"} shown · ${r.trackBy === "quantity" ? "Quantity" : "Cart value"}`,
       cartStep: "Cart Drawer",
     })),
-  ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  ]
+    .filter((rule) => !HIDDEN_CAMPAIGN_TYPES.has(rule.ruleType))
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
   return { rules };
 };
@@ -292,9 +296,6 @@ const RULE_META = {
 
 const TABS = [
   { id: "all",              content: "All rules" },
-  { id: "shipping",         content: "Shipping" },
-  { id: "automatic-discount", content: "Automatic Discount" },
-  { id: "free-product",     content: "Free Product Discount" },
   { id: "code-discount",    content: "Code Discount" },
   { id: "buy-x-get-y",      content: "Buy X Get Y Discount" },
   { id: "cart-goal",        content: "Cart Goal" },

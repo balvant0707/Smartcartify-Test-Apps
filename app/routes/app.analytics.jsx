@@ -87,17 +87,17 @@ const BASE_SELECT = {
   customerTarget: true,
 };
 
-const queryRules = async (model, shop) => {
+const queryRules = async (model, shop, where = {}) => {
   try {
     return await model.findMany({
-      where: { shop },
+      where: { shop, ...where },
       orderBy: [{ analyticsConversions: "desc" }, { analyticsImpressions: "desc" }],
       select: RULE_SELECT,
     });
   } catch {
     try {
       const rows = await model.findMany({
-        where: { shop },
+        where: { shop, ...where },
         orderBy: [{ id: "asc" }],
         select: BASE_SELECT,
       });
@@ -150,19 +150,15 @@ export const loader = async ({ request }) => {
   const shop = session.shop;
 
   try {
-    const [shippingRows, discountRows, freeGiftRows, bxgyRows] =
+    const [discountRows, bxgyRows] =
       await Promise.all([
-        queryRules(prisma.shippingRule, shop),
-        queryRules(prisma.discountRule, shop),
-        queryRules(prisma.freeGiftRule, shop),
+        queryRules(prisma.discountRule, shop, { type: "code" }),
         queryRules(prisma.bxgyRule, shop),
       ]);
 
-    const shipping = normalizeRuleRows(shippingRows, "Shipping", "Shipping rule");
-    const discounts = normalizeRuleRows(discountRows, "Discount", "Discount rule");
-    const freeGift = normalizeRuleRows(freeGiftRows, "Free gift", "Free gift rule");
+    const discounts = normalizeRuleRows(discountRows, "Code discount", "Code discount rule");
     const bxgy = normalizeRuleRows(bxgyRows, "BXGY", "BXGY rule");
-    const rules = [...shipping, ...discounts, ...freeGift, ...bxgy].sort((a, b) => {
+    const rules = [...discounts, ...bxgy].sort((a, b) => {
       if (b.conversions !== a.conversions) return b.conversions - a.conversions;
       if (b.impressions !== a.impressions) return b.impressions - a.impressions;
       return b.priority - a.priority;
@@ -184,9 +180,7 @@ export const loader = async ({ request }) => {
         conversionRate: conversionRate(totalConversions, totalImpressions),
       },
       byType: [
-        summarizeType(shipping, "Shipping"),
-        summarizeType(discounts, "Discount"),
-        summarizeType(freeGift, "Free gift"),
+        summarizeType(discounts, "Code discount"),
         summarizeType(bxgy, "BXGY"),
       ],
       topRule,
