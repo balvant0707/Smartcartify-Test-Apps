@@ -789,7 +789,7 @@ export default function CampaignSelector() {
                           </Text>
                         </Box>
                       )}
-                      <BlockStack gap="250">
+                      <BlockStack gap="350">
                         {group.items.map((ruleType) => (
                           <RuleTypeListItem
                             key={ruleType.id}
