@@ -269,6 +269,17 @@ const resolveGiftVariantId = async (shopDomain, accessToken, giftId) => {
   return null;
 };
 
+const resolveGiftVariantIds = async (shopDomain, accessToken, giftIds = []) => {
+  const ids = Array.isArray(giftIds) ? giftIds : [giftIds];
+  const resolved = await Promise.all(
+    [...new Set(ids.map(String).map((id) => id.trim()).filter(Boolean))].map((id) =>
+      resolveGiftVariantId(shopDomain, accessToken, id),
+    ),
+  );
+
+  return [...new Set(resolved.filter(Boolean))];
+};
+
 export const resolveAllProductsCollectionId = async (
   shopDomain,
   accessToken,
@@ -595,7 +606,7 @@ const buildBxgyDiscountInput = (
   rule,
   collectionId,
   productIds,
-  giftVariantId,
+  giftVariantIds,
 ) => {
   const triggerType =
     String(rule.triggerType || "amount").toLowerCase() === "quantity"
@@ -616,7 +627,13 @@ const buildBxgyDiscountInput = (
     throw new Error("Min quantity must be greater than zero for free product discounts.");
   }
 
-  if (!giftVariantId) {
+  const giftVariantIdList = Array.isArray(giftVariantIds)
+    ? giftVariantIds.filter(Boolean)
+    : giftVariantIds
+      ? [giftVariantIds]
+      : [];
+
+  if (!giftVariantIdList.length) {
     throw new Error("Free gift variant ID resolution failed.");
   }
 
@@ -659,7 +676,7 @@ const buildBxgyDiscountInput = (
     customerGets: {
       items: {
         products: {
-          productVariantsToAdd: [giftVariantId],
+          productVariantsToAdd: giftVariantIdList,
         },
       },
       value: {
@@ -684,13 +701,16 @@ const syncSingleBxgyDiscount = async (params) => {
     productIds,
   } = params;
 
-  const giftVariantId = await resolveGiftVariantId(
+  const giftProductIds = Array.isArray(rule.bonusProductIds)
+    ? rule.bonusProductIds
+    : [rule.bonusProductId ?? rule.bonus ?? null].filter(Boolean);
+  const giftVariantIds = await resolveGiftVariantIds(
     shopDomain,
     accessToken,
-    rule.bonusProductId ?? rule.bonus ?? null,
+    giftProductIds,
   );
 
-  if (!rule.enabled && !giftVariantId) {
+  if (!rule.enabled && !giftVariantIds.length) {
     if (existingDiscountId) {
       try {
         await setShopifyDiscountActiveState({
@@ -710,7 +730,7 @@ const syncSingleBxgyDiscount = async (params) => {
     rule,
     collectionId,
     productIds,
-    giftVariantId,
+    giftVariantIds,
   );
 
   if (!rule.enabled) {
@@ -920,6 +940,7 @@ export const syncFreeProductDiscountsToShopify = async (params) => {
         accessToken,
         rule: {
           bonusProductId: rule.bonus ?? null,
+          bonusProductIds: rule.bonusProductIds ?? null,
           minPurchase: rule.minPurchase ?? null,
           triggerType: rule.triggerType ?? "amount",
           minQuantity: rule.minQuantity ?? null,

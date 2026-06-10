@@ -296,12 +296,14 @@ async function syncCartGoalDiscounts({
     }
 
     if (goal.type === "gift") {
-      const bonusProductId = goal.bonusProductId || goal.bonus || null;
+      const bonusProductIds = Array.isArray(goal.bonusProductIds)
+        ? goal.bonusProductIds.filter(Boolean)
+        : [goal.bonusProductId || goal.bonus || null].filter(Boolean);
 
-      if (!bonusProductId) {
+      if (!bonusProductIds.length) {
         syncedGoals.push({
           ...goal,
-          shopifySyncWarning: "Select a free product before Shopify discount sync can create this reward.",
+          shopifySyncWarning: "Select at least one free product before Shopify discount sync can create this reward.",
         });
         continue;
       }
@@ -311,7 +313,8 @@ async function syncCartGoalDiscounts({
         accessToken,
         rules: [
           {
-            bonus: String(bonusProductId),
+            bonus: String(bonusProductIds[0]),
+            bonusProductIds,
             minPurchase: trackBy === "value" ? goal.goal : null,
             minQuantity: trackBy === "quantity" ? goal.goal : null,
             triggerType: trackBy === "quantity" ? "quantity" : "amount",
@@ -367,9 +370,9 @@ export const action = async ({ request }) => {
   const id = Number.parseInt(body.id || "", 10);
   const existingRule = Number.isFinite(id)
     ? await prisma.cartGoalRule.findFirst({
-        where: { id, shop: session.shop },
-        select: { id: true, goals: true },
-      })
+      where: { id, shop: session.shop },
+      select: { id: true, goals: true },
+    })
     : null;
   const existingGoals = safeJsonParse(existingRule?.goals, []);
   const existingGoalById = new Map(
@@ -510,23 +513,23 @@ function ProductPickerModal({
   onClose,
   items,
   loading,
-  selected,
+  selected = [],
   onApply,
 }) {
   const [search, setSearch] = useState("");
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState([]);
 
   useEffect(() => {
     if (open) {
-      setDraft(selected || "");
+      setDraft(Array.isArray(selected) ? selected : selected ? [selected] : []);
       setSearch("");
     }
   }, [open, selected]);
 
   const filtered = search
     ? items.filter((item) =>
-        String(item.title || "").toLowerCase().includes(search.toLowerCase())
-      )
+      String(item.title || "").toLowerCase().includes(search.toLowerCase())
+    )
     : items;
 
   return (
@@ -535,12 +538,12 @@ function ProductPickerModal({
       onClose={onClose}
       title="Select free product"
       primaryAction={{
-        content: "Select product",
+        content: "Select products",
         onAction: () => {
           onApply(draft);
           onClose();
         },
-        disabled: !draft,
+        disabled: draft.length === 0,
       }}
       secondaryActions={[{ content: "Cancel", onAction: onClose }]}
     >
@@ -573,21 +576,32 @@ function ProductPickerModal({
             </Box>
           ) : (
             filtered.map((item) => {
-              const checked = draft === item.id;
+              const checked = draft.includes(item.id);
               return (
                 <button
                   type="button"
-                  className={`cg-productPickerItem ${
-                    checked ? "cg-productPickerItemSelected" : ""
-                  }`}
+                  className={`cg-productPickerItem ${checked ? "cg-productPickerItemSelected" : ""
+                    }`}
                   key={item.id}
-                  onClick={() => setDraft(item.id)}
+                  onClick={() =>
+                    setDraft((current) =>
+                      current.includes(item.id)
+                        ? current.filter((id) => id !== item.id)
+                        : [...current, item.id]
+                    )
+                  }
                 >
                   <Checkbox
                     label=""
                     labelHidden
                     checked={checked}
-                    onChange={() => setDraft(item.id)}
+                    onChange={() =>
+                      setDraft((current) =>
+                        current.includes(item.id)
+                          ? current.filter((id) => id !== item.id)
+                          : [...current, item.id]
+                      )
+                    }
                   />
                   {item.image ? (
                     <img
@@ -632,13 +646,20 @@ function GoalCard({
   onOpenProductPicker,
   onGoalChange,
   onToggle,
+  onMove,
   onDelete,
 }) {
   const icon = REWARD_CONFIG[goal.type].icon;
   const goalPrefix = trackBy === "quantity" ? "Qty" : "INR";
   const ordinal = `${index + 1}${index === 0 ? "st" : index === 1 ? "nd" : "rd"}`;
-  const selectedGiftProduct = productPickerItems.find(
-    (product) => product.id === goal.bonusProductId
+  const selectedGiftProductIds = Array.isArray(goal.bonusProductIds)
+    ? goal.bonusProductIds
+    : [goal.bonusProductId].filter(Boolean);
+  const selectedGiftProducts = selectedGiftProductIds.map((productId) =>
+    productPickerItems.find((product) => product.id === productId) || {
+      id: productId,
+      title: productId.split("/").pop(),
+    }
   );
 
   return (
@@ -665,9 +686,7 @@ function GoalCard({
           <span
             className="cg-goalArrow"
             aria-hidden="true"
-          >
-            <Icon source={ArrowDownIcon} />
-          </span>
+          />
         )}
       </div>
 
@@ -736,19 +755,32 @@ function GoalCard({
                 icon={MenuHorizontalIcon}
                 onClick={(event) => event.stopPropagation()}
               />
-              <button
-                type="button"
-                className={`cg-chevronButton ${
-                  goal.expanded ? "cg-chevronButtonOpen" : "cg-chevronButtonClosed"
-                }`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onToggle(index);
-                }}
-                aria-label={goal.expanded ? "Collapse goal" : "Expand goal"}
-              >
-                <Icon source={goal.expanded ? ChevronUpIcon : ChevronDownIcon} />
-              </button>
+              <span className="cg-reorderControls" aria-label="Change rule position">
+                <button
+                  type="button"
+                  className="cg-reorderButton"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onMove(index, -1);
+                  }}
+                  disabled={index === 0}
+                  aria-label={`Move goal ${index + 1} up`}
+                >
+                  <Icon source={ChevronUpIcon} />
+                </button>
+                <button
+                  type="button"
+                  className="cg-reorderButton"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onMove(index, 1);
+                  }}
+                  disabled={isLast}
+                  aria-label={`Move goal ${index + 1} down`}
+                >
+                  <Icon source={ChevronDownIcon} />
+                </button>
+              </span>
             </InlineStack>
           </div>
 
@@ -767,32 +799,36 @@ function GoalCard({
                       onClick={() => onOpenProductPicker(index)}
                       loading={productPickerLoading}
                     >
-                      {goal.bonusProductId ? "Change product" : "Add a product"}
+                      {selectedGiftProductIds.length ? "Change products" : "Add products"}
                     </Button>
-                    {goal.bonusProductId && (
+                    {selectedGiftProductIds.length > 0 && (
                       <div className="cg-selectedProduct">
-                        {selectedGiftProduct?.image ? (
-                          <img
-                            src={selectedGiftProduct.image}
-                            alt={selectedGiftProduct.title}
-                            className="cg-selectedProductImage"
-                          />
-                        ) : (
-                          <span className="cg-selectedProductImage cg-selectedProductImageEmpty">
-                            P
-                          </span>
-                        )}
-                        <div className="cg-selectedProductText">
-                          <Text variant="bodySm" as="p" fontWeight="semibold">
-                            {selectedGiftProduct?.title ||
-                              goal.bonusProductTitle ||
-                              goal.bonusProductId.split("/").pop()}
-                          </Text>
-                          {(selectedGiftProduct?.subtitle || goal.bonusProductVariantId) && (
-                            <Text variant="bodySm" as="p" tone="subdued">
-                              {selectedGiftProduct?.subtitle || goal.bonusProductVariantId}
-                            </Text>
-                          )}
+                        <div className="cg-selectedProductList">
+                          {selectedGiftProducts.map((product) => (
+                            <div className="cg-selectedProductItem" key={product.id}>
+                              {product.image ? (
+                                <img
+                                  src={product.image}
+                                  alt={product.title}
+                                  className="cg-selectedProductImage"
+                                />
+                              ) : (
+                                <span className="cg-selectedProductImage cg-selectedProductImageEmpty">
+                                  P
+                                </span>
+                              )}
+                              <div className="cg-selectedProductText">
+                                <Text variant="bodySm" as="p" fontWeight="semibold">
+                                  {product.title}
+                                </Text>
+                                {product.subtitle && (
+                                  <Text variant="bodySm" as="p" tone="subdued">
+                                    {product.subtitle}
+                                  </Text>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                         <Button
                           size="slim"
@@ -801,6 +837,7 @@ function GoalCard({
                           onClick={(event) => {
                             event.stopPropagation();
                             onGoalChange(index, {
+                              bonusProductIds: [],
                               bonusProductId: "",
                               bonusProductTitle: "",
                               bonusProductVariantId: "",
@@ -923,12 +960,19 @@ function PreviewPanel({
   const nextGoal =
     activeGoals.find((goal) => cartValue < Number(goal.goal || 0)) ||
     activeGoals[activeGoals.length - 1];
+  const achievedGoal = [...activeGoals]
+    .reverse()
+    .find((goal) => cartValue >= Number(goal.goal || 0));
   const remaining = Math.max(0, Number(nextGoal?.goal || 0) - cartValue).toFixed(0);
   const goalToken = trackBy === "quantity" ? remaining : `${remaining} INR`;
-  const message = nextGoal
-    ? nextGoal.texts.aboveBefore
+  const messageGoal = achievedGoal || nextGoal;
+  const messageTemplate = achievedGoal
+    ? achievedGoal.texts.aboveAfter
+    : nextGoal?.texts.aboveBefore;
+  const message = messageGoal && messageTemplate
+    ? messageTemplate
       .replace("{{goal}}", goalToken)
-      .replace("{{discount}}", formatDiscountValue(nextGoal))
+      .replace("{{discount}}", formatDiscountValue(messageGoal))
     : "Select a reward type";
 
   return (
@@ -1362,6 +1406,18 @@ export default function RuleCartGoal() {
     });
   };
 
+  const moveGoal = (index, direction) => {
+    setGoals((current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.length) return current;
+
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+    setShowGoalValidation(true);
+  };
+
   const patchGoalText = (index, field, value) => {
     setGoals((current) =>
       current.map((goal, goalIndex) =>
@@ -1372,13 +1428,15 @@ export default function RuleCartGoal() {
     );
   };
 
-  const applyGiftProduct = (productId) => {
+  const applyGiftProduct = (productIds) => {
     if (productPickerGoalIndex === null) return;
-    const product = productPickerItems.find((item) => item.id === productId);
+    const selectedIds = Array.isArray(productIds) ? productIds : productIds ? [productIds] : [];
+    const firstProduct = productPickerItems.find((item) => item.id === selectedIds[0]);
     patchGoal(productPickerGoalIndex, {
-      bonusProductId: productId,
-      bonusProductTitle: product?.title || "",
-      bonusProductVariantId: product?.variantId || "",
+      bonusProductIds: selectedIds,
+      bonusProductId: selectedIds[0] || "",
+      bonusProductTitle: firstProduct?.title || "",
+      bonusProductVariantId: firstProduct?.variantId || "",
       shopifySyncWarning: null,
     });
   };
@@ -1445,15 +1503,17 @@ export default function RuleCartGoal() {
         }
         .cg-milestoneList {
           display: grid;
-          gap: 22px;
+          gap: 0px;
         }
         .cg-milestoneRow {
           display: grid;
           grid-template-columns: 124px minmax(0, 1fr);
-          gap: 26px;
-          align-items: start;
+          gap: 10px;
+          align-items: stretch;
         }
         .cg-goalAmount {
+          display: flex;
+          flex-direction: column;
           min-width: 0;
           padding-left: 10px;
           position: relative;
@@ -1486,25 +1546,43 @@ export default function RuleCartGoal() {
           font-weight: 550;
         }
         .cg-goalArrow {
-          display: flex;
+          display: block;
+          flex: 1;
+          position: relative;
           width: 110px;
-          height: 42px;
-          align-items: center;
-          justify-content: center;
+          min-height: 42px;
           color: #b5b5b5;
           margin-top: 8px;
+          margin-bottom: 10px;
         }
-        .cg-goalArrow .Polaris-Icon {
-          width: 18px;
-          height: 18px;
+        .cg-goalArrow::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          bottom: 8px;
+          left: 50%;
+          width: 1px;
+          background: #d1d5db;
+          transform: translateX(-50%);
+        }
+        .cg-goalArrow::after {
+          content: "";
+          position: absolute;
+          left: 50%;
+          bottom: 2px;
+          width: 8px;
+          height: 8px;
+          border-right: 1px solid #b5b5b5;
+          border-bottom: 1px solid #b5b5b5;
+          transform: translateX(-50%) rotate(45deg);
         }
         .cg-rewardHeader {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          min-height: 74px;
-          padding: 14px 16px;
+          min-height: 65px;
+          padding: 10px 10px;
           cursor: pointer;
           user-select: none;
         }
@@ -1529,12 +1607,24 @@ export default function RuleCartGoal() {
         }
         .cg-selectedProduct {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           gap: 10px;
           border: 1px solid #bfdbfe;
           border-radius: 8px;
           background: #f0f7ff;
           padding: 10px 12px;
+        }
+        .cg-selectedProductList {
+          display: grid;
+          flex: 1;
+          gap: 8px;
+          min-width: 0;
+        }
+        .cg-selectedProductItem {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
         }
         .cg-selectedProductImage,
         .cg-productPickerImage {
@@ -1617,8 +1707,17 @@ export default function RuleCartGoal() {
           width: 100%;
           height: 100%;
         }
-        .cg-chevronButton {
+        .cg-reorderControls {
           display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 2px;
+          color: #8c9196;
+        }
+        .cg-reorderButton {
+          display: inline-flex;
+          width: 18px;
+          height: 28px;
           align-items: center;
           justify-content: center;
           border: 0;
@@ -1628,21 +1727,17 @@ export default function RuleCartGoal() {
           cursor: pointer;
           padding: 0;
         }
-        .cg-chevronButton:hover {
+        .cg-reorderButton:hover:not(:disabled) {
           background: #f6f6f7;
         }
-        .cg-chevronButton .Polaris-Icon {
+        .cg-reorderButton:disabled {
+          color: #d1d5db;
+          cursor: not-allowed;
+        }
+        .cg-reorderButton .Polaris-Icon {
           width: 100%;
           height: 100%;
           margin: 0;
-        }
-        .cg-chevronButtonOpen {
-          width: 30px;
-          height: 30px;
-        }
-        .cg-chevronButtonClosed {
-          width: 16px;
-          height: 16px;
         }
         .cg-paused {
           display: flex;
@@ -1838,6 +1933,7 @@ export default function RuleCartGoal() {
                         onOpenProductPicker={setProductPickerGoalIndex}
                         onGoalChange={patchGoal}
                         onToggle={toggleGoal}
+                        onMove={moveGoal}
                         onDelete={(goalIndex) =>
                           setGoals((current) =>
                             current.filter((_, currentIndex) => currentIndex !== goalIndex)
@@ -1921,8 +2017,9 @@ export default function RuleCartGoal() {
         loading={productPickerLoading}
         selected={
           productPickerGoalIndex === null
-            ? ""
-            : goals[productPickerGoalIndex]?.bonusProductId || ""
+            ? []
+            : goals[productPickerGoalIndex]?.bonusProductIds ||
+            [goals[productPickerGoalIndex]?.bonusProductId].filter(Boolean)
         }
         onApply={applyGiftProduct}
       />
