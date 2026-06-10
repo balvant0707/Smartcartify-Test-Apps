@@ -79,7 +79,6 @@ const REWARD_CONFIG = {
     type: "gift",
     title: "Free product",
     menuLabel: "Free product",
-    id: "GIFT38YKXT",
     icon: GiftCardIcon,
     goal: "450",
     previewLabel: "Free Gift!",
@@ -97,7 +96,6 @@ const REWARD_CONFIG = {
     type: "discount",
     title: "Order Discount",
     menuLabel: "Order discount",
-    id: "OFF38KPSM",
     icon: DiscountIcon,
     goal: "500",
     value: "20",
@@ -119,7 +117,6 @@ const REWARD_CONFIG = {
     type: "shipping",
     title: "Free Shipping",
     menuLabel: "Free shipping",
-    id: "SHIP38BDQN",
     icon: DeliveryIcon,
     goal: "550",
     previewLabel: "Free Shipping!",
@@ -146,10 +143,28 @@ export const action = async ({ request }) => {
   return { success: true };
 };
 
+const REWARD_ID_PREFIX = {
+  gift: "GIFT",
+  discount: "OFF",
+  shipping: "SHIP",
+};
+
+function makeRewardId(type, index) {
+  const seed = `${type}-${index + 1}`;
+  let hash = 0;
+
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+
+  return `${REWARD_ID_PREFIX[type]}${hash.toString(36).toUpperCase().slice(0, 6)}`;
+}
+
 function makeGoal(type, index, expanded = false) {
   const config = REWARD_CONFIG[type];
   return {
     ...config,
+    id: makeRewardId(type, index),
     expanded,
     goal: String(Number(config.goal) + Math.floor(index / 3) * 50),
     texts: { ...config.texts },
@@ -853,7 +868,7 @@ export default function RuleCartGoal() {
         }
         .cg-milestoneRow {
           display: grid;
-          grid-template-columns: 240px minmax(0, 1fr);
+          grid-template-columns: 150px minmax(0, 1fr);
           gap: 18px;
           align-items: start;
         }
@@ -862,7 +877,7 @@ export default function RuleCartGoal() {
           padding-left: 10px;
         }
         .cg-goalInput {
-          width: 220px;
+          width: 110px;
           max-width: 100%;
           margin-top: 8px;
         }
@@ -1015,7 +1030,7 @@ export default function RuleCartGoal() {
           }
           .cg-goalInput {
             width: 100%;
-            max-width: 260px;
+            max-width: 110px;
           }
         }
       `}</style>
