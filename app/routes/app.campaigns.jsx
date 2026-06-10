@@ -1,18 +1,13 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams, useLoaderData, useFetcher } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   Page,
   Tabs,
   Text,
   Box,
   BlockStack,
-  InlineStack,
   Button,
-  Badge,
-  Modal,
-  Icon,
 } from "@shopify/polaris";
-import { DeleteIcon, EditIcon, DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
@@ -393,22 +388,6 @@ const RULE_ROUTES = {
   "customize-preview": "/app/customize-preview",
 };
 
-const STATUS_TONE = {
-  active: "success",
-  disabled: "critical",
-  draft: "info",
-  paused: "warning",
-};
-
-const RULE_META = {
-  "shipping": { label: "Shipping Rule", icon: DeliveryIcon, color: "#0ea5e9", bg: "#f0f9ff" },
-  "automatic-discount": { label: "Automatic Discount", icon: DiscountIcon, color: "#f59e0b", bg: "#fffbeb" },
-  "free-product": { label: "Free Product Discount", icon: GiftCardIcon, color: "#8b5cf6", bg: "#f5f3ff" },
-  "code-discount": { label: "Code Discount", icon: CodeIcon, color: "#10b981", bg: "#ecfdf5" },
-  "buy-x-get-y": { label: "Buy X Get Y Discount", icon: GiftCardIcon, color: "#ef4444", bg: "#fff1f2" },
-  "cart-goal": { label: "Cart Goal", icon: DiscountIcon, color: "#d946ef", bg: "#fdf4ff" },
-};
-
 // ─── RuleTypeListItem ─────────────────────────────────────────────────────────
 
 function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
@@ -622,123 +601,11 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
     </div>
   );
 }
-function RulesTable({ rules, onEdit, onDelete }) {
-  return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid #e1e3e5",
-        borderRadius: "12px",
-        overflow: "hidden",
-      }}
-    >
-      <Box padding="400">
-        <Text variant="headingSm" as="h2" fontWeight="semibold">
-          Existing campaign rules
-        </Text>
-      </Box>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(220px, 1fr) 150px 130px 130px 104px",
-          gap: "12px",
-          padding: "10px 20px",
-          background: "#f9fafb",
-          borderTop: "1px solid #e1e3e5",
-          borderBottom: "1px solid #e1e3e5",
-        }}
-      >
-        {["Rule", "Type", "Status", "Updated", "Actions"].map((heading) => (
-          <Text key={heading} variant="bodySm" fontWeight="semibold" tone="subdued" as="p">
-            {heading}
-          </Text>
-        ))}
-      </div>
-
-      {rules.map((rule, index) => {
-        const meta = RULE_META[rule.ruleType] || {};
-        const isLast = index === rules.length - 1;
-        return (
-          <div
-            key={`${rule.ruleType}-${rule.id}`}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(220px, 1fr) 150px 130px 130px 104px",
-              gap: "12px",
-              alignItems: "center",
-              padding: "14px 20px",
-              borderBottom: isLast ? "none" : "1px solid #f1f3f5",
-            }}
-          >
-            <InlineStack gap="300" blockAlign="center" wrap={false}>
-              <span
-                style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "8px",
-                  background: meta.bg || "#f3f4f6",
-                  color: meta.color || "#6b7280",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <Icon source={meta.icon || DiscountIcon} />
-              </span>
-              <Box minWidth="0">
-                <Text variant="bodyMd" fontWeight="semibold" as="p" truncate>
-                  {rule.name}
-                </Text>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  {rule.meta}
-                </Text>
-              </Box>
-            </InlineStack>
-            <Text variant="bodySm" as="p">
-              {meta.label || rule.ruleType}
-            </Text>
-            <Badge tone={STATUS_TONE[rule.status] || "info"}>
-              {rule.status === "active" ? "Active" : "Disabled"}
-            </Badge>
-            <Text variant="bodySm" tone="subdued" as="p">
-              {new Date(rule.updatedAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </Text>
-            <InlineStack gap="200">
-              <Button
-                size="slim"
-                icon={EditIcon}
-                onClick={() => onEdit(rule)}
-                accessibilityLabel={`Edit ${rule.name}`}
-              />
-              <Button
-                size="slim"
-                icon={DeleteIcon}
-                tone="critical"
-                variant="plain"
-                onClick={() => onDelete(rule)}
-                accessibilityLabel={`Delete ${rule.name}`}
-              />
-            </InlineStack>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function CampaignSelector() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
-  const { rules } = useLoaderData();
-  const fetcher = useFetcher();
 
-  const [deleteTarget, setDeleteTarget] = useState(null);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [selectedId, setSelectedId] = useState("code-discount");
   const [creatingRuleId, setCreatingRuleId] = useState(null);
@@ -755,23 +622,6 @@ export default function CampaignSelector() {
     if (host) params.set("host", host);
     const qs = params.toString();
     return qs ? `${pathname}?${qs}` : pathname;
-  };
-
-  const handleEdit = (rule) => {
-    const base = RULE_ROUTES[rule.ruleType];
-    if (!base) return;
-    // Upsell is a singleton — no ID param needed.
-    const extra = rule.ruleType !== "upsell" ? { id: rule.id } : {};
-    navigate(toRulePage(base, extra));
-  };
-
-  const handleDeleteConfirm = () => {
-    if (!deleteTarget) return;
-    fetcher.submit(
-      { _action: "delete", id: deleteTarget.id, ruleType: deleteTarget.ruleType },
-      { method: "post", encType: "application/json" }
-    );
-    setDeleteTarget(null);
   };
 
   const activeCategory = TABS[selectedTabIndex].id;
@@ -831,39 +681,6 @@ export default function CampaignSelector() {
       }}
       title="Select a campaign type"
     >
-      {deleteTarget && (
-        <Modal
-          open
-          onClose={() => setDeleteTarget(null)}
-          title="Delete rule?"
-          primaryAction={{
-            content: "Delete",
-            destructive: true,
-            onAction: handleDeleteConfirm,
-          }}
-          secondaryActions={[
-            { content: "Cancel", onAction: () => setDeleteTarget(null) },
-          ]}
-        >
-          <Modal.Section>
-            <Text as="p">
-              Are you sure you want to delete{" "}
-              <strong>{deleteTarget.name}</strong>? This cannot be undone.
-            </Text>
-          </Modal.Section>
-        </Modal>
-      )}
-
-      {typeof RulesTable === "function" && rules.length > 0 && (
-        <Box paddingBlockEnd="600">
-          <RulesTable
-            rules={rules}
-            onEdit={handleEdit}
-            onDelete={setDeleteTarget}
-          />
-        </Box>
-      )}
-
       <Box paddingBlockEnd="600">
         <Box paddingBlockStart="300">
           <div
