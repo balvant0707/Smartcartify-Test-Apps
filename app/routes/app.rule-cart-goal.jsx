@@ -156,8 +156,25 @@ function makeGoal(type, index, expanded = false) {
   };
 }
 
-function SectionCard({ icon, title, children, defaultOpen = true }) {
-  const [open, setOpen] = useState(defaultOpen);
+function SectionCard({
+  icon,
+  title,
+  children,
+  defaultOpen = true,
+  open: controlledOpen,
+  onOpenChange,
+}) {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const open = typeof controlledOpen === "boolean" ? controlledOpen : internalOpen;
+  const setOpen = (nextOpen) => {
+    const value =
+      typeof nextOpen === "function" ? nextOpen(open) : Boolean(nextOpen);
+    if (onOpenChange) {
+      onOpenChange(value);
+      return;
+    }
+    setInternalOpen(value);
+  };
 
   return (
     <Card padding="0">
@@ -212,8 +229,9 @@ function SegmentControl({ options, value, onChange }) {
   );
 }
 
-function GoalCard({ goal, index, isLast, onGoalChange, onToggle, onDelete }) {
+function GoalCard({ goal, index, trackBy, onGoalChange, onToggle, onDelete }) {
   const icon = REWARD_CONFIG[goal.type].icon;
+  const goalPrefix = trackBy === "quantity" ? "Qty" : "INR";
 
   return (
     <div className="cg-milestoneRow">
@@ -226,116 +244,113 @@ function GoalCard({ goal, index, isLast, onGoalChange, onToggle, onDelete }) {
           <TextField
             label="Goal amount"
             labelHidden
-            prefix="INR"
+            prefix={goalPrefix}
             value={goal.goal}
             onChange={(value) => onGoalChange(index, { goal: value })}
             autoComplete="off"
           />
         </div>
-        {!isLast && <div className="cg-downArrow">v</div>}
       </div>
 
-      <Card padding="0">
-        <div className="cg-rewardHeader">
-          <InlineStack gap="300" blockAlign="center">
-            <span className="cg-rewardIcon">
-              <Icon source={icon} />
-            </span>
-            <BlockStack gap="0">
-              <Text variant="bodyMd" as="p" fontWeight="semibold">
-                {goal.title}
-              </Text>
-              <Text variant="bodySm" as="p" tone="subdued">
-                ID: {goal.id}
-              </Text>
-            </BlockStack>
-          </InlineStack>
-          <InlineStack gap="200" blockAlign="center">
-            {goal.expanded ? (
-              <Button variant="plain" onClick={() => onToggle(index)}>
-                Done
-              </Button>
-            ) : (
-              <Button icon={EditIcon} onClick={() => onToggle(index)}>
-                Edit
-              </Button>
-            )}
-            <Button icon={DeleteIcon} onClick={() => onDelete(index)} />
-            <Button variant="plain" icon={MenuHorizontalIcon} />
-            <Button
-              variant="plain"
-              onClick={() => onToggle(index)}
-              accessibilityLabel={goal.expanded ? "Collapse goal" : "Expand goal"}
-            >
-              {goal.expanded ? "^" : "v"}
-            </Button>
-          </InlineStack>
-        </div>
-
-        {goal.expanded && (
-          <>
-            <Divider />
-            <Box padding="500">
-            {goal.type === "gift" && (
-              <BlockStack gap="300">
+      <div className="cg-roundedSurface">
+        <Card padding="0">
+          <div className="cg-rewardHeader">
+            <InlineStack gap="300" blockAlign="center">
+              <span className="cg-rewardIcon">
+                <Icon source={icon} />
+              </span>
+              <BlockStack gap="0">
                 <Text variant="bodyMd" as="p" fontWeight="semibold">
-                  Select products to give as free gifts
+                  {goal.title}
                 </Text>
-                <Button variant="primary" icon={PlusIcon}>
-                  Add a product
+                <Text variant="bodySm" as="p" tone="subdued">
+                  ID: {goal.id}
+                </Text>
+              </BlockStack>
+            </InlineStack>
+            <InlineStack gap="200" blockAlign="center">
+              {goal.expanded ? (
+                <Button variant="plain" onClick={() => onToggle(index)}>
+                  Done
                 </Button>
-                <Text variant="bodyMd" as="p" fontWeight="semibold">
-                  How many gifts can they choose from this list?
-                </Text>
-                <div className="cg-stepper">
-                  <Button>-</Button>
-                  <Text as="span" variant="bodyMd" fontWeight="semibold">
-                    1
-                  </Text>
-                  <Button>+</Button>
-                </div>
-              </BlockStack>
-            )}
+              ) : (
+                <Button icon={EditIcon} onClick={() => onToggle(index)}>
+                  Edit
+                </Button>
+              )}
+              <Button icon={DeleteIcon} onClick={() => onDelete(index)} />
+              <Button variant="plain" icon={MenuHorizontalIcon} />
+            </InlineStack>
+          </div>
 
-            {goal.type === "discount" && (
-              <BlockStack gap="300">
-                <Text variant="bodyMd" as="p" fontWeight="semibold">
-                  Type of order discount
-                </Text>
-                <ChoiceList
-                  title="Type of order discount"
-                  titleHidden
-                  choices={[
-                    { label: "Percentage off", value: "percentage" },
-                    { label: "Amount off", value: "amount" },
-                  ]}
-                  selected={[goal.discountType]}
-                  onChange={([discountType]) => onGoalChange(index, { discountType })}
-                />
-                <TextField
-                  label="Enter the value"
-                  value={goal.value}
-                  onChange={(value) => onGoalChange(index, { value })}
-                  suffix={goal.discountType === "percentage" ? "%" : undefined}
-                  prefix={goal.discountType === "amount" ? "INR" : undefined}
-                  autoComplete="off"
-                />
-              </BlockStack>
-            )}
+          {goal.expanded && (
+            <>
+              <Divider />
+              <Box padding="500">
+                {goal.type === "gift" && (
+                  <BlockStack gap="300">
+                    <Text variant="bodyMd" as="p" fontWeight="semibold">
+                      Select products to give as free gifts
+                    </Text>
+                    <Button variant="primary" icon={PlusIcon}>
+                      Add a product
+                    </Button>
+                    <Text variant="bodyMd" as="p" fontWeight="semibold">
+                      How many gifts can they choose from this list?
+                    </Text>
+                    <div className="cg-stepper">
+                      <Button>-</Button>
+                      <Text as="span" variant="bodyMd" fontWeight="semibold">
+                        1
+                      </Text>
+                      <Button>+</Button>
+                    </div>
+                  </BlockStack>
+                )}
 
-            {goal.type === "shipping" && (
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="p">
-                  First you will need to setup a matching shipping rule in Shopify
-                  admin. This will not be created automatically by CornerCart.
-                </Text>
-                <Button variant="plain">Click here to learn how</Button>
-              </BlockStack>
-            )}
-            </Box>
-          </>
-        )}
-      </Card>
+                {goal.type === "discount" && (
+                  <BlockStack gap="300">
+                    <Text variant="bodyMd" as="p" fontWeight="semibold">
+                      Type of order discount
+                    </Text>
+                    <ChoiceList
+                      title="Type of order discount"
+                      titleHidden
+                      choices={[
+                        { label: "Percentage off", value: "percentage" },
+                        { label: "Amount off", value: "amount" },
+                      ]}
+                      selected={[goal.discountType]}
+                      onChange={([discountType]) =>
+                        onGoalChange(index, { discountType })
+                      }
+                    />
+                    <TextField
+                      label="Enter the value"
+                      value={goal.value}
+                      onChange={(value) => onGoalChange(index, { value })}
+                      suffix={goal.discountType === "percentage" ? "%" : undefined}
+                      prefix={goal.discountType === "amount" ? "INR" : undefined}
+                      autoComplete="off"
+                    />
+                  </BlockStack>
+                )}
+
+                {goal.type === "shipping" && (
+                  <BlockStack gap="200">
+                    <Text variant="bodyMd" as="p">
+                      First you will need to setup a matching shipping rule in
+                      Shopify admin. This will not be created automatically by
+                      CornerCart.
+                    </Text>
+                    <Button variant="plain">Click here to learn how</Button>
+                  </BlockStack>
+                )}
+              </Box>
+            </>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
@@ -346,6 +361,7 @@ function PreviewPanel({
   campaignName,
   onCampaignNameChange,
   goals,
+  trackBy,
   sliderValue,
   onSliderChange,
 }) {
@@ -357,9 +373,10 @@ function PreviewPanel({
     activeGoals.find((goal) => cartValue < Number(goal.goal || 0)) ||
     activeGoals[activeGoals.length - 1];
   const remaining = Math.max(0, Number(nextGoal?.goal || 0) - cartValue).toFixed(0);
+  const goalToken = trackBy === "quantity" ? remaining : `${remaining} INR`;
   const message = nextGoal
     ? nextGoal.texts.aboveBefore
-        .replace("{{goal}}", `${remaining} INR`)
+        .replace("{{goal}}", goalToken)
         .replace("{{discount}}", `${nextGoal.value || 20}%`)
     : "Select a reward type";
 
@@ -394,68 +411,76 @@ function PreviewPanel({
         </BlockStack>
       </Card>
 
-      <Card padding="0">
-        <Box padding="400">
-          <Text variant="headingSm" as="h3" fontWeight="semibold">
-            Preview
-          </Text>
-        </Box>
-        <Divider />
-        <div className="cg-previewCanvas">
-          <Text variant="bodySm" as="p" fontWeight="semibold" alignment="center">
-            {nextGoal ? message : "Select a reward type"}
-          </Text>
-          {nextGoal && (
-            <div className="cg-progressWrap">
-              <div className="cg-previewTrack">
-                <div
-                  className="cg-previewFill"
-                  style={{ width: `${Math.min(100, sliderValue)}%` }}
-                />
-              </div>
-              {activeGoals.map((goal, index) => {
-                const stepNumber = index + 1;
-                const left = `${Math.min(
-                  100,
-                  Math.max(0, (stepNumber / activeGoals.length) * 100)
-                )}%`;
-                return (
+      <div className="cg-roundedSurface">
+        <Card padding="0">
+          <Box padding="400">
+            <Text variant="headingSm" as="h3" fontWeight="semibold">
+              Preview
+            </Text>
+          </Box>
+          <Divider />
+          <div className="cg-previewCanvas">
+            <Text variant="bodySm" as="p" fontWeight="semibold" alignment="center">
+              {nextGoal ? message : "Select a reward type"}
+            </Text>
+            {nextGoal && (
+              <div className="cg-progressWrap">
+                <div className="cg-previewTrack">
                   <div
-                    className="cg-previewMilestone"
-                    style={{ left }}
-                    key={`${goal.id}-${index}`}
-                  >
-                    <span className="cg-previewStep">Step {stepNumber}</span>
-                    <span className="cg-previewMarker">
-                      <Icon source={REWARD_CONFIG[goal.type].icon} />
-                    </span>
-                    <span>{goal.previewLabel}</span>
-                    <span className="cg-previewGoalValue">INR {goal.goal}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        <Box padding="500">
-          <RangeSlider
-            label="Use this to adjust the progress bar"
-            value={sliderValue}
-            min={0}
-            max={100}
-            onChange={onSliderChange}
-          />
-        </Box>
-      </Card>
+                    className="cg-previewFill"
+                    style={{ width: `${Math.min(100, sliderValue)}%` }}
+                  />
+                </div>
+                {activeGoals.map((goal, index) => {
+                  const left = `${((index + 0.5) / activeGoals.length) * 100}%`;
+                  return (
+                    <div
+                      className="cg-previewMilestone"
+                      style={{ left }}
+                      key={`${goal.id}-${index}`}
+                    >
+                      <span className="cg-previewMarker">
+                        <Icon source={REWARD_CONFIG[goal.type].icon} />
+                      </span>
+                      <span>{goal.previewLabel}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <Box padding="500">
+            <RangeSlider
+              label="Use this to adjust the progress bar"
+              value={sliderValue}
+              min={0}
+              max={100}
+              onChange={onSliderChange}
+            />
+          </Box>
+        </Card>
+      </div>
     </BlockStack>
   );
 }
 
-function ContentSection({ goals, shownGoals, onShownGoalsChange, onEditGoal }) {
+function ContentSection({
+  goals,
+  shownGoals,
+  onShownGoalsChange,
+  onEditGoal,
+  open,
+  onOpenChange,
+}) {
   const [openGoal, setOpenGoal] = useState(Math.min(2, goals.length - 1));
 
   return (
-    <SectionCard icon={EditIcon} title="Content" defaultOpen>
+    <SectionCard
+      icon={EditIcon}
+      title="Content"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <BlockStack gap="400">
         <BlockStack gap="200">
           <Text variant="bodyMd" as="p" fontWeight="semibold">
@@ -538,7 +563,7 @@ function TextEditModal({ goal, index, onClose, onChange }) {
   );
 }
 
-function SettingsSection() {
+function SettingsSection({ open, onOpenChange }) {
   const today = new Date();
   const dateValue = today.toISOString().slice(0, 10);
   const timeValue = today.toLocaleTimeString("en-US", {
@@ -549,7 +574,12 @@ function SettingsSection() {
   const [targetMenuOpen, setTargetMenuOpen] = useState(false);
 
   return (
-    <SectionCard icon={SettingsIcon} title="Settings" defaultOpen>
+    <SectionCard
+      icon={SettingsIcon}
+      title="Settings"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <BlockStack gap="500">
         <BlockStack gap="200">
           <Text variant="bodyMd" as="p" fontWeight="semibold">
@@ -704,17 +734,18 @@ export default function RuleCartGoal() {
   const withHost = (path) => (host ? `${path}?host=${encodeURIComponent(host)}` : path);
 
   const [enabled, setEnabled] = useState(false);
-  const [campaignName, setCampaignName] = useState("Cart Goal 10");
-  const [trackBy, setTrackBy] = useState("value");
+  const [campaignName, setCampaignName] = useState("Cart Goal 12");
+  const [trackBy, setTrackBy] = useState("quantity");
   const [goals, setGoals] = useState([
     makeGoal("gift", 0),
-    makeGoal("shipping", 1),
-    makeGoal("discount", 2),
+    makeGoal("discount", 1),
+    makeGoal("shipping", 2),
   ]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [sliderValue, setSliderValue] = useState(0);
   const [shownGoals, setShownGoals] = useState(3);
   const [editingTextIndex, setEditingTextIndex] = useState(null);
+  const [openSection, setOpenSection] = useState("goals");
 
   const isSaving = navigation.state === "submitting";
 
@@ -794,7 +825,199 @@ export default function RuleCartGoal() {
       ]}
     >
       <style>{`
-        .cg-layout{display:grid;grid-template-columns:minmax(0,7fr) minmax(320px,3fr);gap:20px;align-items:start}.cg-info{display:flex;align-items:flex-start;gap:12px;background:#e5f2ff;color:#00527c;border-radius:8px;padding:14px 16px}.cg-milestoneList{display:grid;gap:16px}.cg-milestoneRow{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px}.cg-goalAmount{padding-left:10px}.cg-goalInput{width:168px;max-width:100%;margin-top:6px}.cg-downArrow{text-align:center;color:#b5b5b5;font-size:24px;line-height:32px}.cg-rewardHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 14px 12px}.cg-rewardIcon{width:24px;color:#444}.cg-stepper{display:inline-grid;grid-template-columns:44px 64px 44px;align-items:center;gap:8px;background:#f1f1f1;border-radius:8px;padding:6px;width:max-content;text-align:center}.cg-paused{display:flex;align-items:center;gap:10px;background:#fff8db;border:1px solid #f2d94e;border-bottom:2px solid #f2d94e;border-radius:12px;color:#6a4c00;padding:12px 18px}.cg-previewCanvas{background:#f7f7f7;min-height:156px;padding:18px 20px 34px;border-bottom:1px solid #e1e3e5}.cg-progressWrap{position:relative;margin-top:18px;padding:0 0 72px}.cg-previewTrack{height:6px;background:#e1e3e5;border-radius:999px;overflow:hidden}.cg-previewFill{height:100%;background:#303030;border-radius:999px}.cg-previewMilestone{position:absolute;top:-22px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;line-height:15px;text-align:center;color:#444;min-width:82px}.cg-previewStep{font-size:11px;line-height:13px;color:#6d7175;font-weight:650}.cg-previewMarker{width:20px;height:20px;border-radius:999px;background:#303030;color:#fff;display:flex;align-items:center;justify-content:center}.cg-previewGoalValue{font-size:11px;line-height:13px;color:#6d7175}.cg-contentItem+.cg-contentItem{border-top:1px solid #e1e3e5}.cg-contentItemHeader{display:flex;align-items:center;justify-content:space-between;padding:12px}.cg-contentItemBody{display:flex;align-items:center;justify-content:space-between;background:#f6f6f6;padding:14px 22px}.cg-modalFields{display:grid;gap:20px;max-height:660px;overflow:auto;padding-right:8px}.cg-tokenField{position:relative}.cg-tokenField .Polaris-Button{position:absolute;right:0;top:0}.cg-targetBox{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:center;border:1px solid #e1e3e5;border-radius:9px;padding:18px}.cg-targetIcon{width:44px;height:44px;border-radius:999px;background:#efe3ff;color:#7a36ff;display:flex;align-items:center;justify-content:center;font-weight:800}@media(max-width:1050px){.cg-layout{grid-template-columns:1fr}}@media(max-width:700px){.cg-rewardHeader,.cg-contentItemHeader,.cg-contentItemBody{align-items:flex-start;flex-direction:column}.cg-milestoneRow,.cg-targetBox{grid-template-columns:1fr}.cg-goalInput{width:100%;max-width:220px}}
+        .cg-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 7fr) minmax(320px, 3fr);
+          gap: 20px;
+          align-items: start;
+        }
+        .cg-info {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          background: #e5f2ff;
+          color: #00527c;
+          border-radius: 12px;
+          padding: 14px 16px;
+        }
+        .cg-roundedSurface {
+          border-radius: 14px;
+          overflow: hidden;
+        }
+        .cg-roundedSurface > .Polaris-ShadowBevel {
+          border-radius: 14px;
+        }
+        .cg-milestoneList {
+          display: grid;
+          gap: 20px;
+        }
+        .cg-milestoneRow {
+          display: grid;
+          grid-template-columns: 240px minmax(0, 1fr);
+          gap: 18px;
+          align-items: start;
+        }
+        .cg-goalAmount {
+          min-width: 0;
+          padding-left: 10px;
+        }
+        .cg-goalInput {
+          width: 220px;
+          max-width: 100%;
+          margin-top: 8px;
+        }
+        .cg-rewardHeader {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 16px 16px 14px;
+        }
+        .cg-rewardIcon {
+          width: 24px;
+          color: #444;
+        }
+        .cg-stepper {
+          display: inline-grid;
+          grid-template-columns: 44px 64px 44px;
+          align-items: center;
+          gap: 8px;
+          background: #f1f1f1;
+          border-radius: 10px;
+          padding: 6px;
+          width: max-content;
+          text-align: center;
+        }
+        .cg-paused {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: #fff8db;
+          border: 1px solid #f2d94e;
+          border-bottom: 2px solid #f2d94e;
+          border-radius: 14px;
+          color: #6a4c00;
+          padding: 12px 18px;
+        }
+        .cg-previewCanvas {
+          background: #f7f7f7;
+          min-height: 156px;
+          padding: 18px 20px 34px;
+          border-bottom: 1px solid #e1e3e5;
+        }
+        .cg-progressWrap {
+          position: relative;
+          margin-top: 18px;
+          padding: 0 12px 68px;
+        }
+        .cg-previewTrack {
+          height: 6px;
+          background: #e1e3e5;
+          border-radius: 999px;
+          overflow: hidden;
+        }
+        .cg-previewFill {
+          height: 100%;
+          background: #303030;
+          border-radius: 999px;
+        }
+        .cg-previewMilestone {
+          position: absolute;
+          top: -10px;
+          transform: translateX(-50%);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          min-width: 92px;
+          font-size: 13px;
+          line-height: 15px;
+          text-align: center;
+          color: #444;
+          font-weight: 650;
+        }
+        .cg-previewMarker {
+          width: 20px;
+          height: 20px;
+          border-radius: 999px;
+          background: #303030;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .cg-contentItem + .cg-contentItem {
+          border-top: 1px solid #e1e3e5;
+        }
+        .cg-contentItemHeader {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px;
+        }
+        .cg-contentItemBody {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: #f6f6f6;
+          padding: 14px 22px;
+        }
+        .cg-modalFields {
+          display: grid;
+          gap: 20px;
+          max-height: 660px;
+          overflow: auto;
+          padding-right: 8px;
+        }
+        .cg-tokenField {
+          position: relative;
+        }
+        .cg-tokenField .Polaris-Button {
+          position: absolute;
+          right: 0;
+          top: 0;
+        }
+        .cg-targetBox {
+          display: grid;
+          grid-template-columns: 48px minmax(0, 1fr) auto;
+          gap: 16px;
+          align-items: center;
+          border: 1px solid #e1e3e5;
+          border-radius: 12px;
+          padding: 18px;
+        }
+        .cg-targetIcon {
+          width: 44px;
+          height: 44px;
+          border-radius: 999px;
+          background: #efe3ff;
+          color: #7a36ff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 800;
+        }
+        @media (max-width: 1050px) {
+          .cg-layout {
+            grid-template-columns: 1fr;
+          }
+        }
+        @media (max-width: 700px) {
+          .cg-rewardHeader,
+          .cg-contentItemHeader,
+          .cg-contentItemBody {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+          .cg-milestoneRow,
+          .cg-targetBox {
+            grid-template-columns: 1fr;
+          }
+          .cg-goalInput {
+            width: 100%;
+            max-width: 260px;
+          }
+        }
       `}</style>
 
       <Box paddingBlockEnd="800">
@@ -806,7 +1029,12 @@ export default function RuleCartGoal() {
               </Banner>
             )}
 
-            <SectionCard icon={GiftCardIcon} title="Goals & rewards" defaultOpen>
+            <SectionCard
+              icon={GiftCardIcon}
+              title="Goals & rewards"
+              open={openSection === "goals"}
+              onOpenChange={(open) => setOpenSection(open ? "goals" : null)}
+            >
               <BlockStack gap="500">
                 <BlockStack gap="200">
                   <Text variant="bodyMd" as="p" fontWeight="semibold">
@@ -838,7 +1066,7 @@ export default function RuleCartGoal() {
                         key={`${goal.type}-${index}`}
                         goal={goal}
                         index={index}
-                        isLast={index === goals.length - 1}
+                        trackBy={trackBy}
                         onGoalChange={patchGoal}
                         onToggle={toggleGoal}
                         onDelete={(goalIndex) =>
@@ -888,9 +1116,14 @@ export default function RuleCartGoal() {
               shownGoals={shownGoals}
               onShownGoalsChange={setShownGoals}
               onEditGoal={setEditingTextIndex}
+              open={openSection === "content"}
+              onOpenChange={(open) => setOpenSection(open ? "content" : null)}
             />
 
-            <SettingsSection />
+            <SettingsSection
+              open={openSection === "settings"}
+              onOpenChange={(open) => setOpenSection(open ? "settings" : null)}
+            />
           </BlockStack>
 
           <PreviewPanel
@@ -899,6 +1132,7 @@ export default function RuleCartGoal() {
             campaignName={campaignName}
             onCampaignNameChange={setCampaignName}
             goals={sortedGoals.slice(0, shownGoals)}
+            trackBy={trackBy}
             sliderValue={sliderValue}
             onSliderChange={setSliderValue}
           />

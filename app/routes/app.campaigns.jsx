@@ -750,8 +750,8 @@ export default function CampaignSelector() {
               maxWidth: "1180px",
               width: "100%",
               display: "grid",
-              gridTemplateColumns: "minmax(420px, 0.92fr) minmax(520px, 1.08fr)",
-              gap: "32px",
+              gridTemplateColumns: "minmax(420px, 0.92fr) minmax(540px, 1.08fr)",
+              gap: "12px",
               alignItems: "start",
             }}
           >
