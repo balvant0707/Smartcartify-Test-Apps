@@ -397,7 +397,7 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
         display: "flex",
         alignItems: "center",
         gap: "10px",
-        padding: "9px 10px 13px",
+        padding: "5px 10px",
         borderRadius: "10px",
         cursor: "pointer",
         backgroundColor: isSelected ? "#ffe2e2" : "#fff",
@@ -413,7 +413,7 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
         height={58}
         style={{ flexShrink: 0, borderRadius: "10px", objectFit: "contain" }}
       />
-      <div style={{ flex: 1, minWidth: 0, display: "grid", gap: "3px" }}>
+      <div style={{ flex: 1, minWidth: 0, display: "grid", gap: "10px" }}>
         <Text variant="headingSm" fontWeight="bold" as="p">
           {ruleType.title}
         </Text>
