@@ -27,10 +27,24 @@ const ANNOUNCEMENT_BAR_LABEL = "Announcement Bar";
 
 function formatCartGoalCampaignName(rule, index) {
   const name = String(rule?.campaignName || "").trim();
-  if (!name || /^Cart Goal(?:\s+\d+)?$/i.test(name)) {
+  if (!name || /^Cart Goal$/i.test(name)) {
     return `Cart Goal ${index + 1}`;
   }
   return name;
+}
+
+async function nextCartGoalCampaignName(shop) {
+  const rows = await prisma.cartGoalRule.findMany({
+    where: { shop },
+    select: { campaignName: true },
+  });
+
+  const maxNumber = rows.reduce((max, row) => {
+    const match = String(row.campaignName || "").trim().match(/^Cart Goal\s+(\d+)$/i);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+
+  return `Cart Goal ${Math.max(maxNumber, rows.length) + 1}`;
 }
 
 // Loader
@@ -254,7 +268,11 @@ async function duplicateRule(ruleType, id, shop) {
   data.enabled = false;
   data.priority = Number(source.priority || 0) - 1;
 
-  if ("campaignName" in data) data.campaignName = copyLabel(data.campaignName, "Rule");
+  if (ruleType === "cart-goal") {
+    data.campaignName = await nextCartGoalCampaignName(shop);
+  } else if ("campaignName" in data) {
+    data.campaignName = copyLabel(data.campaignName, "Rule");
+  }
 
   if (ruleType === "code-discount" || ruleType === "automatic-discount") {
     data.shopifyDiscountCodeId = null;

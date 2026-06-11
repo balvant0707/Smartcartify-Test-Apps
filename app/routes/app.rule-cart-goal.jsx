@@ -302,6 +302,25 @@ function cartGoalThreshold(goal, trackBy) {
     : { minReqType: "subtotal", minSubtotal: String(Math.max(0, value)) };
 }
 
+function normalizePriority(value) {
+  const priority = Number(value);
+  return Number.isFinite(priority) ? Math.trunc(priority) : 0;
+}
+
+async function nextCartGoalCampaignName(shop) {
+  const rows = await prisma.cartGoalRule.findMany({
+    where: { shop },
+    select: { campaignName: true },
+  });
+
+  const maxNumber = rows.reduce((max, row) => {
+    const match = String(row.campaignName || "").trim().match(/^Cart Goal\s+(\d+)$/i);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+
+  return `Cart Goal ${Math.max(maxNumber, rows.length) + 1}`;
+}
+
 async function syncCartGoalDiscounts({
   admin,
   shop,
@@ -393,8 +412,7 @@ export const loader = async ({ request }) => {
   const id = Number.parseInt(url.searchParams.get("id") || "", 10);
 
   if (!Number.isFinite(id)) {
-    const count = await prisma.cartGoalRule.count({ where: { shop: session.shop } });
-    return { rule: null, nextCampaignName: `Cart Goal ${count + 1}` };
+    return { rule: null, nextCampaignName: await nextCartGoalCampaignName(session.shop) };
   }
 
   const row = await prisma.cartGoalRule.findFirst({
@@ -474,6 +492,7 @@ export const action = async ({ request }) => {
     shop: session.shop,
     campaignName: body.campaignName || "Cart Goal",
     enabled,
+    priority: normalizePriority(body.priority),
     trackBy,
     shownGoals: Math.min(3, Math.max(1, Number(body.shownGoals) || 3)),
     goals: serializeGoals(syncedGoals),
@@ -1022,6 +1041,8 @@ function PreviewPanel({
   onEnabledChange,
   campaignName,
   onCampaignNameChange,
+  priority,
+  onPriorityChange,
   goals,
   trackBy,
   sliderValue,
@@ -1074,6 +1095,15 @@ function PreviewPanel({
             value={campaignName}
             onChange={onCampaignNameChange}
             autoComplete="off"
+          />
+          <TextField
+            label="Priority"
+            type="number"
+            min={0}
+            value={priority}
+            onChange={onPriorityChange}
+            autoComplete="off"
+            helpText="Higher priority Cart Goals are shown first when multiple active goals match."
           />
         </BlockStack>
       </Card>
@@ -1486,6 +1516,7 @@ export default function RuleCartGoal() {
 
   const [enabled, setEnabled] = useState(rule?.enabled ?? true);
   const [campaignName, setCampaignName] = useState(rule?.campaignName ?? nextCampaignName ?? "Cart Goal 1");
+  const [priority, setPriority] = useState(String(rule?.priority ?? 0));
   const [trackBy, setTrackBy] = useState(rule?.trackBy ?? "value");
   const [goals, setGoals] = useState(rule?.goals?.length ? rule.goals : defaultGoals());
   const settingsDefaults = useMemo(() => defaultSettings(), []);
@@ -1561,14 +1592,16 @@ export default function RuleCartGoal() {
   const hasRewardValidationErrors = rewardValidationErrors.some(Boolean);
   const currentSnapshot = useMemo(() => JSON.stringify({
     campaignName,
+    priority,
     enabled,
     trackBy,
     goals,
     shownGoals,
     settings,
-  }), [campaignName, enabled, trackBy, goals, shownGoals, settings]);
+  }), [campaignName, priority, enabled, trackBy, goals, shownGoals, settings]);
   const initialSnapshot = useMemo(() => JSON.stringify({
     campaignName: rule?.campaignName ?? nextCampaignName ?? "Cart Goal 1",
+    priority: String(rule?.priority ?? 0),
     enabled: rule?.enabled ?? true,
     trackBy: rule?.trackBy ?? "value",
     goals: rule?.goals?.length ? rule.goals : defaultGoals(),
@@ -1676,6 +1709,7 @@ export default function RuleCartGoal() {
       {
         id,
         campaignName,
+        priority,
         enabled,
         trackBy,
         goals: sortedGoals,
@@ -1687,7 +1721,7 @@ export default function RuleCartGoal() {
   };
 
   const handleBack = () => {
-    if (!rule || hasUnsavedChanges) {
+    if (!rule) {
       setLeaveModalOpen(true);
       return;
     }
@@ -1706,6 +1740,7 @@ export default function RuleCartGoal() {
         _action: "saveDraft",
         id,
         campaignName,
+        priority,
         enabled: false,
         trackBy,
         goals: sortedGoals,
@@ -2280,6 +2315,8 @@ export default function RuleCartGoal() {
             onEnabledChange={setEnabled}
             campaignName={campaignName}
             onCampaignNameChange={setCampaignName}
+            priority={priority}
+            onPriorityChange={setPriority}
             goals={sortedGoals}
             trackBy={trackBy}
             sliderValue={sliderValue}

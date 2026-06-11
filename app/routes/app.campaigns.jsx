@@ -16,7 +16,7 @@ const HIDDEN_CAMPAIGN_TYPES = new Set(["shipping", "automatic-discount", "free-p
 
 function formatCartGoalCampaignName(rule, index) {
   const name = String(rule?.campaignName || "").trim();
-  if (!name || /^Cart Goal(?:\s+\d+)?$/i.test(name)) {
+  if (!name || /^Cart Goal$/i.test(name)) {
     return `Cart Goal ${index + 1}`;
   }
   return name;
