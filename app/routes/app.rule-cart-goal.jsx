@@ -205,6 +205,18 @@ function safeJsonParse(value, fallback) {
   }
 }
 
+function normalizeGoalTexts(goal, base) {
+  const submittedTexts = goal?.texts || {};
+  return GOAL_TEXT_FIELDS.reduce((texts, field) => {
+    const value = submittedTexts[field.key];
+    texts[field.key] =
+      value === undefined || value === null
+        ? base.texts[field.key] || ""
+        : String(value);
+    return texts;
+  }, {});
+}
+
 function normalizeGoal(goal, index) {
   const type = REWARD_CONFIG[goal?.type] ? goal.type : "gift";
   const base = makeGoal(type, index);
@@ -217,7 +229,7 @@ function normalizeGoal(goal, index) {
     value: goal?.value === undefined ? base.value : String(goal.value),
     discountType: goal?.discountType || base.discountType,
     expanded: Boolean(goal?.expanded),
-    texts: { ...base.texts, ...(goal?.texts || {}) },
+    texts: normalizeGoalTexts(goal, base),
   };
 }
 
@@ -228,6 +240,13 @@ function serializeGoals(goals) {
 function formatDiscountValue(goal) {
   const value = goal?.value || "0";
   return goal?.discountType === "amount" ? `INR ${value}` : `${value}%`;
+}
+
+function getGoalContentText(goal, key) {
+  if (!goal) return "";
+  const customText = goal?.texts?.[key];
+  if (customText !== undefined && customText !== null) return String(customText);
+  return String(REWARD_CONFIG[goal.type]?.texts?.[key] || "");
 }
 
 function getGoalValidationErrors(goals, trackBy) {
@@ -1001,18 +1020,16 @@ function PreviewPanel({
   const maxGoal = Math.max(...activeGoals.map((goal) => Number(goal.goal || 0)), 1);
   const totalSteps = activeGoals.length;
   const cartValue = (maxGoal * sliderValue) / 100;
-  const nextGoal =
-    activeGoals.find((goal) => cartValue < Number(goal.goal || 0)) ||
-    activeGoals[activeGoals.length - 1];
-  const achievedGoal = [...activeGoals]
-    .reverse()
-    .find((goal) => cartValue >= Number(goal.goal || 0));
-  const remaining = Math.max(0, Number(nextGoal?.goal || 0) - cartValue).toFixed(0);
+  const nextIncompleteGoal = activeGoals.find(
+    (goal) => cartValue < Number(goal.goal || 0)
+  );
+  const messageGoal = nextIncompleteGoal || activeGoals[activeGoals.length - 1];
+  const isMessageGoalCompleted = Boolean(messageGoal) && !nextIncompleteGoal;
+  const remaining = Math.max(0, Number(messageGoal?.goal || 0) - cartValue).toFixed(0);
   const goalToken = trackBy === "quantity" ? remaining : `${remaining} INR`;
-  const messageGoal = achievedGoal || nextGoal;
-  const messageTemplate = achievedGoal
-    ? achievedGoal.texts.aboveAfter
-    : nextGoal?.texts.aboveBefore;
+  const messageTemplate = isMessageGoalCompleted
+    ? getGoalContentText(messageGoal, "aboveAfter")
+    : getGoalContentText(messageGoal, "aboveBefore");
   const message = messageGoal && messageTemplate
     ? messageTemplate
       .replaceAll("{{goal}}", goalToken)
@@ -1060,9 +1077,9 @@ function PreviewPanel({
           <Divider />
           <div className="cg-previewCanvas">
             <Text variant="bodySm" as="p" fontWeight="semibold" alignment="center">
-              {nextGoal ? message : "Select a reward type"}
+              {messageGoal ? message : "Select a reward type"}
             </Text>
-            {nextGoal && (
+            {messageGoal && (
               <div className="cg-progressWrap">
                 <div className="cg-previewTrack">
                   <div
@@ -1524,10 +1541,20 @@ export default function RuleCartGoal() {
   const hasRewardValidationErrors = rewardValidationErrors.some(Boolean);
 
   const addGoal = (type) => {
-    setGoals((current) => [
-      ...current.map((goal) => ({ ...goal, expanded: false })),
-      makeGoal(type, current.length, true),
-    ]);
+    setGoals((current) => {
+      const highestGoal = Math.max(
+        0,
+        ...current.map((goal) => Number(goal.goal || 0)).filter(Number.isFinite)
+      );
+      const stepSize = trackBy === "quantity" ? 1 : 50;
+      return [
+        ...current.map((goal) => ({ ...goal, expanded: false })),
+        {
+          ...makeGoal(type, current.length, true),
+          goal: String(highestGoal + stepSize),
+        },
+      ];
+    });
     setAddMenuOpen(false);
   };
 
