@@ -390,6 +390,19 @@ const mapCartGoalRuleForProxy = (rule = {}) => ({
     : null,
 });
 
+const hasConfiguredCartGoals = (rule = {}) =>
+  Array.isArray(rule.goals) &&
+  rule.goals.some((goal) => Number(goal?.goal || 0) > 0);
+
+const cartGoalFallbackRules = (rules = [], now = new Date(), context = {}) =>
+  (Array.isArray(rules) ? rules : [])
+    .filter(hasConfiguredCartGoals)
+    .filter((rule) => isRuleScheduleActive(rule, now))
+    .filter((rule) => ruleMatchesCustomer(rule, context))
+    .filter((rule) => ruleMatchesAbTest(rule, context))
+    .map((rule) => applyRuleTranslations({ ...rule, enabled: true }, context.locale))
+    .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+
 const normalizeProductId = (value) => {
   const raw = String(value || "").trim();
   if (!raw) return null;
@@ -779,6 +792,14 @@ export const loader = async ({ request }) => {
       scheduleNow,
       ruleContext
     ).filter((rule) => String(rule?.type || "").toLowerCase() === "code");
+    const activeCartGoalRules = filterActiveScheduledRules(
+      shopData._rawCartGoalRules,
+      scheduleNow,
+      ruleContext
+    );
+    const storefrontCartGoalRules = activeCartGoalRules.length
+      ? activeCartGoalRules
+      : cartGoalFallbackRules(shopData._rawCartGoalRules, scheduleNow, ruleContext);
 
     return jsonResponse(
       {
@@ -790,11 +811,8 @@ export const loader = async ({ request }) => {
         discountRules: activeCodeDiscountRules,
         freeGiftRules: [],
         bxgyRules: filterActiveScheduledRules(shopData._rawBxgyRules, scheduleNow, ruleContext),
-        cartGoalRules: filterActiveScheduledRules(
-          shopData._rawCartGoalRules,
-          scheduleNow,
-          ruleContext
-        ),
+        cartGoalRules: storefrontCartGoalRules,
+        _rawCartGoalRules: shopData._rawCartGoalRules,
         styleSettings: shopData.styleSettings,
         upsellSettings: shopData.upsellSettings,
         addToCartBarSettings: shopData.addToCartBarSettings,
