@@ -3447,7 +3447,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-text{
   margin-top:-4px;
-  max-width:96px;
+  max-width:none;
+  min-width:76px;
+  overflow:visible;
+  display:block;
+  -webkit-line-clamp:unset;
+  white-space:nowrap;
 }
 
 .sc-dot-text{
@@ -4013,6 +4018,30 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 .sc-footer-milestones:empty{display:none;}
 .sc-footer-milestones[hidden]{display:none !important;}
+.sc-footer-summary{
+  display:grid;
+  gap:8px;
+  padding:2px 0 4px;
+}
+.sc-foot-badge{
+  width:max-content;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 8px;
+  border-radius:4px;
+  background:#f0f0f0;
+  color:#111111;
+  font-size:var(--sc-small-font-size);
+  line-height:1;
+  font-weight:800;
+}
+.sc-foot-badge svg{
+  width:14px;
+  height:14px;
+  fill:currentColor;
+  display:block;
+}
 .sc-foot-row{
   display:flex;
   justify-content:space-between;
@@ -4023,8 +4052,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-foot-name{
   margin:0;
   font-size:var(--sc-base-font-size);
-  font-weight:700;
-  color:var(--sc-drawer-text-color);
+  font-weight:500;
+  color:rgba(80,66,55,.78);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -4101,6 +4130,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-weight:800;
   color:var(--sc-drawer-text-color);
   white-space:nowrap;
+  margin-left:auto;
 }
 .sc-foot-total{
   display:flex;
@@ -5798,7 +5828,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         rule.valueType = rule.discountType;
       }
 
-      rule.iconChoice = type === "shipping" ? "shipping" : type === "discount" ? "discount" : "free";
+      rule.iconChoice = type === "shipping" ? "shipping" : type === "discount" ? "tag" : "free";
 
       return { type, rule };
     };
@@ -6086,6 +6116,20 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!host) return;
 
     const rows = [];
+    let discountBadge = "";
+
+    const completedShippingStep = (Array.isArray(steps) ? steps : []).find((step) => {
+      if (String(step?.type || "").toLowerCase() !== "shipping") return false;
+      return isProgressStepDone(step, subtotalCents);
+    });
+    if (completedShippingStep) {
+      rows.push({
+        key: `shipping:${completedShippingStep?.rule?.id ?? completedShippingStep?.slot}`,
+        label: "Shipping",
+        tag: "",
+        amount: "Free",
+      });
+    }
 
     // Completed automatic (non-code) discount steps → badge rows
     const completedAutoDiscountSteps = (Array.isArray(steps) ? steps : []).filter((step) => {
@@ -6102,10 +6146,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     completedAutoDiscountSteps.forEach((step) => {
       const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
+      if (!discountBadge) {
+        const tokens = getDiscountValueTokens(step?.rule);
+        discountBadge = trimToNull(tokens?.value) || trimToNull(tokens?.valueWithOff) || "";
+      }
       rows.push({
         key: `auto:${step?.rule?.id ?? step?.title ?? step?.slot}`,
-        label: "Discounts",
-        tag: trimToNull(step?.title) || "Discount Applied",
+        label: "Discount",
+        tag: "",
         amount: Number.isFinite(discountCents) && discountCents > 0
           ? `- ${formatMoney(discountCents, currency)}`
           : "Applied",
@@ -6135,10 +6183,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         meta && !meta.isPercent && Number.isFinite(meta.cents) && meta.cents > subtotalCents;
       if (!minPurchaseFail && !discountAmountFail) {
         const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
+        if (!discountBadge) {
+          const tokens = getDiscountValueTokens(appliedCode.rule);
+          discountBadge = trimToNull(tokens?.value) || trimToNull(tokens?.valueWithOff) || "";
+        }
         rows.push({
           key: `code:${getRuleKey(appliedCode.rule, "code")}`,
-          label: "Discounts",
-          tag: getDiscountTagLabel(appliedCode.rule, "code"),
+          label: "Discount",
+          tag: "",
           amount:
             Number.isFinite(codeDiscountCents) && codeDiscountCents > 0
               ? `- ${formatMoney(codeDiscountCents, currency)}`
@@ -6151,10 +6203,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const seen = new Set();
     rows.forEach((row) => {
       const key = trimToNull(row?.key);
-      const tag = trimToNull(row?.tag);
-      if (!key || !tag || seen.has(key)) return;
+      if (!key || seen.has(key)) return;
       seen.add(key);
-      uniqueRows.push({ ...row, tag });
+      uniqueRows.push(row);
     });
 
     // Use CART.total_discount (actual Shopify-applied amount) when available,
@@ -6168,30 +6219,31 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return;
     }
 
+    if (!discountBadge && totalDiscountCents > 0) {
+      discountBadge = `-${formatMoney(totalDiscountCents, currency)}`;
+    }
+    if (discountBadge && !/^-/.test(discountBadge)) {
+      discountBadge = `-${discountBadge}`;
+    }
+
     const rowsHtml = uniqueRows
       .map(
         (row) => `
           <div class="sc-foot-row">
             <p class="sc-foot-name">${safe(row.label || "")}</p>
-            <span class="sc-foot-tag">${safe(row.tag || "UNLOCKED")}</span>
+            ${trimToNull(row.tag) ? `<span class="sc-foot-tag">${safe(row.tag)}</span>` : ""}
             <span class="sc-foot-amt">${safe(row.amount || "Unlocked")}</span>
           </div>
         `
       )
       .join("");
 
-    const totalHtml =
-      totalDiscountCents > 0
-        ? `
-          <div class="sc-foot-total">
-            <strong>Total discount</strong>
-            <strong>- ${safe(formatMoney(totalDiscountCents, currency))}</strong>
-          </div>
-        `
-        : "";
+    const badgeHtml = discountBadge
+      ? `<div class="sc-foot-badge">${renderMilestoneIcon(ICONS.tag)}<span>${safe(discountBadge)}</span></div>`
+      : "";
 
     host.hidden = false;
-    host.innerHTML = `${rowsHtml}${totalHtml}`;
+    host.innerHTML = `<div class="sc-footer-summary">${badgeHtml}${rowsHtml}</div>`;
   };
 
   function syncOpenButtonBadge(countRaw) {
