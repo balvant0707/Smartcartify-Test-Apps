@@ -489,8 +489,8 @@
 
   // Zero-decimal currencies: Shopify returns prices in the smallest unit (e.g. ¥150 → 150, not 15000)
   const ZERO_DECIMAL_CURRENCIES = new Set([
-    "BIF","CLP","GNF","ISK","JPY","KMF","KRW","MGA","PYG","RWF","UGX","VND","VUV",
-    "XAF","XOF","XPF","HUF","TWD",
+    "BIF", "CLP", "GNF", "ISK", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "UGX", "VND", "VUV",
+    "XAF", "XOF", "XPF", "HUF", "TWD",
   ]);
   const priceDivisor = (currency = null) => {
     const code = String(
@@ -1111,16 +1111,16 @@
       const productOptions = Array.isArray(p?.options) ? p.options : [];
       const optionName = String(
         optionSeed?.[optionIndex]?.name ||
-          productOptions?.[optionIndex]?.name ||
-          optionSeed?.[0]?.name ||
-          productOptions?.[0]?.name ||
-          "Option"
+        productOptions?.[optionIndex]?.name ||
+        optionSeed?.[0]?.name ||
+        productOptions?.[0]?.name ||
+        "Option"
       );
       const optionValue = optionSeed?.[optionIndex]?.value ?? "";
       const optionValuesFromVariants = getOptionValuesFromVariants(variants, optionIndex);
       const optionValuesFromProduct =
         Array.isArray(productOptions?.[optionIndex]?.values) &&
-        productOptions[optionIndex].values.length
+          productOptions[optionIndex].values.length
           ? productOptions[optionIndex].values
           : [];
       const optionValues =
@@ -1130,9 +1130,9 @@
       const hasVariants = variants.length > 1 && !Boolean(p?.has_only_default_variant);
       const size = hasVariants
         ? {
-            name: optionName || "Option",
-            value: optionValue ? String(optionValue) : "",
-          }
+          name: optionName || "Option",
+          value: optionValue ? String(optionValue) : "",
+        }
         : null;
       const primaryVariantId =
         p?.variantId ||
@@ -1237,7 +1237,7 @@
         variantId: it?.variant_id || it?.id || null,
         hasVariants,
       };
-      };
+    };
 
     const cartItems = items.map(mapFromCart);
 
@@ -1318,49 +1318,49 @@
       if (!r.ok) return [];
       const data = await r.json();
       const products = Array.isArray(data?.products) ? data.products : [];
-        return products.map((p) => {
-          const variants = Array.isArray(p?.variants) ? p.variants : [];
-          const firstVariant = variants[0] || null;
-          const priceRaw = firstVariant?.price ?? null;
-          const priceIsCents = inferPriceIsCents(priceRaw);
-          const priceCents = priceIsCents ? normalizeCents(priceRaw) : priceToCents(priceRaw);
-          const hasVariants =
-            variants.length > 1 && !Boolean(p?.has_only_default_variant);
-          const size = hasVariants
-            ? getPreferredVariantFromProductJson(p, firstVariant)
-            : null;
-          const options = Array.isArray(p?.options) ? p.options : [];
-          const sizeIndex = options.findIndex(
-            (opt) => String(opt?.name || "").trim().toLowerCase() === "size"
-          );
-          const optionIndex = sizeIndex >= 0 ? sizeIndex : 0;
-          const optionName = String(options[optionIndex]?.name || size?.name || "Option");
-          const optionValues =
-            Array.isArray(options[optionIndex]?.values) && options[optionIndex].values.length
-              ? options[optionIndex].values
-              : Array.from(
-                  new Set(
-                    variants
-                      .map((v) => v?.[`option${optionIndex + 1}`])
-                      .filter((v) => v != null && String(v).trim() !== "")
-                  )
-                );
-          return {
-            title: safe(p?.title || "Product"),
-            price:
-              priceCents != null ? formatMoney(priceCents, currency) : formatMoney(2500, currency),
-            priceCents,
-            priceIsCents,
-            image: getUpsellImageFromProduct(p),
-            size,
-            variantId: firstVariant?.id || null,
-            hasVariants,
-            variants,
-            optionIndex,
-            optionName,
-            optionValues,
-          };
-        });
+      return products.map((p) => {
+        const variants = Array.isArray(p?.variants) ? p.variants : [];
+        const firstVariant = variants[0] || null;
+        const priceRaw = firstVariant?.price ?? null;
+        const priceIsCents = inferPriceIsCents(priceRaw);
+        const priceCents = priceIsCents ? normalizeCents(priceRaw) : priceToCents(priceRaw);
+        const hasVariants =
+          variants.length > 1 && !Boolean(p?.has_only_default_variant);
+        const size = hasVariants
+          ? getPreferredVariantFromProductJson(p, firstVariant)
+          : null;
+        const options = Array.isArray(p?.options) ? p.options : [];
+        const sizeIndex = options.findIndex(
+          (opt) => String(opt?.name || "").trim().toLowerCase() === "size"
+        );
+        const optionIndex = sizeIndex >= 0 ? sizeIndex : 0;
+        const optionName = String(options[optionIndex]?.name || size?.name || "Option");
+        const optionValues =
+          Array.isArray(options[optionIndex]?.values) && options[optionIndex].values.length
+            ? options[optionIndex].values
+            : Array.from(
+              new Set(
+                variants
+                  .map((v) => v?.[`option${optionIndex + 1}`])
+                  .filter((v) => v != null && String(v).trim() !== "")
+              )
+            );
+        return {
+          title: safe(p?.title || "Product"),
+          price:
+            priceCents != null ? formatMoney(priceCents, currency) : formatMoney(2500, currency),
+          priceCents,
+          priceIsCents,
+          image: getUpsellImageFromProduct(p),
+          size,
+          variantId: firstVariant?.id || null,
+          hasVariants,
+          variants,
+          optionIndex,
+          optionName,
+          optionValues,
+        };
+      });
     } catch (err) {
       console.error("[SmartCartify] related products fetch failed", err);
       return [];
@@ -1430,9 +1430,9 @@
       const size =
         sizeRaw && typeof sizeRaw === "object"
           ? {
-              name: trimToNull(sizeRaw.name) || "Size",
-              value: trimToNull(sizeRaw.value) || "",
-            }
+            name: trimToNull(sizeRaw.name) || "Size",
+            value: trimToNull(sizeRaw.value) || "",
+          }
           : null;
       const showSelect =
         !!item?.hasVariants &&
@@ -1452,8 +1452,8 @@
       const variants = Array.isArray(item?.variants) ? item.variants : [];
       const pickedByOption = showSelect
         ? variants.find(
-            (v) => String(v?.[`option${optIndex + 1}`]) === String(sizeSelect || "")
-          )
+          (v) => String(v?.[`option${optIndex + 1}`]) === String(sizeSelect || "")
+        )
         : null;
       const picked =
         pickedByOption ||
@@ -1463,24 +1463,24 @@
       const available = isVariantAvailable(picked, item);
       const addVariantId = available
         ? safe(
-            picked?.id ||
-              picked?.variantId ||
-              picked?.admin_graphql_api_id ||
-              item?.variantId ||
-              ""
-          )
+          picked?.id ||
+          picked?.variantId ||
+          picked?.admin_graphql_api_id ||
+          item?.variantId ||
+          ""
+        )
         : "";
       const selectMarkup = showSelect
         ? `
           <div class="sc-upsell-select-wrap">
             <select class="sc-upsell-select" data-upsell-select="${safeKey}" data-upsell-opt-index="${item?.optionIndex ?? 0}">
               ${item.optionValues
-                .map((v) => {
-                  const sv = safe(v);
-                  const selected = sv === safe(sizeSelect) ? "selected" : "";
-                  return `<option value="${sv}" ${selected}>${sv}</option>`;
-                })
-                .join("")}
+          .map((v) => {
+            const sv = safe(v);
+            const selected = sv === safe(sizeSelect) ? "selected" : "";
+            return `<option value="${sv}" ${selected}>${sv}</option>`;
+          })
+          .join("")}
             </select>
             <span class="sc-upsell-select-arrow">▼</span>
           </div>
@@ -1505,9 +1505,8 @@
                       <span class="sc-upsell-btn-icon">+</span>
                       <span class="sc-upsell-btn-text">${safe(settings.buttonText)}</span>
                     </button>
-                    <button class="sc-upsell-btn sc-upsell-btn-oos" type="button" disabled ${
-                      available ? "hidden" : ""
-                    } style="${available ? "display:none" : ""}">Sold out</button>
+                    <button class="sc-upsell-btn sc-upsell-btn-oos" type="button" disabled ${available ? "hidden" : ""
+        } style="${available ? "display:none" : ""}">Sold out</button>
                   </div>
                 </div>
               </div>
@@ -1545,8 +1544,8 @@
         <div class="sc-upsell-viewport">
           <div class="sc-upsell-track" style="transform: translateX(-${UPSELL_INDEX * 100}%);">
             ${visibleItems
-              .map((item, i) => `<div class="sc-upsell-slide">${renderCard(item, i)}</div>`)
-              .join("")}
+        .map((item, i) => `<div class="sc-upsell-slide">${renderCard(item, i)}</div>`)
+        .join("")}
           </div>
         </div>
       `
@@ -1606,7 +1605,7 @@
             let errText = "";
             try {
               errText = await res.text();
-            } catch {}
+            } catch { }
             throw new Error(`Upsell add failed (${res.status}) ${errText}`.trim());
           }
           await refreshFromNetwork();
@@ -1796,8 +1795,8 @@
         credentials: "same-origin",
         keepalive: true,
         body: JSON.stringify({ event, ruleType: type, ruleId: id }),
-      }).catch(() => {});
-    } catch {}
+      }).catch(() => { });
+    } catch { }
   };
 
   const recordVisibleRuleImpressions = () => {
@@ -2224,7 +2223,7 @@
       </div>`;
     const dismiss = () => {
       backdrop.classList.remove("open");
-      setTimeout(() => { try { backdrop.remove(); } catch (_) {} }, 220);
+      setTimeout(() => { try { backdrop.remove(); } catch (_) { } }, 220);
     };
     backdrop.addEventListener("click", dismiss);
     drawer.appendChild(backdrop);
@@ -2347,7 +2346,7 @@
       try {
         await navigator.clipboard.writeText(text);
         return true;
-      } catch {}
+      } catch { }
     }
     try {
       const ta = document.createElement("textarea");
@@ -2684,8 +2683,8 @@
         discountValRaw && /off\b/i.test(discountValRaw)
           ? discountValRaw
           : discountValRaw
-          ? `${discountValRaw} OFF`
-          : "";
+            ? `${discountValRaw} OFF`
+            : "";
       const discountValueForEm = discountValWithOff || discountValRaw;
       const discountCode = ruleCodeRaw;
 
@@ -2834,9 +2833,9 @@
         );
         const valRaw = trimToNull(
           firstCodeRule?.value ??
-            firstCodeRule?.discountValue ??
-            firstCodeRule?.discount_value ??
-            ""
+          firstCodeRule?.discountValue ??
+          firstCodeRule?.discount_value ??
+          ""
         );
         const valWithOff = valRaw
           ? /off\b/i.test(valRaw)
@@ -2854,21 +2853,21 @@
         if (firstBuyRule) {
           const x = trimToNull(
             firstBuyRule?.xQty ??
-              firstBuyRule?.x_qty ??
-              firstBuyRule?.x ??
-              firstBuyRule?.buyQty ??
-              firstBuyRule?.buy_qty ??
-              firstBuyRule?.buy ??
-              ""
+            firstBuyRule?.x_qty ??
+            firstBuyRule?.x ??
+            firstBuyRule?.buyQty ??
+            firstBuyRule?.buy_qty ??
+            firstBuyRule?.buy ??
+            ""
           );
           const y = trimToNull(
             firstBuyRule?.yQty ??
-              firstBuyRule?.y_qty ??
-              firstBuyRule?.y ??
-              firstBuyRule?.getQty ??
-              firstBuyRule?.get_qty ??
-              firstBuyRule?.get ??
-              ""
+            firstBuyRule?.y_qty ??
+            firstBuyRule?.y ??
+            firstBuyRule?.getQty ??
+            firstBuyRule?.get_qty ??
+            firstBuyRule?.get ??
+            ""
           );
           const fallback = x && y ? `Buy X Get Y Discount: Buy ${x} get ${y}` : "Buy X Get Y Discount";
           unique.push(fallback);
@@ -3419,35 +3418,36 @@ body.sc-cartify-open .shopify-section-group-header-group{
   height:8px;
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-bubble{
-  width:24px;
-  height:24px;
-  border:0;
-  background:var(--sc-progress);
-  color:#111827;
-  box-shadow:0 1px 3px rgba(0,0,0,.12);
+  width:30px;
+  height:30px;
+  border:2px solid #6f6f6f;
+  background:#ffffff;
+  color:#2f2f2f;
+  box-shadow:0 1px 3px rgba(0,0,0,.14);
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-bubble svg{
-  width:15px;
-  height:15px;
-  stroke-width:3;
-  fill:none;
+  width:18px;
+  height:18px;
+  display:block;
+  fill:currentColor;
+  stroke:none;
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble{
   background:var(--sc-progress);
-  color:#111827;
+  border-color:var(--sc-progress);
+  color:#ffffff;
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble svg{
-  stroke:currentColor;
-  fill:none;
+  fill:currentColor;
+  stroke:none;
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-wrap:not(.done) .sc-dot-bubble{
-  background:#5a4636;
-  color:#ffffff;
+  background:#ffffff;
+  color:#2f2f2f;
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-text{
   margin-top:-4px;
   max-width:96px;
-  font-weight:600;
 }
 
 .sc-dot-text{
@@ -4842,7 +4842,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-small-font-size", `${smallFontSize}px`);
 
     const defaults = {
-      baseBg:"#ffffff",
+      baseBg: "#ffffff",
       topText: "#000000",
       headerText: "#000000",
       drawerText: "#111827",
@@ -5270,7 +5270,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       try {
         const res = await fetch(url, { credentials: "same-origin", redirect: "follow" });
         if (res && res.ok) return true;
-      } catch {}
+      } catch { }
     }
     try {
       const attrs = CART?.attributes || {};
@@ -5291,7 +5291,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         body: JSON.stringify({ attributes }),
       });
       if (r && r.ok) return true;
-    } catch {}
+    } catch { }
     return false;
   };
 
@@ -5378,8 +5378,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const requiredCents = minPurchaseFail
         ? minCents
         : discountAmountFail
-        ? meta?.cents ?? null
-        : null;
+          ? meta?.cents ?? null
+          : null;
       // Auto-removal should not show a transient warning on open.
 
       DISCOUNT_REMOVE_IN_FLIGHT = true;
@@ -5798,9 +5798,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         rule.valueType = rule.discountType;
       }
 
-      rule.iconChoice =
-        pickIconKeyFromRule(goal) ||
-        (type === "shipping" ? "shipping" : type === "discount" ? "discount" : "free");
+      rule.iconChoice = type === "shipping" ? "shipping" : type === "discount" ? "discount" : "free";
 
       return { type, rule };
     };
@@ -6257,8 +6255,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       appliedCodes.length === 0
         ? totalDiscountCentsRaw
         : hasManualAppliedCode
-        ? totalDiscountCentsRaw
-        : 0;
+          ? totalDiscountCentsRaw
+          : 0;
     const checkoutPayableCents = Math.max(0, subtotalCents - totalDiscountCents);
     const checkoutLabelEl = drawer.querySelector(".sc-checkout-label");
     if (checkoutLabelEl) {
@@ -6323,9 +6321,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const displayPrice = Math.max(
           0,
           Number(it.final_line_price) ||
-            Number(it.line_price) ||
-            (unitPrice * qty) ||
-            finalLine
+          Number(it.line_price) ||
+          (unitPrice * qty) ||
+          finalLine
         );
         const priceText = formatMoney(displayPrice, currency);
         const priceClass = `sc-price${displayPrice === 0 ? " sc-price-free" : ""}`;
@@ -6344,8 +6342,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const metaLines = getLineItemMetaLines(it);
         const metaHtml = metaLines.length
           ? `<div class="sc-meta">${metaLines
-              .map((line) => `<p class="sc-meta-line">${safe(line)}</p>`)
-              .join("")}</div>`
+            .map((line) => `<p class="sc-meta-line">${safe(line)}</p>`)
+            .join("")}</div>`
           : "";
 
         return `
@@ -6358,18 +6356,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               ${freeTag}
               <div class="sc-mid-bottom">
                 ${isReward
-                  ? ""
-                  : `<div class="sc-qty">
+            ? ""
+            : `<div class="sc-qty">
                   <button type="button" data-qty="dec" aria-label="Decrease">-</button>
                   <input type="number" min="0" inputmode="numeric" value="${qty}" data-qty="input" />
                   <button type="button" data-qty="inc" aria-label="Increase">+</button>
                 </div>`}
                 <div class="sc-pricebox">
-                  ${
-                    hasCompare && showPrice
-                      ? `<span class="sc-compare">${formatMoney(compareLine, currency)}</span>`
-                      : ``
-                  }
+                  ${hasCompare && showPrice
+            ? `<span class="sc-compare">${formatMoney(compareLine, currency)}</span>`
+            : ``
+          }
                   ${showPrice ? `<span class="${priceClass}">${priceText}</span>` : ``}
                 </div>
               </div>
@@ -6645,7 +6642,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         : (() => { try { return JSON.parse(appliesToRaw || "{}"); } catch { return {}; } })();
       const applyProducts = Array.isArray(appliesToObj?.products) ? appliesToObj.products : [];
       let fallbackIds = [];
-      try { const p = JSON.parse(rule?.appliesProductIds || "[]"); fallbackIds = Array.isArray(p) ? p : []; } catch {}
+      try { const p = JSON.parse(rule?.appliesProductIds || "[]"); fallbackIds = Array.isArray(p) ? p : []; } catch { }
       const allProductRefs = [...applyProducts, ...fallbackIds];
       const allowed = new Set(
         allProductRefs.map((p) => gidToId(p) || (p ? String(p) : null)).filter(Boolean)
@@ -7640,11 +7637,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const isDone = isProgressStepDone(ss, subtotal);
         const isActive = !isDone && nextPending?.slot === ss.slot;
         const cls = isDone ? "done" : isActive ? "active" : "";
-        const icon = isCartGoalProgress
-          ? isDone
-            ? ICONS.check
-            : ICONS.lock
-          : ss.icon;
+        const icon = ss.icon;
 
         const belowText = trimToNull(ss.progressTextBelow) || trimToNull(ss.title);
 
@@ -7810,9 +7803,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (form.closest("product-form, [data-product-form]")) return true;
     return Boolean(
       form.querySelector('[name="id"]') &&
-        form.querySelector(
-          'button[name="add"], input[name="add"], [data-add-to-cart], [data-ajax-cart-request-button], button[type="submit"]'
-        )
+      form.querySelector(
+        'button[name="add"], input[name="add"], [data-add-to-cart], [data-ajax-cart-request-button], button[type="submit"]'
+      )
     );
   };
 
@@ -7855,10 +7848,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getAtcVariantId = (variant) =>
     normalizeVariantId(
       variant?.id ||
-        variant?.variantId ||
-        variant?.admin_graphql_api_id ||
-        variant?.adminGraphqlApiId ||
-        variant?.legacyResourceId
+      variant?.variantId ||
+      variant?.admin_graphql_api_id ||
+      variant?.adminGraphqlApiId ||
+      variant?.legacyResourceId
     );
 
   const getAtcVariantLabel = (variant, fallback = "Default") => {
@@ -7940,7 +7933,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         ATC_PAGE_PRODUCT_CACHE.product = product;
         scheduleAddToCartBarRender(50);
       }
-    } catch {}
+    } catch { }
   };
 
   const getShopifyAnalyticsProduct = () => {
@@ -7961,7 +7954,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (!el) continue;
         const parsed = JSON.parse(el.textContent || "{}");
         if (parsed?.id && Array.isArray(parsed?.variants)) return parsed;
-      } catch {}
+      } catch { }
     }
 
     // Last resort: pre-loaded handle cache (populated by preloadAtcProductFromHandle)
@@ -8121,11 +8114,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       deviceSettings.showVariantSelector && product.hasVariants && variants.length > 1;
 
     const imageHtml = deviceSettings.showProductImage
-      ? `<div class="sc-atc-media">${
-          product.image
-            ? `<img src="${safe(product.image)}" alt="${safe(product.title)}" loading="lazy">`
-            : `<span class="sc-atc-placeholder">${safe(String(product.title || "P").charAt(0).toUpperCase())}</span>`
-        }</div>`
+      ? `<div class="sc-atc-media">${product.image
+        ? `<img src="${safe(product.image)}" alt="${safe(product.title)}" loading="lazy">`
+        : `<span class="sc-atc-placeholder">${safe(String(product.title || "P").charAt(0).toUpperCase())}</span>`
+      }</div>`
       : "";
 
     const variantHtml = showVariantSelector
@@ -8133,13 +8125,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ${deviceSettings.showVariantLabel ? `<span class="sc-atc-variant-label">Variant</span>` : ""}
           <select class="sc-atc-select" data-sc-atc-variant>
             ${variants
-              .map((item) => {
-                const id = getAtcVariantId(item);
-                const disabled = isVariantAvailable(item, product) ? "" : " disabled";
-                const selected = id === selectedId ? " selected" : "";
-                return `<option value="${safe(id || "")}"${selected}${disabled}>${safe(getAtcVariantLabel(item))}</option>`;
-              })
-              .join("")}
+        .map((item) => {
+          const id = getAtcVariantId(item);
+          const disabled = isVariantAvailable(item, product) ? "" : " disabled";
+          const selected = id === selectedId ? " selected" : "";
+          return `<option value="${safe(id || "")}"${selected}${disabled}>${safe(getAtcVariantLabel(item))}</option>`;
+        })
+        .join("")}
           </select>
         </label>`
       : "";
@@ -8150,29 +8142,26 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         <div class="sc-atc-info">
           ${deviceSettings.showProductTitle ? `<p class="sc-atc-title">${safe(product.title)}</p>` : ""}
           <div class="sc-atc-meta">
-            ${
-              deviceSettings.showCompareAtPrice && hasCompare
-                ? `<span class="sc-atc-compare">${safe(formatMoney(compareCents, currency))}</span>`
-                : ""
-            }
-            ${
-              deviceSettings.showPrice && Number.isFinite(priceCents)
-                ? `<span class="sc-atc-price">${safe(formatMoney(priceCents, currency))}</span>`
-                : ""
-            }
+            ${deviceSettings.showCompareAtPrice && hasCompare
+        ? `<span class="sc-atc-compare">${safe(formatMoney(compareCents, currency))}</span>`
+        : ""
+      }
+            ${deviceSettings.showPrice && Number.isFinite(priceCents)
+        ? `<span class="sc-atc-price">${safe(formatMoney(priceCents, currency))}</span>`
+        : ""
+      }
             ${variantHtml}
           </div>
         </div>
         <div class="sc-atc-actions">
-          ${
-            deviceSettings.showQuantity
-              ? `<div class="sc-atc-qty" aria-label="Quantity">
+          ${deviceSettings.showQuantity
+        ? `<div class="sc-atc-qty" aria-label="Quantity">
                   <button type="button" data-sc-atc-qty="dec" aria-label="Decrease quantity">-</button>
                   <input type="number" min="1" inputmode="numeric" value="${qty}" data-sc-atc-qty-input aria-label="Quantity">
                   <button type="button" data-sc-atc-qty="inc" aria-label="Increase quantity">+</button>
                 </div>`
-              : ""
-          }
+        : ""
+      }
           <button type="button" class="sc-atc-submit" data-sc-atc-submit>
             <span>${safe(ctaBase)}</span>
             ${ctaCompare}
@@ -8786,36 +8775,36 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     document
       .querySelectorAll("[data-smart-cartify-open], [data-smart-cartify-fallback-open]")
       .forEach((btn) => {
-      if (btn.__scBound) return;
-      btn.__scBound = true;
-      const openFromEvent = async (e, markPointer = false) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-        if (markPointer) btn.__scPointerOpened = Date.now();
-        openDrawer();
-        await refreshFromNetwork();
-        renderAllFromCache();
-      };
-      btn.addEventListener(
-        "pointerdown",
-        (e) => {
-          openFromEvent(e, true);
-        },
-        true
-      );
-      btn.addEventListener(
-        "click",
-        async (e) => {
-          if (btn.__scPointerOpened && Date.now() - btn.__scPointerOpened < 500) {
-            btn.__scPointerOpened = 0;
-            return;
-          }
-          await openFromEvent(e, false);
-        },
-        true
-      );
-    });
+        if (btn.__scBound) return;
+        btn.__scBound = true;
+        const openFromEvent = async (e, markPointer = false) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          if (markPointer) btn.__scPointerOpened = Date.now();
+          openDrawer();
+          await refreshFromNetwork();
+          renderAllFromCache();
+        };
+        btn.addEventListener(
+          "pointerdown",
+          (e) => {
+            openFromEvent(e, true);
+          },
+          true
+        );
+        btn.addEventListener(
+          "click",
+          async (e) => {
+            if (btn.__scPointerOpened && Date.now() - btn.__scPointerOpened < 500) {
+              btn.__scPointerOpened = 0;
+              return;
+            }
+            await openFromEvent(e, false);
+          },
+          true
+        );
+      });
   };
 
   function queueOpenButtonBind() {
