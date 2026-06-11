@@ -163,15 +163,6 @@ async function getSettingsDataViaRestAPI(session, themeId) {
 }
 
 async function getSettingsData(admin, session, themeId) {
-  try {
-    const raw = await getSettingsDataViaAssetAPI(admin, themeId);
-    if (raw !== null && raw !== undefined) {
-      return raw;
-    }
-  } catch (err) {
-    console.warn("[app._index] GraphQL asset read failed, trying REST fallback:", err?.message);
-  }
-
   return getSettingsDataViaRestAPI(session, themeId);
 }
 
