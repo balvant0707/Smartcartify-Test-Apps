@@ -714,7 +714,7 @@
   };
 
   const getRuleProgressMetric = (type, rule) => {
-    if ((type === "discount" || type === "free") && isQuantityTriggerRule(rule)) {
+    if (isQuantityTriggerRule(rule)) {
       const goal = getGoalQuantity(rule);
       return {
         metric: "quantity",
@@ -5467,6 +5467,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const shippingList = getProxyArray(PROXY, ["shippingRules", "shippingRule", "shippingrule"]);
     const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
     const freeList = getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]);
+    const cartGoalList = getProxyArray(PROXY, ["cartGoalRules", "cartGoalRule", "cartgoalrule"]);
 
     const buyxgetyList = getProxyArray(PROXY, [
       "buyxgetyRules",
@@ -5607,7 +5608,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       // Generate value-aware fallback messages when merchant has not configured them
       const goalAmt = progressMetric.goal != null
-        ? formatMoney(amountToCurrencyMinorUnits(progressMetric.goal), CART?.currency)
+        ? progressMetric.metric === "quantity"
+          ? formatQuantityGoal(progressMetric.goal)
+          : formatMoney(amountToCurrencyMinorUnits(progressMetric.goal), CART?.currency)
         : "";
       const defaultBeforeText = (() => {
         if (!goalAmt) return title;
@@ -5667,6 +5670,105 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         progressTextAfter: resolvedAfter || defaultAfterText,
       };
     };
+
+    const normalizeCartGoalRewardType = (goal) => {
+      const type = String(goal?.type || "").trim().toLowerCase();
+      if (type === "gift" || type === "free" || type === "free_product") return "free";
+      if (type === "shipping" || type === "free_shipping") return "shipping";
+      return "discount";
+    };
+
+    const buildCartGoalRule = (campaign, goal, index) => {
+      const trackBy = String(campaign?.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
+      const type = normalizeCartGoalRewardType(goal);
+      const threshold = Number(goal?.goal);
+      const texts = goal?.texts || {};
+      const productIds = Array.isArray(goal?.bonusProductIds)
+        ? goal.bonusProductIds.filter(Boolean)
+        : [];
+      const bonusProductId =
+        trimToNull(goal?.bonusProductId) ||
+        trimToNull(goal?.bonus) ||
+        trimToNull(productIds[0]) ||
+        "";
+      const rule = {
+        ...goal,
+        id: `cartgoal:${campaign?.id ?? "campaign"}:${goal?.id ?? index + 1}`,
+        campaignId: campaign?.id,
+        campaignName: trimToNull(campaign?.campaignName) || "Cart Goal",
+        enabled: true,
+        type,
+        ruleType: type,
+        cartStepName: `step${index + 1}`,
+        triggerType: trackBy === "quantity" ? "quantity" : "amount",
+        progressTextBefore: trimToNull(texts.aboveBefore) || "",
+        progressTextAfter: trimToNull(texts.aboveAfter) || "",
+        progressTextBelow: trimToNull(texts.below) || "",
+        shopifyDiscountId: goal?.shopifyDiscountId || null,
+        bonusProductId,
+        bonus: bonusProductId,
+        bonusProductIds: productIds,
+      };
+
+      if (trackBy === "quantity") {
+        rule.minQuantity = Number.isFinite(threshold) ? threshold : null;
+      } else if (type === "shipping") {
+        rule.minSubtotal = Number.isFinite(threshold) ? threshold : null;
+      } else {
+        rule.minPurchase = Number.isFinite(threshold) ? threshold : null;
+      }
+
+      if (type === "discount") {
+        rule.value = goal?.value;
+        rule.discountValue = goal?.value;
+        rule.discountType = goal?.discountType === "amount" ? "amount" : "percentage";
+        rule.valueType = rule.discountType;
+      }
+
+      rule.iconChoice =
+        pickIconKeyFromRule(goal) ||
+        (type === "shipping" ? "shipping" : type === "discount" ? "discount" : "free");
+
+      return { type, rule };
+    };
+
+    const cartGoalCandidates = (Array.isArray(cartGoalList) ? cartGoalList : [])
+      .filter((campaign) => isRuleEnabled(campaign))
+      .flatMap((campaign) => {
+        const goals = Array.isArray(campaign?.goals) ? campaign.goals : [];
+        return goals
+          .filter((goal) => goal && Number(goal?.goal) > 0)
+          .map((goal, index) => buildCartGoalRule(campaign, goal, index));
+      });
+
+    const cartGoalSteps = cartGoalCandidates
+      .map(({ type, rule }, index) => buildProgressStep(type, rule, `step${index + 1}`))
+      .filter(Boolean)
+      .sort((a, b) => {
+        const metricOrder = a.progressMetric === b.progressMetric ? 0 : a.progressMetric === "amount" ? -1 : 1;
+        if (metricOrder !== 0) return metricOrder;
+        return getProgressStepThreshold(a) - getProgressStepThreshold(b);
+      })
+      .map((step, index) => ({ ...step, slot: `step${index + 1}` }));
+
+    if (cartGoalSteps.length) {
+      if (DEBUG_TABLES) {
+        console.groupCollapsed("[SC] Cart Goal Progress Steps");
+        console.table(
+          cartGoalSteps.map((step) => ({
+            slot: step.slot,
+            type: step.type,
+            campaignName: step.rule?.campaignName ?? "",
+            goal:
+              step.progressMetric === "quantity"
+                ? step.unlockQuantity
+                : step.unlockCents,
+          }))
+        );
+        console.groupEnd();
+      }
+      return cartGoalSteps;
+    }
 
     const progressCandidates = [
       ...(Array.isArray(shippingList) ? shippingList : []).map((rule) => ({ type: "shipping", rule })),
@@ -6902,6 +7004,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
       const freeList = getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]);
+      const cartGoalList = getProxyArray(PROXY, ["cartGoalRules", "cartGoalRule", "cartgoalrule"]);
       const buyxgetyList = getProxyArray(PROXY, [
         "buyxgetyRules",
         "buyxgetyRule",
@@ -6917,7 +7020,47 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const freeBySlot = new Map();
       const freeByRuleKey = new Map();
       const freeByDiscountId = new Map();
-      (Array.isArray(freeList) ? freeList : []).forEach((r) => {
+      const cartGoalFreeRules = (Array.isArray(cartGoalList) ? cartGoalList : [])
+        .filter((campaign) => isRuleEnabled(campaign))
+        .flatMap((campaign) => {
+          const trackBy = String(campaign?.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
+          const goals = Array.isArray(campaign?.goals) ? campaign.goals : [];
+          return goals
+            .map((goal, index) => {
+              const type = String(goal?.type || "").trim().toLowerCase();
+              if (!["gift", "free", "free_product"].includes(type)) return null;
+              const threshold = Number(goal?.goal);
+              const productIds = Array.isArray(goal?.bonusProductIds)
+                ? goal.bonusProductIds.filter(Boolean)
+                : [];
+              const bonusProductId =
+                trimToNull(goal?.bonusProductId) ||
+                trimToNull(goal?.bonus) ||
+                trimToNull(productIds[0]) ||
+                "";
+              const rule = {
+                ...goal,
+                id: `cartgoal:${campaign?.id ?? "campaign"}:${goal?.id ?? index + 1}`,
+                campaignId: campaign?.id,
+                campaignName: trimToNull(campaign?.campaignName) || "Cart Goal",
+                enabled: true,
+                type: "free",
+                ruleType: "free",
+                cartStepName: `step${index + 1}`,
+                triggerType: trackBy === "quantity" ? "quantity" : "amount",
+                shopifyDiscountId: goal?.shopifyDiscountId || null,
+                bonusProductId,
+                bonus: bonusProductId,
+                bonusProductIds: productIds,
+              };
+              if (trackBy === "quantity") rule.minQuantity = Number.isFinite(threshold) ? threshold : null;
+              else rule.minPurchase = Number.isFinite(threshold) ? threshold : null;
+              return rule;
+            })
+            .filter(Boolean);
+        });
+
+      [...(Array.isArray(freeList) ? freeList : []), ...cartGoalFreeRules].forEach((r) => {
         if (!isRuleEnabled(r)) return;
         const slot = normalizeStepSlotFromAny(r);
         if (slot) freeBySlot.set(String(slot), r);
@@ -7410,8 +7553,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     dotsWrap.innerHTML = stepsAll
       .map((ss, i) => {
-        const leftPct = ((i + 1) / stepCount) * 100;
         const isLast = i === stepCount - 1;
+        const leftPct = isLast ? 98 : ((i + 1) / stepCount) * 100;
 
         const isDone = isProgressStepDone(ss, subtotal);
         const isActive = !isDone && nextPending?.slot === ss.slot;
