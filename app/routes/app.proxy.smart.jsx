@@ -832,9 +832,7 @@ export const loader = async ({ request }) => {
       scheduleNow,
       ruleContext
     );
-    const storefrontCartGoalRules = activeCartGoalRules.length
-      ? activeCartGoalRules
-      : cartGoalFallbackRules(shopData._rawCartGoalRules, scheduleNow, ruleContext);
+    const storefrontCartGoalRules = activeCartGoalRules.slice(0, 1);
 
     return jsonResponse(
       {
@@ -847,7 +845,6 @@ export const loader = async ({ request }) => {
         freeGiftRules: [],
         bxgyRules: filterActiveScheduledRules(shopData._rawBxgyRules, scheduleNow, ruleContext),
         cartGoalRules: storefrontCartGoalRules,
-        _rawCartGoalRules: shopData._rawCartGoalRules,
         styleSettings: shopData.styleSettings,
         upsellSettings: shopData.upsellSettings,
         addToCartBarSettings: shopData.addToCartBarSettings,

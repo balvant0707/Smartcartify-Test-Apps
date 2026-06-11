@@ -26,6 +26,7 @@ import {
   ActionList,
   RangeSlider,
   Select,
+  Spinner,
   Text,
   TextField,
 } from "@shopify/polaris";
@@ -1549,6 +1550,7 @@ export default function RuleCartGoal() {
 
   const isSaving = navigation.state === "submitting" && !savingDraft;
   const isSavingDraft = navigation.state === "submitting" && savingDraft;
+  const isSyncingDetails = isSaving || isSavingDraft;
   const productPickerItems = (productFetcher.data?.products || []).map((product) => ({
     id: product.id,
     title: product.title,
@@ -1772,6 +1774,26 @@ export default function RuleCartGoal() {
           grid-template-columns: minmax(0, 6fr) minmax(340px, 3fr);
           gap: 20px;
           align-items: start;
+        }
+        .cg-savingOverlay {
+          position: fixed;
+          inset: 0;
+          z-index: 520;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(48, 48, 48, 0.55);
+          padding: 24px;
+        }
+        .cg-savingDialog {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          width: min(100%, 380px);
+          border-radius: 10px;
+          background: #fff;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+          padding: 24px 28px;
         }
         .cg-info {
           display: flex;
@@ -2190,6 +2212,17 @@ export default function RuleCartGoal() {
           }
         }
       `}</style>
+
+      {isSyncingDetails && (
+        <div className="cg-savingOverlay" role="status" aria-live="polite">
+          <div className="cg-savingDialog">
+            <Spinner accessibilityLabel="Syncing details to Shopify" size="large" />
+            <Text as="p" variant="bodyLg" fontWeight="semibold">
+              Syncing details to Shopify ...
+            </Text>
+          </div>
+        </div>
+      )}
 
       <Box paddingBlockEnd="800">
         <div className="cg-layout">
