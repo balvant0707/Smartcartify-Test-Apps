@@ -3544,8 +3544,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-cartgoal-gift-showcase{
   margin:0;
-  border-top:1px solid var(--sc-border);
-  border-bottom:1px solid var(--sc-border);
   background:#fff;
 }
 .sc-cartgoal-gift-card{
@@ -3574,9 +3572,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
   cursor:default;
 }
 .sc-cartgoal-gift-img{
-  width:64px;
-  height:64px;
-  border-radius:6px;
+  width:40px;
+  height:40px;
+  border-radius:4px;
   overflow:hidden;
   background:#f3f4f6;
   border:1px solid #e5e7eb;
@@ -3585,7 +3583,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   width:100%;
   height:100%;
   display:block;
-  object-fit:cover;
+  object-fit:contain;
 }
 .sc-cartgoal-gift-copy{
   min-width:0;
@@ -3732,7 +3730,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   height:50px;
   overflow:hidden;
   background:var(--sc-image-bg);
-  border-radius:10px;
+  border-radius:4px;
   flex:0 0 auto;
 }
 .sc-img img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
@@ -6068,12 +6066,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const cartGoalCandidates = selectedCartGoalCampaign
       ? [selectedCartGoalCampaign]
-      .flatMap((campaign) => {
-        const goals = parseArrayish(campaign?.goals);
-        return goals
-          .filter((goal) => goal && Number(goal?.goal) > 0)
-          .map((goal, index) => buildCartGoalRule(campaign, goal, index));
-      })
+        .flatMap((campaign) => {
+          const goals = parseArrayish(campaign?.goals);
+          return goals
+            .filter((goal) => goal && Number(goal?.goal) > 0)
+            .map((goal, index) => buildCartGoalRule(campaign, goal, index));
+        })
       : [];
 
     const cartGoalSteps = cartGoalCandidates
@@ -6797,43 +6795,62 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const rewardVariantByProductCache = new Map();
   const resolveVariantFromProductId = async (rawProductId) => {
-    const productId = normalizeProductNumericId(rawProductId);
-    if (!productId) return null;
+    const numericId = normalizeProductNumericId(rawProductId);
+    const isHandleLookup = !numericId;
+    const cacheKey = isHandleLookup ? `handle:${String(rawProductId)}` : String(numericId);
 
-    if (rewardVariantByProductCache.has(productId)) {
-      return rewardVariantByProductCache.get(productId);
+    if (rewardVariantByProductCache.has(cacheKey)) {
+      return rewardVariantByProductCache.get(cacheKey);
     }
 
     try {
-      const res = await fetch(
-        `/products.json?ids=${encodeURIComponent(productId)}&limit=1`,
-        { headers: { Accept: "application/json" }, credentials: "same-origin" }
-      );
-      if (!res.ok) {
-        // Transient server error — do not cache so the next call can retry.
-        return null;
+      let product = null;
+      if (!isHandleLookup) {
+        const res = await fetch(
+          `/products.json?ids=${encodeURIComponent(numericId)}&limit=1`,
+          { headers: { Accept: "application/json" }, credentials: "same-origin" }
+        );
+        if (!res.ok) {
+          return null;
+        }
+        const payload = await res.json();
+        product = Array.isArray(payload?.products) ? payload.products[0] : null;
+      } else {
+        // Try resolving by handle (fallback for non-numeric IDs stored as handles)
+        try {
+          const res2 = await fetch(`/products/${encodeURIComponent(rawProductId)}.js`, {
+            headers: { Accept: "application/json" },
+            credentials: "same-origin",
+          });
+          if (res2.ok) {
+            const payload2 = await res2.json();
+            // /products/{handle}.js returns product object directly
+            product = payload2 || null;
+          }
+        } catch (e) {
+          // ignore
+        }
       }
-
-      const payload = await res.json();
-      const product = Array.isArray(payload?.products) ? payload.products[0] : null;
       const variants = Array.isArray(product?.variants) ? product.variants : [];
       const firstVariant = variants[0] || null;
       const legacyId = trimToNull(firstVariant?.id);
       if (!legacyId) {
         // Product exists but has no variants — cache null so we don't hammer the API.
-        rewardVariantByProductCache.set(productId, null);
+        rewardVariantByProductCache.set(cacheKey, null);
         return null;
       }
 
       const imageUrl =
         trimToNull(firstVariant?.featured_image?.src) ||
+        trimToNull(firstVariant?.image?.src) ||
+        (Array.isArray(product?.images) && trimToNull(product.images[0]?.src)) ||
         trimToNull(product?.image?.src) ||
         "";
 
       const resolved = {
         id: `gid://shopify/ProductVariant/${legacyId}`,
         legacyResourceId: String(legacyId),
-        productId,
+        productId: numericId || null,
         image: imageUrl,
         title: trimToNull(firstVariant?.title) || "",
         price: firstVariant?.price,
@@ -6844,7 +6861,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         },
       };
 
-      rewardVariantByProductCache.set(productId, resolved);
+      rewardVariantByProductCache.set(cacheKey, resolved);
       return resolved;
     } catch (err) {
       console.error("[SmartCartify] product->variant resolve failed:", err);
@@ -6852,6 +6869,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return null;
     }
   };
+
 
   const resolveRewardVariantForAdd = async (rule, variant) => {
     if (getVariantLegacyId(variant)) return variant;
@@ -7285,43 +7303,30 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
 
     if (CART_GOAL_FREE_SHOWCASE_INDEX >= slides.length) CART_GOAL_FREE_SHOWCASE_INDEX = 0;
-    const current = slides[CART_GOAL_FREE_SHOWCASE_INDEX] || slides[0];
+    // Show the first slide only (remove sliding controls in drawer)
+    const current = slides[0] || slides[CART_GOAL_FREE_SHOWCASE_INDEX] || slides[0];
     const title = "Free Gift!";
-    const img = current.option?.image
-      ? `<img src="${safe(current.option.image)}" alt="${safe(current.option.title || title)}" loading="lazy">`
-      : "";
-    const canSlide = slides.length > 1;
+    // Debug: log slides and image availability for easier troubleshooting in console
+    try { console.debug('[SmartCartify] free gift showcase current image:', current.option?.image || null); } catch (e) { }
 
+    let img = "";
+    if (current.option?.image) {
+      img = `<img src="${safe(current.option.image)}" alt="${safe(current.option.title || title)}" loading="lazy">`;
+    } else {
+      const letter = safe((current.option?.title || title || 'G').slice(0, 1));
+      img = `<span class="sc-cartgoal-gift-thumb-empty">${letter}</span>`;
+    }
+    // Render a static card (no slider controls) to keep the drawer layout simple
     wrap.hidden = false;
     wrap.innerHTML = `
-      <div class="sc-cartgoal-gift-card">
-        <button class="sc-cartgoal-gift-arrow" type="button" data-cartgoal-gift-prev aria-label="Previous free gift" ${canSlide ? "" : "disabled"}>
-          <span aria-hidden="true">&lsaquo;</span>
-        </button>
+      <div class="sc-cartgoal-gift-card sc-cartgoal-gift-card-static">
         <div class="sc-cartgoal-gift-img">${img}</div>
         <div class="sc-cartgoal-gift-copy">
           <p class="sc-cartgoal-gift-title">${safe(title)}</p>
           <p class="sc-cartgoal-gift-text">${safe(current.message)}</p>
         </div>
-        <button class="sc-cartgoal-gift-arrow" type="button" data-cartgoal-gift-next aria-label="Next free gift" ${canSlide ? "" : "disabled"}>
-          <span aria-hidden="true">&rsaquo;</span>
-        </button>
       </div>
     `;
-
-    wrap.querySelector("[data-cartgoal-gift-prev]")?.addEventListener("click", () => {
-      if (!canSlide) return;
-      CART_GOAL_FREE_SHOWCASE_INDEX =
-        CART_GOAL_FREE_SHOWCASE_INDEX - 1 < 0 ? slides.length - 1 : CART_GOAL_FREE_SHOWCASE_INDEX - 1;
-      void renderCartGoalFreeGiftShowcase();
-    });
-
-    wrap.querySelector("[data-cartgoal-gift-next]")?.addEventListener("click", () => {
-      if (!canSlide) return;
-      CART_GOAL_FREE_SHOWCASE_INDEX =
-        CART_GOAL_FREE_SHOWCASE_INDEX + 1 >= slides.length ? 0 : CART_GOAL_FREE_SHOWCASE_INDEX + 1;
-      void renderCartGoalFreeGiftShowcase();
-    });
   };
 
   const autoAddFirstFreeGiftOption = async ({ rule, ruleKey, slot }) => {
