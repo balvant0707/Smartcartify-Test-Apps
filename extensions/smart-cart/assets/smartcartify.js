@@ -6742,29 +6742,59 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     try {
       let product = null;
       if (!isHandleLookup) {
-        const res = await fetch(
-          `/products.json?ids=${encodeURIComponent(numericId)}&limit=1`,
-          { headers: { Accept: "application/json" }, credentials: "same-origin" }
-        );
-        if (!res.ok) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const res = await fetch(
+            `/products.json?ids=${encodeURIComponent(numericId)}&limit=1`,
+            {
+              headers: { Accept: "application/json" },
+              credentials: "same-origin",
+              signal: controller.signal
+            }
+          );
+          clearTimeout(timeoutId);
+          if (!res.ok) {
+            console.warn(`[SmartCartify] product fetch failed: ${res.status} for ID ${numericId}`);
+            return null;
+          }
+          const payload = await res.json();
+          product = Array.isArray(payload?.products) ? payload.products[0] : null;
+          if (!product) {
+            console.warn(`[SmartCartify] product not found for ID ${numericId}`);
+          }
+        } catch (fetchErr) {
+          if (fetchErr.name === "AbortError") {
+            console.warn(`[SmartCartify] product fetch timeout for ID ${numericId}`);
+          } else {
+            console.warn(`[SmartCartify] product fetch error for ID ${numericId}:`, fetchErr.message);
+          }
           return null;
         }
-        const payload = await res.json();
-        product = Array.isArray(payload?.products) ? payload.products[0] : null;
       } else {
         // Try resolving by handle (fallback for non-numeric IDs stored as handles)
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
           const res2 = await fetch(`/products/${encodeURIComponent(rawProductId)}.js`, {
             headers: { Accept: "application/json" },
             credentials: "same-origin",
+            signal: controller.signal
           });
+          clearTimeout(timeoutId);
           if (res2.ok) {
             const payload2 = await res2.json();
             // /products/{handle}.js returns product object directly
             product = payload2 || null;
+          } else {
+            console.warn(`[SmartCartify] product handle fetch failed: ${res2.status} for handle ${rawProductId}`);
           }
         } catch (e) {
-          // ignore
+          if (e.name === "AbortError") {
+            console.warn(`[SmartCartify] product handle fetch timeout for ${rawProductId}`);
+          } else {
+            console.warn(`[SmartCartify] product handle fetch error for ${rawProductId}:`, e.message);
+          }
         }
       }
       const variants = Array.isArray(product?.variants) ? product.variants : [];
@@ -7123,10 +7153,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const resolveFreeGiftOptions = async (rule) => {
     const productIds = getFreeGiftProductIds(rule);
     const rawOptions = productIds.length ? productIds : [trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus)].filter(Boolean);
+    console.debug("[SmartCartify] resolveFreeGiftOptions: productIds=", productIds, "rawOptions=", rawOptions);
     const options = [];
 
     for (let index = 0; index < rawOptions.length; index += 1) {
       const productId = rawOptions[index];
+      console.debug(`[SmartCartify] resolving option ${index}: productId=`, productId);
       const optionRule = {
         ...rule,
         bonusProductId: productId,
@@ -7134,7 +7166,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         bonusProductIds: [productId],
       };
       const variant = await resolveRewardVariantForAdd(optionRule, { productId });
-      if (!variant || !getVariantLegacyId(variant)) continue;
+      console.debug(`[SmartCartify] resolved option ${index}: variant=`, variant, "legacyId=", variant ? getVariantLegacyId(variant) : null);
+      if (!variant || !getVariantLegacyId(variant)) {
+        console.warn(`[SmartCartify] skipping option ${index}: variant resolution failed`);
+        continue;
+      }
 
       const productName =
         trimToNull(variant?.product?.title) ||
@@ -7161,6 +7197,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
     }
 
+    console.debug("[SmartCartify] resolveFreeGiftOptions complete: resolved", options.length, "options");
     return options;
   };
 
@@ -7192,6 +7229,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title }) => {
+    console.debug("[SmartCartify] openRewardPopupFor called:", { kind, ruleKey, slot, rule: rule ? { bonusProductIds: rule.bonusProductIds, bonusProductId: rule.bonusProductId, bonus: rule.bonus } : null });
     const variant = getRewardVariantFromRule(kind, rule);
 
     // For cart goal free products with multiple options, variant will be null
@@ -7305,7 +7343,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
 
       const currentGuard = `${kind}:${guardKey || ""}`;
-      void resolveFreeGiftOptions(rule)
+
+      // Wrap promise with timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout loading free gifts")), 8000);
+      });
+
+      void Promise.race([resolveFreeGiftOptions(rule), timeoutPromise])
         .then((options) => {
           if (!state.current || state.current.kind !== "free") return;
           if (drawer.__sc_reward_popup_for !== currentGuard) return;
