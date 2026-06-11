@@ -3545,62 +3545,176 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-cartgoal-gift-showcase{
   margin:0;
   background:#fff;
+  border-top:1px solid #f0f0f0;
+}
+.sc-cartgoal-gift-carousel{
+  display:flex;
+  align-items:stretch;
+  gap:10px;
+  padding:12px 8px;
+  position:relative;
 }
 .sc-cartgoal-gift-card{
   display:grid;
-  grid-template-columns:26px 64px minmax(0,1fr) 26px;
+  grid-template-rows:auto 1fr;
+  gap:12px;
+  flex:1;
+  min-width:0;
+  background:#fafafa;
+  border-radius:10px;
+  padding:12px;
+  border:1px solid #f0f0f0;
+}
+.sc-cartgoal-gift-hero{
+  display:flex;
   align-items:center;
-  gap:10px;
-  padding:10px 8px;
+  justify-content:center;
+  width:100%;
+  min-height:140px;
+  background:#f5f5f5;
+  border-radius:8px;
+  overflow:hidden;
+}
+.sc-cartgoal-gift-img-large{
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg, #f5f5f5 0%, #efefef 100%);
+}
+.sc-cartgoal-gift-img-large img{
+  max-width:100%;
+  max-height:100%;
+  width:auto;
+  height:auto;
+  object-fit:contain;
+  display:block;
+}
+.sc-cartgoal-gift-content{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.sc-cartgoal-gift-message{
+  font-size:13px;
+  color:#666;
+  font-weight:500;
+  line-height:1.4;
+}
+.sc-cartgoal-gift-title{
+  margin:0;
+  color:#1a1a1a;
+  font-size:15px;
+  font-weight:700;
+  line-height:1.3;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.sc-cartgoal-gift-price{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px;
+  color:#666;
+}
+.sc-cartgoal-gift-price del{
+  text-decoration:line-through;
+  opacity:.6;
+}
+.sc-cartgoal-gift-free{
+  display:inline-flex;
+  align-items:center;
+  height:20px;
+  border-radius:4px;
+  background:#e8f5e9;
+  color:#2e7d32;
+  font-weight:700;
+  font-size:12px;
+  padding:0 6px;
+}
+.sc-cartgoal-gift-action{
+  flex-shrink:0;
+}
+.sc-cartgoal-add{
+  width:100%;
+  padding:10px 12px;
+  border:0;
+  border-radius:6px;
+  background:#000;
+  color:#fff;
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+  transition:background .2s, opacity .2s;
+}
+.sc-cartgoal-add:hover:not([disabled]){
+  background:#333;
+}
+.sc-cartgoal-add:active:not([disabled]){
+  transform:scale(.98);
+}
+.sc-cartgoal-add[disabled]{
+  opacity:.6;
+  cursor:not-allowed;
+}
+.sc-cartgoal-add.loading{
+  opacity:.7;
 }
 .sc-cartgoal-gift-arrow{
-  width:24px;
-  height:24px;
-  border:1px solid #e5e7eb;
-  border-radius:999px;
+  width:32px;
+  height:32px;
+  border:1px solid #d0d0d0;
+  border-radius:50%;
   background:#fff;
-  color:#111827;
+  color:#333;
   display:flex;
   align-items:center;
   justify-content:center;
   padding:0;
   cursor:pointer;
-  box-shadow:0 1px 2px rgba(15,23,42,.08);
+  box-shadow:0 2px 4px rgba(0,0,0,.06);
+  font-size:18px;
+  font-weight:bold;
+  flex-shrink:0;
+  transition:background .2s, border-color .2s, opacity .2s, transform .1s;
+  align-self:center;
+}
+.sc-cartgoal-gift-arrow:hover:not([disabled]){
+  background:#f5f5f5;
+  border-color:#999;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+}
+.sc-cartgoal-gift-arrow:active:not([disabled]){
+  transform:scale(.95);
 }
 .sc-cartgoal-gift-arrow[disabled]{
-  opacity:.45;
-  cursor:default;
+  opacity:.3;
+  cursor:not-allowed;
 }
-.sc-cartgoal-gift-img{
-  width:40px;
-  height:40px;
-  border-radius:4px;
-  overflow:hidden;
-  background:#f3f4f6;
-  border:1px solid #e5e7eb;
+.sc-cartgoal-gift-dots{
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  padding:8px 0 0;
 }
-.sc-cartgoal-gift-img img{
-  width:100%;
-  height:100%;
-  display:block;
-  object-fit:contain;
+.sc-cartgoal-gift-dot{
+  width:8px;
+  height:8px;
+  border:0;
+  border-radius:50%;
+  background:#d1d5db;
+  cursor:pointer;
+  padding:0;
+  transition:background .2s, transform .2s;
 }
-.sc-cartgoal-gift-copy{
-  min-width:0;
+.sc-cartgoal-gift-dot:hover{
+  background:#9ca3af;
 }
-.sc-cartgoal-gift-title{
-  margin:0 0 4px;
-  color:#2d2119;
-  font-size:var(--sc-title-font-size);
-  font-weight:800;
-  line-height:1.2;
-}
-.sc-cartgoal-gift-text{
-  margin:0;
-  color:#7b6d64;
-  font-size:var(--sc-body-font-size);
-  font-weight:500;
-  line-height:1.35;
+.sc-cartgoal-gift-dot.active{
+  background:#4f46e5;
+  transform:scale(1.25);
 }
 .sc-cart-msg{
   margin:0 0 10px;
@@ -7303,81 +7417,95 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
 
     if (CART_GOAL_FREE_SHOWCASE_INDEX >= slides.length) CART_GOAL_FREE_SHOWCASE_INDEX = 0;
-    // Show the first slide only (remove sliding controls in drawer)
-    const current = slides[0] || slides[CART_GOAL_FREE_SHOWCASE_INDEX] || slides[0];
+    const currentIndex = CART_GOAL_FREE_SHOWCASE_INDEX;
+    const current = slides[currentIndex];
     const title = "Free Gift!";
     // Debug: log slides and image availability for easier troubleshooting in console
     try { console.debug('[SmartCartify] free gift showcase current image:', current.option?.image || null); } catch (e) { }
 
-    let img = "";
-    if (current.option?.image) {
-      img = `<img src="${safe(current.option.image)}" alt="${safe(current.option.title || title)}" loading="lazy">`;
-    } else {
-      const letter = safe((current.option?.title || title || 'G').slice(0, 1));
-      img = `<span class="sc-cartgoal-gift-thumb-empty">${letter}</span>`;
-    }
-    // Render all available free-gift options as a vertical list in the drawer
-    wrap.hidden = false;
-    const itemsHtml = slides
-      .map((s, i) => {
-        const option = s.option || {};
-        const priceHtml = option.priceCents > 0 ? `<span class="sc-freegift-price">${formatMoney(option.priceCents, normalizeCurrencyCode())}</span>` : "";
-        const imageHtml = option.image
-          ? `<img src="${safe(option.image)}" alt="${safe(option.title)}" loading="lazy">`
-          : `<span class="sc-cartgoal-gift-thumb-empty">${safe((option.title || "G").slice(0, 1))}</span>`;
-        return `
-          <div class="sc-cartgoal-gift-card sc-cartgoal-gift-card-item" data-slide-index="${i}" data-option-id="${safe(option.optionId)}">
-            <div class="sc-cartgoal-gift-img">${imageHtml}</div>
-            <div class="sc-cartgoal-gift-copy">
-              <p class="sc-cartgoal-gift-title">${safe(option.title)}</p>
-              <p class="sc-cartgoal-gift-text">${safe(s.message)}</p>
-            </div>
-            <div class="sc-cartgoal-gift-action">
-              <button class="sc-freegift-add sc-cartgoal-add" type="button" data-add="${safe(option.optionId)}">Add</button>
-            </div>
-          </div>
-        `;
-      })
-      .join("");
+    const option = current.option || {};
+    const priceHtml = option.priceCents > 0 ? `<span class="sc-freegift-price">${formatMoney(option.priceCents, normalizeCurrencyCode())}</span>` : "";
+    const imageHtml = option.image
+      ? `<img src="${safe(option.image)}" alt="${safe(option.title)}" loading="lazy">`
+      : `<span class="sc-cartgoal-gift-thumb-empty">${safe((option.title || "G").slice(0, 1))}</span>`;
 
-    wrap.innerHTML = `
-      <div class="sc-cartgoal-gift-list">
-        ${itemsHtml}
+    // Build pagination dots
+    const dotsHtml = slides.length > 1 ? `
+      <div class="sc-cartgoal-gift-dots">
+        ${slides.map((_, i) => `<button class="sc-cartgoal-gift-dot ${i === currentIndex ? 'active' : ''}" data-slide="${i}" type="button" aria-label="Go to slide ${i + 1}"></button>`).join('')}
       </div>
+    ` : '';
+
+    // Render carousel with arrow buttons and larger image
+    wrap.hidden = false;
+    wrap.innerHTML = `
+      <div class="sc-cartgoal-gift-carousel">
+        ${slides.length > 1 ? `<button class="sc-cartgoal-gift-arrow sc-cartgoal-gift-prev" type="button" aria-label="Previous product" ${currentIndex === 0 ? 'disabled' : ''}>←</button>` : ''}
+        
+        <div class="sc-cartgoal-gift-card sc-cartgoal-gift-card-item" data-slide-index="${currentIndex}" data-option-id="${safe(option.optionId)}">
+          <!-- Large hero image -->
+          <div class="sc-cartgoal-gift-hero">
+            <div class="sc-cartgoal-gift-img-large">${imageHtml}</div>
+          </div>
+          
+          <!-- Product info and message -->
+          <div class="sc-cartgoal-gift-content">
+            <div class="sc-cartgoal-gift-message">${safe(current.message)}</div>
+            <h3 class="sc-cartgoal-gift-title">${safe(option.title)}</h3>
+            ${option.priceCents > 0 ? `<div class="sc-cartgoal-gift-price">${formatMoney(option.priceCents, normalizeCurrencyCode())} <span class="sc-cartgoal-gift-free">Free</span></div>` : '<div class="sc-cartgoal-gift-price"><span class="sc-cartgoal-gift-free">Free</span></div>'}
+            <button class="sc-freegift-add sc-cartgoal-add" type="button" data-add="${safe(option.optionId)}">Add Free Gift</button>
+          </div>
+        </div>
+        
+        ${slides.length > 1 ? `<button class="sc-cartgoal-gift-arrow sc-cartgoal-gift-next" type="button" aria-label="Next product" ${currentIndex === slides.length - 1 ? 'disabled' : ''}>→</button>` : ''}
+      </div>
+      ${dotsHtml}
     `;
 
-    // Wire up Add handlers for each option so shoppers can add directly from the drawer
-    wrap.querySelectorAll(".sc-cartgoal-add").forEach((btn) => {
-      btn.addEventListener("click", async (ev) => {
-        ev.preventDefault();
-        const optId = btn.getAttribute("data-add");
-        const slide = slides.find((s) => String(s.option?.optionId) === String(optId));
-        if (!slide) return;
-        btn.disabled = true;
-        btn.classList.add("loading");
-        try {
-          await addRewardToCart({
-            kind: "free",
-            rule: slide.rule,
-            ruleKey: getRuleKey(slide.rule),
-            slot: slide.rule?.cartStepName || null,
-            variant: slide.option?.variant,
-            qty: slide.option?.qty,
-            markAutoAdded: false,
-          });
-          // Clear pending marker and re-render drawer
-          const guardKey = getRuleKey(slide.rule);
-          if (guardKey) scStore.del(keyPendingFreeGift(guardKey));
-          markPopupShown("free", guardKey);
-          await renderAllFromCache();
-        } catch (err) {
-          console.error("[SmartCartify] drawer add free gift failed:", err);
-          showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
-        } finally {
-          btn.disabled = false;
-          btn.classList.remove("loading");
-        }
-      });
+    // Navigation handlers
+    const prevBtn = wrap.querySelector(".sc-cartgoal-gift-prev");
+    const nextBtn = wrap.querySelector(".sc-cartgoal-gift-next");
+    const dotBtns = wrap.querySelectorAll(".sc-cartgoal-gift-dot");
+    const addBtn = wrap.querySelector(".sc-cartgoal-add");
+
+    const handleSlideChange = async (newIndex) => {
+      if (newIndex < 0 || newIndex >= slides.length) return;
+      CART_GOAL_FREE_SHOWCASE_INDEX = newIndex;
+      await renderCartGoalFreeGiftShowcase();
+    };
+
+    prevBtn?.addEventListener("click", () => handleSlideChange(currentIndex - 1));
+    nextBtn?.addEventListener("click", () => handleSlideChange(currentIndex + 1));
+    dotBtns.forEach((dot) => {
+      dot.addEventListener("click", () => handleSlideChange(Number(dot.getAttribute("data-slide"))));
+    });
+
+    addBtn?.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      addBtn.disabled = true;
+      addBtn.classList.add("loading");
+      try {
+        await addRewardToCart({
+          kind: "free",
+          rule: current.rule,
+          ruleKey: getRuleKey(current.rule),
+          slot: current.rule?.cartStepName || null,
+          variant: current.option?.variant,
+          qty: current.option?.qty,
+          markAutoAdded: false,
+        });
+        // Clear pending marker and re-render drawer
+        const guardKey = getRuleKey(current.rule);
+        if (guardKey) scStore.del(keyPendingFreeGift(guardKey));
+        markPopupShown("free", guardKey);
+        await renderAllFromCache();
+      } catch (err) {
+        console.error("[SmartCartify] drawer add free gift failed:", err);
+        showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
+      } finally {
+        addBtn.disabled = false;
+        addBtn.classList.remove("loading");
+      }
     });
   };
 
@@ -7408,7 +7536,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title }) => {
     const variant = getRewardVariantFromRule(kind, rule);
-    if (!variant) return false;
+
+    // For cart goal free products with multiple options, variant will be null
+    // Allow the popup to open so options can be resolved asynchronously
+    const hasBonusProductIds = Array.isArray(rule?.bonusProductIds) && rule.bonusProductIds.length > 0;
+    const isCartGoalFreeMultiple = kind === "free" && hasBonusProductIds;
+
+    if (!variant && !isCartGoalFreeMultiple) return false;
 
     const canResolveByProductId =
       !!normalizeProductNumericId(
@@ -7416,7 +7550,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         trimToNull(rule?.bonusProductId) ||
         trimToNull(rule?.bonus)
       );
-    if (!getVariantLegacyId(variant) && !canResolveByProductId) return false;
+    if (variant && !getVariantLegacyId(variant) && !canResolveByProductId) return false;
+    if (!variant && !isCartGoalFreeMultiple && !canResolveByProductId) return false;
 
     const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
 
@@ -7442,7 +7577,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           : "Click Add to add it in your cart";
     }
 
-    const imageUrl = variant.image || variant.product?.image || "";
+    const imageUrl = variant?.image || variant?.product?.image || "";
     if (state.imageEl) {
       if (imageUrl) {
         state.imageEl.src = imageUrl;
