@@ -228,6 +228,7 @@ model CartGoalRule {
   rewardSelectionMandatory String   @default("yes") @db.VarChar(32)
   customerTarget           String   @default("all") @db.VarChar(32)
   targetingRules           String?  @db.LongText
+  priority                 Int      @default(0)
   analyticsImpressions     Int      @default(0)
   analyticsConversions     Int      @default(0)
   createdAt                DateTime @default(now())

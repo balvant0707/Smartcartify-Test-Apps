@@ -34,28 +34,28 @@ export const loader = async ({ request }) => {
   const [shippingRows, discountRows, freeRows, bxgyRows, cartGoalRows] = await Promise.all([
     prisma.shippingRule.findMany({
       where: { shop },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, rateType: true, amount: true, minSubtotal: true, maxSubtotal: true, cartStepName: true },
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, rateType: true, amount: true, minSubtotal: true, maxSubtotal: true, cartStepName: true, priority: true },
     }),
     prisma.discountRule.findMany({
       where: { shop },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true },
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+      select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true, priority: true },
     }),
     prisma.freeGiftRule.findMany({
       where: { shop },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true },
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true, priority: true },
     }),
     prisma.bxgyRule.findMany({
       where: { shop },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, xQty: true, yQty: true, scope: true },
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, xQty: true, yQty: true, scope: true, priority: true },
     }),
     prisma.cartGoalRule.findMany({
       where: { shop },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, trackBy: true, shownGoals: true },
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, trackBy: true, shownGoals: true, priority: true },
     }),
   ]);
 
@@ -66,7 +66,7 @@ export const loader = async ({ request }) => {
     const parts = [];
     if (r.minSubtotal) parts.push(`Min ${fmtMoney(r.minSubtotal)}`);
     if (r.maxSubtotal) parts.push(`Max ${fmtMoney(r.maxSubtotal)}`);
-    return parts.length ? `${reward} · ${parts.join(" – ")}` : reward;
+    return parts.length ? `${reward} Â· ${parts.join(" â€“ ")}` : reward;
   };
 
   const discountMeta = (r) => {
@@ -78,7 +78,7 @@ export const loader = async ({ request }) => {
       : r.minPurchase
         ? `Min ${fmtMoney(r.minPurchase)}`
         : null;
-    return [value, trigger].filter(Boolean).join(" · ") || "No value set";
+    return [value, trigger].filter(Boolean).join(" Â· ") || "No value set";
   };
 
   const freeGiftMeta = (r) => {
@@ -87,7 +87,7 @@ export const loader = async ({ request }) => {
       : r.minPurchase
         ? `Min ${fmtMoney(r.minPurchase)}`
         : "No minimum";
-    return `Free gift · ${trigger}`;
+    return `Free gift Â· ${trigger}`;
   };
 
   const rules = [
@@ -99,6 +99,7 @@ export const loader = async ({ request }) => {
       updatedAt: r.updatedAt,
       meta: shippingMeta(r),
       cartStep: formatCartStep(r.cartStepName),
+      priority: r.priority || 0,
     })),
     ...discountRows
       .filter((r) => String(r.type || "").toLowerCase() !== "code")
@@ -110,6 +111,7 @@ export const loader = async ({ request }) => {
         updatedAt: r.updatedAt,
         meta: discountMeta(r),
         cartStep: formatCartStep(r.cartStepName),
+        priority: r.priority || 0,
       })),
     ...freeRows.map((r) => ({
       id: r.id,
@@ -119,6 +121,7 @@ export const loader = async ({ request }) => {
       updatedAt: r.updatedAt,
       meta: freeGiftMeta(r),
       cartStep: formatCartStep(r.cartStepName),
+      priority: r.priority || 0,
     })),
     ...discountRows
       .filter((r) => String(r.type || "").toLowerCase() === "code")
@@ -130,6 +133,7 @@ export const loader = async ({ request }) => {
         updatedAt: r.updatedAt,
         meta: discountMeta(r),
         cartStep: ANNOUNCEMENT_BAR_LABEL,
+        priority: r.priority || 0,
       })),
     ...bxgyRows.map((r) => ({
       id: r.id,
@@ -137,8 +141,9 @@ export const loader = async ({ request }) => {
       name: r.campaignName || "Buy X Get Y",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
-      meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " · Storewide" : ""}`,
+      meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " Â· Storewide" : ""}`,
       cartStep: ANNOUNCEMENT_BAR_LABEL,
+      priority: r.priority || 0,
     })),
     ...cartGoalRows.map((r) => ({
       id: r.id,
@@ -146,12 +151,13 @@ export const loader = async ({ request }) => {
       name: r.campaignName || "Cart Goal",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
-      meta: `${r.shownGoals || 3} goal${r.shownGoals === 1 ? "" : "s"} shown · ${r.trackBy === "quantity" ? "Quantity" : "Cart value"}`,
+      meta: `${r.shownGoals || 3} goal${r.shownGoals === 1 ? "" : "s"} shown Â· ${r.trackBy === "quantity" ? "Quantity" : "Cart value"}`,
       cartStep: "Cart Drawer",
+      priority: r.priority || 0,
     })),
   ]
     .filter((rule) => !HIDDEN_CAMPAIGN_TYPES.has(rule.ruleType))
-    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    .sort((a, b) => (Number(b.priority || 0) - Number(a.priority || 0)) || (new Date(b.updatedAt) - new Date(a.updatedAt)));
 
   return { rules };
 };
@@ -207,13 +213,87 @@ async function deleteShopifyShippingRate(admin, methodDefinitionId) {
   } catch { /* non-fatal */ }
 }
 
+const RULE_MODELS = {
+  "shipping": () => prisma.shippingRule,
+  "automatic-discount": () => prisma.discountRule,
+  "free-product": () => prisma.freeGiftRule,
+  "code-discount": () => prisma.discountRule,
+  "buy-x-get-y": () => prisma.bxgyRule,
+  "cart-goal": () => prisma.cartGoalRule,
+};
+
+const copyLabel = (value, fallback) => {
+  const base = String(value || fallback || "Rule").trim();
+  return base.toLowerCase().endsWith(" copy") ? base : `${base} Copy`;
+};
+
+function getRuleModel(ruleType) {
+  const getModel = RULE_MODELS[ruleType];
+  return getModel ? getModel() : null;
+}
+
+async function duplicateRule(ruleType, id, shop) {
+  const model = getRuleModel(ruleType);
+  if (!model) throw new Error("Unknown rule type");
+
+  const source = await model.findFirst({ where: { id, shop } });
+  if (!source) throw new Error("Rule not found");
+
+  const data = { ...source };
+  delete data.id;
+  delete data.createdAt;
+  delete data.updatedAt;
+  data.enabled = false;
+  data.priority = Number(source.priority || 0) - 1;
+
+  if ("campaignName" in data) data.campaignName = copyLabel(data.campaignName, "Rule");
+
+  if (ruleType === "code-discount" || ruleType === "automatic-discount") {
+    data.shopifyDiscountCodeId = null;
+    data.shopifyPriceRuleId = null;
+    data.codeDiscountId = null;
+    if (ruleType === "code-discount") {
+      data.codeCampaignName = copyLabel(data.codeCampaignName || data.campaignName, "Code Discount");
+      data.campaignName = data.codeCampaignName;
+      const suffix = `COPY${Date.now().toString().slice(-5)}`;
+      data.discountCode = data.discountCode ? `${data.discountCode}-${suffix}` : null;
+    }
+  }
+
+  if (ruleType === "shipping") {
+    data.shopifyRateId = null;
+    data.shopifyMethodDefinitionId = null;
+  }
+
+  if (ruleType === "free-product") {
+    data.freeProductDiscountID = null;
+    data.minAmountFreeGiftDiscountId = null;
+    data.minAmountShippingRateId = null;
+  }
+
+  if (ruleType === "buy-x-get-y") {
+    data.buyxgetyId = null;
+  }
+
+  return model.create({ data });
+}
+
+async function setRulePriority(ruleType, id, shop, priority) {
+  const model = getRuleModel(ruleType);
+  if (!model) throw new Error("Unknown rule type");
+  await model.updateMany({
+    where: { id, shop },
+    data: { priority },
+  });
+}
+
 export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const body = await request.json();
+  const shop = session.shop;
 
   if (body._action === "delete") {
     const id = parseInt(body.id, 10);
-    const shop = session.shop;
 
     switch (body.ruleType) {
       case "shipping": {
@@ -269,8 +349,39 @@ export const action = async ({ request }) => {
         return Response.json({ error: "Unknown rule type" }, { status: 400 });
     }
     invalidateShopCache(shop);
-    return Response.json({ success: true });
+    return Response.json({ success: true, message: "Rule deleted and removed from Shopify." });
   }
+
+  if (body._action === "duplicate") {
+    const id = parseInt(body.id, 10);
+    await duplicateRule(body.ruleType, id, shop);
+    invalidateShopCache(shop);
+    return Response.json({ success: true, message: "Rule duplicated as disabled." });
+  }
+
+  if (body._action === "move") {
+    const rows = Array.isArray(body.rows) ? body.rows : [];
+    const id = parseInt(body.id, 10);
+    const currentIndex = rows.findIndex((row) =>
+      parseInt(row?.id, 10) === id && row?.ruleType === body.ruleType
+    );
+    const targetIndex = body.direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= rows.length) {
+      return Response.json({ error: "Cannot move rule in that direction" }, { status: 400 });
+    }
+
+    const reordered = [...rows];
+    const [current] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, current);
+
+    await Promise.all(reordered.map((row, index) =>
+      setRulePriority(row.ruleType, parseInt(row.id, 10), shop, (reordered.length - index) * 10)
+    ));
+    invalidateShopCache(shop);
+    return Response.json({ success: true, message: "Rule priority updated." });
+  }
+
   return Response.json({ error: "Unknown action" }, { status: 400 });
 };
 
@@ -358,17 +469,19 @@ export default function MyRules() {
   const [tabIndex, setTabIndex] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingKey, setDeletingKey] = useState(null);
+  const [busyKey, setBusyKey] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
   useEffect(() => {
-    if (fetcher.state === "idle" && deletingKey) {
+    if (fetcher.state === "idle" && (deletingKey || busyKey)) {
       setDeletingKey(null);
+      setBusyKey(null);
       if (fetcher.data?.success) {
-        setSuccessMsg("Rule deleted and removed from Shopify.");
+        setSuccessMsg(fetcher.data.message || "Rule updated.");
         setTimeout(() => setSuccessMsg(null), 4000);
       }
     }
-  }, [fetcher.state]);
+  }, [fetcher.state, fetcher.data, deletingKey, busyKey]);
 
   const activeType = TABS[tabIndex].id;
   const filtered = activeType === "all"
@@ -390,6 +503,30 @@ export default function MyRules() {
       { method: "post", encType: "application/json" }
     );
     setDeleteTarget(null);
+  };
+
+  const handleDuplicate = (rule) => {
+    const key = `duplicate-${rule.ruleType}-${rule.id}`;
+    setBusyKey(key);
+    fetcher.submit(
+      { _action: "duplicate", id: rule.id, ruleType: rule.ruleType },
+      { method: "post", encType: "application/json" }
+    );
+  };
+
+  const handleMove = (rule, direction) => {
+    const key = `move-${direction}-${rule.ruleType}-${rule.id}`;
+    setBusyKey(key);
+    fetcher.submit(
+      {
+        _action: "move",
+        id: rule.id,
+        ruleType: rule.ruleType,
+        direction,
+        rows: filtered.map((row) => ({ id: row.id, ruleType: row.ruleType })),
+      },
+      { method: "post", encType: "application/json" }
+    );
   };
 
   const tabsWithCounts = TABS.map((t) => ({
@@ -417,7 +554,7 @@ export default function MyRules() {
       )}
       {fetcher.data?.error && (
         <Box paddingBlockEnd="400">
-          <Banner tone="critical" title="Delete failed">{fetcher.data.error}</Banner>
+          <Banner tone="critical" title="Action failed">{fetcher.data.error}</Banner>
         </Box>
       )}
 
@@ -500,11 +637,12 @@ export default function MyRules() {
                           accessibilityLabel={`Delete ${rule.name}`}
                           loading={deletingKey === `${rule.ruleType}-${rule.id}`}
                         />
-                        <Tooltip content="Duplicate is not available yet">
+                        <Tooltip content="Duplicate rule">
                           <Button
                             size="slim"
                             icon={DuplicateIcon}
-                            disabled
+                            onClick={() => handleDuplicate(rule)}
+                            loading={busyKey === `duplicate-${rule.ruleType}-${rule.id}`}
                             accessibilityLabel={`Duplicate ${rule.name}`}
                           />
                         </Tooltip>
@@ -518,6 +656,8 @@ export default function MyRules() {
                             variant="plain"
                             icon={ChevronUpIcon}
                             disabled={i === 0}
+                            onClick={() => handleMove(rule, "up")}
+                            loading={busyKey === `move-up-${rule.ruleType}-${rule.id}`}
                             accessibilityLabel={`Move ${rule.name} up`}
                           />
                         </Tooltip>
@@ -526,6 +666,8 @@ export default function MyRules() {
                             variant="plain"
                             icon={ChevronDownIcon}
                             disabled={i === filtered.length - 1}
+                            onClick={() => handleMove(rule, "down")}
+                            loading={busyKey === `move-down-${rule.ruleType}-${rule.id}`}
                             accessibilityLabel={`Move ${rule.name} down`}
                           />
                         </Tooltip>

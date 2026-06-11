@@ -2662,9 +2662,9 @@
       const rawBefore = trimToNull(getProgressBefore(r));
       const rawAfter = trimToNull(getProgressAfter(r));
       const fallbackBefore =
-        "Use code {{discount_code}} to get {{discount_value_with_off}}";
+        "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}";
       const fallbackAfter =
-        "Discount Code {{discount_code}} applied • Discount {{discount_value_with_off}}";
+        "{{discount_value_with_off}} unlocked with code {{discount_code}}";
 
       const useAfter = hasMin ? complete : ruleApplied;
       const msgBaseRaw = replaceProgressTextRaw({
@@ -2672,7 +2672,7 @@
         type: "discount",
         rule: r,
         subtotalRupees,
-        useRemainingForGoal: false,
+        useRemainingForGoal: !useAfter,
       });
       let msgBase = normalizeOffText(msgBaseRaw);
 
@@ -2688,12 +2688,6 @@
       const discountValueForEm = discountValWithOff || discountValRaw;
       const discountCode = ruleCodeRaw;
 
-      const hasCodeInMsg =
-        !!discountCode &&
-        new RegExp(escapeRegExp(discountCode), "i").test(msgBase);
-      if (discountCode && !hasCodeInMsg) {
-        msgBase = `${msgBase} Discount Code ${discountCode}`;
-      }
       msgBase = msgBase.replace(/\s{2,}/g, " ").trim();
 
       let msg = emphasizeValues(

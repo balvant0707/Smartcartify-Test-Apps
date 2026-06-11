@@ -18,7 +18,7 @@ import prisma from "../db.server";
 import { upsertDiscountCode } from "../shopify-discount.server";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
 
-// ─── Loader ──────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Loader Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -36,7 +36,7 @@ export const loader = async ({ request }) => {
   return { record };
 };
 
-// ─── Action ──────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Action Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
@@ -45,7 +45,7 @@ export const action = async ({ request }) => {
   const {
     id, codeCampaignName, enabled, discountCode, valueType, value,
     triggerType, minPurchase, minQuantity,
-    progressTextBefore, progressTextAfter, progressTextBelow,
+    progressTextBefore, progressTextAfter,
     startsAt, endsAt, priority,
     customerTarget, customerTags,
   } = body;
@@ -64,7 +64,7 @@ export const action = async ({ request }) => {
     minQuantity: triggerType === "quantity" ? (minQuantity ? String(minQuantity) : null) : null,
     progressTextBefore: progressTextBefore || null,
     progressTextAfter: progressTextAfter || null,
-    progressTextBelow: progressTextBelow || null,
+    progressTextBelow: null,
     startsAt: startsAt ? new Date(startsAt) : null,
     endsAt: endsAt ? new Date(endsAt) : null,
     priority: parseInt(priority || "0") || 0,
@@ -120,7 +120,16 @@ const TRIGGER_TABS = [
   { id: "trigger-quantity", content: "Quantity Discount" },
 ];
 
-// ─── SectionCard ─────────────────────────────────────────────────────────────
+const formatDiscountValueWithOff = (valueType, value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return valueType === "percent" ? `${raw}% off` : `$${raw} off`;
+};
+
+const replaceCodeDiscountTokens = (text, values) =>
+  String(text || "").replace(/\{\{(goal|discount_value_with_off|discount_code)\}\}/g, (_match, token) => values[token] || "");
+
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ SectionCard Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 function SectionCard({ icon, title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -145,7 +154,7 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
   );
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Component Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 export default function RuleCodeDiscount() {
   const navigate = useNavigate();
@@ -176,8 +185,7 @@ export default function RuleCodeDiscount() {
 
   // Messages
   const [progressTextBefore, setProgressTextBefore] = useState(r?.progressTextBefore ?? "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}!");
-  const [progressTextAfter, setProgressTextAfter] = useState(r?.progressTextAfter ?? "🎉🎉 {{discount_value_with_off}} off Discount!");
-  const [progressTextBelow, setProgressTextBelow] = useState(r?.progressTextBelow ?? "Code Discount!");
+  const [progressTextAfter, setProgressTextAfter] = useState(r?.progressTextAfter ?? "{{discount_value_with_off}} unlocked with code {{discount_code}}!");
 
   // Schedule
   const today = new Date().toISOString().split("T")[0];
@@ -210,7 +218,6 @@ export default function RuleCodeDiscount() {
         minQuantity: triggerType === "quantity" ? minQuantity : null,
         progressTextBefore,
         progressTextAfter,
-        progressTextBelow,
         priority,
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
@@ -221,9 +228,7 @@ export default function RuleCodeDiscount() {
     );
   };
 
-  const discountLabel = value
-    ? valueType === "percent" ? `${value}% off` : `$${value} off`
-    : "";
+  const discountLabel = formatDiscountValueWithOff(valueType, value);
 
   const [sliderValue, setSliderValue] = useState(50);
   const minPurchaseNum = parseFloat(minPurchase || 0);
@@ -238,6 +243,22 @@ export default function RuleCodeDiscount() {
     : Math.max(0, minQuantityNum - Math.floor(mockCart)).toString();
   const progressPct = hasThreshold ? sliderValue : 100;
   const isUnlocked = meetsMin;
+  const goalText = triggerType === "amount"
+    ? `$${remaining}`
+    : `${remaining} item${parseInt(remaining, 10) !== 1 ? "s" : ""}`;
+  const previewTokens = {
+    goal: hasThreshold ? goalText : "",
+    discount_value_with_off: discountLabel || "your discount",
+    discount_code: discountCode || "CODE",
+  };
+  const previewBeforeText = replaceCodeDiscountTokens(
+    progressTextBefore || "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}!",
+    previewTokens
+  );
+  const previewAfterText = replaceCodeDiscountTokens(
+    progressTextAfter || "{{discount_value_with_off}} unlocked with code {{discount_code}}!",
+    previewTokens
+  );
 
   return (
     <Page
@@ -254,7 +275,7 @@ export default function RuleCodeDiscount() {
       )}
       <Box paddingBlockEnd="800">
         <div className="cd-layout">
-          {/* ── Main column ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Main column Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <BlockStack gap="400">
 
             {/* Discount code + Display condition */}
@@ -341,27 +362,21 @@ export default function RuleCodeDiscount() {
             <SectionCard icon={EditIcon} title="Progress messages (optional)">
               <BlockStack gap="300">
                 <Banner tone="info">
-                  Use <strong>{"{{discount_code}}"}</strong> to insert the code and <strong>{"{{amount}}"}</strong> for cart value.
+                  Use <strong>{"{{goal}}"}</strong>, <strong>{"{{discount_value_with_off}}"}</strong>, and <strong>{"{{discount_code}}"}</strong> in the before and after messages.
                 </Banner>
                 <TextField
                   label="Message before minimum"
                   value={progressTextBefore}
                   onChange={setProgressTextBefore}
                   autoComplete="off"
-                  placeholder="Spend {{amount}} more and use code {{discount_code}} for a discount!"
+                  placeholder="Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}!"
                 />
                 <TextField
                   label="Message after minimum"
                   value={progressTextAfter}
                   onChange={setProgressTextAfter}
                   autoComplete="off"
-                  placeholder="Use code {{discount_code}} at checkout!"
-                />
-                <TextField
-                  label="Message below the bar (optional)"
-                  value={progressTextBelow}
-                  onChange={setProgressTextBelow}
-                  autoComplete="off"
+                  placeholder="{{discount_value_with_off}} unlocked with code {{discount_code}}!"
                 />
               </BlockStack>
             </SectionCard>
@@ -430,7 +445,7 @@ export default function RuleCodeDiscount() {
 
           </BlockStack>
 
-          {/* ── Sidebar ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Sidebar Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <BlockStack gap="300">
             {!enabled && (
               <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: "10px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
@@ -461,20 +476,14 @@ export default function RuleCodeDiscount() {
                   <div style={{ marginBottom: "14px", lineHeight: "1.5" }}>
                     {isUnlocked ? (
                       <Text variant="bodySm" fontWeight="semibold" as="p">
-                        {(progressTextAfter || "Use code {{discount_code}} to get {{discount}} off!").replace("{{discount_code}}", discountCode || "CODE").replace("{{discount}}", discountLabel || "your discount")}
+                        {previewAfterText}
                       </Text>
                     ) : hasThreshold ? (
                       <span style={{ fontSize: "13px" }}>
-                        {triggerType === "amount"
-                          ? (progressTextBefore.includes("{{amount}}")
-                            ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>${remaining}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
-                            : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Spend $${remaining} more to unlock ${discountLabel || "your discount"}!`)
-                          : (progressTextBefore.includes("{{amount}}")
-                            ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>{remaining} item{parseInt(remaining) !== 1 ? "s" : ""}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
-                            : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Add ${remaining} more item${parseInt(remaining) !== 1 ? "s" : ""} to unlock ${discountLabel || "your discount"}!`)}
+                        {previewBeforeText}
                       </span>
                     ) : (
-                      <Text variant="bodySm" as="p">{discountCode ? `Use code: ${discountCode}` : "Enter a discount code above"}</Text>
+                      <Text variant="bodySm" as="p">{previewAfterText}</Text>
                     )}
                   </div>
                   {hasThreshold && (

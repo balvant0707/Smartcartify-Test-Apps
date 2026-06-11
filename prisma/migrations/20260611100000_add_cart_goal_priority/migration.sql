@@ -1,0 +1,1 @@
+ALTER TABLE `cartgoalrule` ADD COLUMN `priority` INTEGER NOT NULL DEFAULT 0;
