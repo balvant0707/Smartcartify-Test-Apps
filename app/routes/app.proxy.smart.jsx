@@ -370,13 +370,48 @@ const parseCartGoalArray = (value) => {
   }
 };
 
-const cartGoalScheduleDateTime = (date, time) => {
-  if (!date) return null;
+const parseCartGoalLocalDateTime = (date, time) => {
   const trimmedDate = String(date || "").trim();
   const trimmedTime = String(time || "").trim();
   if (!trimmedDate) return null;
 
-  const parsed = new Date(trimmedTime ? `${trimmedDate} ${trimmedTime}` : trimmedDate);
+  const dateMatch = trimmedDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!dateMatch) return null;
+
+  let hours = 0;
+  let minutes = 0;
+  if (trimmedTime) {
+    const timeMatch = trimmedTime.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+    if (!timeMatch) return null;
+
+    hours = Number(timeMatch[1]);
+    minutes = Number(timeMatch[2] || 0);
+    const meridiem = String(timeMatch[3] || "").toUpperCase();
+    if (meridiem === "AM" && hours === 12) hours = 0;
+    if (meridiem === "PM" && hours < 12) hours += 12;
+  }
+
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+  const [, year, month, day] = dateMatch;
+  const utcMs = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    hours,
+    minutes
+  );
+  // The admin schedule fields are saved from the merchant UI as local wall time.
+  // This app is operated in IST, while Vercel parses bare date strings as UTC.
+  const istOffsetMs = 5.5 * 60 * 60 * 1000;
+  return new Date(utcMs - istOffsetMs);
+};
+
+const cartGoalScheduleDateTime = (date, time) => {
+  if (!date) return null;
+  const parsed =
+    parseCartGoalLocalDateTime(date, time) ||
+    new Date(time ? `${date} ${time}` : date);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 };
 
