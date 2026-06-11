@@ -14,6 +14,14 @@ import { invalidateShopCache } from "./app.proxy.smart.jsx";
 
 const HIDDEN_CAMPAIGN_TYPES = new Set(["shipping", "automatic-discount", "free-product"]);
 
+function formatCartGoalCampaignName(rule, index) {
+  const name = String(rule?.campaignName || "").trim();
+  if (!name || /^Cart Goal(?:\s+\d+)?$/i.test(name)) {
+    return `Cart Goal ${index + 1}`;
+  }
+  return name;
+}
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 // Reads from all four legacy rule tables: ShippingRule, DiscountRule,
 // FreeGiftRule, BxgyRule. Returns a unified `rules` array for the "My rules"
@@ -135,10 +143,10 @@ export const loader = async ({ request }) => {
       meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " · Storewide" : ""}`,
       cartStep: announcementBarLabel,
     })),
-    ...cartGoalRows.map((r) => ({
+    ...cartGoalRows.map((r, index) => ({
       id: r.id,
       ruleType: "cart-goal",
-      name: r.campaignName || "Cart Goal",
+      name: formatCartGoalCampaignName(r, index),
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
       meta: `${r.shownGoals || 3} goal${r.shownGoals === 1 ? "" : "s"} shown · ${r.trackBy === "quantity" ? "Quantity" : "Cart value"}`,

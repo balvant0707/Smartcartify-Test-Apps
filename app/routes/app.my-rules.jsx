@@ -25,6 +25,14 @@ function formatCartStep(value) {
 
 const ANNOUNCEMENT_BAR_LABEL = "Announcement Bar";
 
+function formatCartGoalCampaignName(rule, index) {
+  const name = String(rule?.campaignName || "").trim();
+  if (!name || /^Cart Goal(?:\s+\d+)?$/i.test(name)) {
+    return `Cart Goal ${index + 1}`;
+  }
+  return name;
+}
+
 // Loader
 
 export const loader = async ({ request }) => {
@@ -145,10 +153,10 @@ export const loader = async ({ request }) => {
       cartStep: ANNOUNCEMENT_BAR_LABEL,
       priority: r.priority || 0,
     })),
-    ...cartGoalRows.map((r) => ({
+    ...cartGoalRows.map((r, index) => ({
       id: r.id,
       ruleType: "cart-goal",
-      name: r.campaignName || "Cart Goal",
+      name: formatCartGoalCampaignName(r, index),
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
       meta: `${r.shownGoals || 3} goal${r.shownGoals === 1 ? "" : "s"} shown Â· ${r.trackBy === "quantity" ? "Quantity" : "Cart value"}`,

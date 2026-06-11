@@ -393,7 +393,8 @@ export const loader = async ({ request }) => {
   const id = Number.parseInt(url.searchParams.get("id") || "", 10);
 
   if (!Number.isFinite(id)) {
-    return { rule: null };
+    const count = await prisma.cartGoalRule.count({ where: { shop: session.shop } });
+    return { rule: null, nextCampaignName: `Cart Goal ${count + 1}` };
   }
 
   const row = await prisma.cartGoalRule.findFirst({
@@ -401,6 +402,7 @@ export const loader = async ({ request }) => {
   });
 
   return {
+    nextCampaignName: "Cart Goal 1",
     rule: row
       ? {
         ...row,
@@ -415,6 +417,7 @@ export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const body = await request.json().catch(() => ({}));
   const id = Number.parseInt(body.id || "", 10);
+  const saveAsDraft = body._action === "saveDraft";
   const existingRule = Number.isFinite(id)
     ? await prisma.cartGoalRule.findFirst({
       where: { id, shop: session.shop },
@@ -433,30 +436,38 @@ export const action = async ({ request }) => {
   const thresholdErrors = getGoalValidationErrors(goals, trackBy);
   const rewardErrors = getRewardValidationErrors(goals);
   const targetingRules = Array.isArray(body.targetingRules) ? body.targetingRules : [];
-  const enabled = Boolean(body.enabled);
+  const enabled = saveAsDraft ? false : Boolean(body.enabled);
 
   if (Number.isFinite(id) && !existingRule) {
     return { error: "Cart Goal campaign not found" };
   }
 
   const firstValidationError = [...thresholdErrors, ...rewardErrors].find(Boolean);
-  if (firstValidationError) {
+  if (!saveAsDraft && firstValidationError) {
     return { error: firstValidationError };
   }
 
   let syncedGoals;
-  try {
-    syncedGoals = await syncCartGoalDiscounts({
-      admin,
-      shop: session.shop,
-      accessToken: session.accessToken,
-      campaignName: body.campaignName || "Cart Goal",
-      enabled,
-      trackBy,
-      goals,
-    });
-  } catch (err) {
-    return { error: err?.message || "Shopify discount sync failed" };
+  if (saveAsDraft) {
+    syncedGoals = goals.map((goal) => ({
+      ...goal,
+      shopifyDiscountId: existingGoalById.get(goal?.id)?.shopifyDiscountId || null,
+      shopifySyncWarning: null,
+    }));
+  } else {
+    try {
+      syncedGoals = await syncCartGoalDiscounts({
+        admin,
+        shop: session.shop,
+        accessToken: session.accessToken,
+        campaignName: body.campaignName || "Cart Goal",
+        enabled,
+        trackBy,
+        goals,
+      });
+    } catch (err) {
+      return { error: err?.message || "Shopify discount sync failed" };
+    }
   }
 
   const data = {
@@ -487,7 +498,7 @@ export const action = async ({ request }) => {
   }
 
   invalidateShopCache(session.shop);
-  return { success: true, id: record.id };
+  return { success: true, draft: saveAsDraft, id: record.id };
 };
 
 function SectionCard({
@@ -1466,7 +1477,7 @@ export default function RuleCartGoal() {
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const id = searchParams.get("id");
-  const { rule } = useLoaderData();
+  const { rule, nextCampaignName } = useLoaderData();
   const actionData = useActionData();
   const navigation = useNavigation();
   const submit = useSubmit();
@@ -1474,7 +1485,7 @@ export default function RuleCartGoal() {
   const withHost = (path) => (host ? `${path}?host=${encodeURIComponent(host)}` : path);
 
   const [enabled, setEnabled] = useState(rule?.enabled ?? true);
-  const [campaignName, setCampaignName] = useState(rule?.campaignName ?? "Cart Goal 1");
+  const [campaignName, setCampaignName] = useState(rule?.campaignName ?? nextCampaignName ?? "Cart Goal 1");
   const [trackBy, setTrackBy] = useState(rule?.trackBy ?? "value");
   const [goals, setGoals] = useState(rule?.goals?.length ? rule.goals : defaultGoals());
   const settingsDefaults = useMemo(() => defaultSettings(), []);
@@ -1502,8 +1513,11 @@ export default function RuleCartGoal() {
   const [openSection, setOpenSection] = useState("goals");
   const [showGoalValidation, setShowGoalValidation] = useState(false);
   const [productPickerGoalIndex, setProductPickerGoalIndex] = useState(null);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
 
-  const isSaving = navigation.state === "submitting";
+  const isSaving = navigation.state === "submitting" && !savingDraft;
+  const isSavingDraft = navigation.state === "submitting" && savingDraft;
   const productPickerItems = (productFetcher.data?.products || []).map((product) => ({
     id: product.id,
     title: product.title,
@@ -1525,6 +1539,12 @@ export default function RuleCartGoal() {
     }
   }, [actionData, navigation.state]);
 
+  useEffect(() => {
+    if (navigation.state === "idle") {
+      setSavingDraft(false);
+    }
+  }, [navigation.state]);
+
   const sortedGoals = useMemo(
     () => [...goals].sort((a, b) => Number(a.goal || 0) - Number(b.goal || 0)),
     [goals]
@@ -1539,6 +1559,39 @@ export default function RuleCartGoal() {
   );
   const hasGoalValidationErrors = goalValidationErrors.some(Boolean);
   const hasRewardValidationErrors = rewardValidationErrors.some(Boolean);
+  const currentSnapshot = useMemo(() => JSON.stringify({
+    campaignName,
+    enabled,
+    trackBy,
+    goals,
+    shownGoals,
+    settings,
+  }), [campaignName, enabled, trackBy, goals, shownGoals, settings]);
+  const initialSnapshot = useMemo(() => JSON.stringify({
+    campaignName: rule?.campaignName ?? nextCampaignName ?? "Cart Goal 1",
+    enabled: rule?.enabled ?? true,
+    trackBy: rule?.trackBy ?? "value",
+    goals: rule?.goals?.length ? rule.goals : defaultGoals(),
+    shownGoals: rule?.shownGoals ?? 3,
+    settings: {
+      ...settingsDefaults,
+      ...(rule
+        ? {
+          startDate: rule.startDate || settingsDefaults.startDate,
+          startTime: rule.startTime || settingsDefaults.startTime,
+          hasEndDate: Boolean(rule.hasEndDate),
+          endDate: rule.endDate || "",
+          endTime: rule.endTime || "",
+          showcaseFreeGifts: rule.showcaseFreeGifts || "hide",
+          discountProgressMode: rule.discountProgressMode || "after",
+          rewardSelectionMandatory: rule.rewardSelectionMandatory || "yes",
+          customerTarget: rule.customerTarget || "all",
+          targetingRules: Array.isArray(rule.targetingRules) ? rule.targetingRules : [],
+        }
+        : {}),
+    },
+  }), [nextCampaignName, rule, settingsDefaults]);
+  const hasUnsavedChanges = currentSnapshot !== initialSnapshot;
 
   const addGoal = (type) => {
     setGoals((current) => {
@@ -1633,11 +1686,41 @@ export default function RuleCartGoal() {
     );
   };
 
+  const handleBack = () => {
+    if (!rule || hasUnsavedChanges) {
+      setLeaveModalOpen(true);
+      return;
+    }
+    navigate(withHost("/app/campaigns"));
+  };
+
+  const handleDiscardAndLeave = () => {
+    setLeaveModalOpen(false);
+    navigate(withHost("/app/campaigns"));
+  };
+
+  const handleSaveDraftAndLeave = () => {
+    setSavingDraft(true);
+    submit(
+      {
+        _action: "saveDraft",
+        id,
+        campaignName,
+        enabled: false,
+        trackBy,
+        goals: sortedGoals,
+        shownGoals,
+        ...settings,
+      },
+      { method: "post", encType: "application/json" }
+    );
+  };
+
   return (
     <Page
       backAction={{
         content: "Campaigns",
-        onAction: () => navigate(withHost("/app/campaigns")),
+        onAction: handleBack,
       }}
       title={campaignName || "Cart Goal"}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
@@ -2224,6 +2307,34 @@ export default function RuleCartGoal() {
         }
         onApply={applyGiftProduct}
       />
+      <Modal
+        open={leaveModalOpen}
+        onClose={() => setLeaveModalOpen(false)}
+        title="Save this cart goal as a draft?"
+        primaryAction={{
+          content: "Save draft",
+          onAction: handleSaveDraftAndLeave,
+          loading: isSavingDraft,
+        }}
+        secondaryActions={[
+          {
+            content: "Don't save",
+            destructive: true,
+            onAction: handleDiscardAndLeave,
+          },
+          {
+            content: "Keep editing",
+            onAction: () => setLeaveModalOpen(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            You have unsaved changes. Save this campaign as a paused draft, or
+            leave without saving it.
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

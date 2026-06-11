@@ -5827,14 +5827,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return { type, rule };
     };
 
-    const cartGoalCandidates = (Array.isArray(cartGoalList) ? cartGoalList : [])
+    const selectedCartGoalCampaign = (Array.isArray(cartGoalList) ? cartGoalList : [])
       .filter((campaign) => isRuleEnabled(campaign))
+      .sort((a, b) => Number(b?.priority || 0) - Number(a?.priority || 0))[0];
+
+    const cartGoalCandidates = selectedCartGoalCampaign
+      ? [selectedCartGoalCampaign]
       .flatMap((campaign) => {
         const goals = parseArrayish(campaign?.goals);
         return goals
           .filter((goal) => goal && Number(goal?.goal) > 0)
           .map((goal, index) => buildCartGoalRule(campaign, goal, index));
-      });
+      })
+      : [];
 
     const cartGoalSteps = cartGoalCandidates
       .map(({ type, rule }, index) => buildProgressStep(type, rule, `step${index + 1}`))
@@ -7141,8 +7146,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const freeBySlot = new Map();
       const freeByRuleKey = new Map();
       const freeByDiscountId = new Map();
-      const cartGoalFreeRules = (Array.isArray(cartGoalList) ? cartGoalList : [])
+      const selectedCartGoalFreeCampaign = (Array.isArray(cartGoalList) ? cartGoalList : [])
         .filter((campaign) => isRuleEnabled(campaign))
+        .sort((a, b) => Number(b?.priority || 0) - Number(a?.priority || 0))[0];
+      const cartGoalFreeRules = selectedCartGoalFreeCampaign
+        ? [selectedCartGoalFreeCampaign]
         .flatMap((campaign) => {
           const trackBy = String(campaign?.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
           const goals = parseArrayish(campaign?.goals);
@@ -7179,7 +7187,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               return rule;
             })
             .filter(Boolean);
-        });
+        })
+        : [];
 
       [...(Array.isArray(freeList) ? freeList : []), ...cartGoalFreeRules].forEach((r) => {
         if (!isRuleEnabled(r)) return;
