@@ -7316,17 +7316,69 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const letter = safe((current.option?.title || title || 'G').slice(0, 1));
       img = `<span class="sc-cartgoal-gift-thumb-empty">${letter}</span>`;
     }
-    // Render a static card (no slider controls) to keep the drawer layout simple
+    // Render all available free-gift options as a vertical list in the drawer
     wrap.hidden = false;
+    const itemsHtml = slides
+      .map((s, i) => {
+        const option = s.option || {};
+        const priceHtml = option.priceCents > 0 ? `<span class="sc-freegift-price">${formatMoney(option.priceCents, normalizeCurrencyCode())}</span>` : "";
+        const imageHtml = option.image
+          ? `<img src="${safe(option.image)}" alt="${safe(option.title)}" loading="lazy">`
+          : `<span class="sc-cartgoal-gift-thumb-empty">${safe((option.title || "G").slice(0, 1))}</span>`;
+        return `
+          <div class="sc-cartgoal-gift-card sc-cartgoal-gift-card-item" data-slide-index="${i}" data-option-id="${safe(option.optionId)}">
+            <div class="sc-cartgoal-gift-img">${imageHtml}</div>
+            <div class="sc-cartgoal-gift-copy">
+              <p class="sc-cartgoal-gift-title">${safe(option.title)}</p>
+              <p class="sc-cartgoal-gift-text">${safe(s.message)}</p>
+            </div>
+            <div class="sc-cartgoal-gift-action">
+              <button class="sc-freegift-add sc-cartgoal-add" type="button" data-add="${safe(option.optionId)}">Add</button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
     wrap.innerHTML = `
-      <div class="sc-cartgoal-gift-card sc-cartgoal-gift-card-static">
-        <div class="sc-cartgoal-gift-img">${img}</div>
-        <div class="sc-cartgoal-gift-copy">
-          <p class="sc-cartgoal-gift-title">${safe(title)}</p>
-          <p class="sc-cartgoal-gift-text">${safe(current.message)}</p>
-        </div>
+      <div class="sc-cartgoal-gift-list">
+        ${itemsHtml}
       </div>
     `;
+
+    // Wire up Add handlers for each option so shoppers can add directly from the drawer
+    wrap.querySelectorAll(".sc-cartgoal-add").forEach((btn) => {
+      btn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const optId = btn.getAttribute("data-add");
+        const slide = slides.find((s) => String(s.option?.optionId) === String(optId));
+        if (!slide) return;
+        btn.disabled = true;
+        btn.classList.add("loading");
+        try {
+          await addRewardToCart({
+            kind: "free",
+            rule: slide.rule,
+            ruleKey: getRuleKey(slide.rule),
+            slot: slide.rule?.cartStepName || null,
+            variant: slide.option?.variant,
+            qty: slide.option?.qty,
+            markAutoAdded: false,
+          });
+          // Clear pending marker and re-render drawer
+          const guardKey = getRuleKey(slide.rule);
+          if (guardKey) scStore.del(keyPendingFreeGift(guardKey));
+          markPopupShown("free", guardKey);
+          await renderAllFromCache();
+        } catch (err) {
+          console.error("[SmartCartify] drawer add free gift failed:", err);
+          showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove("loading");
+        }
+      });
+    });
   };
 
   const autoAddFirstFreeGiftOption = async ({ rule, ruleKey, slot }) => {
