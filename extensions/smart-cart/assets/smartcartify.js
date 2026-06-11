@@ -176,8 +176,6 @@
   let UPSELL_TIMER = null;
   let UPSELL_DYNAMIC = null;
   let UPSELL_LOADING = false;
-  let CART_GOAL_FREE_SHOWCASE_INDEX = 0;
-  let CART_GOAL_FREE_SHOWCASE_RENDER_ID = 0;
   let openButtonsObserver = null;
   let bindQueued = false;
   let ADD_TO_CART_BAR_STATE = {
@@ -3542,180 +3540,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   flex-direction:column;
   gap:10px;
 }
-.sc-cartgoal-gift-showcase{
-  margin:0;
-  background:#fff;
-  border-top:1px solid #f0f0f0;
-}
-.sc-cartgoal-gift-carousel{
-  display:flex;
-  align-items:stretch;
-  gap:10px;
-  padding:12px 8px;
-  position:relative;
-}
-.sc-cartgoal-gift-card{
-  display:grid;
-  grid-template-rows:auto 1fr;
-  gap:12px;
-  flex:1;
-  min-width:0;
-  background:#fafafa;
-  border-radius:10px;
-  padding:12px;
-  border:1px solid #f0f0f0;
-}
-.sc-cartgoal-gift-hero{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  width:100%;
-  min-height:140px;
-  background:#f5f5f5;
-  border-radius:8px;
-  overflow:hidden;
-}
-.sc-cartgoal-gift-img-large{
-  width:100%;
-  height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:linear-gradient(135deg, #f5f5f5 0%, #efefef 100%);
-}
-.sc-cartgoal-gift-img-large img{
-  max-width:100%;
-  max-height:100%;
-  width:auto;
-  height:auto;
-  object-fit:contain;
-  display:block;
-}
-.sc-cartgoal-gift-content{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-.sc-cartgoal-gift-message{
-  font-size:13px;
-  color:#666;
-  font-weight:500;
-  line-height:1.4;
-}
-.sc-cartgoal-gift-title{
-  margin:0;
-  color:#1a1a1a;
-  font-size:15px;
-  font-weight:700;
-  line-height:1.3;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.sc-cartgoal-gift-price{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  font-size:13px;
-  color:#666;
-}
-.sc-cartgoal-gift-price del{
-  text-decoration:line-through;
-  opacity:.6;
-}
-.sc-cartgoal-gift-free{
-  display:inline-flex;
-  align-items:center;
-  height:20px;
-  border-radius:4px;
-  background:#e8f5e9;
-  color:#2e7d32;
-  font-weight:700;
-  font-size:12px;
-  padding:0 6px;
-}
-.sc-cartgoal-gift-action{
-  flex-shrink:0;
-}
-.sc-cartgoal-add{
-  width:100%;
-  padding:10px 12px;
-  border:0;
-  border-radius:6px;
-  background:#000;
-  color:#fff;
-  font-size:13px;
-  font-weight:600;
-  cursor:pointer;
-  transition:background .2s, opacity .2s;
-}
-.sc-cartgoal-add:hover:not([disabled]){
-  background:#333;
-}
-.sc-cartgoal-add:active:not([disabled]){
-  transform:scale(.98);
-}
-.sc-cartgoal-add[disabled]{
-  opacity:.6;
-  cursor:not-allowed;
-}
-.sc-cartgoal-add.loading{
-  opacity:.7;
-}
-.sc-cartgoal-gift-arrow{
-  width:32px;
-  height:32px;
-  border:1px solid #d0d0d0;
-  border-radius:50%;
-  background:#fff;
-  color:#333;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:0;
-  cursor:pointer;
-  box-shadow:0 2px 4px rgba(0,0,0,.06);
-  font-size:18px;
-  font-weight:bold;
-  flex-shrink:0;
-  transition:background .2s, border-color .2s, opacity .2s, transform .1s;
-  align-self:center;
-}
-.sc-cartgoal-gift-arrow:hover:not([disabled]){
-  background:#f5f5f5;
-  border-color:#999;
-  box-shadow:0 2px 6px rgba(0,0,0,.1);
-}
-.sc-cartgoal-gift-arrow:active:not([disabled]){
-  transform:scale(.95);
-}
-.sc-cartgoal-gift-arrow[disabled]{
-  opacity:.3;
-  cursor:not-allowed;
-}
-.sc-cartgoal-gift-dots{
-  display:flex;
-  justify-content:center;
-  gap:6px;
-  padding:8px 0 0;
-}
-.sc-cartgoal-gift-dot{
-  width:8px;
-  height:8px;
-  border:0;
-  border-radius:50%;
-  background:#d1d5db;
-  cursor:pointer;
-  padding:0;
-  transition:background .2s, transform .2s;
-}
-.sc-cartgoal-gift-dot:hover{
-  background:#9ca3af;
-}
-.sc-cartgoal-gift-dot.active{
-  background:#4f46e5;
-  transform:scale(1.25);
-}
+
 .sc-cart-msg{
   margin:0 0 10px;
   padding:12px 14px;
@@ -5071,7 +4896,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       <div class="sc-items-list">
         <div class="sc-empty">Loading cart…</div>
       </div>
-      <div class="sc-cartgoal-gift-showcase" data-cartgoal-gift-showcase hidden></div>
       <div class="sc-items-loading" aria-hidden="true">
         <div class="sc-items-spinner"></div>
       </div>
@@ -6693,7 +6517,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         </svg>
         <div class="sc-empty-text">No items in the cart</div>
       </div>`;
-      hideCartGoalFreeGiftShowcase();
       syncItemsLoading(drawer.classList.contains("sc-refreshing"));
       return;
     }
@@ -6780,7 +6603,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       .join("");
 
     syncItemsLoading(drawer.classList.contains("sc-refreshing"));
-    void renderCartGoalFreeGiftShowcase();
     renderUpsellSection();
   }
 
@@ -7342,172 +7164,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return options;
   };
 
-  const hideCartGoalFreeGiftShowcase = () => {
-    const wrap = drawer.querySelector("[data-cartgoal-gift-showcase]");
-    if (!wrap) return;
-    wrap.hidden = true;
-    wrap.innerHTML = "";
-  };
 
-  const getCartGoalFreeGiftMessage = (rule) => {
-    const metric = getRuleProgressMetric("free", rule);
-    if (metric.metric === "quantity") {
-      const goal = Math.max(0, Number(metric.goal || 0));
-      const current = Math.max(0, Number(metric.current || 0));
-      const remaining = Math.max(0, Math.ceil(goal - current));
-      if (remaining > 0) {
-        return `Add ${formatQuantityGoal(remaining)} more to get Free Gift with this order`;
-      }
-      return "Free Gift unlocked with this order";
-    }
-
-    const goalCents = Math.max(0, goalToCents(metric.goal) || 0);
-    const currentCents = Math.max(0, getCartOriginalSubtotalCents());
-    const remainingCents = Math.max(0, goalCents - currentCents);
-    if (remainingCents > 0) {
-      return `Add ${formatMoney(remainingCents, normalizeCurrencyCode())} more to get Free Gift with this order`;
-    }
-    return "Free Gift unlocked with this order";
-  };
-
-  const renderCartGoalFreeGiftShowcase = async () => {
-    const wrap = drawer.querySelector("[data-cartgoal-gift-showcase]");
-    if (!wrap) return;
-
-    const campaign = getSelectedCartGoalCampaign();
-    const shouldShow = String(campaign?.showcaseFreeGifts || "")
-      .trim()
-      .toLowerCase() === "show";
-    if (!campaign || !shouldShow) {
-      hideCartGoalFreeGiftShowcase();
-      return;
-    }
-
-    const rules = buildCartGoalFreeProductRules(campaign).filter((rule) => {
-      const ids = getFreeGiftProductIds(rule);
-      return ids.length > 0 || !!trimToNull(rule?.bonusProductId) || !!trimToNull(rule?.bonus);
-    });
-    if (!rules.length) {
-      hideCartGoalFreeGiftShowcase();
-      return;
-    }
-
-    const renderId = ++CART_GOAL_FREE_SHOWCASE_RENDER_ID;
-    const groups = await Promise.all(
-      rules.map(async (rule) => {
-        try {
-          const options = await resolveFreeGiftOptions(rule);
-          return options.map((option) => ({
-            rule,
-            option,
-            message: getCartGoalFreeGiftMessage(rule),
-          }));
-        } catch (err) {
-          console.warn("[SmartCartify] free gift showcase failed:", err);
-          return [];
-        }
-      })
-    );
-    if (renderId !== CART_GOAL_FREE_SHOWCASE_RENDER_ID) return;
-
-    const slides = groups.flat();
-    if (!slides.length) {
-      hideCartGoalFreeGiftShowcase();
-      return;
-    }
-
-    if (CART_GOAL_FREE_SHOWCASE_INDEX >= slides.length) CART_GOAL_FREE_SHOWCASE_INDEX = 0;
-    const currentIndex = CART_GOAL_FREE_SHOWCASE_INDEX;
-    const current = slides[currentIndex];
-    const title = "Free Gift!";
-    // Debug: log slides and image availability for easier troubleshooting in console
-    try { console.debug('[SmartCartify] free gift showcase current image:', current.option?.image || null); } catch (e) { }
-
-    const option = current.option || {};
-    const priceHtml = option.priceCents > 0 ? `<span class="sc-freegift-price">${formatMoney(option.priceCents, normalizeCurrencyCode())}</span>` : "";
-    const imageHtml = option.image
-      ? `<img src="${safe(option.image)}" alt="${safe(option.title)}" loading="lazy">`
-      : `<span class="sc-cartgoal-gift-thumb-empty">${safe((option.title || "G").slice(0, 1))}</span>`;
-
-    // Build pagination dots
-    const dotsHtml = slides.length > 1 ? `
-      <div class="sc-cartgoal-gift-dots">
-        ${slides.map((_, i) => `<button class="sc-cartgoal-gift-dot ${i === currentIndex ? 'active' : ''}" data-slide="${i}" type="button" aria-label="Go to slide ${i + 1}"></button>`).join('')}
-      </div>
-    ` : '';
-
-    // Render carousel with arrow buttons and larger image
-    wrap.hidden = false;
-    wrap.innerHTML = `
-      <div class="sc-cartgoal-gift-carousel">
-        ${slides.length > 1 ? `<button class="sc-cartgoal-gift-arrow sc-cartgoal-gift-prev" type="button" aria-label="Previous product" ${currentIndex === 0 ? 'disabled' : ''}>←</button>` : ''}
-        
-        <div class="sc-cartgoal-gift-card sc-cartgoal-gift-card-item" data-slide-index="${currentIndex}" data-option-id="${safe(option.optionId)}">
-          <!-- Large hero image -->
-          <div class="sc-cartgoal-gift-hero">
-            <div class="sc-cartgoal-gift-img-large">${imageHtml}</div>
-          </div>
-          
-          <!-- Product info and message -->
-          <div class="sc-cartgoal-gift-content">
-            <div class="sc-cartgoal-gift-message">${safe(current.message)}</div>
-            <h3 class="sc-cartgoal-gift-title">${safe(option.title)}</h3>
-            ${option.priceCents > 0 ? `<div class="sc-cartgoal-gift-price">${formatMoney(option.priceCents, normalizeCurrencyCode())} <span class="sc-cartgoal-gift-free">Free</span></div>` : '<div class="sc-cartgoal-gift-price"><span class="sc-cartgoal-gift-free">Free</span></div>'}
-            <button class="sc-freegift-add sc-cartgoal-add" type="button" data-add="${safe(option.optionId)}">Add Free Gift</button>
-          </div>
-        </div>
-        
-        ${slides.length > 1 ? `<button class="sc-cartgoal-gift-arrow sc-cartgoal-gift-next" type="button" aria-label="Next product" ${currentIndex === slides.length - 1 ? 'disabled' : ''}>→</button>` : ''}
-      </div>
-      ${dotsHtml}
-    `;
-
-    // Navigation handlers
-    const prevBtn = wrap.querySelector(".sc-cartgoal-gift-prev");
-    const nextBtn = wrap.querySelector(".sc-cartgoal-gift-next");
-    const dotBtns = wrap.querySelectorAll(".sc-cartgoal-gift-dot");
-    const addBtn = wrap.querySelector(".sc-cartgoal-add");
-
-    const handleSlideChange = async (newIndex) => {
-      if (newIndex < 0 || newIndex >= slides.length) return;
-      CART_GOAL_FREE_SHOWCASE_INDEX = newIndex;
-      await renderCartGoalFreeGiftShowcase();
-    };
-
-    prevBtn?.addEventListener("click", () => handleSlideChange(currentIndex - 1));
-    nextBtn?.addEventListener("click", () => handleSlideChange(currentIndex + 1));
-    dotBtns.forEach((dot) => {
-      dot.addEventListener("click", () => handleSlideChange(Number(dot.getAttribute("data-slide"))));
-    });
-
-    addBtn?.addEventListener("click", async (ev) => {
-      ev.preventDefault();
-      addBtn.disabled = true;
-      addBtn.classList.add("loading");
-      try {
-        await addRewardToCart({
-          kind: "free",
-          rule: current.rule,
-          ruleKey: getRuleKey(current.rule),
-          slot: current.rule?.cartStepName || null,
-          variant: current.option?.variant,
-          qty: current.option?.qty,
-          markAutoAdded: false,
-        });
-        // Clear pending marker and re-render drawer
-        const guardKey = getRuleKey(current.rule);
-        if (guardKey) scStore.del(keyPendingFreeGift(guardKey));
-        markPopupShown("free", guardKey);
-        await renderAllFromCache();
-      } catch (err) {
-        console.error("[SmartCartify] drawer add free gift failed:", err);
-        showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
-      } finally {
-        addBtn.disabled = false;
-        addBtn.classList.remove("loading");
-      }
-    });
-  };
 
   const autoAddFirstFreeGiftOption = async ({ rule, ruleKey, slot }) => {
     const guardKey = slot || ruleKey;
