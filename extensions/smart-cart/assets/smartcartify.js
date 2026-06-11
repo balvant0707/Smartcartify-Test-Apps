@@ -125,6 +125,7 @@
     star: `<i data-lucide="star" aria-hidden="true"></i>`,
     fire: `<i data-lucide="flame" aria-hidden="true"></i>`,
     check: `<i data-lucide="check" aria-hidden="true"></i>`,
+    lock: `<i data-lucide="lock" aria-hidden="true"></i>`,
     cart: `<i data-lucide="shopping-cart" aria-hidden="true"></i>`,
     shipping: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 5.25C4 4.83579 4.33579 4.5 4.75 4.5H11.7414C12.9692 4.5 14.0483 5.31394 14.3856 6.49452L14.8125 7.98862C14.837 8.07452 14.9055 8.1408 14.9922 8.16247L16.6744 8.58303C17.4535 8.77779 18 9.47776 18 10.2808V11.5C18 12.2108 17.5763 12.8226 16.9676 13.0966C16.9889 13.2279 17 13.3627 17 13.5C17 14.8807 15.8807 16 14.5 16C13.1193 16 12 14.8807 12 13.5C12 13.4156 12.0042 13.3322 12.0123 13.25H8.98766C8.99582 13.3322 9 13.4156 9 13.5C9 14.8807 7.88071 16 6.5 16C5.11929 16 4 14.8807 4 13.5C4 13.1444 4.07422 12.8062 4.20802 12.5H3.75C3.33579 12.5 3 12.1642 3 11.75C3 11.3358 3.33579 11 3.75 11H6.25C6.27988 11 6.30935 11.0017 6.33831 11.0051C6.39177 11.0017 6.44568 11 6.5 11C7.19935 11 7.83163 11.2872 8.28536 11.75H12.7146C13.1684 11.2872 13.8007 11 14.5 11C15.1982 11 15.8296 11.2863 16.2832 11.7478C16.4056 11.7316 16.5 11.6268 16.5 11.5V10.2808C16.5 10.1661 16.4219 10.0661 16.3106 10.0382L14.6284 9.61769C14.0217 9.466 13.542 9.00205 13.3702 8.4007L12.9433 6.9066C12.79 6.36997 12.2995 6 11.7414 6H4.75C4.33579 6 4 5.66421 4 5.25ZM6.5 14.5C7.05228 14.5 7.5 14.0523 7.5 13.5C7.5 12.9477 7.05228 12.5 6.5 12.5C5.94772 12.5 5.5 12.9477 5.5 13.5C5.5 14.0523 5.94772 14.5 6.5 14.5ZM14.5 14.5C15.0523 14.5 15.5 14.0523 15.5 13.5C15.5 12.9477 15.0523 12.5 14.5 12.5C13.9477 12.5 13.5 12.9477 13.5 13.5C13.5 14.0523 13.9477 14.5 14.5 14.5Z"></path><path d="M3.25 8C2.83579 8 2.5 8.33579 2.5 8.75C2.5 9.16421 2.83579 9.5 3.25 9.5H8.25C8.66421 9.5 9 9.16421 9 8.75C9 8.33579 8.66421 8 8.25 8H3.25Z"></path></svg>`,
     discount: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 12" ><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H8V2.25C8 2.66421 7.66421 3 7.25 3C6.83579 3 6.5 2.66421 6.5 2.25V1.5H2.5C2.22386 1.5 2 1.72386 2 2V5.04268C2.2913 5.14564 2.5 5.42345 2.5 5.75C2.5 6.07655 2.2913 6.35436 2 6.45732V10C2 10.2761 2.22386 10.5 2.5 10.5H6.5V9.5C6.5 9.08579 6.83579 8.75 7.25 8.75C7.66421 8.75 8 9.08579 8 9.5V10.5H13.5C13.7761 10.5 14 10.2761 14 10V6.5H12.75C12.3358 6.5 12 6.16421 12 5.75C12 5.33579 12.3358 5 12.75 5H14V2C14 1.72386 13.7761 1.5 13.5 1.5ZM15.5 5.75V2C15.5 0.895431 14.6046 0 13.5 0H7.25H2.5C1.39543 0 0.5 0.895431 0.5 2V10C0.5 11.1046 1.39543 12 2.5 12H13.5C14.6046 12 15.5 11.1046 15.5 10V5.75ZM6.79746 3.99197C6.45366 3.23561 5.69951 2.75 4.86868 2.75C3.69632 2.75 2.75 3.70396 2.75 4.87184C2.75 6.04319 3.69915 7 4.875 7H5.73284C5.13766 7.50971 4.47708 7.92423 3.89394 8.00754C3.48389 8.06612 3.19896 8.44602 3.25754 8.85607C3.31612 9.26612 3.69602 9.55104 4.10607 9.49246C5.21669 9.3338 6.23422 8.57331 6.90944 7.9624C7.03044 7.85293 7.14433 7.74463 7.25 7.64032C7.35567 7.74463 7.46956 7.85293 7.59056 7.9624C8.26578 8.57331 9.28331 9.3338 10.3939 9.49246C10.804 9.55104 11.1839 9.26612 11.2425 8.85607C11.301 8.44602 11.0161 8.06612 10.6061 8.00754C10.0229 7.92423 9.36234 7.50971 8.76716 7H9.625C10.8009 7 11.75 6.04319 11.75 4.87184C11.75 3.70396 10.8037 2.75 9.63132 2.75C8.80049 2.75 8.04634 3.23561 7.70254 3.99197L7.25 4.98755L6.79746 3.99197ZM5.83524 5.5H4.875C4.53206 5.5 4.25 5.21926 4.25 4.87184C4.25 4.5279 4.52923 4.25 4.86868 4.25C5.1113 4.25 5.33152 4.3918 5.43191 4.61267L5.83524 5.5ZM9.625 5.5H8.66476L9.06809 4.61267C9.16848 4.3918 9.3887 4.25 9.63132 4.25C9.97077 4.25 10.25 4.5279 10.25 4.87184C10.25 5.21926 9.96794 5.5 9.625 5.5Z"></path></svg>`,
@@ -3396,6 +3397,58 @@ body.sc-cartify-open .shopify-section-group-header-group{
   fill:#ffffff;
 }
 .sc-dot-wrap.active .sc-dot-bubble{background:#fff;color:#111827}
+.sc-progress.sc-cart-goal-progress{
+  padding:14px 0 18px;
+}
+.sc-progress.sc-cart-goal-progress .sc-label{
+  margin-bottom:14px;
+  font-weight:600;
+  color:var(--sc-progress-text);
+}
+.sc-progress.sc-cart-goal-progress .sc-milestone{
+  width:min(82%, var(--sc-milestone-width));
+}
+.sc-progress.sc-cart-goal-progress .sc-track{
+  height:42px;
+}
+.sc-progress.sc-cart-goal-progress .sc-track::before{
+  height:8px;
+  opacity:.35;
+}
+.sc-progress.sc-cart-goal-progress .sc-fill{
+  height:8px;
+}
+.sc-progress.sc-cart-goal-progress .sc-dot-bubble{
+  width:24px;
+  height:24px;
+  border:0;
+  background:var(--sc-progress);
+  color:#111827;
+  box-shadow:0 1px 3px rgba(0,0,0,.12);
+}
+.sc-progress.sc-cart-goal-progress .sc-dot-bubble svg{
+  width:15px;
+  height:15px;
+  stroke-width:3;
+  fill:none;
+}
+.sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble{
+  background:var(--sc-progress);
+  color:#111827;
+}
+.sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble svg{
+  stroke:currentColor;
+  fill:none;
+}
+.sc-progress.sc-cart-goal-progress .sc-dot-wrap:not(.done) .sc-dot-bubble{
+  background:#5a4636;
+  color:#ffffff;
+}
+.sc-progress.sc-cart-goal-progress .sc-dot-text{
+  margin-top:-4px;
+  max-width:96px;
+  font-weight:600;
+}
 
 .sc-dot-text{
   font-size:var(--sc-small-font-size);
@@ -5716,6 +5769,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         campaignId: campaign?.id,
         campaignName: trimToNull(campaign?.campaignName) || "Cart Goal",
         enabled: true,
+        isCartGoal: true,
         type,
         ruleType: type,
         cartStepName: `step${index + 1}`,
@@ -7336,6 +7390,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (show) {
         progressWrap.style.removeProperty("display");
       } else {
+        progressWrap.classList.remove("sc-cart-goal-progress");
         progressWrap.style.setProperty("display", "none", "important");
       }
     };
@@ -7421,6 +7476,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     setProgressVisible(true);
     const stepCount = stepsAll.length;
+    const isCartGoalProgress = stepsAll.some((step) => step?.rule?.isCartGoal);
+    progressWrap.classList.toggle("sc-cart-goal-progress", isCartGoalProgress);
     document.documentElement.style.setProperty("--sc-stepcount", String(stepCount));
 
     const doneSteps = stepsAll.filter((ss) => isProgressStepDone(ss, subtotal));
@@ -7583,7 +7640,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const isDone = isProgressStepDone(ss, subtotal);
         const isActive = !isDone && nextPending?.slot === ss.slot;
         const cls = isDone ? "done" : isActive ? "active" : "";
-        const icon = ss.icon;
+        const icon = isCartGoalProgress
+          ? isDone
+            ? ICONS.check
+            : ICONS.lock
+          : ss.icon;
 
         const belowText = trimToNull(ss.progressTextBelow) || trimToNull(ss.title);
 
