@@ -192,7 +192,7 @@ function defaultSettings() {
 }
 
 function defaultGoals() {
-  return [makeGoal("gift", 0), makeGoal("discount", 1), makeGoal("shipping", 2)];
+  return [];
 }
 
 function safeJsonParse(value, fallback) {
@@ -997,9 +997,9 @@ function PreviewPanel({
   sliderValue,
   onSliderChange,
 }) {
-  const activeGoals = goals.slice(0, 3);
-  const firstGoal = activeGoals[0];
+  const activeGoals = Array.isArray(goals) ? goals : [];
   const maxGoal = Math.max(...activeGoals.map((goal) => Number(goal.goal || 0)), 1);
+  const totalSteps = activeGoals.length;
   const cartValue = (maxGoal * sliderValue) / 100;
   const nextGoal =
     activeGoals.find((goal) => cartValue < Number(goal.goal || 0)) ||
@@ -1072,7 +1072,11 @@ function PreviewPanel({
                 </div>
                 {activeGoals.map((goal, index) => {
                   const goalValue = Number(goal.goal || 0);
-                  const left = `${Math.min(100, Math.max(0, (goalValue / maxGoal) * 100))}%`;
+                  const stepPosition =
+                    index === totalSteps - 1
+                      ? 98
+                      : ((index + 1) * 100) / totalSteps;
+                  const left = `${Math.min(98, Math.max(0, stepPosition))}%`;
                   const isCompleted = cartValue >= goalValue;
                   return (
                     <div
@@ -2166,7 +2170,7 @@ export default function RuleCartGoal() {
             onEnabledChange={setEnabled}
             campaignName={campaignName}
             onCampaignNameChange={setCampaignName}
-            goals={sortedGoals.slice(0, shownGoals)}
+            goals={sortedGoals}
             trackBy={trackBy}
             sliderValue={sliderValue}
             onSliderChange={setSliderValue}
