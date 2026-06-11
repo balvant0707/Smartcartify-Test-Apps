@@ -891,6 +891,20 @@
     return [];
   };
 
+  const parseArrayish = (value) => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   const parseIdArray = (value) => {
     if (!value) return [];
     if (Array.isArray(value)) return value.map(String);
@@ -5467,7 +5481,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const shippingList = getProxyArray(PROXY, ["shippingRules", "shippingRule", "shippingrule"]);
     const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
     const freeList = getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]);
-    const cartGoalList = getProxyArray(PROXY, ["cartGoalRules", "cartGoalRule", "cartgoalrule"]);
+    const cartGoalList = getProxyArray(PROXY, [
+      "cartGoalRules",
+      "cartGoalRule",
+      "cartgoalrule",
+      "_rawCartGoalRules",
+    ]);
 
     const buyxgetyList = getProxyArray(PROXY, [
       "buyxgetyRules",
@@ -5735,7 +5754,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const cartGoalCandidates = (Array.isArray(cartGoalList) ? cartGoalList : [])
       .filter((campaign) => isRuleEnabled(campaign))
       .flatMap((campaign) => {
-        const goals = Array.isArray(campaign?.goals) ? campaign.goals : [];
+        const goals = parseArrayish(campaign?.goals);
         return goals
           .filter((goal) => goal && Number(goal?.goal) > 0)
           .map((goal, index) => buildCartGoalRule(campaign, goal, index));
@@ -7004,7 +7023,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
       const freeList = getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]);
-      const cartGoalList = getProxyArray(PROXY, ["cartGoalRules", "cartGoalRule", "cartgoalrule"]);
+      const cartGoalList = getProxyArray(PROXY, [
+        "cartGoalRules",
+        "cartGoalRule",
+        "cartgoalrule",
+        "_rawCartGoalRules",
+      ]);
       const buyxgetyList = getProxyArray(PROXY, [
         "buyxgetyRules",
         "buyxgetyRule",
@@ -7024,7 +7048,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         .filter((campaign) => isRuleEnabled(campaign))
         .flatMap((campaign) => {
           const trackBy = String(campaign?.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
-          const goals = Array.isArray(campaign?.goals) ? campaign.goals : [];
+          const goals = parseArrayish(campaign?.goals);
           return goals
             .map((goal, index) => {
               const type = String(goal?.type || "").trim().toLowerCase();

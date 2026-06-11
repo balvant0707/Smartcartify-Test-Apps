@@ -1473,7 +1473,7 @@ export default function RuleCartGoal() {
   const productFetcher = useFetcher();
   const withHost = (path) => (host ? `${path}?host=${encodeURIComponent(host)}` : path);
 
-  const [enabled, setEnabled] = useState(rule?.enabled ?? false);
+  const [enabled, setEnabled] = useState(rule?.enabled ?? true);
   const [campaignName, setCampaignName] = useState(rule?.campaignName ?? "Cart Goal 1");
   const [trackBy, setTrackBy] = useState(rule?.trackBy ?? "value");
   const [goals, setGoals] = useState(rule?.goals?.length ? rule.goals : defaultGoals());
