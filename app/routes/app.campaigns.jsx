@@ -631,16 +631,16 @@ export default function CampaignSelector() {
     activeCategory === "all"
       ? [
         {
+          label: "Goals",
+          items: AVAILABLE_RULE_TYPES.filter((r) => r.category === "goals"),
+        },
+        {
           label: "Discounts",
           items: AVAILABLE_RULE_TYPES.filter((r) => r.category === "discounts"),
         },
         {
           label: "Upsell",
           items: AVAILABLE_RULE_TYPES.filter((r) => r.category === "upsell"),
-        },
-        {
-          label: "Goals",
-          items: AVAILABLE_RULE_TYPES.filter((r) => r.category === "goals"),
         },
         {
           label: "Customize",
