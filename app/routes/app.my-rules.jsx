@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLoaderData, useFetcher } from "react-router";
 import {
-  Page, Tabs, Text, Box, BlockStack, InlineStack,
-  Button, Badge, Modal, EmptyState, Icon, Banner,
+  Page, Tabs, Text, Box, InlineStack,
+  Button, Badge, Modal, EmptyState, Icon, Banner, IndexTable, Tooltip,
 } from "@shopify/polaris";
 import {
   DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon,
-  EditIcon, DeleteIcon, PlusIcon,
+  DeleteIcon, PlusIcon, DuplicateIcon, ChevronUpIcon, ChevronDownIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -25,7 +25,7 @@ function formatCartStep(value) {
 
 const ANNOUNCEMENT_BAR_LABEL = "Announcement Bar";
 
-// ─── Loader ──────────────────────────────────────────────────────────────────
+// Loader
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -156,7 +156,7 @@ export const loader = async ({ request }) => {
   return { rules };
 };
 
-// ─── Action ──────────────────────────────────────────────────────────────────
+// Action
 
 const DELETE_AUTOMATIC = `#graphql
   mutation DiscountAutomaticDelete($id: ID!) {
@@ -274,34 +274,72 @@ export const action = async ({ request }) => {
   return Response.json({ error: "Unknown action" }, { status: 400 });
 };
 
-// ─── Config ──────────────────────────────────────────────────────────────────
+// Config
 
 const RULE_ROUTES = {
-  "shipping":           "/app/rule-shipping",
+  "shipping": "/app/rule-shipping",
   "automatic-discount": "/app/rule-auto-discount",
-  "free-product":       "/app/rule-free-product",
-  "code-discount":      "/app/rule-code-discount",
-  "buy-x-get-y":        "/app/rule-bxgy",
-  "cart-goal":          "/app/rule-cart-goal",
+  "free-product": "/app/rule-free-product",
+  "code-discount": "/app/rule-code-discount",
+  "buy-x-get-y": "/app/rule-bxgy",
+  "cart-goal": "/app/rule-cart-goal",
 };
 
 const RULE_META = {
-  "shipping":           { label: "Shipping Rule",       icon: DeliveryIcon,  color: "#0ea5e9", bg: "#f0f9ff" },
-  "automatic-discount": { label: "Automatic Discount",   icon: DiscountIcon,  color: "#f59e0b", bg: "#fffbeb" },
-  "free-product":       { label: "Free Product Discount", icon: GiftCardIcon,  color: "#8b5cf6", bg: "#f5f3ff" },
-  "code-discount":      { label: "Code Discount",        icon: CodeIcon,      color: "#10b981", bg: "#ecfdf5" },
-  "buy-x-get-y":        { label: "Buy X Get Y Discount", icon: GiftCardIcon,  color: "#ef4444", bg: "#fff1f2" },
-  "cart-goal":          { label: "Cart Goal",            icon: DiscountIcon,  color: "#d946ef", bg: "#fdf4ff" },
+  "shipping": { label: "Shipping Rule", icon: DeliveryIcon, color: "#0ea5e9", bg: "#f0f9ff", image: "/images/campaigns/Shipping Rules.svg" },
+  "automatic-discount": { label: "Automatic Discount", icon: DiscountIcon, color: "#f59e0b", bg: "#fffbeb", image: "/images/campaigns/Automatic Discount.svg" },
+  "free-product": { label: "Free Product Discount", icon: GiftCardIcon, color: "#8b5cf6", bg: "#f5f3ff", image: "/images/campaigns/Free Product Discount.svg" },
+  "code-discount": { label: "Code Discount", icon: CodeIcon, color: "#10b981", bg: "#ecfdf5", image: "/images/campaigns/Code Discount.svg" },
+  "buy-x-get-y": { label: "Buy X Get Y Discount", icon: GiftCardIcon, color: "#ef4444", bg: "#fff1f2", image: "/images/campaigns/buyxgety.svg" },
+  "cart-goal": { label: "Cart Goal", icon: DiscountIcon, color: "#d946ef", bg: "#fdf4ff", image: "/images/campaigns/campaign-ico-cart-goal.svg" },
 };
 
 const TABS = [
-  { id: "all",              content: "All rules" },
-  { id: "code-discount",    content: "Code Discount" },
-  { id: "buy-x-get-y",      content: "Buy X Get Y Discount" },
-  { id: "cart-goal",        content: "Cart Goal" },
+  { id: "all", content: "All rules" },
+  { id: "code-discount", content: "Code Discount" },
+  { id: "buy-x-get-y", content: "Buy X Get Y Discount" },
+  { id: "cart-goal", content: "Cart Goal" },
 ];
 
-// ─── Component ───────────────────────────────────────────────────────────────
+const TABLE_HEADINGS = [
+  { title: "Campaign details", id: "campaign-details" },
+  { title: "Status", id: "status" },
+  { title: "Actions", id: "actions", alignment: "center" },
+  { title: "Priority", id: "priority", alignment: "center" },
+];
+
+function RuleCampaignMark({ meta, name }) {
+  if (meta.image) {
+    return (
+      <img
+        src={meta.image}
+        alt=""
+        width={54}
+        height={54}
+        style={{ display: "block", objectFit: "contain", flexShrink: 0 }}
+      />
+    );
+  }
+
+  return (
+    <div style={{
+      width: "54px",
+      height: "54px",
+      borderRadius: "10px",
+      background: meta.bg || "#f3f4f6",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    }}>
+      <span style={{ color: meta.color || "#6b7280" }}>
+        <Icon source={meta.icon || DiscountIcon} accessibilityLabel={name} />
+      </span>
+    </div>
+  );
+}
+
+// Component
 
 export default function MyRules() {
   const navigate = useNavigate();
@@ -384,7 +422,7 @@ export default function MyRules() {
       )}
 
       <Box paddingBlockEnd="800">
-        <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden" }}>
+        <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "8px", overflow: "hidden" }}>
           {/* Tabs */}
           <div style={{ borderBottom: "1px solid #e1e3e5" }}>
             <Tabs tabs={tabsWithCounts} selected={tabIndex} onSelect={setTabIndex} />
@@ -406,121 +444,98 @@ export default function MyRules() {
               </EmptyState>
             </Box>
           ) : (
-            <div>
-              {/* Table header */}
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(180px, 2fr) 130px 120px 120px 120px 100px",
-                gap: "12px",
-                padding: "10px 20px",
-                background: "#f9fafb",
-                borderBottom: "1px solid #e1e3e5",
-              }}>
-                {["Rule", "Type", "Cart Step", "Status", "Last updated", "Actions"].map((h) => (
-                  <Text key={h} variant="bodySm" fontWeight="semibold" tone="subdued" as="p">{h}</Text>
-                ))}
-              </div>
-
-              {/* Rows */}
+            <IndexTable
+              resourceName={{ singular: "rule", plural: "rules" }}
+              itemCount={filtered.length}
+              selectable={false}
+              headings={TABLE_HEADINGS}
+            >
               {filtered.map((rule, i) => {
                 const meta = RULE_META[rule.ruleType] || {};
-                const isLast = i === filtered.length - 1;
                 return (
-                  <div
+                  <IndexTable.Row
                     key={`${rule.ruleType}-${rule.id}`}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "minmax(180px, 2fr) 130px 120px 120px 120px 100px",
-                      gap: "12px",
-                      padding: "14px 20px",
-                      alignItems: "center",
-                      borderBottom: isLast ? "none" : "1px solid #f1f3f5",
-                      transition: "background 0.1s",
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "#fafafa"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                    id={`${rule.ruleType}-${rule.id}`}
+                    position={i}
                   >
-                    {/* Rule name + meta */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+                    <IndexTable.Cell>
                       <div style={{
-                        width: "36px", height: "36px", borderRadius: "8px",
-                        background: meta.bg || "#f3f4f6",
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "18px",
+                        minWidth: "260px",
+                        paddingBlock: "10px",
                       }}>
-                        <span style={{ color: meta.color || "#6b7280" }}>
-                          <Icon source={meta.icon || DiscountIcon} />
-                        </span>
+                        <RuleCampaignMark meta={meta} name={rule.name} />
+                        <div style={{ minWidth: 0 }}>
+                          <Text variant="headingSm" as="p" truncate>
+                            {rule.name}
+                          </Text>
+                          <Text variant="bodyMd" tone="subdued" as="p">
+                            {meta.label || rule.ruleType}
+                          </Text>
+                        </div>
                       </div>
-                      <div style={{ minWidth: 0 }}>
-                        <Text variant="bodyMd" fontWeight="semibold" as="p" truncate>{rule.name}</Text>
-                        <Text variant="bodySm" tone="subdued" as="p">{rule.meta}</Text>
-                      </div>
-                    </div>
+                    </IndexTable.Cell>
 
-                    {/* Type badge */}
-                    <div>
-                      <span style={{
-                        display: "inline-block",
-                        fontSize: "11px", fontWeight: 600,
-                        padding: "3px 8px", borderRadius: "4px",
-                        background: meta.bg || "#f3f4f6",
-                        color: meta.color || "#374151",
-                        border: `1px solid ${meta.color ? meta.color + "33" : "#e1e3e5"}`,
-                        whiteSpace: "nowrap",
-                      }}>
-                        {meta.label || rule.ruleType}
-                      </span>
-                    </div>
-
-                    {/* Cart Step */}
-                    <Text variant="bodySm" tone={rule.cartStep ? undefined : "subdued"} as="p">
-                      {rule.cartStep || "-"}
-                    </Text>
-
-                    {/* Status */}
-                    <div>
+                    <IndexTable.Cell>
                       <Badge tone={rule.status === "active" ? "success" : "critical"}>
                         {rule.status === "active" ? "Active" : "Disabled"}
                       </Badge>
-                    </div>
+                    </IndexTable.Cell>
 
-                    {/* Date */}
-                    <Text variant="bodySm" tone="subdued" as="p">
-                      {new Date(rule.updatedAt).toLocaleDateString("en-US", {
-                        month: "short", day: "numeric", year: "numeric",
-                      })}
-                    </Text>
+                    <IndexTable.Cell>
+                      <InlineStack gap="200" align="center" wrap={false}>
+                        <Button
+                          size="slim"
+                          onClick={() => handleEdit(rule)}
+                          accessibilityLabel={`Edit ${rule.name}`}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="slim"
+                          icon={DeleteIcon}
+                          onClick={() => setDeleteTarget(rule)}
+                          accessibilityLabel={`Delete ${rule.name}`}
+                          loading={deletingKey === `${rule.ruleType}-${rule.id}`}
+                        />
+                        <Tooltip content="Duplicate is not available yet">
+                          <Button
+                            size="slim"
+                            icon={DuplicateIcon}
+                            disabled
+                            accessibilityLabel={`Duplicate ${rule.name}`}
+                          />
+                        </Tooltip>
+                      </InlineStack>
+                    </IndexTable.Cell>
 
-                    {/* Actions */}
-                    <InlineStack gap="200">
-                      <Button
-                        size="slim"
-                        icon={EditIcon}
-                        onClick={() => handleEdit(rule)}
-                        accessibilityLabel={`Edit ${rule.name}`}
-                      />
-                      <Button
-                        size="slim"
-                        icon={DeleteIcon}
-                        tone="critical"
-                        variant="plain"
-                        onClick={() => setDeleteTarget(rule)}
-                        accessibilityLabel={`Delete ${rule.name}`}
-                        loading={deletingKey === `${rule.ruleType}-${rule.id}`}
-                      />
-                    </InlineStack>
-                  </div>
+                    <IndexTable.Cell>
+                      <InlineStack gap="100" align="center" wrap={false}>
+                        <Tooltip content="Move up">
+                          <Button
+                            variant="plain"
+                            icon={ChevronUpIcon}
+                            disabled={i === 0}
+                            accessibilityLabel={`Move ${rule.name} up`}
+                          />
+                        </Tooltip>
+                        <Tooltip content="Move down">
+                          <Button
+                            variant="plain"
+                            icon={ChevronDownIcon}
+                            disabled={i === filtered.length - 1}
+                            accessibilityLabel={`Move ${rule.name} down`}
+                          />
+                        </Tooltip>
+                      </InlineStack>
+                    </IndexTable.Cell>
+                  </IndexTable.Row>
                 );
               })}
 
-              {/* Footer count */}
-              <div style={{ padding: "10px 20px", borderTop: "1px solid #f1f3f5", background: "#f9fafb" }}>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  {filtered.length} rule{filtered.length !== 1 ? "s" : ""}
-                  {activeType !== "all" ? ` · ${RULE_META[activeType]?.label || activeType}` : ""}
-                </Text>
-              </div>
-            </div>
+            </IndexTable>
           )}
         </div>
       </Box>

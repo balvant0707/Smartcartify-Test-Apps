@@ -175,9 +175,9 @@ export default function RuleCodeDiscount() {
   const [minQuantity, setMinQuantity] = useState(r?.minQuantity ?? "");
 
   // Messages
-  const [progressTextBefore, setProgressTextBefore] = useState(r?.progressTextBefore ?? "Spend {{amount}} more to unlock code {{discount_code}}!");
-  const [progressTextAfter, setProgressTextAfter] = useState(r?.progressTextAfter ?? "Use code {{discount_code}} to get {{discount_value_with_off}}! 🎉");
-  const [progressTextBelow, setProgressTextBelow] = useState(r?.progressTextBelow ?? "");
+  const [progressTextBefore, setProgressTextBefore] = useState(r?.progressTextBefore ?? "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}!");
+  const [progressTextAfter, setProgressTextAfter] = useState(r?.progressTextAfter ?? "🎉🎉 {{discount_value_with_off}} off Discount!");
+  const [progressTextBelow, setProgressTextBelow] = useState(r?.progressTextBelow ?? "Code Discount!");
 
   // Schedule
   const today = new Date().toISOString().split("T")[0];
@@ -467,11 +467,11 @@ export default function RuleCodeDiscount() {
                       <span style={{ fontSize: "13px" }}>
                         {triggerType === "amount"
                           ? (progressTextBefore.includes("{{amount}}")
-                              ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>${remaining}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
-                              : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Spend $${remaining} more to unlock ${discountLabel || "your discount"}!`)
+                            ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>${remaining}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
+                            : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Spend $${remaining} more to unlock ${discountLabel || "your discount"}!`)
                           : (progressTextBefore.includes("{{amount}}")
-                              ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>{remaining} item{parseInt(remaining) !== 1 ? "s" : ""}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
-                              : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Add ${remaining} more item${parseInt(remaining) !== 1 ? "s" : ""} to unlock ${discountLabel || "your discount"}!`)}
+                            ? <>{progressTextBefore.split("{{amount}}")[0].replace("{{discount_code}}", discountCode || "CODE")}<strong>{remaining} item{parseInt(remaining) !== 1 ? "s" : ""}</strong>{(progressTextBefore.split("{{amount}}")[1] ?? "").replace("{{discount_code}}", discountCode || "CODE")}</>
+                            : progressTextBefore.replace("{{discount_code}}", discountCode || "CODE") || `Add ${remaining} more item${parseInt(remaining) !== 1 ? "s" : ""} to unlock ${discountLabel || "your discount"}!`)}
                       </span>
                     ) : (
                       <Text variant="bodySm" as="p">{discountCode ? `Use code: ${discountCode}` : "Enter a discount code above"}</Text>

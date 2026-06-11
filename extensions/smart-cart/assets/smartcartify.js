@@ -3405,7 +3405,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   color:var(--sc-progress-text);
 }
 .sc-progress.sc-cart-goal-progress .sc-milestone{
-  width:min(82%, var(--sc-milestone-width));
+  width:min(92%, var(--sc-milestone-width));
 }
 .sc-progress.sc-cart-goal-progress .sc-track{
   height:42px;
@@ -7684,7 +7684,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     dotsWrap.innerHTML = stepsAll
       .map((ss, i) => {
         const isLast = i === stepCount - 1;
-        const leftPct = isLast ? 98 : ((i + 1) / stepCount) * 100;
+        const leftPct = isLast ? 100 : ((i + 1) / stepCount) * 100;
 
         const isDone = isProgressStepDone(ss, subtotal);
         const isActive = !isDone && nextPending?.slot === ss.slot;
