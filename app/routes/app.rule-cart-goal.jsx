@@ -567,6 +567,12 @@ function ProductPickerModal({
       String(item.title || "").toLowerCase().includes(search.toLowerCase())
     )
     : items;
+  const toggleDraftProduct = (productId) =>
+    setDraft((current) =>
+      current.includes(productId)
+        ? current.filter((id) => id !== productId)
+        : [...current, productId]
+    );
 
   return (
     <Modal
@@ -614,31 +620,28 @@ function ProductPickerModal({
             filtered.map((item) => {
               const checked = draft.includes(item.id);
               return (
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   className={`cg-productPickerItem ${checked ? "cg-productPickerItemSelected" : ""
                     }`}
                   key={item.id}
-                  onClick={() =>
-                    setDraft((current) =>
-                      current.includes(item.id)
-                        ? current.filter((id) => id !== item.id)
-                        : [...current, item.id]
-                    )
-                  }
-                >
-                  <Checkbox
-                    label=""
-                    labelHidden
-                    checked={checked}
-                    onChange={() =>
-                      setDraft((current) =>
-                        current.includes(item.id)
-                          ? current.filter((id) => id !== item.id)
-                          : [...current, item.id]
-                      )
+                  onClick={() => toggleDraftProduct(item.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      toggleDraftProduct(item.id);
                     }
-                  />
+                  }}
+                >
+                  <span onClick={(event) => event.stopPropagation()}>
+                    <Checkbox
+                      label=""
+                      labelHidden
+                      checked={checked}
+                      onChange={() => toggleDraftProduct(item.id)}
+                    />
+                  </span>
                   {item.image ? (
                     <img
                       src={item.image}
@@ -661,7 +664,7 @@ function ProductPickerModal({
                     )}
                   </span>
                   {checked && <span className="cg-productPickerSelectedText">Selected</span>}
-                </button>
+                </div>
               );
             })
           )}
