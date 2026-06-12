@@ -2190,7 +2190,7 @@ export default function RuleCartGoal() {
         }
         .cg-previewCanvas {
           background: #f7f7f7;
-          min-height: 156px;
+          min-height: 100px;
           padding: 18px 20px 34px;
           border-bottom: 1px solid #e1e3e5;
         }
@@ -2442,12 +2442,6 @@ export default function RuleCartGoal() {
                     />
                   </Popover>
                 </InlineStack>
-
-                <Banner tone="info">
-                  Set your existing Shopify discounts to combine with product and
-                  order discounts to ensure that these rewards work well together.
-                  <strong> Learn more</strong>
-                </Banner>
               </BlockStack>
             </SectionCard>
 
