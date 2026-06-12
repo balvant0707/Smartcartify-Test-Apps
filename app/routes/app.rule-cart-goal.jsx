@@ -367,8 +367,8 @@ async function syncCartGoalDiscounts({
         discountValue: goal.value || "0",
         combinesWith: {
           orderDiscounts: false,
-          productDiscounts: true,
-          shippingDiscounts: true,
+          productDiscounts: false,
+          shippingDiscounts: false,
         },
         ...threshold,
       });
