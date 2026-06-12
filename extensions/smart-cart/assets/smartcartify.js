@@ -907,6 +907,35 @@
     return [];
   };
 
+  const normalizeCartGoalRewardType = (goal) => {
+    const type = String(goal?.type ?? goal?.Type ?? goal?.rewardType ?? "").trim().toLowerCase();
+    if (["gift", "free", "free_product", "free-product", "product"].includes(type)) return "free";
+    if (["shipping", "free_shipping", "free-shipping"].includes(type)) return "shipping";
+    return "discount";
+  };
+
+  const getCartGoalBonusProductIds = (goal) => {
+    const rawIds =
+      goal?.bonusProductIds ??
+      goal?.bonus_product_ids ??
+      goal?.bonusProductIDs ??
+      goal?.productIds ??
+      [];
+    const parsed = Array.isArray(rawIds)
+      ? rawIds
+      : parseArrayish(rawIds);
+    const stringFallbackIds =
+      !parsed.length && typeof rawIds === "string" && trimToNull(rawIds)
+        ? [rawIds]
+        : [];
+    const fallback =
+      trimToNull(goal?.bonusProductId) ||
+      trimToNull(goal?.bonus_product_id) ||
+      trimToNull(goal?.bonus) ||
+      null;
+    return [...new Set([...parsed, ...stringFallbackIds, fallback].map(trimToNull).filter(Boolean))];
+  };
+
   const parseIdArray = (value) => {
     if (!value) return [];
     if (Array.isArray(value)) return value.map(String);
@@ -1757,12 +1786,10 @@
     const goals = parseArrayish(campaign?.goals);
     return goals
       .map((goal, index) => {
-        const type = String(goal?.type || "").trim().toLowerCase();
-        if (!["gift", "free", "free_product"].includes(type)) return null;
+        const type = normalizeCartGoalRewardType(goal);
+        if (type !== "free") return null;
         const threshold = Number(goal?.goal);
-        const productIds = Array.isArray(goal?.bonusProductIds)
-          ? goal.bonusProductIds.filter(Boolean)
-          : [];
+        const productIds = getCartGoalBonusProductIds(goal);
         const bonusProductId =
           trimToNull(goal?.bonusProductId) ||
           trimToNull(goal?.bonus) ||
@@ -5939,21 +5966,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       };
     };
 
-    const normalizeCartGoalRewardType = (goal) => {
-      const type = String(goal?.type || "").trim().toLowerCase();
-      if (type === "gift" || type === "free" || type === "free_product") return "free";
-      if (type === "shipping" || type === "free_shipping") return "shipping";
-      return "discount";
-    };
-
     const buildCartGoalRule = (campaign, goal, index) => {
       const trackBy = String(campaign?.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
       const type = normalizeCartGoalRewardType(goal);
       const threshold = Number(goal?.goal);
       const texts = goal?.texts || {};
-      const productIds = Array.isArray(goal?.bonusProductIds)
-        ? goal.bonusProductIds.filter(Boolean)
-        : [];
+      const productIds = getCartGoalBonusProductIds(goal);
       const bonusProductId =
         trimToNull(goal?.bonusProductId) ||
         trimToNull(goal?.bonus) ||
@@ -7140,9 +7158,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getFreeGiftProductIds = (rule) => {
     const ids = Array.isArray(rule?.bonusProductIds)
       ? rule.bonusProductIds
-      : [];
+      : parseArrayish(rule?.bonusProductIds);
+    const stringFallbackIds =
+      !ids.length && typeof rule?.bonusProductIds === "string" && trimToNull(rule.bonusProductIds)
+        ? [rule.bonusProductIds]
+        : [];
     const fallback = trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus);
-    const allIds = [...ids, fallback].map(trimToNull).filter(Boolean);
+    const allIds = [...ids, ...stringFallbackIds, fallback].map(trimToNull).filter(Boolean);
     return [...new Set(allIds)];
   };
 

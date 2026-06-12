@@ -218,8 +218,16 @@ function normalizeGoalTexts(goal, base) {
   }, {});
 }
 
+function normalizeGoalType(goal) {
+  const rawType = String(goal?.type ?? goal?.Type ?? goal?.rewardType ?? "").trim().toLowerCase();
+  if (["gift", "free", "free_product", "free-product", "product"].includes(rawType)) return "gift";
+  if (["shipping", "free_shipping", "free-shipping"].includes(rawType)) return "shipping";
+  if (["discount", "order_discount", "order-discount"].includes(rawType)) return "discount";
+  return "gift";
+}
+
 function normalizeGoal(goal, index) {
-  const type = REWARD_CONFIG[goal?.type] ? goal.type : "gift";
+  const type = normalizeGoalType(goal);
   const base = makeGoal(type, index);
   return {
     ...base,
