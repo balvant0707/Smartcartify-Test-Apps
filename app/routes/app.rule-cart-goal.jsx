@@ -365,6 +365,11 @@ async function syncCartGoalDiscounts({
         enabled,
         isPercentage: goal.discountType !== "amount",
         discountValue: goal.value || "0",
+        combinesWith: {
+          orderDiscounts: false,
+          productDiscounts: true,
+          shippingDiscounts: true,
+        },
         ...threshold,
       });
       syncedGoals.push({ ...goal, shopifyDiscountId });

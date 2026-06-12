@@ -582,6 +582,7 @@ export async function upsertShippingRate(admin, { existingId, title, rewardType,
  */
 export async function upsertAutomaticBasic(admin, {
   existingId, title, startsAt, endsAt, minSubtotal, minQuantity, minReqType = "subtotal", isPercentage, discountValue, enabled = true,
+  combinesWith = COMBINES_WITH_ORDER_DISCOUNTS,
 }) {
   const input = {
     title: withAppNameTitle(title, "Automatic Discount"),
@@ -595,7 +596,7 @@ export async function upsertAutomaticBasic(admin, {
         : { discountAmount: { amount: String(parseFloat(discountValue || "0")), appliesOnEachItem: false } },
       items: { all: true },
     },
-    combinesWith: COMBINES_WITH_ORDER_DISCOUNTS,
+    combinesWith,
   };
 
   if (existingId) {

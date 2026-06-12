@@ -55,8 +55,14 @@ async function nextCartGoalCampaignName(shop) {
 // Loader
 
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
+
+  try {
+    await reconcileCartGoalPriorityDiscounts(admin, shop);
+  } catch (err) {
+    console.warn("Cart Goal priority reconciliation failed", err?.message || err);
+  }
 
   const [shippingRows, discountRows, freeRows, bxgyRows, cartGoalRows] = await Promise.all([
     prisma.shippingRule.findMany({

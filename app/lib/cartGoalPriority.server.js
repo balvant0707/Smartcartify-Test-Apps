@@ -79,6 +79,45 @@ async function setAutomaticDiscountActive(admin, discountId, enabled) {
   }
 }
 
+async function setCartGoalOrderDiscountCombines(admin, discountId) {
+  if (!discountId) return;
+
+  const mutation = `#graphql
+    mutation DiscountAutomaticBasicUpdate($id: ID!, $input: DiscountAutomaticBasicInput!) {
+      discountAutomaticBasicUpdate(id: $id, automaticBasicDiscount: $input) {
+        automaticDiscountNode { id }
+        userErrors { field message }
+      }
+    }`;
+
+  const result = await (await admin.graphql(mutation, {
+    variables: {
+      id: discountId,
+      input: {
+        combinesWith: {
+          orderDiscounts: false,
+          productDiscounts: true,
+          shippingDiscounts: true,
+        },
+      },
+    },
+  })).json();
+  const topLevelErrors = result?.errors || [];
+  const userErrors = result?.data?.discountAutomaticBasicUpdate?.userErrors || [];
+
+  if (topLevelErrors.length || userErrors.length) {
+    const messages = [
+      ...topLevelErrors.map((error) => error?.message).filter(Boolean),
+      ...userErrors.map((error) => error?.message).filter(Boolean),
+    ];
+    const message = messages.join(", ") || "";
+    if (/not\s+found|does\s+not\s+exist|invalid\s+id|automatic\s+basic|basic\s+discount/i.test(message)) {
+      return;
+    }
+    throw new Error(message || "Shopify order discount combine update failed");
+  }
+}
+
 export async function reconcileCartGoalPriorityDiscounts(admin, shop) {
   if (!admin || !shop) return;
 
@@ -102,6 +141,7 @@ export async function reconcileCartGoalPriorityDiscounts(admin, shop) {
     const discountIds = getCartGoalDiscountIds(rule);
 
     for (const discountId of discountIds) {
+      await setCartGoalOrderDiscountCombines(admin, discountId);
       await setAutomaticDiscountActive(admin, discountId, shouldBeActive);
     }
   }
