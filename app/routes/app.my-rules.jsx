@@ -699,6 +699,7 @@ export default function MyRules() {
                         </Tooltip>
                       </InlineStack>
                     </IndexTable.Cell>
+
                   </IndexTable.Row>
                 );
               })}

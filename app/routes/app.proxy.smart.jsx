@@ -300,6 +300,18 @@ const applyRuleTranslations = (rule = {}, locale = "") => {
   return { ...rule, ...translated };
 };
 
+const rulePrioritySort = (a = {}, b = {}) => {
+  const priorityDiff = Number(b.priority || 0) - Number(a.priority || 0);
+  if (priorityDiff) return priorityDiff;
+
+  const bUpdated = new Date(b.updatedAt || 0).getTime() || 0;
+  const aUpdated = new Date(a.updatedAt || 0).getTime() || 0;
+  const updatedDiff = bUpdated - aUpdated;
+  if (updatedDiff) return updatedDiff;
+
+  return Number(b.id || 0) - Number(a.id || 0);
+};
+
 const filterActiveScheduledRules = (rules = [], now = new Date(), context = {}) =>
   (Array.isArray(rules) ? rules : [])
     .filter((rule) => rule?.enabled !== false && rule?.enabled !== 0)
@@ -307,7 +319,7 @@ const filterActiveScheduledRules = (rules = [], now = new Date(), context = {}) 
     .filter((rule) => ruleMatchesCustomer(rule, context))
     .filter((rule) => ruleMatchesAbTest(rule, context))
     .map((rule) => applyRuleTranslations(rule, context.locale))
-    .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+    .sort(rulePrioritySort);
 
 const mergeStyleCartIconUrl = async (styleSettings) => {
   if (!styleSettings?.id) return styleSettings;
@@ -436,7 +448,7 @@ const cartGoalFallbackRules = (rules = [], now = new Date(), context = {}) =>
     .filter((rule) => ruleMatchesCustomer(rule, context))
     .filter((rule) => ruleMatchesAbTest(rule, context))
     .map((rule) => applyRuleTranslations({ ...rule, enabled: true }, context.locale))
-    .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+    .sort(rulePrioritySort);
 
 const normalizeProductId = (value) => {
   const raw = String(value || "").trim();

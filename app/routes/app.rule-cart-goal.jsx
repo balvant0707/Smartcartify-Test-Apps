@@ -1051,8 +1051,6 @@ function PreviewPanel({
   onEnabledChange,
   campaignName,
   onCampaignNameChange,
-  priority,
-  onPriorityChange,
   goals,
   trackBy,
   sliderValue,
@@ -1105,15 +1103,6 @@ function PreviewPanel({
             value={campaignName}
             onChange={onCampaignNameChange}
             autoComplete="off"
-          />
-          <TextField
-            label="Priority"
-            type="number"
-            min={0}
-            value={priority}
-            onChange={onPriorityChange}
-            autoComplete="off"
-            helpText="Higher priority Cart Goals are shown first when multiple active goals match."
           />
         </BlockStack>
       </Card>
@@ -2367,8 +2356,6 @@ export default function RuleCartGoal() {
             onEnabledChange={setEnabled}
             campaignName={campaignName}
             onCampaignNameChange={setCampaignName}
-            priority={priority}
-            onPriorityChange={setPriority}
             goals={sortedGoals}
             trackBy={trackBy}
             sliderValue={sliderValue}
