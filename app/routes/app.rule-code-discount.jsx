@@ -96,7 +96,9 @@ export const action = async ({ request }) => {
       enabled: enabled !== false,
       isPercentage: valueType !== "amount",
       discountValue: value || "0",
+      minReqType: triggerType === "quantity" ? "quantity" : "subtotal",
       minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,
+      minQuantity: triggerType === "quantity" ? (minQuantity || null) : null,
     });
     if (shopifyId) dbData.codeDiscountId = shopifyId;
 
@@ -201,8 +203,12 @@ export default function RuleCodeDiscount() {
   const [customerTags, setCustomerTags] = useState(r?.customerTags ?? "");
 
   useEffect(() => {
-    if (actionData?.success && navigation.state === "idle") navigate(withHost("/app/campaigns"));
-  }, [actionData, navigation.state]);
+    if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
+      const idParam = `id=${encodeURIComponent(actionData.id)}`;
+      const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
+      navigate(`/app/rule-code-discount?${idParam}${hostParam}`, { replace: true });
+    }
+  }, [actionData, host, navigate, navigation.state, recordId]);
 
   const handleSave = () => {
     submit(

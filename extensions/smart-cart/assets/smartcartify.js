@@ -433,6 +433,17 @@
     String(rule?.triggerType ?? rule?.trigger_type ?? "amount").trim().toLowerCase() ===
     "quantity";
 
+  const normalizeBxgyScope = (scope) => {
+    const value = String(scope || "store").trim().toLowerCase();
+    if (["product", "products", "specific_products", "specific-products"].includes(value)) {
+      return "product";
+    }
+    if (["collection", "collections", "specific_collections", "specific-collections"].includes(value)) {
+      return "collection";
+    }
+    return "store";
+  };
+
   const getProgressBefore = (rule) => {
     const quantityKeys = [
       "quantityProgressTextBefore",
@@ -1938,9 +1949,7 @@
     for (const r of BUYXGETY_RULES) {
       if (!isRuleEnabled(r)) continue;
 
-      const scope = String(r?.scope || r?.scopeName || "store")
-        .trim()
-        .toLowerCase();
+      const scope = normalizeBxgyScope(r?.scope || r?.scopeName || "store");
       const appliesTo = r?.appliesTo || r?.applyTo || {};
       const applyProducts = Array.isArray(appliesTo?.products)
         ? appliesTo.products
@@ -6984,7 +6993,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     // BxgyRule: giftType "same" — gift is the same product that was purchased
     const items = Array.isArray(CART?.items) ? CART.items : [];
-    const scope = String(rule?.scope || "store").toLowerCase();
+    const scope = normalizeBxgyScope(rule?.scope || "store");
     let qualifyingItem = null;
 
     if (scope === "product") {
@@ -7720,7 +7729,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const computeBuyXGetYCompleteForRule = (rule) => {
     const items = Array.isArray(CART?.items) ? CART.items : [];
 
-    const scope = String(rule?.scope || rule?.scopeName || "store").trim().toLowerCase();
+    const scope = normalizeBxgyScope(rule?.scope || rule?.scopeName || "store");
 
     const appliesTo = rule?.appliesTo || rule?.applyTo || {};
     const applyProducts = Array.isArray(appliesTo?.products) ? appliesTo.products : [];

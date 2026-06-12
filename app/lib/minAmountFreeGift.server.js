@@ -83,6 +83,15 @@ const BXGY_DISCOUNT_UPDATE_MUTATION = `
 const cleanShopDomain = (shopDomain) =>
   shopDomain.replace(/^https?:\/\//, "");
 
+const automaticDiscountUpdateId = (id, discountType) => {
+  const raw = String(id || "").trim();
+  if (!raw) return raw;
+  return raw.replace(
+    /^gid:\/\/shopify\/DiscountAutomaticNode\//,
+    `gid://shopify/${discountType}/`,
+  );
+};
+
 const adminGraphql = async (
   shopDomain,
   accessToken,
@@ -539,15 +548,18 @@ export const syncMinAmountFreeGiftDiscount = async (params) => {
     }
 
     const input = buildMinAmountAutomaticInput(rule, giftVariantId);
-    const data = await adminGraphql(
-      shopDomain,
-      accessToken,
-      AUTOMATIC_DISCOUNT_UPDATE_MUTATION,
-      {
-        id: rule.freeProductDiscountID,
-        automaticBasicDiscount: input,
-      },
-    );
+      const data = await adminGraphql(
+        shopDomain,
+        accessToken,
+        AUTOMATIC_DISCOUNT_UPDATE_MUTATION,
+        {
+          id: automaticDiscountUpdateId(
+            rule.freeProductDiscountID,
+            "DiscountAutomaticBasic",
+          ),
+          automaticBasicDiscount: input,
+        },
+      );
 
     return {
       id:
@@ -744,7 +756,10 @@ const syncSingleBxgyDiscount = async (params) => {
         accessToken,
         BXGY_DISCOUNT_UPDATE_MUTATION,
         {
-          id: existingDiscountId,
+          id: automaticDiscountUpdateId(
+            existingDiscountId,
+            "DiscountAutomaticBxgy",
+          ),
           automaticBxgyDiscount: input,
         },
       );
@@ -794,7 +809,10 @@ const syncSingleBxgyDiscount = async (params) => {
       accessToken,
       BXGY_DISCOUNT_UPDATE_MUTATION,
       {
-        id: existingDiscountId,
+        id: automaticDiscountUpdateId(
+          existingDiscountId,
+          "DiscountAutomaticBxgy",
+        ),
         automaticBxgyDiscount: input,
       },
     );
@@ -804,7 +822,10 @@ const syncSingleBxgyDiscount = async (params) => {
       accessToken,
       BXGY_DISCOUNT_UPDATE_MUTATION,
       {
-        id: existingDiscountId,
+        id: automaticDiscountUpdateId(
+          existingDiscountId,
+          "DiscountAutomaticBxgy",
+        ),
         automaticBxgyDiscount: {
           ...input,
           title: appendUniqueTitleSuffix(input.title),
@@ -824,11 +845,18 @@ const syncSingleBxgyDiscount = async (params) => {
         "Failed to update existing free product discount, creating replacement",
         err,
       );
-      await deleteShopifyDiscountById(
-        shopDomain,
-        accessToken,
-        existingDiscountId,
-      );
+      try {
+        await deleteShopifyDiscountById(
+          shopDomain,
+          accessToken,
+          existingDiscountId,
+        );
+      } catch (deleteErr) {
+        logger.warn(
+          "Failed to delete stale free product discount before replacement",
+          deleteErr,
+        );
+      }
       return create().catch((createErr) => {
         if (
           createErr instanceof Error &&

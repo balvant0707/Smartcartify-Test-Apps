@@ -47,6 +47,30 @@ export const action = async ({ request }) => {
     startsAt, endsAt, priority,
     customerTarget, customerTags,
   } = body;
+  const normalizedScope = scope || "entire_store";
+  const normalizedAppliesTo = appliesTo || null;
+  const selectedIds = (() => {
+    if (!normalizedAppliesTo) return [];
+    if (Array.isArray(normalizedAppliesTo)) return normalizedAppliesTo.map(String).filter(Boolean);
+    if (typeof normalizedAppliesTo === "string") {
+      try {
+        const parsed = JSON.parse(normalizedAppliesTo);
+        return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+      } catch {
+        return normalizedAppliesTo
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+    }
+    return [];
+  })();
+  const appliesToPayload =
+    normalizedScope === "specific_products"
+      ? JSON.stringify({ products: selectedIds, collections: [] })
+      : normalizedScope === "specific_collections"
+        ? JSON.stringify({ products: [], collections: selectedIds })
+        : null;
 
   
   const dbData = {
@@ -55,13 +79,15 @@ export const action = async ({ request }) => {
     enabled: enabled !== false,
     xQty: xQty ? String(xQty) : "1",
     yQty: yQty ? String(yQty) : "1",
-    scope: scope || "entire_store",
-    appliesTo: appliesTo || null,
+    scope: normalizedScope,
+    appliesTo: appliesToPayload,
     giftType: giftType || "free_product",
     giftSku: null,
     maxGifts: null,
     allowStacking: false,
-    appliesStore: scope === "entire_store",
+    appliesStore: normalizedScope === "entire_store",
+    appliesProductIds: normalizedScope === "specific_products" ? JSON.stringify(selectedIds) : null,
+    appliesCollectionIds: normalizedScope === "specific_collections" ? JSON.stringify(selectedIds) : null,
     beforeOfferUnlockMessage: beforeOfferUnlockMessage || null,
     afterOfferUnlockMessage: afterOfferUnlockMessage || null,
     startsAt: startsAt ? new Date(startsAt) : null,
@@ -93,8 +119,8 @@ export const action = async ({ request }) => {
       rewardQty: yQty || "1",
       rewardType: giftType || "free_product",
       rewardDiscount: null,
-      scope,
-      appliesTo,
+      scope: normalizedScope,
+      appliesTo: appliesToPayload,
     });
     if (shopifyId) dbData.buyxgetyId = shopifyId;
 
@@ -277,7 +303,15 @@ export default function RuleBxgy() {
   // Parse stored appliesTo (could be JSON array or comma-separated string)
   const parseAppliesTo = (raw) => {
     if (!raw) return [];
-    try { const arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch { /* */ }
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === "object") {
+        if (Array.isArray(parsed.products) && parsed.products.length) return parsed.products;
+        if (Array.isArray(parsed.collections) && parsed.collections.length) return parsed.collections;
+      }
+      return [];
+    } catch { /* */ }
     return raw.split(",").map(s => s.trim()).filter(Boolean);
   };
 
@@ -316,8 +350,12 @@ export default function RuleBxgy() {
   );
 
   useEffect(() => {
-    if (actionData?.success && navigation.state === "idle") navigate(withHost("/app/campaigns"));
-  }, [actionData, navigation.state]);
+    if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
+      const idParam = `id=${encodeURIComponent(actionData.id)}`;
+      const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
+      navigate(`/app/rule-bxgy?${idParam}${hostParam}`, { replace: true });
+    }
+  }, [actionData, host, navigate, navigation.state, recordId]);
 
   const handleSave = () => {
     submit(

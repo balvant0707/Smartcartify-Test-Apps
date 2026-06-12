@@ -95,6 +95,15 @@ const SHOPIFY_TITLE_APP_NAME = "CartLift: Cart Drawer & Upsell";
 const EXPIRED_DISCOUNT_STARTS_AT = "2000-01-01T00:00:00.000Z";
 const EXPIRED_DISCOUNT_ENDS_AT = "2000-01-02T00:00:00.000Z";
 
+function automaticDiscountUpdateId(id, discountType) {
+  const raw = String(id || "").trim();
+  if (!raw) return raw;
+  return raw.replace(
+    /^gid:\/\/shopify\/DiscountAutomaticNode\//,
+    `gid://shopify/${discountType}/`
+  );
+}
+
 function withAppNameTitle(title, fallback = "Discount") {
   const base = String(title || fallback).trim() || fallback;
   return base.toLowerCase().includes(SHOPIFY_TITLE_APP_NAME.toLowerCase())
@@ -467,7 +476,10 @@ export async function upsertFreeShipping(admin, {
   };
 
   if (existingId) {
-    const data = await gql(admin, FREE_SHIPPING_UPDATE, { id: existingId, input });
+    const data = await gql(admin, FREE_SHIPPING_UPDATE, {
+      id: automaticDiscountUpdateId(existingId, "DiscountAutomaticFreeShipping"),
+      input,
+    });
     assertDiscountMutationSuccess(data, "discountAutomaticFreeShippingUpdate", "Shopify free shipping discount update");
     return data?.data?.discountAutomaticFreeShippingUpdate?.automaticDiscountNode?.id || existingId;
   }
@@ -600,10 +612,11 @@ export async function upsertAutomaticBasic(admin, {
   };
 
   if (existingId) {
-    let data = await gql(admin, AUTOMATIC_BASIC_UPDATE, { id: existingId, input });
+    const updateId = automaticDiscountUpdateId(existingId, "DiscountAutomaticBasic");
+    let data = await gql(admin, AUTOMATIC_BASIC_UPDATE, { id: updateId, input });
     if (hasUniqueTitleError(data, "discountAutomaticBasicUpdate")) {
       data = await gql(admin, AUTOMATIC_BASIC_UPDATE, {
-        id: existingId,
+        id: updateId,
         input: {
           ...input,
           title: uniqueDiscountTitle(input.title),
@@ -662,10 +675,11 @@ export async function upsertBxgy(admin, {
   };
 
   if (existingId) {
-    let data = await gql(admin, BXGY_UPDATE, { id: existingId, input });
+    const updateId = automaticDiscountUpdateId(existingId, "DiscountAutomaticBxgy");
+    let data = await gql(admin, BXGY_UPDATE, { id: updateId, input });
     if (hasUniqueTitleError(data, "discountAutomaticBxgyUpdate")) {
       data = await gql(admin, BXGY_UPDATE, {
-        id: existingId,
+        id: updateId,
         input: {
           ...input,
           title: uniqueDiscountTitle(input.title),
@@ -695,9 +709,37 @@ export async function upsertBxgy(admin, {
  * Returns the Shopify discount GID string.
  */
 export async function upsertDiscountCode(admin, {
-  existingId, title, code, startsAt, endsAt, isPercentage, discountValue, minSubtotal, enabled = true,
+  existingId,
+  title,
+  code,
+  startsAt,
+  endsAt,
+  isPercentage,
+  discountValue,
+  minSubtotal,
+  minQuantity,
+  minReqType = "subtotal",
+  enabled = true,
 }) {
   const codeStr = String(code || "").toUpperCase().trim();
+  const minimumRequirement =
+    minReqType === "quantity"
+      ? minQuantity
+        ? {
+            quantity: {
+              greaterThanOrEqualToQuantity: String(
+                Math.max(1, Math.floor(Number(minQuantity || 1)))
+              ),
+            },
+          }
+        : undefined
+      : minSubtotal
+        ? {
+            subtotal: {
+              greaterThanOrEqualToSubtotal: String(parseFloat(minSubtotal)),
+            },
+          }
+        : undefined;
   const input = {
     title: withAppNameTitle(title, "Code Discount"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
@@ -709,9 +751,7 @@ export async function upsertDiscountCode(admin, {
       items: { all: true },
     },
     appliesOncePerCustomer: false,
-    minimumRequirement: minSubtotal
-      ? { subtotal: { greaterThanOrEqualToSubtotal: String(parseFloat(minSubtotal)) } }
-      : undefined,
+    minimumRequirement,
     combinesWith: COMBINES_WITH_ORDER_DISCOUNTS,
     ...(codeStr ? { code: codeStr } : {}),
   };

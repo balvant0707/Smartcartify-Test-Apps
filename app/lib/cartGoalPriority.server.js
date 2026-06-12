@@ -121,6 +121,15 @@ const FREE_SHIPPING_COMBINES_UPDATE = `#graphql
     }
   }`;
 
+function automaticDiscountUpdateId(id, discountType) {
+  const raw = String(id || "").trim();
+  if (!raw) return raw;
+  return raw.replace(
+    /^gid:\/\/shopify\/DiscountAutomaticNode\//,
+    `gid://shopify/${discountType}/`
+  );
+}
+
 function combinesWithForDiscountClasses(discountClasses = []) {
   const classes = new Set(
     (Array.isArray(discountClasses) ? discountClasses : [])
@@ -163,14 +172,17 @@ async function setCartGoalDiscountCombines(admin, discountId) {
     DiscountAutomaticBasic: {
       mutation: BASIC_COMBINES_UPDATE,
       rootKey: "discountAutomaticBasicUpdate",
+      discountType: "DiscountAutomaticBasic",
     },
     DiscountAutomaticBxgy: {
       mutation: BXGY_COMBINES_UPDATE,
       rootKey: "discountAutomaticBxgyUpdate",
+      discountType: "DiscountAutomaticBxgy",
     },
     DiscountAutomaticFreeShipping: {
       mutation: FREE_SHIPPING_COMBINES_UPDATE,
       rootKey: "discountAutomaticFreeShippingUpdate",
+      discountType: "DiscountAutomaticFreeShipping",
     },
   }[discount.__typename];
 
@@ -178,7 +190,7 @@ async function setCartGoalDiscountCombines(admin, discountId) {
 
   const result = await (await admin.graphql(updateConfig.mutation, {
     variables: {
-      id: discountId,
+      id: automaticDiscountUpdateId(discountId, updateConfig.discountType),
       input: {
         combinesWith,
       },
