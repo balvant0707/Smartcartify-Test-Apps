@@ -939,6 +939,7 @@ function GoalCard({
                             event.stopPropagation();
                             onGoalChange(index, {
                               bonusProductIds: [],
+                              bonusProducts: [],
                               bonusProductId: "",
                               bonusProductTitle: "",
                               bonusProductVariantId: "",
@@ -1699,8 +1700,18 @@ export default function RuleCartGoal() {
     if (productPickerGoalIndex === null) return;
     const selectedIds = Array.isArray(productIds) ? productIds : productIds ? [productIds] : [];
     const firstProduct = productPickerItems.find((item) => item.id === selectedIds[0]);
+    const selectedProducts = selectedIds
+      .map((selectedId) => productPickerItems.find((item) => item.id === selectedId))
+      .filter(Boolean)
+      .map((product) => ({
+        id: product.id,
+        title: product.title,
+        image: product.image,
+        variantId: product.variantId,
+      }));
     patchGoal(productPickerGoalIndex, {
       bonusProductIds: selectedIds,
+      bonusProducts: selectedProducts,
       bonusProductId: selectedIds[0] || "",
       bonusProductTitle: firstProduct?.title || "",
       bonusProductVariantId: firstProduct?.variantId || "",

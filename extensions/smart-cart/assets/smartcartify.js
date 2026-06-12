@@ -915,6 +915,9 @@
   };
 
   const getCartGoalBonusProductIds = (goal) => {
+    const products = Array.isArray(goal?.bonusProducts)
+      ? goal.bonusProducts
+      : parseArrayish(goal?.bonusProducts);
     const rawIds =
       goal?.bonusProductIds ??
       goal?.bonus_product_ids ??
@@ -933,7 +936,10 @@
       trimToNull(goal?.bonus_product_id) ||
       trimToNull(goal?.bonus) ||
       null;
-    return [...new Set([...parsed, ...stringFallbackIds, fallback].map(trimToNull).filter(Boolean))];
+    const productIds = products
+      .map((product) => trimToNull(product?.id || product?.productId))
+      .filter(Boolean);
+    return [...new Set([...parsed, ...stringFallbackIds, ...productIds, fallback].map(trimToNull).filter(Boolean))];
   };
 
   const parseIdArray = (value) => {
@@ -1342,7 +1348,7 @@
       const r = await fetch(
         `/recommendations/products.json?product_id=${encodeURIComponent(
           productId
-        )}&limit=8&intent=related`,
+        )}&limit=40&intent=related`,
         { headers: { Accept: "application/json" }, credentials: "same-origin" }
       );
       if (!r.ok) return [];
@@ -7156,6 +7162,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const getFreeGiftProductIds = (rule) => {
+    const products = Array.isArray(rule?.bonusProducts)
+      ? rule.bonusProducts
+      : parseArrayish(rule?.bonusProducts);
     const ids = Array.isArray(rule?.bonusProductIds)
       ? rule.bonusProductIds
       : parseArrayish(rule?.bonusProductIds);
@@ -7164,8 +7173,63 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         ? [rule.bonusProductIds]
         : [];
     const fallback = trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus);
-    const allIds = [...ids, ...stringFallbackIds, fallback].map(trimToNull).filter(Boolean);
+    const productIds = products
+      .map((product) => trimToNull(product?.id || product?.productId))
+      .filter(Boolean);
+    const allIds = [...ids, ...stringFallbackIds, ...productIds, fallback].map(trimToNull).filter(Boolean);
     return [...new Set(allIds)];
+  };
+
+  const getFreeGiftProductMeta = (rule, productId, index) => {
+    const products = Array.isArray(rule?.bonusProducts)
+      ? rule.bonusProducts
+      : parseArrayish(rule?.bonusProducts);
+    const byId = products.find((product) => {
+      const id = trimToNull(product?.id || product?.productId);
+      return id && productId && String(id) === String(productId);
+    });
+    return byId || products[index] || null;
+  };
+
+  const getFreeGiftVariantFromRule = (rule, productId, index) => {
+    const productMeta = getFreeGiftProductMeta(rule, productId, index);
+    const hasProductMetaVariant = !!(
+      trimToNull(productMeta?.variantId) ||
+      trimToNull(productMeta?.variant_id)
+    );
+    const rawVariantId =
+      trimToNull(productMeta?.variantId) ||
+      trimToNull(productMeta?.variant_id) ||
+      trimToNull(rule?.bonusProductVariantId) ||
+      trimToNull(rule?.bonus_product_variant_id) ||
+      trimToNull(rule?.freeProductVariantId) ||
+      trimToNull(rule?.giftProductVariantId) ||
+      null;
+    if (!rawVariantId) return null;
+
+    const firstProductId =
+      trimToNull(rule?.bonusProductId) ||
+      trimToNull(rule?.bonus) ||
+      getFreeGiftProductIds(rule)[0] ||
+      null;
+    if (!hasProductMetaVariant && index > 0 && firstProductId && productId && String(productId) !== String(firstProductId)) {
+      return null;
+    }
+
+    const variantGid = normalizeVariantGid(rawVariantId);
+    if (!variantGid) return null;
+
+    return {
+      id: variantGid,
+      legacyResourceId: gidToId(variantGid),
+      productId: normalizeProductNumericId(productId || firstProductId),
+      product: {
+        title: trimToNull(productMeta?.title) || trimToNull(rule?.bonusProductTitle) || trimToNull(rule?.productTitle) || "",
+        image: trimToNull(productMeta?.image) || trimToNull(rule?.bonusProductImage) || trimToNull(rule?.productImage) || "",
+      },
+      title: trimToNull(productMeta?.variantTitle) || trimToNull(rule?.bonusProductVariantTitle) || "",
+      image: trimToNull(productMeta?.image) || trimToNull(rule?.bonusProductImage) || trimToNull(rule?.productImage) || "",
+    };
   };
 
   const centsFromDecimalPrice = (value) => {
@@ -7188,7 +7252,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         bonus: productId,
         bonusProductIds: [productId],
       };
-      const variant = await resolveRewardVariantForAdd(optionRule, { productId });
+      const directVariant = getFreeGiftVariantFromRule(rule, productId, index);
+      const variant = directVariant || await resolveRewardVariantForAdd(optionRule, { productId });
       console.debug(`[SmartCartify] resolved option ${index}: variant=`, variant, "legacyId=", variant ? getVariantLegacyId(variant) : null);
       if (!variant || !getVariantLegacyId(variant)) {
         console.warn(`[SmartCartify] skipping option ${index}: variant resolution failed`);
@@ -7257,7 +7322,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     // For cart goal free products with multiple options, variant will be null
     // Allow the popup to open so options can be resolved asynchronously
-    const hasBonusProductIds = Array.isArray(rule?.bonusProductIds) && rule.bonusProductIds.length > 0;
+    const hasBonusProductIds = getFreeGiftProductIds(rule).length > 0;
     const isCartGoalFreeMultiple = kind === "free" && hasBonusProductIds;
 
     if (!variant && !isCartGoalFreeMultiple) return false;
@@ -7369,7 +7434,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       // Wrap promise with timeout
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Timeout loading free gifts")), 8000);
+        setTimeout(() => reject(new Error("Timeout loading free gifts")), 1000);
       });
 
       void Promise.race([resolveFreeGiftOptions(rule), timeoutPromise])
