@@ -91,16 +91,21 @@ const COMBINES_WITH_ORDER_DISCOUNTS = {
   shippingDiscounts: false,
 };
 
+const COMBINES_WITH_FREE_SHIPPING_REWARDS = {
+  orderDiscounts: true,
+  productDiscounts: true,
+};
+
 const SHOPIFY_TITLE_APP_NAME = "CartLift: Cart Drawer & Upsell";
 const EXPIRED_DISCOUNT_STARTS_AT = "2000-01-01T00:00:00.000Z";
 const EXPIRED_DISCOUNT_ENDS_AT = "2000-01-02T00:00:00.000Z";
 
 function automaticDiscountUpdateId(id, discountType) {
-  const raw = String(id || "").trim();
-  if (!raw) return raw;
-  return raw.replace(
+  const nodeId = automaticDiscountNodeId(id);
+  if (!nodeId || discountType !== "DiscountAutomaticBxgy") return nodeId;
+  return nodeId.replace(
     /^gid:\/\/shopify\/DiscountAutomaticNode\//,
-    `gid://shopify/${discountType}/`
+    "gid://shopify/DiscountAutomaticBxgy/"
   );
 }
 
@@ -476,12 +481,14 @@ function discountMinimumRequirement({ minReqType, minSubtotal, minQuantity }) {
 
 export async function upsertFreeShipping(admin, {
   existingId, title, startsAt, endsAt, minSubtotal, minQuantity, minReqType = "subtotal", enabled = true,
+  combinesWith = COMBINES_WITH_FREE_SHIPPING_REWARDS,
 }) {
   const input = {
     title: withAppNameTitle(title, "Free Shipping"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
     minimumRequirement: discountMinimumRequirement({ minReqType, minSubtotal, minQuantity }),
     destination: { all: true },
+    combinesWith,
   };
 
   if (existingId) {

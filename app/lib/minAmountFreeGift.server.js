@@ -84,11 +84,11 @@ const cleanShopDomain = (shopDomain) =>
   shopDomain.replace(/^https?:\/\//, "");
 
 const automaticDiscountUpdateId = (id, discountType) => {
-  const raw = String(id || "").trim();
-  if (!raw) return raw;
-  return raw.replace(
+  const nodeId = automaticDiscountNodeId(id);
+  if (!nodeId || discountType !== "DiscountAutomaticBxgy") return nodeId;
+  return nodeId.replace(
     /^gid:\/\/shopify\/DiscountAutomaticNode\//,
-    `gid://shopify/${discountType}/`,
+    "gid://shopify/DiscountAutomaticBxgy/",
   );
 };
 
@@ -99,6 +99,12 @@ const automaticDiscountNodeId = (id) => {
     .replace(/^gid:\/\/shopify\/DiscountAutomaticBasic\//, "gid://shopify/DiscountAutomaticNode/")
     .replace(/^gid:\/\/shopify\/DiscountAutomaticBxgy\//, "gid://shopify/DiscountAutomaticNode/")
     .replace(/^gid:\/\/shopify\/DiscountAutomaticFreeShipping\//, "gid://shopify/DiscountAutomaticNode/");
+};
+
+const COMBINES_WITH_PRODUCT_REWARDS = {
+  orderDiscounts: true,
+  productDiscounts: false,
+  shippingDiscounts: true,
 };
 
 const adminGraphql = async (
@@ -511,11 +517,7 @@ const buildMinAmountAutomaticInput = (rule, giftVariantId) => {
         },
       },
     },
-    combinesWith: {
-      orderDiscounts: true,
-      productDiscounts: true,
-      shippingDiscounts: false,
-    },
+    combinesWith: COMBINES_WITH_PRODUCT_REWARDS,
   };
 
   payload.minimumRequirement = minimumRequirement;
@@ -692,11 +694,7 @@ const buildBxgyDiscountInput = (
         ? `CartLift: Cart Drawer & Upsell Free gift >= ${Math.max(1, Math.floor(minQuantityValue))} items`
         : `CartLift: Cart Drawer & Upsell Free gift >= $${minPurchaseValue}`,
     ...discountScheduleFields(rule),
-    combinesWith: {
-      orderDiscounts: true,
-      productDiscounts: true,
-      shippingDiscounts: false,
-    },
+    combinesWith: COMBINES_WITH_PRODUCT_REWARDS,
     customerBuys,
     customerGets: {
       items: {

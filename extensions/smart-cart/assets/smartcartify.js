@@ -431,7 +431,12 @@
 
   const isQuantityTriggerRule = (rule) =>
     String(rule?.triggerType ?? rule?.trigger_type ?? "amount").trim().toLowerCase() ===
-    "quantity";
+    "quantity" ||
+    (
+      Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy) > 0 &&
+      Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get) > 0 &&
+      !(Number(rule?.minPurchase ?? rule?.min_purchase ?? rule?.minSubtotal ?? rule?.min_subtotal) > 0)
+    );
 
   const normalizeBxgyScope = (scope) => {
     const value = String(scope || "store").trim().toLowerCase();
@@ -697,15 +702,20 @@
       raw =
         rule?.minPurchase ??
         rule?.min_purchase ??
+        rule?.minSubtotal ??
+        rule?.min_subtotal ??
         rule?.minAmount ??
-        rule?.min_amount;
+        rule?.min_amount ??
+        rule?.goal ??
+        rule?.goalAmount ??
+        rule?.goal_amount;
     if (type === "free")
       raw =
         rule?.minPurchase ??
         rule?.min_purchase ??
         rule?.minAmount ??
         rule?.min_amount;
-    if (type === "bxgy")
+    if (type === "bxgy" || type === "buyxgety")
       raw =
         rule?.minPurchase ??
         rule?.min_purchase ??
@@ -717,7 +727,17 @@
   };
 
   const getGoalQuantity = (rule) => {
-    const n = Number(rule?.minQuantity ?? rule?.min_quantity ?? rule?.quantityRequired);
+    const n = Number(
+      rule?.minQuantity ??
+      rule?.min_quantity ??
+      rule?.quantityRequired ??
+      rule?.xQty ??
+      rule?.x_qty ??
+      rule?.x ??
+      rule?.buyQty ??
+      rule?.buy_qty ??
+      rule?.buy
+    );
     return Number.isFinite(n) && n > 0 ? n : null;
   };
 
@@ -876,8 +896,8 @@
       rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? ""
     );
 
-    const xQty = safe(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? "");
-    const yQty = safe(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? "");
+    const xQty = safe(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy ?? "");
+    const yQty = safe(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get ?? "");
 
     const replaced = replaceTokens(text, {
       goal: goalToken,
@@ -2737,8 +2757,8 @@
         rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? ""
       );
 
-      const xQty = String(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? "");
-      const yQty = String(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? "");
+      const xQty = String(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy ?? "");
+      const yQty = String(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get ?? "");
 
       const replaced = replaceTokensRaw(text, {
         goal: goalToken,
@@ -2882,8 +2902,8 @@
     buyStatuses.forEach((st) => {
       const r = st?.rule;
       if (!r) return;
-      const xQty = Number(st?.xQty ?? r?.xQty ?? r?.x_qty ?? r?.x);
-      const yQty = Number(st?.yQty ?? r?.yQty ?? r?.y_qty ?? r?.y);
+      const xQty = Number(st?.xQty ?? r?.xQty ?? r?.x_qty ?? r?.x ?? r?.buyQty ?? r?.buy_qty ?? r?.buy);
+      const yQty = Number(st?.yQty ?? r?.yQty ?? r?.y_qty ?? r?.y ?? r?.getQty ?? r?.get_qty ?? r?.get);
       const eligibleQty = Number(st?.eligibleQty ?? 0);
       const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - eligibleQty);
 
@@ -4178,10 +4198,23 @@ body.sc-cartify-open .shopify-section-group-header-group{
   text-overflow:ellipsis;
 }
 .sc-foot-tag{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:4px 8px;
   font-size:var(--sc-small-font-size);
-  border-radius:999px;
-  color:var(--sc-drawer-text-color);;
+  line-height:1;
+  font-weight:800;
+  border-radius:4px;
+  background:#f0f0f0;
+  color:#111111;
   white-space:nowrap;
+}
+.sc-foot-tag svg{
+  width:13px;
+  height:13px;
+  fill:currentColor;
+  display:block;
 }
 
 @media (max-width: 640px){
@@ -5708,12 +5741,26 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const rule = findCodeDiscountRuleByCode(code);
     const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount").toLowerCase();
+    const codeThresholdMessage = (fallback) => {
+      if (!rule) return fallback;
+      const subtotalRupees = (getCartSubtotalCents() / priceDivisor()) || 0;
+      const configured = trimToNull(getProgressBefore(rule));
+      return replaceProgressText({
+        text: configured || fallback,
+        type: "discount",
+        rule,
+        subtotalRupees,
+        useRemainingForGoal: true,
+      }) || fallback;
+    };
     if (triggerType === "quantity") {
       const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
       if (Number.isFinite(minQuantity) && minQuantity > 0) {
         const cartQty = getCartTotalQty();
         if (cartQty < minQuantity) {
-          setDiscountMessage(`No. Minimum quantity is ${minQuantity}. Add ${Math.max(0, minQuantity - cartQty)} more item(s).`);
+          setDiscountMessage(
+            codeThresholdMessage(`Add {{goal}} more to use code {{discount_code}}`)
+          );
           return;
         }
       }
@@ -5727,7 +5774,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const remainingCents = Math.max(0, Math.round((minPurchase - subtotalRupees) * priceDivisor()));
         const minText = formatMoney(minCents, normalizeCurrencyCode());
         const remainingText = formatMoney(remainingCents, normalizeCurrencyCode());
-        setDiscountMessage(`No. Minimum purchase is ${minText}. Add ${remainingText} more.`);
+        setDiscountMessage(
+          codeThresholdMessage(`Add {{goal}} more to use code {{discount_code}}`) ||
+          `No. Minimum purchase is ${minText}. Add ${remainingText} more.`
+        );
         return;
       }
     }
@@ -5897,7 +5947,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         return !isCodeDiscount && !isBuyRule;
       }
 
-      return type === "free";
+      return type === "free" || type === "bxgy" || type === "buyxgety";
     };
 
     const buildProgressStep = (type, rule, slot) => {
@@ -5924,6 +5974,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           return "Discount";
         }
         if (type === "free") return "Free Gift";
+        if (type === "bxgy" || type === "buyxgety") {
+          const x = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy);
+          const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
+          if (Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0) {
+            return `Buy ${x} Get ${y} Free`;
+          }
+          return "Buy X Get Y";
+        }
         return "Reward";
       })();
 
@@ -5944,7 +6002,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const iconKey =
         pickIconKeyFromRule(rule) ||
-        (type === "shipping" ? "shipping" : type === "discount" ? "discount" : "free");
+        (type === "shipping"
+          ? "shipping"
+          : type === "discount"
+            ? "discount"
+            : type === "bxgy" || type === "buyxgety"
+              ? "bxgy"
+              : "free");
       const icon = ICONS[String(iconKey)] || ICONS.sparkles;
 
       const beforeRaw = trimToNull(getProgressBefore(rule)) || "";
@@ -5988,6 +6052,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           return `Spend ${goalAmt} more to get ${discLabel}`;
         }
         if (type === "free") return `Spend ${goalAmt} more for a free gift`;
+        if (type === "bxgy" || type === "buyxgety") {
+          const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
+          return `Add ${goalAmt} to get ${Number.isFinite(y) && y > 0 ? y : ""} free item${y === 1 ? "" : "s"}`.replace(/\s{2,}/g, " ").trim();
+        }
         return `Spend ${goalAmt} more to unlock your reward`;
       })();
       const defaultAfterText = (() => {
@@ -6005,6 +6073,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           return `${discLabel} unlocked! 🎉`;
         }
         if (type === "free") return "Free gift unlocked! 🎉";
+        if (type === "bxgy" || type === "buyxgety") {
+          const x = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy);
+          const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
+          return Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0
+            ? `Buy ${x} Get ${y} Free unlocked! 🎉`
+            : "Buy X Get Y unlocked! 🎉";
+        }
         return "Reward unlocked! 🎉";
       })();
 
@@ -6132,6 +6207,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       ...(Array.isArray(shippingList) ? shippingList : []).map((rule) => ({ type: "shipping", rule })),
       ...(Array.isArray(discountList) ? discountList : []).map((rule) => ({ type: "discount", rule })),
       ...(Array.isArray(freeList) ? freeList : []).map((rule) => ({ type: "free", rule })),
+      ...(Array.isArray(buyxgetyList) ? buyxgetyList : []).map((rule) => ({ type: "buyxgety", rule })),
     ].filter(({ type, rule }) => isRuleEnabled(rule) && isProgressBarRuleType(type, rule));
 
     const assignedRuleKeys = new Set();
@@ -6281,6 +6357,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return "UNLOCKED";
   };
 
+  const getFooterDiscountBadgeLabel = (rule) => {
+    const tokens = getDiscountValueTokens(rule);
+    const raw = trimToNull(tokens?.value) || trimToNull(tokens?.valueWithOff) || "";
+    if (!raw) return "";
+    const value = String(raw).replace(/\s*off\b/gi, "").trim();
+    if (!value) return "";
+    return /^-/.test(value) ? value : `-${value}`;
+  };
+
   const getDiscountTagLabel = (rule, kind) => {
     const rawVal = trimToNull(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "");
     const typeHint = String(
@@ -6403,17 +6488,31 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     completedAutoDiscountSteps.forEach((step) => {
       const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
-      if (!discountBadge) {
-        const tokens = getDiscountValueTokens(step?.rule);
-        discountBadge = trimToNull(tokens?.value) || trimToNull(tokens?.valueWithOff) || "";
-      }
+      const rowBadge = getFooterDiscountBadgeLabel(step?.rule);
+      if (!discountBadge) discountBadge = rowBadge;
       rows.push({
         key: `auto:${step?.rule?.id ?? step?.title ?? step?.slot}`,
         label: "Discount",
-        tag: "",
+        tag: rowBadge,
+        tagIcon: true,
         amount: Number.isFinite(discountCents) && discountCents > 0
           ? `- ${formatMoney(discountCents, currency)}`
           : "Applied",
+      });
+    });
+
+    const completedBxgySteps = (Array.isArray(steps) ? steps : []).filter((step) => {
+      const type = String(step?.type || "").toLowerCase();
+      if (type !== "bxgy" && type !== "buyxgety") return false;
+      return isProgressStepDone(step, subtotalCents);
+    });
+
+    completedBxgySteps.forEach((step) => {
+      rows.push({
+        key: `bxgy:${step?.rule?.id ?? step?.title ?? step?.slot}`,
+        label: "Buy X Get Y",
+        tag: getFooterMilestoneTag(step.type, step.rule),
+        amount: "Free",
       });
     });
 
@@ -6440,14 +6539,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         meta && !meta.isPercent && Number.isFinite(meta.cents) && meta.cents > subtotalCents;
       if (!minPurchaseFail && !discountAmountFail) {
         const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
-        if (!discountBadge) {
-          const tokens = getDiscountValueTokens(appliedCode.rule);
-          discountBadge = trimToNull(tokens?.value) || trimToNull(tokens?.valueWithOff) || "";
-        }
+        const rowBadge = getFooterDiscountBadgeLabel(appliedCode.rule);
+        if (!discountBadge) discountBadge = rowBadge;
         rows.push({
           key: `code:${getRuleKey(appliedCode.rule, "code")}`,
           label: "Discount",
-          tag: "",
+          tag: rowBadge,
+          tagIcon: true,
           amount:
             Number.isFinite(codeDiscountCents) && codeDiscountCents > 0
               ? `- ${formatMoney(codeDiscountCents, currency)}`
@@ -6483,19 +6581,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       discountBadge = `-${discountBadge}`;
     }
 
+    const hasDiscountRow = uniqueRows.some(
+      (row) => String(row?.label || "").trim().toLowerCase() === "discount"
+    );
+
     const rowsHtml = uniqueRows
       .map(
         (row) => `
           <div class="sc-foot-row">
             <p class="sc-foot-name">${safe(row.label || "")}</p>
-            ${trimToNull(row.tag) ? `<span class="sc-foot-tag">${safe(row.tag)}</span>` : ""}
+            ${trimToNull(row.tag) ? `<span class="sc-foot-tag">${row.tagIcon ? renderMilestoneIcon(ICONS.tag) : ""}${safe(row.tag)}</span>` : ""}
             <span class="sc-foot-amt">${safe(row.amount || "Unlocked")}</span>
           </div>
         `
       )
       .join("");
 
-    const badgeHtml = discountBadge
+    const badgeHtml = discountBadge && !hasDiscountRow
       ? `<div class="sc-foot-badge">${renderMilestoneIcon(ICONS.tag)}<span>${safe(discountBadge)}</span></div>`
       : "";
 

@@ -124,11 +124,11 @@ const FREE_SHIPPING_COMBINES_UPDATE = `#graphql
   }`;
 
 function automaticDiscountUpdateId(id, discountType) {
-  const raw = String(id || "").trim();
-  if (!raw) return raw;
-  return raw.replace(
+  const nodeId = automaticDiscountNodeId(id);
+  if (!nodeId || discountType !== "DiscountAutomaticBxgy") return nodeId;
+  return nodeId.replace(
     /^gid:\/\/shopify\/DiscountAutomaticNode\//,
-    `gid://shopify/${discountType}/`
+    "gid://shopify/DiscountAutomaticBxgy/"
   );
 }
 

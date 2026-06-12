@@ -152,6 +152,12 @@ const REWARD_ID_PREFIX = {
   shipping: "SHIP",
 };
 
+const CART_GOAL_ORDER_DISCOUNT_COMBINES_WITH = {
+  orderDiscounts: false,
+  productDiscounts: true,
+  shippingDiscounts: true,
+};
+
 function makeRewardId(type, index) {
   const seed = `${type}-${index + 1}`;
   let hash = 0;
@@ -365,11 +371,7 @@ async function syncCartGoalDiscounts({
         enabled,
         isPercentage: goal.discountType !== "amount",
         discountValue: goal.value || "0",
-        combinesWith: {
-          orderDiscounts: false,
-          productDiscounts: false,
-          shippingDiscounts: false,
-        },
+        combinesWith: CART_GOAL_ORDER_DISCOUNT_COMBINES_WITH,
         ...threshold,
       });
       syncedGoals.push({ ...goal, shopifyDiscountId });
