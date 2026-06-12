@@ -942,6 +942,27 @@
     return [...new Set([...parsed, ...stringFallbackIds, ...productIds, fallback].map(trimToNull).filter(Boolean))];
   };
 
+  const getCartGoalBonusProducts = (goal) => {
+    const products = Array.isArray(goal?.bonusProducts)
+      ? goal.bonusProducts
+      : parseArrayish(goal?.bonusProducts);
+    return products
+      .map((product) => {
+        const id = trimToNull(product?.id || product?.productId);
+        if (!id) return null;
+        return {
+          ...product,
+          id,
+          productId: id,
+          title: trimToNull(product?.title) || "",
+          image: trimToNull(product?.image) || trimToNull(product?.featuredImage?.url) || "",
+          variantId: trimToNull(product?.variantId) || trimToNull(product?.variant_id) || "",
+          variantTitle: trimToNull(product?.variantTitle) || trimToNull(product?.variant_title) || "",
+        };
+      })
+      .filter(Boolean);
+  };
+
   const parseIdArray = (value) => {
     if (!value) return [];
     if (Array.isArray(value)) return value.map(String);
@@ -1796,6 +1817,7 @@
         if (type !== "free") return null;
         const threshold = Number(goal?.goal);
         const productIds = getCartGoalBonusProductIds(goal);
+        const bonusProducts = getCartGoalBonusProducts(goal);
         const bonusProductId =
           trimToNull(goal?.bonusProductId) ||
           trimToNull(goal?.bonus) ||
@@ -1816,6 +1838,7 @@
           bonusProductId,
           bonus: bonusProductId,
           bonusProductIds: productIds,
+          bonusProducts,
         };
         if (trackBy === "quantity") rule.minQuantity = Number.isFinite(threshold) ? threshold : null;
         else rule.minPurchase = Number.isFinite(threshold) ? threshold : null;
@@ -5979,6 +6002,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const threshold = Number(goal?.goal);
       const texts = goal?.texts || {};
       const productIds = getCartGoalBonusProductIds(goal);
+      const bonusProducts = getCartGoalBonusProducts(goal);
       const bonusProductId =
         trimToNull(goal?.bonusProductId) ||
         trimToNull(goal?.bonus) ||
@@ -6003,6 +6027,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         bonusProductId,
         bonus: bonusProductId,
         bonusProductIds: productIds,
+        bonusProducts,
       };
 
       if (trackBy === "quantity") {
