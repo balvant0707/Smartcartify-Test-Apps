@@ -467,9 +467,9 @@ const mapAdminProducts = (products = []) =>
     const firstVariant = Array.isArray(p?.variants) ? p.variants[0] : null;
     const options = Array.isArray(p?.options)
       ? p.options.map((opt) => ({
-          name: opt?.name ?? "",
-          values: Array.isArray(opt?.values) ? opt.values : [],
-        }))
+        name: opt?.name ?? "",
+        values: Array.isArray(opt?.values) ? opt.values : [],
+      }))
       : [];
     return {
       id: p?.id ?? null,
@@ -479,18 +479,18 @@ const mapAdminProducts = (products = []) =>
       has_only_default_variant: Boolean(p?.has_only_default_variant),
       variants: Array.isArray(p?.variants)
         ? p.variants.map((v) => ({
-            id: v?.id ?? null,
-            admin_graphql_api_id: v?.admin_graphql_api_id ?? null,
-            price: v?.price ?? null,
-            compare_at_price: v?.compare_at_price ?? null,
-            title: v?.title ?? null,
-            option1: v?.option1 ?? null,
-            option2: v?.option2 ?? null,
-            option3: v?.option3 ?? null,
-            available: v?.available ?? null,
-            inventory_quantity: v?.inventory_quantity ?? null,
-            variantOptions: buildVariantOptions(p, v),
-          }))
+          id: v?.id ?? null,
+          admin_graphql_api_id: v?.admin_graphql_api_id ?? null,
+          price: v?.price ?? null,
+          compare_at_price: v?.compare_at_price ?? null,
+          title: v?.title ?? null,
+          option1: v?.option1 ?? null,
+          option2: v?.option2 ?? null,
+          option3: v?.option3 ?? null,
+          available: v?.available ?? null,
+          inventory_quantity: v?.inventory_quantity ?? null,
+          variantOptions: buildVariantOptions(p, v),
+        }))
         : [],
       variantId: firstVariant?.id ?? null,
       variantPrice: firstVariant?.price ?? null,
@@ -748,10 +748,10 @@ export const loader = async ({ request }) => {
         .filter(Boolean);
       const selectedProductsRaw = isAuthorized && selectedProductIdsNormalized.length
         ? await fetchProductsByIds(
-            shop,
-            shopAccessToken,
-            selectedProductIdsNormalized
-          )
+          shop,
+          shopAccessToken,
+          selectedProductIdsNormalized
+        )
         : [];
       const selectedProductsMap = new Map(
         selectedProductsRaw.map((p) => [String(p?.id || ""), p])
@@ -776,10 +776,10 @@ export const loader = async ({ request }) => {
         .filter(Boolean);
       const selectedCollectionsRaw = isAuthorized && selectedCollectionIdsNormalized.length
         ? await fetchCollectionsByIds(
-            shop,
-            shopAccessToken,
-            selectedCollectionIdsNormalized
-          )
+          shop,
+          shopAccessToken,
+          selectedCollectionIdsNormalized
+        )
         : [];
       const selectedCollectionsMap = new Map(
         selectedCollectionsRaw.map((c) => [String(c?.id || ""), c])
