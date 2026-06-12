@@ -946,7 +946,7 @@
     const products = Array.isArray(goal?.bonusProducts)
       ? goal.bonusProducts
       : parseArrayish(goal?.bonusProducts);
-    return products
+    const normalizedProducts = products
       .map((product) => {
         const id = trimToNull(product?.id || product?.productId);
         if (!id) return null;
@@ -961,6 +961,12 @@
         };
       })
       .filter(Boolean);
+    console.info("[SmartCartify] cart goal bonusProducts for popup:", {
+      goalId: goal?.id || null,
+      goalTitle: goal?.title || goal?.menuLabel || null,
+      products: normalizedProducts,
+    });
+    return normalizedProducts;
   };
 
   const parseIdArray = (value) => {
@@ -4306,7 +4312,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   visibility:visible;
 }
 .sc-freegift-card{
-  width:min(520px, 96vw);
+  width:min(420px, 96vw);
   max-height:min(700px, 92vh);
   background:var(--sc-freegift-bg);
   border-radius:12px;
@@ -4340,28 +4346,29 @@ body.sc-cartify-open .shopify-section-group-header-group{
   padding:18px 18px 16px;
   border-bottom:1px solid rgba(15,23,42,.1);
 }
-.sc-freegift-icon{
-  width:40px;
-  height:40px;
-  border-radius:50%;
-  background:#ffd18a;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:#2f2017;
+.sc-freegift-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--sc-drawer-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sc-drawer-text-color);
 }
 .sc-freegift-icon svg{width:22px;height:22px;fill:currentColor;}
 .sc-freegift-heading{display:grid;gap:8px;}
 .sc-freegift-title-text{
-  margin:0;
-  font-weight:800;
-  font-size:20px;
-  line-height:1.2;
+    margin: 0;
+    font-weight: 700;
+    font-size: var(--sc-heading-font-size);
+    line-height: 1.2;
+    color: var(--sc-drawer-header-color);
 }
-.sc-freegift-subtext{
-  margin:0;
-  font-size:18px;
-  color:var(--sc-freegift-subtext);
+.sc-freegift-subtext {
+    margin: 0;
+    font-size: var(--sc-drawer-text-color);
+    color: var(--sc-freegift-subtext);
 }
 .sc-freegift-count{
   display:inline-flex;
@@ -4466,8 +4473,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   min-width:0;
 }
 .sc-freegift-option-title{
-  font-weight:800;
-  font-size:18px;
+  font-size:var(--sc-small-font-size);
+  color:var(--sc-drawer-text-color);
   line-height:1.2;
   white-space:nowrap;
   overflow:hidden;
@@ -4489,40 +4496,59 @@ body.sc-cartify-open .shopify-section-group-header-group{
   align-items:center;
   min-height:22px;
   border-radius:999px;
-  background:#eee;
-  color:#2f2017;
-  font-weight:800;
-  font-size:16px;
+  background:var(--sc-badge-bg);
+  color:var(--sc-badge-text);
+  font-weight:600;
+  font-size:var(--sc-small-font-size);
+  color:var(--sc-drawer-text-color);
   padding:0 8px;
 }
 .sc-freegift-check{
-  width:28px;
-  height:28px;
-  border:2px solid #4a3428;
-  border-radius:9px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:#2f2017;
-  justify-self:end;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #4a3428;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #2f2017;
+    justify-self: end;
+    font-size:14px;
+    font-weight:900;
+    line-height:1;
 }
 .sc-freegift-check svg{width:18px;height:18px;fill:currentColor;}
 .sc-freegift-option.selected .sc-freegift-check{
   border-color:#ffd18a;
   background:#ffd18a;
 }
-.sc-freegift-add{
-  width:100%;
-  border:none;
-  border-radius:0;
-  min-height:70px;
-  padding:18px;
-  background:#ffd18a;
-  color:#2f2017;
-  font-weight:900;
-  font-size:20px;
-  cursor:pointer;
-  transition:transform .2s ease, opacity .2s ease;
+.sc-freegift-option.selected .sc-freegift-check::before{
+  content:"✓";
+}
+.sc-freegift-message{
+  margin:0;
+  padding:10px 18px;
+  border-top:1px solid rgba(15,23,42,.08);
+  color:var(--sc-freegift-subtext);
+  font-size:var(--sc-small-font-size);
+  text-align:center;
+}
+.sc-freegift-message.is-error{
+  color:#b42318;
+  font-weight:700;
+}
+.sc-freegift-add {
+    width: 100%;
+    border: none;
+    border-radius: 0;
+    min-height: 31px;
+    padding: 15px;
+    background: var(--sc-checkout-bg);
+    color: var(--sc-checkout-text);
+    font-weight: 900;
+    font-size: var(--sc-base-font-size);
+    cursor: pointer;
+    transition: transform .2s ease, opacity .2s ease;
 }
 .sc-freegift-add:disabled{
   background:#e7e7e7;
@@ -7042,6 +7068,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           </div>
         </div>
         <div class="sc-freegift-list"></div>
+        <p class="sc-freegift-message">Select a free gift to add it to your cart.</p>
         <button class="sc-freegift-add" type="button">Add</button>
       </div>
     `;
@@ -7068,6 +7095,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       iconEl: overlayEl.querySelector(".sc-freegift-icon"),
       contentEl: overlayEl.querySelector(".sc-freegift-content"),
       listEl: overlayEl.querySelector(".sc-freegift-list"),
+      messageEl: overlayEl.querySelector(".sc-freegift-message"),
       current: null,
     };
 
@@ -7083,12 +7111,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         rewardPopupCache.headerSubEl.innerHTML = `Choose any 1 free gifts <span class="sc-freegift-count">${selectedCount}/1</span>`;
       }
       if (rewardPopupCache.addButton) rewardPopupCache.addButton.disabled = selectedCount < 1;
+      if (rewardPopupCache.messageEl) {
+        rewardPopupCache.messageEl.classList.remove("is-error");
+        rewardPopupCache.messageEl.textContent = selectedCount
+          ? "Item selected. Click Add Free Gifts to add it to your cart."
+          : "Select a free gift to add it to your cart.";
+      }
       if (rewardPopupCache.listEl) {
         rewardPopupCache.listEl.querySelectorAll(".sc-freegift-option").forEach((row) => {
           const checked = String(row.getAttribute("data-option-id") || "") === String(selectedId || "");
           row.classList.toggle("selected", checked);
           const box = row.querySelector(".sc-freegift-check");
-          if (box) box.innerHTML = checked ? ICONS.check || "✓" : "";
+          if (box) {
+            box.setAttribute("aria-checked", checked ? "true" : "false");
+            box.innerHTML = "";
+          }
         });
       }
       rewardPopupCache.current.selectedOption =
@@ -7113,7 +7150,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
         try {
           const selectedOption = cur.kind === "free" ? cur.selectedOption : null;
-          if (cur.kind === "free" && !selectedOption) return;
+          if (cur.kind === "free" && !selectedOption) {
+            if (rewardPopupCache.messageEl) {
+              rewardPopupCache.messageEl.classList.add("is-error");
+              rewardPopupCache.messageEl.textContent = "Please select one free gift before adding.";
+            }
+            return;
+          }
           const ok = await addRewardToCart({
             kind: cur.kind,
             rule: selectedOption?.rule || cur.rule,
@@ -7129,7 +7172,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               if (cur.kind === "free") scStore.del(keyPendingFreeGift(addedGuardKey));
               markPopupShown(cur.kind, addedGuardKey);
             }
+            const addedProductTitle =
+              trimToNull(selectedOption?.title) ||
+              trimToNull(selectedOption?.variant?.product?.title) ||
+              trimToNull(selectedOption?.variant?.title) ||
+              "Free gift";
             closeRewardPopup();
+            firePaperEffect(2800);
+            showCenterCelebratePopup(
+              "Product added",
+              `${addedProductTitle} was added to your cart successfully.`,
+              4000
+            );
             renderAllFromCache();
           } else {
             // Silent failure (variant not resolved, already in cart, etc.) — no throw, just notify
@@ -7264,15 +7318,73 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return Number.isFinite(n) ? Math.round(n * priceDivisor()) : 0;
   };
 
+  const buildFreeGiftOption = ({ rule, productId, variant, index }) => {
+    if (!variant || !getVariantLegacyId(variant)) return null;
+    const optionRule = {
+      ...rule,
+      bonusProductId: productId,
+      bonus: productId,
+      bonusProductIds: [productId],
+    };
+    const productName =
+      trimToNull(variant?.product?.title) ||
+      trimToNull(variant?.productTitle) ||
+      trimToNull(variant?.title) ||
+      trimToNull(rule?.bonusProductTitle) ||
+      trimToNull(rule?.productTitle) ||
+      "Free gift";
+    const variantName = trimToNull(variant?.title);
+    const title =
+      variantName && variantName.toLowerCase() !== "default title" && variantName !== productName
+        ? `${productName} - ${variantName}`
+        : productName;
+
+    return {
+      optionId: `${getVariantLegacyId(variant)}:${index}`,
+      rule: optionRule,
+      variant,
+      qty: getRewardQtyFromRule("free", optionRule),
+      title,
+      image: trimToNull(variant?.image) || trimToNull(variant?.product?.image) || "",
+      priceCents: centsFromDecimalPrice(variant?.price),
+    };
+  };
+
+  const getImmediateFreeGiftOptions = (rule) => {
+    const productIds = getFreeGiftProductIds(rule);
+    const rawOptions = productIds.length ? productIds : [trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus)].filter(Boolean);
+    const options = rawOptions
+      .map((productId, index) => buildFreeGiftOption({
+        rule,
+        productId,
+        variant: getFreeGiftVariantFromRule(rule, productId, index),
+        index,
+      }))
+      .filter(Boolean);
+    console.info("[SmartCartify] free gift popup immediate products:", options);
+    return options;
+  };
+
   const resolveFreeGiftOptions = async (rule) => {
     const productIds = getFreeGiftProductIds(rule);
     const rawOptions = productIds.length ? productIds : [trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus)].filter(Boolean);
     console.debug("[SmartCartify] resolveFreeGiftOptions: productIds=", productIds, "rawOptions=", rawOptions);
+    console.info("[SmartCartify] free gift popup product source:", {
+      ruleId: rule?.id || null,
+      ruleTitle: rule?.title || rule?.campaignName || null,
+      bonusProductIds: productIds,
+      bonusProducts: Array.isArray(rule?.bonusProducts) ? rule.bonusProducts : parseArrayish(rule?.bonusProducts),
+    });
     const options = [];
 
     for (let index = 0; index < rawOptions.length; index += 1) {
       const productId = rawOptions[index];
       console.debug(`[SmartCartify] resolving option ${index}: productId=`, productId);
+      console.info("[SmartCartify] free gift popup product candidate:", {
+        index,
+        productId,
+        product: getFreeGiftProductMeta(rule, productId, index),
+      });
       const optionRule = {
         ...rule,
         bonusProductId: productId,
@@ -7282,37 +7394,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const directVariant = getFreeGiftVariantFromRule(rule, productId, index);
       const variant = directVariant || await resolveRewardVariantForAdd(optionRule, { productId });
       console.debug(`[SmartCartify] resolved option ${index}: variant=`, variant, "legacyId=", variant ? getVariantLegacyId(variant) : null);
-      if (!variant || !getVariantLegacyId(variant)) {
+      const option = buildFreeGiftOption({ rule, productId, variant, index });
+      if (!option) {
         console.warn(`[SmartCartify] skipping option ${index}: variant resolution failed`);
         continue;
       }
-
-      const productName =
-        trimToNull(variant?.product?.title) ||
-        trimToNull(variant?.productTitle) ||
-        trimToNull(variant?.title) ||
-        trimToNull(rule?.bonusProductTitle) ||
-        trimToNull(rule?.productTitle) ||
-        "Free gift";
-      const variantName = trimToNull(variant?.title);
-      const title =
-        variantName && variantName.toLowerCase() !== "default title" && variantName !== productName
-          ? `${productName} - ${variantName}`
-          : productName;
-      const priceCents = centsFromDecimalPrice(variant?.price);
-
-      options.push({
-        optionId: `${getVariantLegacyId(variant)}:${index}`,
-        rule: optionRule,
-        variant,
-        qty: getRewardQtyFromRule("free", optionRule),
-        title,
-        image: trimToNull(variant?.image) || trimToNull(variant?.product?.image) || "",
-        priceCents,
-      });
+      options.push(option);
     }
 
     console.debug("[SmartCartify] resolveFreeGiftOptions complete: resolved", options.length, "options");
+    console.info("[SmartCartify] free gift popup render options:", options);
     return options;
   };
 
@@ -7343,8 +7434,62 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return ok;
   };
 
+  const renderFreeGiftPopupOptions = (state, options, currency) => {
+    if (!state?.listEl) return;
+
+    state.listEl.hidden = false;
+    state.listEl.style.removeProperty("display");
+    state.current.options = Array.isArray(options) ? options : [];
+    state.current.selectedOption = null;
+    state.current.selectedOptionId = null;
+    if (state.messageEl) {
+      state.messageEl.classList.remove("is-error");
+      state.messageEl.textContent = "Select a free gift to add it to your cart.";
+    }
+
+    if (!state.current.options.length) {
+      state.listEl.innerHTML = `<div class="sc-freegift-loading">No available free gifts found.</div>`;
+      if (state.addButton) state.addButton.disabled = true;
+      if (state.messageEl) state.messageEl.textContent = "No free gift item is available right now.";
+      return;
+    }
+
+    state.listEl.innerHTML = state.current.options.map((option) => {
+      const priceHtml = option.priceCents > 0
+        ? `<span class="sc-freegift-price">${formatMoney(option.priceCents, currency)}</span>`
+        : "";
+      const imageHtml = option.image
+        ? `<img src="${safe(option.image)}" alt="${safe(option.title)}" loading="lazy">`
+        : `<span class="sc-freegift-thumb-empty">${safe((option.title || "G").slice(0, 1))}</span>`;
+      return `
+        <button class="sc-freegift-option" type="button" data-option-id="${safe(option.optionId)}">
+          <span class="sc-freegift-thumb">${imageHtml}</span>
+          <span class="sc-freegift-option-main">
+            <span class="sc-freegift-option-title">${safe(option.title)}</span>
+            <span class="sc-freegift-option-price">${priceHtml}<span class="sc-freegift-free-pill">Free</span></span>
+          </span>
+          <span class="sc-freegift-check" role="checkbox" aria-checked="false" aria-hidden="true"></span>
+        </button>
+      `;
+    }).join("");
+
+    if (state.addButton) state.addButton.disabled = true;
+    console.info("[SmartCartify] free gift popup DOM rendered:", {
+      count: state.current.options.length,
+      html: state.listEl.innerHTML,
+    });
+  };
+
   const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title }) => {
     console.debug("[SmartCartify] openRewardPopupFor called:", { kind, ruleKey, slot, rule: rule ? { bonusProductIds: rule.bonusProductIds, bonusProductId: rule.bonusProductId, bonus: rule.bonus } : null });
+    console.info("[SmartCartify] reward popup rule products:", {
+      kind,
+      ruleKey,
+      slot,
+      bonusProductId: rule?.bonusProductId || rule?.bonus || null,
+      bonusProductIds: getFreeGiftProductIds(rule),
+      bonusProducts: Array.isArray(rule?.bonusProducts) ? rule.bonusProducts : parseArrayish(rule?.bonusProducts),
+    });
     const variant = getRewardVariantFromRule(kind, rule);
 
     // For cart goal free products with multiple options, variant will be null
@@ -7457,45 +7602,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         state.addButton.disabled = true;
       }
 
-      const currentGuard = `${kind}:${guardKey || ""}`;
+      const immediateOptions = getImmediateFreeGiftOptions(rule);
+      if (immediateOptions.length) {
+        renderFreeGiftPopupOptions(state, immediateOptions, currency);
+      }
 
-      // Wrap promise with timeout
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Timeout loading free gifts")), 1000);
-      });
+      const currentPopupKey = `${kind}:${guardKey || ""}`;
 
-      void Promise.race([resolveFreeGiftOptions(rule), timeoutPromise])
+      void resolveFreeGiftOptions(rule)
         .then((options) => {
-          if (!state.current || state.current.kind !== "free") return;
-          if (drawer.__sc_reward_popup_for !== currentGuard) return;
-
-          state.current.options = options;
-          if (!state.listEl) return;
-
-          if (!options.length) {
-            state.listEl.innerHTML = `<div class="sc-freegift-loading">No available free gifts found.</div>`;
-            if (state.addButton) state.addButton.disabled = true;
-            return;
-          }
-
-          state.listEl.innerHTML = options.map((option) => {
-            const priceHtml = option.priceCents > 0
-              ? `<span class="sc-freegift-price">${formatMoney(option.priceCents, currency)}</span>`
-              : "";
-            const imageHtml = option.image
-              ? `<img src="${safe(option.image)}" alt="${safe(option.title)}" loading="lazy">`
-              : `<span class="sc-freegift-thumb-empty">${safe((option.title || "G").slice(0, 1))}</span>`;
-            return `
-              <button class="sc-freegift-option" type="button" data-option-id="${safe(option.optionId)}">
-                <span class="sc-freegift-thumb">${imageHtml}</span>
-                <span class="sc-freegift-option-main">
-                  <span class="sc-freegift-option-title">${safe(option.title)}</span>
-                  <span class="sc-freegift-option-price">${priceHtml}<span class="sc-freegift-free-pill">Free</span></span>
-                </span>
-                <span class="sc-freegift-check" aria-hidden="true"></span>
-              </button>
-            `;
-          }).join("");
+          const activeState = rewardPopupCache || state;
+          if (!activeState.current || activeState.current.kind !== "free") return;
+          if (drawer.__sc_reward_popup_for !== currentPopupKey) return;
+          renderFreeGiftPopupOptions(activeState, options, currency);
         })
         .catch((err) => {
           console.error("[SmartCartify] free gift options failed:", err);
