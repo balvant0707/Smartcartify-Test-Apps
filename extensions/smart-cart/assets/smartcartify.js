@@ -4385,7 +4385,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   flex-direction:column;
   align-items:center;
   gap:8px;
-  padding:18px 18px 16px;
+  padding:0px 0px 5px;
   border-bottom:1px solid rgba(15,23,42,.1);
 }
 .sc-freegift-icon {
@@ -4467,9 +4467,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-freegift-list{
   display:block;
-  max-height:486px;
+  max-height:400px;
   overflow-y:auto;
   text-align:left;
+}
+.sc-freegift-options{
+  display:block;
 }
 .sc-freegift-loading{
   padding:28px 18px;
@@ -7178,9 +7181,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             <p class="sc-freegift-product-sub"></p>
           </div>
         </div>
-        <div class="sc-freegift-list"></div>
-        <p class="sc-freegift-message">Select a free gift to add it to your cart.</p>
-        <button class="sc-freegift-add" type="button">Add</button>
+        <div class="sc-freegift-list">
+          <div class="sc-freegift-options"></div>
+          <p class="sc-freegift-message">Select a free gift to add it to your cart.</p>
+          <button class="sc-freegift-add" type="button">Add</button>
+        </div>
       </div>
     `;
 
@@ -7206,6 +7211,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       iconEl: overlayEl.querySelector(".sc-freegift-icon"),
       contentEl: overlayEl.querySelector(".sc-freegift-content"),
       listEl: overlayEl.querySelector(".sc-freegift-list"),
+      optionsEl: overlayEl.querySelector(".sc-freegift-options"),
       messageEl: overlayEl.querySelector(".sc-freegift-message"),
       current: null,
     };
@@ -7548,24 +7554,26 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const renderFreeGiftPopupOptions = (state, options, currency) => {
     if (!state?.listEl) return;
 
+    const optionsEl = state.optionsEl || state.listEl;
     state.listEl.hidden = false;
     state.listEl.style.removeProperty("display");
     state.current.options = Array.isArray(options) ? options : [];
     state.current.selectedOption = null;
     state.current.selectedOptionId = null;
     if (state.messageEl) {
+      state.messageEl.hidden = false;
       state.messageEl.classList.remove("is-error");
       state.messageEl.textContent = "Select a free gift to add it to your cart.";
     }
 
     if (!state.current.options.length) {
-      state.listEl.innerHTML = `<div class="sc-freegift-loading">No available free gifts found.</div>`;
+      optionsEl.innerHTML = `<div class="sc-freegift-loading">No available free gifts found.</div>`;
       if (state.addButton) state.addButton.disabled = true;
       if (state.messageEl) state.messageEl.textContent = "No free gift item is available right now.";
       return;
     }
 
-    state.listEl.innerHTML = state.current.options.map((option) => {
+    optionsEl.innerHTML = state.current.options.map((option) => {
       const priceHtml = option.priceCents > 0
         ? `<span class="sc-freegift-price">${formatMoney(option.priceCents, currency)}</span>`
         : "";
@@ -7587,7 +7595,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (state.addButton) state.addButton.disabled = true;
     console.info("[SmartCartify] free gift popup DOM rendered:", {
       count: state.current.options.length,
-      html: state.listEl.innerHTML,
+      html: optionsEl.innerHTML,
     });
   };
 
@@ -7706,7 +7714,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (state.contentEl) state.contentEl.hidden = true;
       if (state.listEl) {
         state.listEl.hidden = false;
-        state.listEl.innerHTML = `<div class="sc-freegift-loading">Loading free gifts...</div>`;
+        if (state.optionsEl) {
+          state.optionsEl.innerHTML = `<div class="sc-freegift-loading">Loading free gifts...</div>`;
+        } else {
+          state.listEl.innerHTML = `<div class="sc-freegift-loading">Loading free gifts...</div>`;
+        }
+      }
+      if (state.messageEl) {
+        state.messageEl.hidden = false;
+        state.messageEl.classList.remove("is-error");
+        state.messageEl.textContent = "Select a free gift to add it to your cart.";
       }
       if (state.addButton) {
         state.addButton.style.removeProperty("display");
@@ -7729,14 +7746,24 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         })
         .catch((err) => {
           console.error("[SmartCartify] free gift options failed:", err);
-          if (state.listEl) state.listEl.innerHTML = `<div class="sc-freegift-loading">Could not load free gifts.</div>`;
+          if (state.optionsEl) {
+            state.optionsEl.innerHTML = `<div class="sc-freegift-loading">Could not load free gifts.</div>`;
+          } else if (state.listEl) {
+            state.listEl.innerHTML = `<div class="sc-freegift-loading">Could not load free gifts.</div>`;
+          }
           if (state.addButton) state.addButton.disabled = true;
         });
     } else if (state.addButton) {
       if (state.contentEl) state.contentEl.hidden = false;
       if (state.listEl) {
-        state.listEl.hidden = true;
-        state.listEl.innerHTML = "";
+        state.listEl.hidden = false;
+        state.listEl.style.removeProperty("display");
+      }
+      if (state.optionsEl) state.optionsEl.innerHTML = "";
+      if (state.messageEl) {
+        state.messageEl.hidden = true;
+        state.messageEl.classList.remove("is-error");
+        state.messageEl.textContent = "";
       }
       state.addButton.style.removeProperty("display");
       state.addButton.disabled = false;

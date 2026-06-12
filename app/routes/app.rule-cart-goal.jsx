@@ -607,6 +607,7 @@ function SegmentControl({ options, value, onChange }) {
         <Button
           key={option.value}
           pressed={value === option.value}
+          className={value === option.value ? "cg-activeButton" : undefined}
           onClick={() => onChange(option.value)}
         >
           {option.label}
@@ -1840,8 +1841,63 @@ export default function RuleCartGoal() {
           gap: 20px;
           align-items: start;
         }
-        .cg-layout .Polaris-ShadowBevel {
-          border-radius: 12px;
+        .Polaris-Button,
+        .Polaris-Button::before,
+        .Polaris-Button::after {
+          border-radius: 12px !important;
+        }
+        .Polaris-Button[aria-pressed="true"],
+        .Polaris-Button[aria-pressed="true"]::before,
+        .Polaris-Button[aria-pressed="true"]::after,
+        .Polaris-Button.cg-activeButton,
+        .Polaris-Button.cg-activeButton::before,
+        .Polaris-Button.cg-activeButton::after {
+          background: #000 !important;
+          background-color: #000 !important;
+          border-color: #000 !important;
+          color: #fff !important;
+          box-shadow: none !important;
+        }
+        .Polaris-Button[aria-pressed="true"] *,
+        .Polaris-Button.cg-activeButton * {
+          color: #fff !important;
+          fill: #fff !important;
+        }
+        .cg-layout,
+        .cg-layout .Polaris-Layout__Section,
+        .cg-layout .Polaris-Card,
+        .cg-layout .Polaris-LegacyCard,
+        .cg-layout .Polaris-Card__Section,
+        .cg-layout .Polaris-LegacyCard__Section,
+        .cg-layout .Polaris-Box,
+        .cg-layout .Polaris-ShadowBevel,
+        .cg-layout .Polaris-ShadowBevel::before,
+        .cg-layout [class^="Polaris-ShadowBevel"],
+        .cg-layout [class^="Polaris-ShadowBevel"]::before,
+        .cg-layout [class*=" Polaris-ShadowBevel"],
+        .cg-layout [class*=" Polaris-ShadowBevel"]::before,
+        .cg-layout .Polaris-Banner,
+        .cg-layout .Polaris-TextField,
+        .cg-layout .Polaris-TextField__Input,
+        .cg-layout .Polaris-TextField__Backdrop,
+        .cg-layout .Polaris-Select__Input,
+        .cg-layout .Polaris-Select__Backdrop,
+        .cg-layout .Polaris-ChoiceList,
+        .cg-layout .Polaris-OptionList,
+        .cg-layout .Polaris-Popover,
+        .cg-layout .Polaris-Popover__Pane,
+        .cg-layout .Polaris-ActionList,
+        .cg-layout .Polaris-Button,
+        .cg-layout .Polaris-Button::before,
+        .cg-layout .Polaris-Button::after {
+          border-radius: 12px !important;
+          --pc-shadow-bevel-border-radius: 12px !important;
+          --pc-shadow-bevel-border-radius-xs: 12px !important;
+          --pc-shadow-bevel-border-radius-sm: 12px !important;
+          --pc-shadow-bevel-border-radius-md: 12px !important;
+          --pc-shadow-bevel-border-radius-lg: 12px !important;
+          --pc-shadow-bevel-border-radius-xl: 12px !important;
+          --pc-box-border-radius: 12px !important;
         }
         .cg-savingOverlay {
           position: fixed;
@@ -1858,7 +1914,7 @@ export default function RuleCartGoal() {
           align-items: center;
           gap: 16px;
           width: min(100%, 380px);
-          border-radius: 10px;
+          border-radius: 12px;
           background: #fff;
           box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
           padding: 24px 28px;
@@ -1979,7 +2035,7 @@ export default function RuleCartGoal() {
           align-items: center;
           gap: 8px;
           background: #f1f1f1;
-          border-radius: 10px;
+          border-radius: 12px;
           padding: 6px;
           width: max-content;
           text-align: center;
@@ -1989,7 +2045,7 @@ export default function RuleCartGoal() {
           align-items: flex-start;
           gap: 10px;
           border: 1px solid #bfdbfe;
-          border-radius: 8px;
+          border-radius: 12px;
           background: #f0f7ff;
           padding: 10px 12px;
         }
@@ -2011,7 +2067,7 @@ export default function RuleCartGoal() {
           height: 44px;
           object-fit: cover;
           border: 1px solid #e1e3e5;
-          border-radius: 6px;
+          border-radius: 12px;
           flex-shrink: 0;
         }
         .cg-selectedProductImageEmpty,
@@ -2041,7 +2097,7 @@ export default function RuleCartGoal() {
           gap: 12px;
           border: 0;
           border-bottom: 1px solid #f1f3f5;
-          border-radius: 6px;
+          border-radius: 12px;
           background: transparent;
           cursor: pointer;
           padding: 10px 6px;
@@ -2064,7 +2120,7 @@ export default function RuleCartGoal() {
           align-items: center;
           gap: 4px;
           border: 1px solid #d1d5db;
-          border-radius: 8px;
+          border-radius: 12px;
           background: #fff;
           color: #111827;
           cursor: pointer;
@@ -2100,7 +2156,7 @@ export default function RuleCartGoal() {
           align-items: center;
           justify-content: center;
           border: 0;
-          border-radius: 6px;
+          border-radius: 12px;
           background: transparent;
           color: #8c9196;
           cursor: pointer;
@@ -2125,7 +2181,7 @@ export default function RuleCartGoal() {
           background: #fff8db;
           border: 1px solid #f2d94e;
           border-bottom: 2px solid #f2d94e;
-          border-radius: 14px;
+          border-radius: 12px;
           color: #6a4c00;
           padding: 12px 18px;
         }
@@ -2251,7 +2307,7 @@ export default function RuleCartGoal() {
           align-items: center;
           gap: 8px;
           border: 1px solid #dfe3e8;
-          border-radius: 8px;
+          border-radius: 12px;
           background: #f6f6f7;
           padding: 6px 10px;
         }
