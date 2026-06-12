@@ -3099,6 +3099,7 @@
 
 :root{
   --sc-base-font-size: 16px;
+  --sc-font: inherit;
   --sc-heading-scale: 1.2;
   --sc-heading-font-size: calc(var(--sc-base-font-size) * var(--sc-heading-scale));
   --sc-button-font-size: calc(var(--sc-base-font-size) * 1.1);
@@ -3216,6 +3217,7 @@
   pointer-events:none !important;
   display:flex !important;
   flex-direction:column;
+  font-family:var(--sc-font);
   font-size:var(--sc-base-font-size);
   color:var(--sc-drawer-text-color);
 }
@@ -4100,6 +4102,153 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-remove-x:hover{opacity:.85}
 
+.sc-item.sc-item-reward{
+  grid-template-columns:86px minmax(0,1fr) auto;
+  align-items:start;
+  gap:12px;
+  padding:8px 10px;
+  border:0;
+  border-bottom:1px solid rgba(17,24,39,.06);
+  border-radius:0;
+  background:#ffffff;
+}
+.sc-item-reward .sc-img{
+  position:relative;
+  width:84px;
+  height:60px;
+  border:2px solid #f8c987;
+  border-radius:8px;
+  overflow:visible;
+  background:#f8fafc;
+  box-sizing:border-box;
+}
+.sc-item-reward .sc-img img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:6px;
+}
+.sc-reward-thumb-empty{
+  width:100%;
+  height:100%;
+  display:grid;
+  place-items:center;
+  font-weight:800;
+  color:#9ca3af;
+}
+.sc-reward-gift-badge{
+  position:absolute;
+  top:-14px;
+  left:50%;
+  width:28px;
+  height:28px;
+  transform:translateX(-50%);
+  border:2px solid #f8c987;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  background:#ffffff;
+  color:#f2a23a;
+  box-shadow:0 2px 6px rgba(17,24,39,.08);
+  z-index:2;
+}
+.sc-reward-gift-badge svg{
+  width:15px;
+  height:15px;
+}
+.sc-item-reward .sc-mid{
+  gap:12px;
+  padding:0;
+  min-height:58px;
+}
+.sc-item-reward .sc-name{
+  margin:0;
+  padding-top:1px;
+  font-size:18px !important;
+  line-height:22px !important;
+  font-weight:800;
+  color:#4a2f21;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.sc-item-reward .sc-name a{
+  color:inherit;
+  text-decoration:none;
+  font-size:18px !important;
+  line-height:22px !important;
+  font-weight:800;
+}
+.sc-reward-bottom{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  min-height:22px;
+}
+.sc-reward-compare{
+  color:#7a6f69;
+  font-size:14px;
+  line-height:18px;
+  text-decoration:line-through;
+  font-weight:500;
+}
+.sc-reward-free-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:54px;
+  height:26px;
+  padding:0 14px;
+  border-radius:999px;
+  background:#f2f0f0;
+  color:#2d211b;
+  font-size:16px;
+  line-height:20px;
+  font-weight:800;
+}
+.sc-reward-remove{
+  width:20px;
+  height:20px;
+  margin-top:0;
+  border:0;
+  background:transparent;
+  color:#b5aaa4;
+  font-size:25px;
+  line-height:20px;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+  cursor:default;
+}
+@media(max-width:480px){
+  .sc-item.sc-item-reward{
+    grid-template-columns:82px minmax(0,1fr) 18px;
+    gap:10px;
+    padding:8px;
+  }
+  .sc-item-reward .sc-img{
+    width:78px;
+    height:58px;
+  }
+  .sc-item-reward .sc-name,
+  .sc-item-reward .sc-name a{
+    font-size:16px !important;
+    line-height:20px !important;
+  }
+  .sc-reward-compare{
+    font-size:13px;
+  }
+  .sc-reward-free-pill{
+    min-width:50px;
+    height:24px;
+    padding:0 12px;
+    font-size:15px;
+  }
+}
+
 /* Footer */
 .sc-footer{
   padding:8px 12px 5px;
@@ -4126,15 +4275,15 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-loading-items .sc-discount{display:none !important;}
 .sc-discount input{
   flex:1;height:44px;
-  border: 1px solid #000000;
+  border: 1px solid var(--sc-input-border);
   background:transparent;
   padding:0 14px;font-size:var(--sc-base-font-size);
-  color:#000000;
+  color:var(--sc-input-text);
   box-shadow: unset !important;
     outline: unset !important;
     outline-offset: unset !important
 }
-.sc-discount input::placeholder{color:#000000;}
+.sc-discount input::placeholder{color:var(--sc-input-placeholder);}
 
 .sc-discount button{
   min-width:110px;
@@ -5201,10 +5350,20 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       ["cartDrawerBackground", "cartDrawerBg", "drawerTopBg", "topBg", "baseBg"],
       defaults.baseBg
     );
+    const gradientStart = pickColor(
+      style,
+      ["cartDrawerGradientStart", "drawerGradientStart", "gradientStart", "cartDrawerGradientFrom"],
+      getFirstColorFromBackground(baseBg) || defaults.baseBg
+    );
+    const gradientEnd = pickColor(
+      style,
+      ["cartDrawerGradientEnd", "drawerGradientEnd", "gradientEnd", "cartDrawerGradientTo"],
+      getFirstColorFromBackground(baseBg) || "#f9f9f9"
+    );
 
     let topTextColor = pickColor(
       style,
-      ["cartDrawerTextColor", "topText", "top_text", "topTextColor", "textTop"],
+      ["textColor", "topText", "top_text", "topTextColor", "textTop"],
       defaults.topText
     );
 
@@ -5216,7 +5375,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const drawerTextColor = pickColor(
       style,
-      ["drawerTextColor", "cartDrawerBodyTextColor", "bodyTextColor", "text", "textColor"],
+      ["cartDrawerTextColor", "drawerTextColor", "cartDrawerBodyTextColor", "bodyTextColor", "text"],
       defaults.drawerText
     );
 
@@ -5251,7 +5410,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       "var(--sc-small-font-size)"
     );
 
-    const progressBg = pickBackground(style, ["progressBg", "progressBackground", "bg"], "transparent");
+    const hasExplicitProgressBg = ["progressBg", "progressBackground"].some(
+      (key) => trimToNull(style?.[key])
+    );
+    const progressBg = pickBackground(
+      style,
+      ["progressBg", "progressBackground", "bg"],
+      "transparent"
+    );
 
     const drawerWidth = normalizeLen(
       pick(style, ["cartDrawerWidth", "drawerWidth", "width"], null),
@@ -5333,6 +5499,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       iconColor || headerColor || "#111827"
     );
 
+    const hasExplicitFooterBg = ["footerBg", "cartDrawerFooterBg", "drawerFooterBg"].some(
+      (key) => trimToNull(style?.[key])
+    );
     const footerBg = pickBackground(
       style,
       ["footerBg", "cartDrawerFooterBg", "drawerFooterBg"],
@@ -5489,11 +5658,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-color-effective", "transparent");
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
-      r.setProperty("--sc-drawer-bg", baseBg || (imgUrl ? imgUrl : "transparent"));
+      r.setProperty("--sc-drawer-bg", imgUrl || baseBg || "transparent");
+      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
+      if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else if (mode === "gradient") {
       const gradientBg = /gradient\(/i.test(String(baseBg))
         ? String(baseBg)
-        : `linear-gradient(180deg, ${String(baseBg)} 0%, ${String(baseBg)} 100%)`;
+        : `linear-gradient(180deg, ${String(gradientStart)} 0%, ${String(gradientEnd)} 100%)`;
 
       r.setProperty("--sc-top-bg-color", "transparent");
       r.setProperty("--sc-top-bg-image", gradientBg);
@@ -5501,6 +5672,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
       r.setProperty("--sc-drawer-bg", gradientBg);
+      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
+      if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else {
       const solidBg =
         pickColor(style, ["cartDrawerBackground", "cartDrawerBg", "drawerTopBg", "topBg", "baseBg"], null) ||
@@ -6759,6 +6932,38 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             .map((line) => `<p class="sc-meta-line">${safe(line)}</p>`)
             .join("")}</div>`
           : "";
+
+        if (isReward) {
+          const rewardOriginalCents = Math.max(
+            0,
+            Number(it?.original_line_price) ||
+            Number(it?.line_price) ||
+            (unitPrice * qty) ||
+            compareLine ||
+            finalLine
+          );
+          const rewardImageHtml = it.image
+            ? `<img src="${safe(it.image)}" alt="${safe(it.product_title)}" loading="lazy">`
+            : `<span class="sc-reward-thumb-empty">${safe(String(it.product_title || "G").slice(0, 1).toUpperCase())}</span>`;
+          return `
+          <div class="sc-item sc-item-reward" data-line="${line}">
+            <div class="sc-img">
+              ${rewardImageHtml}
+              <span class="sc-reward-gift-badge" aria-hidden="true">${renderMilestoneIcon(ICONS.gift)}</span>
+            </div>
+
+            <div class="sc-mid">
+              <p class="sc-name" title="${safe(it.product_title)}">${nameHtml}</p>
+              <div class="sc-reward-bottom">
+                ${rewardOriginalCents > 0 ? `<span class="sc-reward-compare">${formatMoney(rewardOriginalCents, currency)}</span>` : ""}
+                <span class="sc-reward-free-pill">Free</span>
+              </div>
+            </div>
+
+            <span class="sc-reward-remove" aria-hidden="true">&times;</span>
+          </div>
+        `;
+        }
 
         return `
           <div class="sc-item" data-line="${line}">

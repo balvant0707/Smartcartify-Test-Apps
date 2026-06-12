@@ -121,7 +121,13 @@ const ensureStyleSettingsColumns = async (prisma) => {
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME = 'stylesettings'
-      AND COLUMN_NAME IN ('cartIconUrl', 'cartIconType', 'cartDefaultIcon')
+      AND COLUMN_NAME IN (
+        'cartIconUrl',
+        'cartIconType',
+        'cartDefaultIcon',
+        'cartDrawerGradientStart',
+        'cartDrawerGradientEnd'
+      )
   `;
   const existing = new Set((Array.isArray(rows) ? rows : []).map((row) => String(row.columnName)));
 
@@ -138,6 +144,8 @@ const ensureStyleSettingsColumns = async (prisma) => {
   await addColumn("cartIconUrl", "ALTER TABLE `stylesettings` ADD COLUMN `cartIconUrl` VARCHAR(191) NULL");
   await addColumn("cartIconType", "ALTER TABLE `stylesettings` ADD COLUMN `cartIconType` VARCHAR(32) NULL");
   await addColumn("cartDefaultIcon", "ALTER TABLE `stylesettings` ADD COLUMN `cartDefaultIcon` VARCHAR(64) NULL");
+  await addColumn("cartDrawerGradientStart", "ALTER TABLE `stylesettings` ADD COLUMN `cartDrawerGradientStart` VARCHAR(32) NULL");
+  await addColumn("cartDrawerGradientEnd", "ALTER TABLE `stylesettings` ADD COLUMN `cartDrawerGradientEnd` VARCHAR(32) NULL");
 };
 
 const ensureCartIconColumn = async (prisma) => {
@@ -154,13 +162,20 @@ const loadCartIconUrl = async (prisma, styleRow) => {
   if (!styleRow?.shop) return styleRow;
   try {
     await ensureStyleSettingsColumns(prisma);
-    const rows = await prisma.$queryRaw`SELECT cartIconUrl, cartIconType, cartDefaultIcon FROM stylesettings WHERE id = ${styleRow.id} LIMIT 1`;
+    const rows = await prisma.$queryRaw`
+      SELECT cartIconUrl, cartIconType, cartDefaultIcon, cartDrawerGradientStart, cartDrawerGradientEnd
+      FROM stylesettings
+      WHERE id = ${styleRow.id}
+      LIMIT 1
+    `;
     const row = Array.isArray(rows) ? rows[0] : null;
     return {
       ...styleRow,
       cartIconUrl: row?.cartIconUrl || "",
       cartIconType: normalizeCartIconType(row?.cartIconType),
       cartDefaultIcon: normalizeDefaultCartIcon(row?.cartDefaultIcon),
+      cartDrawerGradientStart: row?.cartDrawerGradientStart || "",
+      cartDrawerGradientEnd: row?.cartDrawerGradientEnd || "",
     };
   } catch { return styleRow; }
 };
@@ -322,6 +337,7 @@ export const loader = async ({ request }) => {
   const { default: prisma } = await import("../db.server");
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
+  await ensureStyleSettingsColumns(prisma);
 
   const [
     styleRow, shippingRules, discountRules, freeGiftRules,
@@ -352,7 +368,18 @@ export const loader = async ({ request }) => {
     prisma.discountRule.findMany({
       where: { shop, enabled: true, type: "code" },
       orderBy: { id: "asc" },
-      select: { discountCode: true, value: true, valueType: true, campaignName: true, iconChoice: true, progressTextBefore: true },
+      select: {
+        discountCode: true,
+        value: true,
+        valueType: true,
+        triggerType: true,
+        minPurchase: true,
+        minQuantity: true,
+        campaignName: true,
+        codeCampaignName: true,
+        iconChoice: true,
+        progressTextBefore: true,
+      },
     }),
     prisma.cartGoalRule.findMany({
       where: { shop, enabled: true },
@@ -442,6 +469,12 @@ export const action = async ({ request }) => {
     cartDrawerBackgroundMode: mode,
     cartDrawerBackground: mode === "color" ? (parseText(d.cartDrawerBackground) || DEFAULT_STYLE.cartDrawerBackground) : null,
     cartDrawerImage: mode === "image" ? parseText(d.cartDrawerImage) : null,
+    cartDrawerGradientStart: mode === "gradient"
+      ? (parseText(d.cartDrawerGradientStart) || DEFAULT_STYLE.cartDrawerGradientStart)
+      : null,
+    cartDrawerGradientEnd: mode === "gradient"
+      ? (parseText(d.cartDrawerGradientEnd) || DEFAULT_STYLE.cartDrawerGradientEnd)
+      : null,
     cartDrawerTextColor: parseText(d.cartDrawerTextColor) || DEFAULT_STYLE.cartDrawerTextColor,
     cartDrawerHeaderColor: parseText(d.cartDrawerHeaderColor) || DEFAULT_STYLE.cartDrawerHeaderColor,
     cartIconType: normalizeCartIconType(d.cartIconType),
@@ -540,6 +573,49 @@ function resolveStepText(text, amount, discountOpts = {}) {
   if (discountOpts.y !== undefined) result = result.replace(/\{\{y\}\}/gi, String(discountOpts.y));
   result = result.replace(/\{\{[^}]+\}\}/g, "").trim();
   return result || null;
+}
+
+function formatDiscountValueWithOff(valueType, value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "your discount";
+  return String(valueType || "").toLowerCase() === "amount"
+    ? `${fmtAmount(raw)} off`
+    : `${parseFloat(raw)}% off`;
+}
+
+function formatCodeDiscountGoal(rule) {
+  const triggerType = String(rule?.triggerType || "amount").toLowerCase();
+  if (triggerType === "quantity") {
+    const minQty = Number(rule?.minQuantity || 0);
+    return `${minQty} item${minQty === 1 ? "" : "s"}`;
+  }
+
+  const minPurchase = Number(rule?.minPurchase || 0);
+  return fmtAmount(minPurchase);
+}
+
+function resolveCodeDiscountBeforeMessage(rule) {
+  const fallback = "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}!";
+  return String(rule?.progressTextBefore || fallback)
+    .replace(/\{\{goal\}\}/gi, formatCodeDiscountGoal(rule))
+    .replace(/\{\{discount_code\}\}/gi, String(rule?.discountCode || "CODE").toUpperCase())
+    .replace(/\{\{discount_value_with_off\}\}/gi, formatDiscountValueWithOff(rule?.valueType, rule?.value))
+    .replace(/\{\{[^}]+\}\}/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function resolveBxgyBeforeMessage(rule) {
+  const xQty = Number(rule?.xQty || 0);
+  const yQty = Number(rule?.yQty || 0);
+  const fallback = "Buy X Get Y: Add {{x}} more to unlock the offer";
+  return String(rule?.beforeOfferUnlockMessage || fallback)
+    .replace(/\{\{x\}\}/gi, Number.isFinite(xQty) && xQty > 0 ? String(xQty) : "")
+    .replace(/\{\{y\}\}/gi, Number.isFinite(yQty) && yQty > 0 ? String(yQty) : "")
+    .replace(/\{\{goal\}\}/gi, Number.isFinite(xQty) && xQty > 0 ? String(xQty) : "")
+    .replace(/\{\{[^}]+\}\}/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function normalizeCartGoalRewardType(goal = {}) {
@@ -729,17 +805,15 @@ function CartDrawerPreview({
   const announceMessages = [];
   if (announcementBarText) announceMessages.push(announcementBarText);
   (bxgyRules || []).forEach((r) => {
-    const x = String(r.xQty || "");
-    const y = String(r.yQty || "");
-    const raw = r.beforeOfferUnlockMessage || r.afterOfferUnlockMessage;
-    if (raw) {
-      const msg = raw.replace(/\{\{x\}\}/gi, x).replace(/\{\{y\}\}/gi, y);
-      announceMessages.push(msg);
-    } else if (x && y) {
-      announceMessages.push(`Buy ${x} Get ${y} Free!`);
-    }
+    const msg = resolveBxgyBeforeMessage(r);
+    if (msg) announceMessages.push(msg);
   });
   (codeDiscountRules || []).forEach((r) => {
+    const beforeMsg = resolveCodeDiscountBeforeMessage(r);
+    if (beforeMsg) {
+      announceMessages.push(beforeMsg);
+      return;
+    }
     if (r.discountCode) {
       const val = r.value ? ` • ${r.value}${r.valueType === "percent" ? "%" : ""} OFF` : "";
       announceMessages.push(`Use code ${r.discountCode}${val}`);
@@ -878,6 +952,7 @@ function CartDrawerPreview({
   }, [showUpsell, canSlideUpsell, upsellSettings?.autoplay, upsellPreviewProducts.length]);
 
   const headerHasImage = drawerBgMode === "image" && drawerImage;
+  const drawerSectionBg = drawerBgMode === "color" ? (uiBg || "transparent") : "transparent";
   const headerBgStyle = headerHasImage
     ? { backgroundImage: `url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
     : { background: bg || "#fff" };
@@ -1055,7 +1130,7 @@ function CartDrawerPreview({
       </div>
 
       {/* ── Cart steps progress ── */}
-      <div style={{ padding: "14px 16px 4px", background: uiBg || "transparent" }}>
+      <div style={{ padding: "14px 16px 4px", background: drawerSectionBg }}>
         <div style={{ textAlign: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 11, color: ptc, opacity: 0.7 }}>{nextGoalText}</span>
         </div>
@@ -1555,34 +1630,6 @@ export default function CustomizePreview() {
               <div style={{ padding: "12px 16px", borderBottom: "1px solid #e1e3e5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Live Preview</Text>
               </div>
-              {cartGoalRules.length > 0 && (
-                <div style={{ padding: "12px 16px", borderBottom: "1px solid #e1e3e5", background: "#f9fafb" }}>
-                  <BlockStack gap="200">
-                    <Text variant="bodySm" fontWeight="semibold" as="p">Cart Goal priority</Text>
-                    <BlockStack gap="150">
-                      {cartGoalRules.map((rule, index) => (
-                        <div
-                          key={rule.id || index}
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "28px minmax(0, 1fr) auto",
-                            gap: 8,
-                            alignItems: "center",
-                            fontSize: 12,
-                            color: index === 0 ? "#111827" : "#4b5563",
-                          }}
-                        >
-                          <span style={{ fontWeight: 800 }}>#{index + 1}</span>
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: index === 0 ? 700 : 500 }}>
-                            {rule.campaignName || "Cart Goal"}
-                          </span>
-                          <span style={{ fontWeight: 700 }}>P{Number(rule.priority || 0)}</span>
-                        </div>
-                      ))}
-                    </BlockStack>
-                  </BlockStack>
-                </div>
-              )}
               <div style={{ padding: "16px" }}>
                 <CartDrawerPreview
                   bg={previewBg}

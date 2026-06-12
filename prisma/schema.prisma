@@ -259,6 +259,8 @@ model StyleSettings {
   discountCodeApply              Boolean  @default(false)
   cartDrawerImage                String?
   cartDrawerBackgroundMode       String   @default("color")
+  cartDrawerGradientStart        String?  @db.VarChar(32)
+  cartDrawerGradientEnd          String?  @db.VarChar(32)
   borderColor                    String?
   buttonColor                    String?
   checkoutButtonText             String?

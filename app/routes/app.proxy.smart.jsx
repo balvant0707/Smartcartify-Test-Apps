@@ -13,19 +13,30 @@ const APP_PROXY_HMAC_TOLERANCE_SEC = 300;
 // Rules are stored raw; per-request filtering (customer/schedule/ab-test) still happens at response time.
 const SHOP_DATA_CACHE = new Map();
 const SHOP_DATA_TTL_MS = 30_000; // 30 seconds
+const SHOP_DATA_STALE_TTL_MS = 10 * 60_000; // 10 minutes
 
-const getShopCache = (shop) => {
+const getShopCache = (shop, { allowStale = false } = {}) => {
   const entry = SHOP_DATA_CACHE.get(shop);
-  if (entry && Date.now() < entry.expiry) return entry.data;
+  if (!entry) return null;
+
+  const now = Date.now();
+  if (now < entry.expiry) return entry.data;
+  if (allowStale && now < entry.staleExpiry) return entry.data;
+
   SHOP_DATA_CACHE.delete(shop);
   return null;
 };
 
 const setShopCache = (shop, data) => {
+  const now = Date.now();
   if (SHOP_DATA_CACHE.size >= 500) {
     SHOP_DATA_CACHE.delete(SHOP_DATA_CACHE.keys().next().value);
   }
-  SHOP_DATA_CACHE.set(shop, { data, expiry: Date.now() + SHOP_DATA_TTL_MS });
+  SHOP_DATA_CACHE.set(shop, {
+    data,
+    expiry: now + SHOP_DATA_TTL_MS,
+    staleExpiry: now + SHOP_DATA_STALE_TTL_MS,
+  });
 };
 
 // Call this whenever a merchant saves settings so the cache is immediately invalidated.
@@ -86,6 +97,23 @@ const DEFAULT_ADD_TO_CART_BAR_SETTINGS = {
   desktopZIndex: 5000,
   mobileZIndex: 5000,
 };
+
+const emptyShopData = () => ({
+  authorized: false,
+  metadata: null,
+  _rawShippingRules: [],
+  _rawDiscountRules: [],
+  _rawFreeGiftRules: [],
+  _rawBxgyRules: [],
+  _rawCartGoalRules: [],
+  styleSettings: null,
+  upsellSettings: null,
+  addToCartBarSettings: { ...DEFAULT_ADD_TO_CART_BAR_SETTINGS },
+  addToCartBarProduct: null,
+  upsellProducts: [],
+  upsellSelectedProducts: [],
+  upsellSelectedCollections: [],
+});
 
 const DISCOUNT_RULE_SELECT = {
   id: true,
@@ -321,12 +349,59 @@ const filterActiveScheduledRules = (rules = [], now = new Date(), context = {}) 
     .map((rule) => applyRuleTranslations(rule, context.locale))
     .sort(rulePrioritySort);
 
+const buildProxyPayload = (shop, shopData, request, extras = {}) => {
+  const scheduleNow = new Date();
+  const ruleContext = getRequestContext(request);
+
+  const activeCodeDiscountRules = filterActiveScheduledRules(
+    shopData._rawDiscountRules,
+    scheduleNow,
+    ruleContext
+  ).filter((rule) => String(rule?.type || "").toLowerCase() === "code");
+  const activeCartGoalRules = filterActiveScheduledRules(
+    shopData._rawCartGoalRules,
+    scheduleNow,
+    ruleContext
+  );
+
+  return {
+    ok: true,
+    shop,
+    authorized: Boolean(shopData.authorized),
+    metadata: shopData.metadata,
+    shippingRules: [],
+    discountRules: activeCodeDiscountRules,
+    freeGiftRules: [],
+    bxgyRules: filterActiveScheduledRules(shopData._rawBxgyRules, scheduleNow, ruleContext),
+    cartGoalRules: activeCartGoalRules.slice(0, 1),
+    styleSettings: shopData.styleSettings,
+    upsellSettings: shopData.upsellSettings,
+    addToCartBarSettings: {
+      ...DEFAULT_ADD_TO_CART_BAR_SETTINGS,
+      ...(shopData.addToCartBarSettings ?? {}),
+    },
+    addToCartBarProduct: shopData.addToCartBarProduct,
+    upsellProducts: shopData.upsellProducts,
+    upsellSelectedProducts: shopData.upsellSelectedProducts,
+    upsellSelectedCollections: shopData.upsellSelectedCollections,
+    fetchedAt: new Date().toISOString(),
+    ...extras,
+  };
+};
+
+const isDatabaseConnectionError = (error) =>
+  error?.name === "PrismaClientInitializationError" ||
+  error?.code === "P1001" ||
+  /can't reach database server|database server is running|connect\s+etimedout|econnrefused|schema engine error/i.test(
+    String(error?.message || "")
+  );
+
 const mergeStyleCartIconUrl = async (styleSettings) => {
   if (!styleSettings?.id) return styleSettings;
 
   try {
     const rows = await prisma.$queryRaw`
-      SELECT cartIconUrl, cartIconType, cartDefaultIcon
+      SELECT cartIconUrl, cartIconType, cartDefaultIcon, cartDrawerGradientStart, cartDrawerGradientEnd
       FROM stylesettings
       WHERE id = ${styleSettings.id}
       LIMIT 1
@@ -337,6 +412,8 @@ const mergeStyleCartIconUrl = async (styleSettings) => {
       cartIconUrl: row?.cartIconUrl || "",
       cartIconType: row?.cartIconType || "default",
       cartDefaultIcon: row?.cartDefaultIcon || "cart",
+      cartDrawerGradientStart: row?.cartDrawerGradientStart || styleSettings.cartDrawerGradientStart || "",
+      cartDrawerGradientEnd: row?.cartDrawerGradientEnd || styleSettings.cartDrawerGradientEnd || "",
     };
   } catch (error) {
     logger.warn("[proxy] Failed to load style cart icon URL", error);
@@ -436,19 +513,6 @@ const mapCartGoalRuleForProxy = (rule = {}) => ({
     ? cartGoalScheduleDateTime(rule.endDate, rule.endTime)
     : null,
 });
-
-const hasConfiguredCartGoals = (rule = {}) =>
-  Array.isArray(rule.goals) &&
-  rule.goals.some((goal) => Number(goal?.goal || 0) > 0);
-
-const cartGoalFallbackRules = (rules = [], now = new Date(), context = {}) =>
-  (Array.isArray(rules) ? rules : [])
-    .filter(hasConfiguredCartGoals)
-    .filter((rule) => isRuleScheduleActive(rule, now))
-    .filter((rule) => ruleMatchesCustomer(rule, context))
-    .filter((rule) => ruleMatchesAbTest(rule, context))
-    .map((rule) => applyRuleTranslations({ ...rule, enabled: true }, context.locale))
-    .sort(rulePrioritySort);
 
 const normalizeProductId = (value) => {
   const raw = String(value || "").trim();
@@ -831,47 +895,45 @@ export const loader = async ({ request }) => {
       setShopCache(shop, shopData);
     }
 
-    const scheduleNow = new Date();
-    const ruleContext = getRequestContext(request);
-
-    const activeCodeDiscountRules = filterActiveScheduledRules(
-      shopData._rawDiscountRules,
-      scheduleNow,
-      ruleContext
-    ).filter((rule) => String(rule?.type || "").toLowerCase() === "code");
-    const activeCartGoalRules = filterActiveScheduledRules(
-      shopData._rawCartGoalRules,
-      scheduleNow,
-      ruleContext
-    );
-    const storefrontCartGoalRules = activeCartGoalRules.slice(0, 1);
-
     return jsonResponse(
-      {
-        ok: true,
-        shop,
-        authorized: shopData.authorized,
-        metadata: shopData.metadata,
-        shippingRules: [],
-        discountRules: activeCodeDiscountRules,
-        freeGiftRules: [],
-        bxgyRules: filterActiveScheduledRules(shopData._rawBxgyRules, scheduleNow, ruleContext),
-        cartGoalRules: storefrontCartGoalRules,
-        styleSettings: shopData.styleSettings,
-        upsellSettings: shopData.upsellSettings,
-        addToCartBarSettings: shopData.addToCartBarSettings,
-        addToCartBarProduct: shopData.addToCartBarProduct,
-        upsellProducts: shopData.upsellProducts,
-        upsellSelectedProducts: shopData.upsellSelectedProducts,
-        upsellSelectedCollections: shopData.upsellSelectedCollections,
-        fetchedAt: new Date().toISOString(),
-      },
+      buildProxyPayload(shop, shopData, request),
       200,
       {
         "Cache-Control": "private, max-age=30",
       }
     );
   } catch (error) {
+    if (isDatabaseConnectionError(error)) {
+      const staleShopData = getShopCache(shop, { allowStale: true });
+      if (staleShopData) {
+        logger.warn("Smart proxy database unavailable; serving stale cache", {
+          shop,
+          error: error?.message,
+        });
+        return jsonResponse(
+          buildProxyPayload(shop, staleShopData, request, {
+            degraded: true,
+            configSource: "stale-cache",
+          }),
+          200,
+          { "Cache-Control": "private, max-age=10" }
+        );
+      }
+
+      logger.warn("Smart proxy database unavailable; serving safe defaults", {
+        shop,
+        error: error?.message,
+      });
+      return jsonResponse(
+        buildProxyPayload(shop, emptyShopData(), request, {
+          degraded: true,
+          configSource: "safe-defaults",
+        }),
+        200,
+        { "Cache-Control": "private, max-age=10" }
+      );
+    }
+
     logger.error("Smart proxy loader failed", error);
     return jsonResponse(
       {
