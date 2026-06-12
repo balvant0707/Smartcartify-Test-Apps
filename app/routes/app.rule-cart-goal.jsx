@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useActionData,
   useFetcher,
@@ -1524,6 +1524,26 @@ export default function RuleCartGoal() {
   const submit = useSubmit();
   const productFetcher = useFetcher();
   const withHost = (path) => (host ? `${path}?host=${encodeURIComponent(host)}` : path);
+  const handledSuccessKeyRef = useRef(null);
+
+  const navigateSafely = (to, options) => {
+    try {
+      const result = navigate(to, options);
+      if (result && typeof result.catch === "function") {
+        result.catch((err) => {
+          if (/Transition was aborted|invalid state/i.test(String(err?.message || err))) {
+            return;
+          }
+          console.error("Cart Goal navigation failed", err);
+        });
+      }
+    } catch (err) {
+      if (/Transition was aborted|invalid state/i.test(String(err?.message || err))) {
+        return;
+      }
+      console.error("Cart Goal navigation failed", err);
+    }
+  };
 
   const [enabled, setEnabled] = useState(rule?.enabled ?? true);
   const [campaignName, setCampaignName] = useState(rule?.campaignName ?? nextCampaignName ?? "Cart Goal 1");
@@ -1579,21 +1599,25 @@ export default function RuleCartGoal() {
 
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle") {
+      const successKey = `${actionData.id || ""}:${leaveAfterDraftSave ? "leave" : "stay"}`;
+      if (handledSuccessKeyRef.current === successKey) return;
+      handledSuccessKeyRef.current = successKey;
+
       if (leaveAfterDraftSave) {
         const campaignsPath = host
           ? `/app/campaigns?host=${encodeURIComponent(host)}`
           : "/app/campaigns";
-        navigate(campaignsPath);
+        navigateSafely(campaignsPath);
         return;
       }
 
       if (!id && actionData.id) {
         const idParam = `id=${encodeURIComponent(actionData.id)}`;
         const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
-        navigate(`/app/rule-cart-goal?${idParam}${hostParam}`, { replace: true });
+        navigateSafely(`/app/rule-cart-goal?${idParam}${hostParam}`, { replace: true });
       }
     }
-  }, [actionData, host, id, leaveAfterDraftSave, navigate, navigation.state]);
+  }, [actionData, host, id, leaveAfterDraftSave, navigation.state]);
 
   useEffect(() => {
     if (navigation.state === "idle") {
@@ -1735,6 +1759,8 @@ export default function RuleCartGoal() {
   };
 
   const handleSave = () => {
+    if (navigation.state !== "idle") return;
+
     if (hasGoalValidationErrors || hasRewardValidationErrors) {
       setShowGoalValidation(true);
       setOpenSection("goals");
@@ -1761,15 +1787,17 @@ export default function RuleCartGoal() {
       setLeaveModalOpen(true);
       return;
     }
-    navigate(withHost("/app/campaigns"));
+    navigateSafely(withHost("/app/campaigns"));
   };
 
   const handleDiscardAndLeave = () => {
     setLeaveModalOpen(false);
-    navigate(withHost("/app/campaigns"));
+    navigateSafely(withHost("/app/campaigns"));
   };
 
   const handleSaveDraftAndLeave = () => {
+    if (navigation.state !== "idle") return;
+
     setSavingDraft(true);
     setLeaveAfterDraftSave(true);
     submit(
