@@ -53,6 +53,12 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
+import {
+  upsertAutomaticBasic,
+  upsertFreeShipping,
+} from "../shopify-discount.server";
+import { syncFreeProductDiscountsToShopify } from "../lib/minAmountFreeGift.server";
+import { reconcileCartGoalPriorityDiscounts } from "../lib/cartGoalPriority.server";
 
 const GOAL_TEXT_FIELDS = [
   {
@@ -304,6 +310,13 @@ function normalizePriority(value) {
   return Number.isFinite(priority) ? Math.trunc(priority) : 0;
 }
 
+function cartGoalThreshold(goal, trackBy) {
+  const value = Number(goal.goal || 0);
+  return trackBy === "quantity"
+    ? { minReqType: "quantity", minQuantity: String(Math.max(1, Math.floor(value))) }
+    : { minReqType: "subtotal", minSubtotal: String(Math.max(0, value)) };
+}
+
 async function nextCartGoalCampaignName(shop) {
   const rows = await prisma.cartGoalRule.findMany({
     where: { shop },
@@ -318,73 +331,89 @@ async function nextCartGoalCampaignName(shop) {
   return `Cart Goal ${Math.max(maxNumber, rows.length) + 1}`;
 }
 
-const DELETE_AUTOMATIC_DISCOUNT = `#graphql
-  mutation DiscountAutomaticDelete($id: ID!) {
-    discountAutomaticDelete(id: $id) {
-      userErrors { field message }
-      deletedAutomaticDiscountId
+async function syncCartGoalDiscounts({
+  admin,
+  shop,
+  accessToken,
+  campaignName,
+  enabled,
+  trackBy,
+  goals,
+}) {
+  const syncedGoals = [];
+
+  for (let index = 0; index < goals.length; index += 1) {
+    const goal = goals[index];
+    const title = `${campaignName || "Cart Goal"} - Goal ${index + 1} ${goal.title}`;
+    const threshold = cartGoalThreshold(goal, trackBy);
+
+    if (goal.type === "shipping") {
+      const shopifyDiscountId = await upsertFreeShipping(admin, {
+        existingId: goal.shopifyDiscountId || null,
+        title,
+        enabled,
+        ...threshold,
+      });
+      syncedGoals.push({ ...goal, shopifyDiscountId });
+      continue;
     }
-  }`;
 
-const DELETE_CODE_DISCOUNT = `#graphql
-  mutation DiscountCodeDelete($id: ID!) {
-    discountCodeDelete(id: $id) {
-      userErrors { field message }
-      deletedCodeDiscountId
+    if (goal.type === "discount") {
+      const shopifyDiscountId = await upsertAutomaticBasic(admin, {
+        existingId: goal.shopifyDiscountId || null,
+        title,
+        enabled,
+        isPercentage: goal.discountType !== "amount",
+        discountValue: goal.value || "0",
+        ...threshold,
+      });
+      syncedGoals.push({ ...goal, shopifyDiscountId });
+      continue;
     }
-  }`;
 
-async function deleteCartGoalShopifyDiscount(admin, id) {
-  if (!id) return;
-  const isAlreadyGoneError = (error) =>
-    /not\s+found|does\s+not\s+exist|invalid\s+id/i.test(String(error?.message || error || ""));
+    if (goal.type === "gift") {
+      const bonusProductIds = Array.isArray(goal.bonusProductIds)
+        ? goal.bonusProductIds.filter(Boolean)
+        : [goal.bonusProductId || goal.bonus || null].filter(Boolean);
 
-  const runDelete = async (mutation, rootKey) => {
-    const result = await (await admin.graphql(mutation, { variables: { id } })).json();
-    const topLevelErrors = result?.errors || [];
-    const userErrors = result?.data?.[rootKey]?.userErrors || [];
-
-    if (topLevelErrors.length || userErrors.length) {
-      const messages = [
-        ...topLevelErrors.map((error) => error?.message).filter(Boolean),
-        ...userErrors.map((error) => error?.message).filter(Boolean),
-      ];
-      throw new Error(messages.join(", ") || "Shopify discount delete failed");
-    }
-  };
-
-  try {
-    await runDelete(DELETE_AUTOMATIC_DISCOUNT, "discountAutomaticDelete");
-  } catch (automaticError) {
-    try {
-      await runDelete(DELETE_CODE_DISCOUNT, "discountCodeDelete");
-    } catch (codeError) {
-      if (isAlreadyGoneError(automaticError) || isAlreadyGoneError(codeError)) {
-        return;
+      if (!bonusProductIds.length) {
+        syncedGoals.push({
+          ...goal,
+          shopifySyncWarning: "Select at least one free product before Shopify discount sync can create this reward.",
+        });
+        continue;
       }
-      throw new Error(
-        codeError?.message ||
-        automaticError?.message ||
-        "Shopify discount delete failed"
-      );
+
+      const syncResults = await syncFreeProductDiscountsToShopify({
+        shopDomain: shop,
+        accessToken,
+        rules: [
+          {
+            bonus: String(bonusProductIds[0]),
+            bonusProductIds,
+            minPurchase: trackBy === "value" ? goal.goal : null,
+            minQuantity: trackBy === "quantity" ? goal.goal : null,
+            triggerType: trackBy === "quantity" ? "quantity" : "amount",
+            qty: goal.qty || "1",
+            limit: goal.limitPerOrder || null,
+            enabled,
+          },
+        ],
+        existingDiscountIds: [goal.shopifyDiscountId || null],
+      });
+
+      syncedGoals.push({
+        ...goal,
+        shopifyDiscountId: syncResults?.[0]?.id || goal.shopifyDiscountId || null,
+        shopifySyncWarning: null,
+      });
+      continue;
     }
-  }
-}
 
-async function clearCartGoalShopifyDiscounts(admin, goals) {
-  const discountIds = [
-    ...new Set(goals.map((goal) => goal?.shopifyDiscountId).filter(Boolean)),
-  ];
-
-  for (const discountId of discountIds) {
-    await deleteCartGoalShopifyDiscount(admin, discountId);
+    syncedGoals.push(goal);
   }
 
-  return goals.map((goal) => ({
-    ...goal,
-    shopifyDiscountId: null,
-    shopifySyncWarning: null,
-  }));
+  return syncedGoals;
 }
 
 export const loader = async ({ request }) => {
@@ -447,16 +476,26 @@ export const action = async ({ request }) => {
   }
 
   let syncedGoals;
-  try {
-    syncedGoals = await clearCartGoalShopifyDiscounts(
-      admin,
-      goals.map((goal) => ({
-        ...goal,
-        shopifyDiscountId: existingGoalById.get(goal?.id)?.shopifyDiscountId || goal.shopifyDiscountId || null,
-      }))
-    );
-  } catch (err) {
-    return { error: err?.message || "Shopify discount cleanup failed" };
+  if (saveAsDraft) {
+    syncedGoals = goals.map((goal) => ({
+      ...goal,
+      shopifyDiscountId: existingGoalById.get(goal?.id)?.shopifyDiscountId || null,
+      shopifySyncWarning: null,
+    }));
+  } else {
+    try {
+      syncedGoals = await syncCartGoalDiscounts({
+        admin,
+        shop: session.shop,
+        accessToken: session.accessToken,
+        campaignName: body.campaignName || "Cart Goal",
+        enabled,
+        trackBy,
+        goals,
+      });
+    } catch (err) {
+      return { error: err?.message || "Shopify discount sync failed" };
+    }
   }
 
   const data = {
@@ -485,6 +524,12 @@ export const action = async ({ request }) => {
     record = { id };
   } else {
     record = await prisma.cartGoalRule.create({ data });
+  }
+
+  try {
+    await reconcileCartGoalPriorityDiscounts(admin, session.shop);
+  } catch (err) {
+    return { error: err?.message || "Cart Goal priority sync failed" };
   }
 
   invalidateShopCache(session.shop);

@@ -11,6 +11,11 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
+import {
+  clearCartGoalDiscountIdsFromGoals,
+  deactivateCartGoalRuleDiscounts,
+  reconcileCartGoalPriorityDiscounts,
+} from "../lib/cartGoalPriority.server";
 
 const HIDDEN_CAMPAIGN_TYPES = new Set(["shipping", "automatic-discount", "free-product"]);
 
@@ -31,10 +36,6 @@ function formatCartGoalCampaignName(rule, index) {
     return `Cart Goal ${index + 1}`;
   }
   return name;
-}
-
-function ruleTypeSortRank(ruleType) {
-  return ruleType === "cart-goal" ? 0 : 1;
 }
 
 async function nextCartGoalCampaignName(shop) {
@@ -184,9 +185,9 @@ export const loader = async ({ request }) => {
   ]
     .filter((rule) => !HIDDEN_CAMPAIGN_TYPES.has(rule.ruleType))
     .sort((a, b) =>
-      (ruleTypeSortRank(a.ruleType) - ruleTypeSortRank(b.ruleType)) ||
       (Number(b.priority || 0) - Number(a.priority || 0)) ||
-      (new Date(b.updatedAt) - new Date(a.updatedAt))
+      (new Date(b.updatedAt) - new Date(a.updatedAt)) ||
+      (Number(b.id || 0) - Number(a.id || 0))
     );
 
   return { rules };
@@ -278,6 +279,7 @@ async function duplicateRule(ruleType, id, shop) {
 
   if (ruleType === "cart-goal") {
     data.campaignName = await nextCartGoalCampaignName(shop);
+    data.goals = clearCartGoalDiscountIdsFromGoals(data.goals);
   } else if ("campaignName" in data) {
     data.campaignName = copyLabel(data.campaignName, "Rule");
   }
@@ -377,7 +379,15 @@ export const action = async ({ request }) => {
         break;
       }
       case "cart-goal":
+        {
+          const rule = await prisma.cartGoalRule.findFirst({
+            where: { id, shop },
+            select: { goals: true },
+          });
+          await deactivateCartGoalRuleDiscounts(admin, rule);
+        }
         await prisma.cartGoalRule.deleteMany({ where: { id, shop } });
+        await reconcileCartGoalPriorityDiscounts(admin, shop);
         break;
       default:
         return Response.json({ error: "Unknown rule type" }, { status: 400 });
@@ -389,6 +399,9 @@ export const action = async ({ request }) => {
   if (body._action === "duplicate") {
     const id = parseInt(body.id, 10);
     await duplicateRule(body.ruleType, id, shop);
+    if (body.ruleType === "cart-goal") {
+      await reconcileCartGoalPriorityDiscounts(admin, shop);
+    }
     invalidateShopCache(shop);
     return Response.json({ success: true, message: "Rule duplicated as disabled." });
   }
@@ -412,6 +425,9 @@ export const action = async ({ request }) => {
     await Promise.all(reordered.map((row, index) =>
       setRulePriority(row.ruleType, parseInt(row.id, 10), shop, (reordered.length - index) * 10)
     ));
+    if (reordered.some((row) => row.ruleType === "cart-goal")) {
+      await reconcileCartGoalPriorityDiscounts(admin, shop);
+    }
     invalidateShopCache(shop);
     return Response.json({ success: true, message: "Rule priority updated." });
   }

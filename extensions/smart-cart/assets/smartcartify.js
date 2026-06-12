@@ -1810,19 +1810,47 @@
     ]);
     return (Array.isArray(cartGoalList) ? cartGoalList : [])
       .filter((campaign) => isRuleEnabled(campaign))
-      .sort((a, b) => {
-        const priorityDiff = Number(b?.priority || 0) - Number(a?.priority || 0);
-        if (priorityDiff) return priorityDiff;
-        const updatedDiff =
-          (new Date(b?.updatedAt || 0).getTime() || 0) -
-          (new Date(a?.updatedAt || 0).getTime() || 0);
-        if (updatedDiff) return updatedDiff;
-        return Number(b?.id || 0) - Number(a?.id || 0);
-      })[0] || null;
+      .sort((a, b) => Number(b?.priority || 0) - Number(a?.priority || 0))[0] || null;
   };
 
   const buildCartGoalFreeProductRules = (campaign) => {
-    return [];
+    if (!campaign) return [];
+    const trackBy = String(campaign?.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
+    const goals = parseArrayish(campaign?.goals);
+    return goals
+      .map((goal, index) => {
+        const type = normalizeCartGoalRewardType(goal);
+        if (type !== "free") return null;
+        const threshold = Number(goal?.goal);
+        const productIds = getCartGoalBonusProductIds(goal);
+        const bonusProducts = getCartGoalBonusProducts(goal);
+        const bonusProductId =
+          trimToNull(goal?.bonusProductId) ||
+          trimToNull(goal?.bonus) ||
+          trimToNull(productIds[0]) ||
+          "";
+        const rule = {
+          ...goal,
+          id: `cartgoal:${campaign?.id ?? "campaign"}:${goal?.id ?? index + 1}`,
+          campaignId: campaign?.id,
+          campaignName: trimToNull(campaign?.campaignName) || "Cart Goal",
+          enabled: true,
+          type: "gift",
+          ruleType: "free",
+          rewardType: "free",
+          cartStepName: `step${index + 1}`,
+          triggerType: trackBy === "quantity" ? "quantity" : "amount",
+          shopifyDiscountId: goal?.shopifyDiscountId || null,
+          bonusProductId,
+          bonus: bonusProductId,
+          bonusProductIds: productIds,
+          bonusProducts,
+        };
+        if (trackBy === "quantity") rule.minQuantity = Number.isFinite(threshold) ? threshold : null;
+        else rule.minPurchase = Number.isFinite(threshold) ? threshold : null;
+        return rule;
+      })
+      .filter(Boolean);
   };
 
   const sentAnalyticsEvents = new Set();
@@ -5999,6 +6027,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const type = normalizeCartGoalRewardType(goal);
       const threshold = Number(goal?.goal);
       const texts = goal?.texts || {};
+      const productIds = getCartGoalBonusProductIds(goal);
+      const bonusProducts = getCartGoalBonusProducts(goal);
+      const bonusProductId =
+        trimToNull(goal?.bonusProductId) ||
+        trimToNull(goal?.bonus) ||
+        trimToNull(productIds[0]) ||
+        "";
       const rule = {
         ...goal,
         id: `cartgoal:${campaign?.id ?? "campaign"}:${goal?.id ?? index + 1}`,
@@ -6006,7 +6041,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         campaignName: trimToNull(campaign?.campaignName) || "Cart Goal",
         enabled: true,
         isCartGoal: true,
-        rewardsDisabled: true,
         type: type === "free" ? "gift" : type,
         ruleType: type,
         rewardType: type,
@@ -6015,6 +6049,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         progressTextBefore: trimToNull(texts.aboveBefore) || "",
         progressTextAfter: trimToNull(texts.aboveAfter) || "",
         progressTextBelow: trimToNull(texts.below) || "",
+        shopifyDiscountId: goal?.shopifyDiscountId || null,
+        bonusProductId,
+        bonus: bonusProductId,
+        bonusProductIds: productIds,
+        bonusProducts,
       };
 
       if (trackBy === "quantity") {
@@ -6039,15 +6078,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const selectedCartGoalCampaign = (Array.isArray(cartGoalList) ? cartGoalList : [])
       .filter((campaign) => isRuleEnabled(campaign))
-      .sort((a, b) => {
-        const priorityDiff = Number(b?.priority || 0) - Number(a?.priority || 0);
-        if (priorityDiff) return priorityDiff;
-        const updatedDiff =
-          (new Date(b?.updatedAt || 0).getTime() || 0) -
-          (new Date(a?.updatedAt || 0).getTime() || 0);
-        if (updatedDiff) return updatedDiff;
-        return Number(b?.id || 0) - Number(a?.id || 0);
-      })[0];
+      .sort((a, b) => Number(b?.priority || 0) - Number(a?.priority || 0))[0];
 
     const cartGoalCandidates = selectedCartGoalCampaign
       ? [selectedCartGoalCampaign]
@@ -8155,7 +8186,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       __SC_PRIMED_POPUPS__ = true;
 
       doneSteps
-        .filter((ss) => ss?.type === "free" && ss?.rule && !ss?.rule?.rewardsDisabled)
+        .filter((ss) => ss?.type === "free" && ss?.rule)
         .forEach((ss) => {
           const slot = trimToNull(ss?.slot);
           const ruleKey = getRuleKey(ss?.rule, "free");
@@ -8210,7 +8241,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (isDrawerOpen) {
       const freeStepToPrompt = doneSteps.find((ss) => {
         if (ss?.type !== "free") return false;
-        if (ss?.rule?.rewardsDisabled) return false;
         const slot = trimToNull(ss?.slot);
         const ruleKey = getRuleKey(ss?.rule, "free");
         const guardKey = slot || ruleKey;
@@ -8258,7 +8288,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       if (!isDrawerOpen) openDrawer();
 
-      if (newlyUnlocked?.type === "free" && !newlyUnlocked?.rule?.rewardsDisabled) {
+      if (newlyUnlocked?.type === "free") {
         // avoid repeat after refresh by shown flag
         const slot = newlyUnlocked.slot;
         if (DISABLE_FREE_REWARD_POPUP) {

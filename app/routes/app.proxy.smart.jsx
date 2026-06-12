@@ -845,12 +845,6 @@ export const loader = async ({ request }) => {
       ruleContext
     );
     const storefrontCartGoalRules = activeCartGoalRules.slice(0, 1);
-    const hasStorefrontCartGoal = storefrontCartGoalRules.length > 0;
-    const activeBxgyRules = filterActiveScheduledRules(
-      shopData._rawBxgyRules,
-      scheduleNow,
-      ruleContext
-    );
 
     return jsonResponse(
       {
@@ -859,9 +853,9 @@ export const loader = async ({ request }) => {
         authorized: shopData.authorized,
         metadata: shopData.metadata,
         shippingRules: [],
-        discountRules: hasStorefrontCartGoal ? [] : activeCodeDiscountRules,
+        discountRules: activeCodeDiscountRules,
         freeGiftRules: [],
-        bxgyRules: hasStorefrontCartGoal ? [] : activeBxgyRules,
+        bxgyRules: filterActiveScheduledRules(shopData._rawBxgyRules, scheduleNow, ruleContext),
         cartGoalRules: storefrontCartGoalRules,
         styleSettings: shopData.styleSettings,
         upsellSettings: shopData.upsellSettings,
