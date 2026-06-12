@@ -3811,6 +3811,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
   gap:12px;
   margin-top:4px;
 }
+.sc-item-reward .sc-mid-bottom{
+  align-items:flex-start;
+}
 .sc-qty{
   display:inline-flex;
   align-items:center;
@@ -3889,11 +3892,19 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:inline-block;
   margin-left:6px;
   font-size:var(--sc-free-tag-font-size);
-  color:#000000;
+  color:var(--sc-free-tag-color);
+  font-weight:700;
+  line-height:1.25;
 }
 .sc-free-tag-under{
   margin-left:0;
-  margin-top:4px;
+  margin-top:0;
+}
+.sc-reward-line-badge{
+  flex:1 1 auto;
+  min-width:0;
+  padding-top:1px;
+  text-align:left;
 }
 
 .sc-upsell{
@@ -4101,153 +4112,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   line-height:1;
 }
 .sc-remove-x:hover{opacity:.85}
-
-.sc-item.sc-item-reward{
-  grid-template-columns:86px minmax(0,1fr) auto;
-  align-items:start;
-  gap:12px;
-  padding:8px 10px;
-  border:0;
-  border-bottom:1px solid rgba(17,24,39,.06);
-  border-radius:0;
-  background:#ffffff;
-}
-.sc-item-reward .sc-img{
-  position:relative;
-  width:84px;
-  height:60px;
-  border:2px solid #f8c987;
-  border-radius:8px;
-  overflow:visible;
-  background:#f8fafc;
-  box-sizing:border-box;
-}
-.sc-item-reward .sc-img img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  border-radius:6px;
-}
-.sc-reward-thumb-empty{
-  width:100%;
-  height:100%;
-  display:grid;
-  place-items:center;
-  font-weight:800;
-  color:#9ca3af;
-}
-.sc-reward-gift-badge{
-  position:absolute;
-  top:-14px;
-  left:50%;
-  width:28px;
-  height:28px;
-  transform:translateX(-50%);
-  border:2px solid #f8c987;
-  border-radius:999px;
-  display:grid;
-  place-items:center;
-  background:#ffffff;
-  color:#f2a23a;
-  box-shadow:0 2px 6px rgba(17,24,39,.08);
-  z-index:2;
-}
-.sc-reward-gift-badge svg{
-  width:15px;
-  height:15px;
-}
-.sc-item-reward .sc-mid{
-  gap:12px;
-  padding:0;
-  min-height:58px;
-}
-.sc-item-reward .sc-name{
-  margin:0;
-  padding-top:1px;
-  font-size:18px !important;
-  line-height:22px !important;
-  font-weight:800;
-  color:#4a2f21;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.sc-item-reward .sc-name a{
-  color:inherit;
-  text-decoration:none;
-  font-size:18px !important;
-  line-height:22px !important;
-  font-weight:800;
-}
-.sc-reward-bottom{
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-  gap:8px;
-  min-height:22px;
-}
-.sc-reward-compare{
-  color:#7a6f69;
-  font-size:14px;
-  line-height:18px;
-  text-decoration:line-through;
-  font-weight:500;
-}
-.sc-reward-free-pill{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-width:54px;
-  height:26px;
-  padding:0 14px;
-  border-radius:999px;
-  background:#f2f0f0;
-  color:#2d211b;
-  font-size:16px;
-  line-height:20px;
-  font-weight:800;
-}
-.sc-reward-remove{
-  width:20px;
-  height:20px;
-  margin-top:0;
-  border:0;
-  background:transparent;
-  color:#b5aaa4;
-  font-size:25px;
-  line-height:20px;
-  font-weight:600;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:0;
-  cursor:default;
-}
-@media(max-width:480px){
-  .sc-item.sc-item-reward{
-    grid-template-columns:82px minmax(0,1fr) 18px;
-    gap:10px;
-    padding:8px;
-  }
-  .sc-item-reward .sc-img{
-    width:78px;
-    height:58px;
-  }
-  .sc-item-reward .sc-name,
-  .sc-item-reward .sc-name a{
-    font-size:16px !important;
-    line-height:20px !important;
-  }
-  .sc-reward-compare{
-    font-size:13px;
-  }
-  .sc-reward-free-pill{
-    min-width:50px;
-    height:24px;
-    padding:0 12px;
-    font-size:15px;
-  }
-}
 
 /* Footer */
 .sc-footer{
@@ -5686,6 +5550,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-image-effective", "none");
 
       r.setProperty("--sc-drawer-bg", String(solidBg));
+      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", String(solidBg));
+      if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", String(solidBg));
     }
 
     DISCOUNT_PANEL_STYLE_ENABLED =
@@ -6902,26 +6768,37 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const unitPrice = Number(it.price) || 0;
         const compareUnit = Number(it.compare_at_price) || 0;
         const compareLine = Math.max(0, compareUnit * qty);
-        const hasCompare = compareUnit > 0 && compareUnit > unitPrice && !isReward;
+        const rewardOriginalCents = isReward
+          ? Math.max(
+            0,
+            Number(it?.original_line_price) ||
+            Number(it?.line_price) ||
+            (unitPrice * qty) ||
+            compareLine ||
+            finalLine
+          )
+          : 0;
+        const hasCompare = isReward
+          ? rewardOriginalCents > 0
+          : compareUnit > 0 && compareUnit > unitPrice;
 
-        const showPrice = !isReward;
+        const showPrice = true;
         const displayPrice = Math.max(
           0,
-          Number(it.final_line_price) ||
+          isReward ? 0 : Number(it.final_line_price) ||
           Number(it.line_price) ||
           (unitPrice * qty) ||
           finalLine
         );
         const priceText = formatMoney(displayPrice, currency);
         const priceClass = `sc-price${displayPrice === 0 ? " sc-price-free" : ""}`;
-        const showFreeTag = isReward;
         const freeTagText = isReward
           ? isFreeGift
             ? "Free product"
             : "Offer product"
           : "Free";
-        const freeTag = showFreeTag
-          ? `<span class="sc-free-tag sc-free-tag-under">${safe(freeTagText)}</span>`
+        const rewardBadge = isReward
+          ? `<span class="sc-free-tag sc-free-tag-under sc-reward-line-badge">${safe(freeTagText)}</span>`
           : "";
 
         const productUrl = trimToNull(it.url) || null;
@@ -6933,49 +6810,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             .join("")}</div>`
           : "";
 
-        if (isReward) {
-          const rewardOriginalCents = Math.max(
-            0,
-            Number(it?.original_line_price) ||
-            Number(it?.line_price) ||
-            (unitPrice * qty) ||
-            compareLine ||
-            finalLine
-          );
-          const rewardImageHtml = it.image
-            ? `<img src="${safe(it.image)}" alt="${safe(it.product_title)}" loading="lazy">`
-            : `<span class="sc-reward-thumb-empty">${safe(String(it.product_title || "G").slice(0, 1).toUpperCase())}</span>`;
-          return `
-          <div class="sc-item sc-item-reward" data-line="${line}">
-            <div class="sc-img">
-              ${rewardImageHtml}
-              <span class="sc-reward-gift-badge" aria-hidden="true">${renderMilestoneIcon(ICONS.gift)}</span>
-            </div>
-
-            <div class="sc-mid">
-              <p class="sc-name" title="${safe(it.product_title)}">${nameHtml}</p>
-              <div class="sc-reward-bottom">
-                ${rewardOriginalCents > 0 ? `<span class="sc-reward-compare">${formatMoney(rewardOriginalCents, currency)}</span>` : ""}
-                <span class="sc-reward-free-pill">Free</span>
-              </div>
-            </div>
-
-            <span class="sc-reward-remove" aria-hidden="true">&times;</span>
-          </div>
-        `;
-        }
-
         return `
-          <div class="sc-item" data-line="${line}">
+          <div class="sc-item${isReward ? " sc-item-reward" : ""}" data-line="${line}">
             <div class="sc-img">${img}</div>
 
             <div class="sc-mid">
               <p class="sc-name" title="${safe(it.product_title)}">${nameHtml}</p>
               ${metaHtml}
-              ${freeTag}
               <div class="sc-mid-bottom">
                 ${isReward
-            ? ""
+            ? rewardBadge
             : `<div class="sc-qty">
                   <button type="button" data-qty="dec" aria-label="Decrease">-</button>
                   <input type="number" min="0" inputmode="numeric" value="${qty}" data-qty="input" />
@@ -6983,7 +6827,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
                 </div>`}
                 <div class="sc-pricebox">
                   ${hasCompare && showPrice
-            ? `<span class="sc-compare">${formatMoney(compareLine, currency)}</span>`
+            ? `<span class="sc-compare">${formatMoney(isReward ? rewardOriginalCents : compareLine, currency)}</span>`
             : ``
           }
                   ${showPrice ? `<span class="${priceClass}">${priceText}</span>` : ``}
@@ -6991,9 +6835,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               </div>
             </div>
 
-            ${isReward ? "" : `<button type="button" class="sc-remove-x" data-remove="1" aria-label="Remove">
+            <button type="button" class="sc-remove-x" data-remove="1" aria-label="Remove">
               <span class="sc-remove-char" aria-hidden="true">&times;</span>
-            </button>`}
+            </button>
           </div>
         `;
       })
@@ -9700,7 +9544,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const isRewardItem =
       String(itemProps?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() === "true" ||
       String(itemProps?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
-    if (isRewardItem) return;
+    if (isRewardItem) {
+      if (el.matches('[data-remove="1"]') || el.closest?.('[data-remove="1"]')) {
+        await applyLineQuantityChange(line, 0);
+      }
+      return;
+    }
 
     const input = item.querySelector('input[data-qty="input"]');
     const current = Number(input?.value || 0);

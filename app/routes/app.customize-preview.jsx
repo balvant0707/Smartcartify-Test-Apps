@@ -7,7 +7,7 @@ import {
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, Banner, DropZone,
+  Icon, Banner, DropZone, Card, Badge, Thumbnail, ProgressBar,
 } from "@shopify/polaris";
 import {
   ThemeIcon, MinimizeIcon, MaximizeIcon,
@@ -778,12 +778,13 @@ function PreviewIcon({ source, size = 14, color = "currentColor" }) {
 
 function CartDrawerPreview({
   bg, uiBg, textColor, progressTextColor, headerColor, buttonColor, buttonLabelColor,
-  progress, radius, base, checkoutText,
+  progress, radius, base, headingScale, font, checkoutText,
   announcementBg, announcementText, announcementBarText,
   shippingRules, discountRules, freeGiftRules, cartGoalRules, upsellSettings,
   upsellPreviewItems,
   bxgyRules, codeDiscountRules,
   drawerBgMode, drawerImage,
+  drawerAutoOpen, drawerPosition, stickyCheckout, mobileLayout,
   discountCodeApply,
   borderColor, iconColor,
   cartIconUrl,
@@ -792,6 +793,8 @@ function CartDrawerPreview({
 }) {
   const r = Number(radius) || 0;
   const fs = Number(base) || 12;
+  const headingFs = Math.max(13, Number((fs * (Number(headingScale) || 1.25)).toFixed(2)));
+  const fontFamily = font || DEFAULT_STYLE.font;
   const tc = textColor || "#000";       // body text (--sc-drawer-text-color)
   const ptc = progressTextColor || tc;  // progress/step text (--sc-text)
   const hc = headerColor || "#1a1a1a";
@@ -800,6 +803,12 @@ function CartDrawerPreview({
   const pc = progress || "#000";
   const brc = borderColor || "#e1e3e5";
   const ic = iconColor || pc;
+  const uiSurface = uiBg || "#ffffff";
+  const softPanel = drawerBgMode === "color" ? uiSurface : "rgba(255,255,255,0.76)";
+  const behaviorLabel = drawerAutoOpen ? "Auto-open on" : "Auto-open off";
+  const positionLabel = String(drawerPosition || "right") === "left" ? "Left drawer" : "Right drawer";
+  const mobileLabel = String(mobileLayout || "drawer") === "bottom_sheet" ? "Bottom sheet" : "Mobile drawer";
+  const checkoutModeLabel = stickyCheckout ? "Sticky checkout" : "Static checkout";
 
   // ── Build announcement messages ──────────────────────────────────────────────
   const announceMessages = [];
@@ -952,51 +961,75 @@ function CartDrawerPreview({
   }, [showUpsell, canSlideUpsell, upsellSettings?.autoplay, upsellPreviewProducts.length]);
 
   const headerHasImage = drawerBgMode === "image" && drawerImage;
-  const drawerSectionBg = drawerBgMode === "color" ? (uiBg || "transparent") : "transparent";
+  const drawerSectionBg = drawerBgMode === "color" ? (bg || "transparent") : "transparent";
+  const drawerBackgroundStyle = headerHasImage
+    ? { backgroundImage: `linear-gradient(rgba(255,255,255,0.68), rgba(255,255,255,0.68)), url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+    : { background: bg || "#fff" };
   const headerBgStyle = headerHasImage
-    ? { backgroundImage: `url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+    ? { background: "rgba(255,255,255,0.22)" }
     : { background: bg || "#fff" };
   const selectedCartIcon = CART_DEFAULT_ICON_MAP[normalizeDefaultCartIcon(cartDefaultIcon)] || CartIcon;
   const showCustomCartIcon = normalizeCartIconType(cartIconType) === "custom" && cartIconUrl;
 
-  // Cart item row using Polaris layout
-  const CartItem = ({ name, variant, price }) => (
-    <div style={{ padding: "12px 16px", borderTop: `1px solid ${brc}` }}>
-      <InlineStack align="start" blockAlign="start" gap="300" wrap={false}>
-        <div style={{ width: 56, height: 56, background: "#f0f0f0", borderRadius: 10, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <InlineStack align="space-between" blockAlign="start">
-            <span style={{ color: tc, fontWeight: 600 }}>{name}</span>
-            <PreviewIcon source={DeleteIcon} size={14} color={ic} />
-          </InlineStack>
-          <div style={{ marginTop: 2 }}>
-            <span style={{ color: tc, opacity: 0.65 }}>{variant}</span>
+  // Cart item row using Polaris primitives with dynamic merchant styling.
+  const CartItem = ({ name, variant, price, image, badge, compareAt, isReward = false }) => (
+    <Box paddingInline="300" paddingBlock="200">
+      <div style={{ background: softPanel, border: `1px solid ${brc}`, borderRadius: Math.max(r, 8), padding: 10 }}>
+        <InlineStack align="start" blockAlign="start" gap="300" wrap={false}>
+          <div style={{ flexShrink: 0 }}>
+            <Thumbnail source={image || "/images/upsellproduct.png"} alt={name} size="small" />
           </div>
-          <div style={{ marginTop: 8 }}>
-            <InlineStack align="space-between" blockAlign="center">
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f3f4f6", borderRadius: 20, padding: "3px 10px" }}>
-                <span style={{ color: tc, fontSize: 15, lineHeight: 1, fontWeight: 500 }}>−</span>
-                <span style={{ color: tc, fontWeight: 700 }}>1</span>
-                <span style={{ color: tc, fontSize: 15, lineHeight: 1, fontWeight: 500 }}>+</span>
-              </div>
-              <span style={{ color: tc, fontWeight: 700 }}>{price}</span>
-            </InlineStack>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <BlockStack gap="150">
+              <InlineStack align="space-between" blockAlign="start" gap="200" wrap={false}>
+                <div style={{ minWidth: 0 }}>
+                  <Text as="p" variant="bodyMd" fontWeight="semibold">
+                    <span style={{ color: tc, fontSize: `${fs}px`, lineHeight: "18px", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {name}
+                    </span>
+                  </Text>
+                  <Text as="p" variant="bodySm">
+                    <span style={{ color: tc, opacity: 0.66 }}>{variant}</span>
+                  </Text>
+                </div>
+                <button type="button" aria-label={`Remove ${name}`} style={{ border: "none", background: "transparent", color: ic, width: 24, height: 24, display: "grid", placeItems: "center", padding: 0, cursor: "pointer" }}>
+                  <PreviewIcon source={DeleteIcon} size={15} color="currentColor" />
+                </button>
+              </InlineStack>
+
+              <InlineStack align="space-between" blockAlign="center" gap="300" wrap={false}>
+                {isReward ? (
+                  <Badge tone="success">{badge || "Free product"}</Badge>
+                ) : (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.72)", border: `1px solid ${brc}`, borderRadius: 999, padding: "3px 10px" }}>
+                    <span style={{ color: ic, fontSize: 15, lineHeight: 1, fontWeight: 700 }}>-</span>
+                    <span style={{ color: tc, fontWeight: 700, minWidth: 10, textAlign: "center" }}>1</span>
+                    <span style={{ color: ic, fontSize: 15, lineHeight: 1, fontWeight: 700 }}>+</span>
+                  </div>
+                )}
+                <InlineStack gap="150" blockAlign="center" wrap={false}>
+                  {compareAt && <span style={{ color: tc, opacity: 0.48, textDecoration: "line-through", fontSize: 11, fontWeight: 700 }}>{compareAt}</span>}
+                  <span style={{ color: isReward ? pc : tc, fontWeight: 800, fontSize: `${Math.max(fs, 12)}px` }}>{price}</span>
+                </InlineStack>
+              </InlineStack>
+            </BlockStack>
           </div>
-        </div>
-      </InlineStack>
-    </div>
+        </InlineStack>
+      </div>
+    </Box>
   );
 
   const UpsellPreview = () => (
     <div style={{ padding: "8px 12px", borderTop: `1px solid ${brc}`, background: upsellBg }}>
       <div style={{ border: `1px solid ${upsellBorder}`, borderRadius: 12, background: "rgba(255,255,255,0.82)", boxShadow: "0 8px 22px rgba(15,23,42,0.08)", overflow: "hidden" }}>
-        <div style={{ padding: "8px 10px 6px", display: "flex", gap: 10, alignItems: "center" }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ color: upsellText, fontSize: 13, lineHeight: "18px", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {upsellTitle}
-            </div>
-          </div>
-        </div>
+        <Box paddingInline="300" paddingBlockStart="200" paddingBlockEnd="150">
+          <InlineStack align="space-between" blockAlign="center" gap="200">
+            <Text as="p" variant="bodySm" fontWeight="bold">
+              <span style={{ color: upsellText }}>{upsellTitle}</span>
+            </Text>
+            <Badge tone={upsellIsSlider ? "info" : undefined}>{upsellIsSlider ? "Slider" : "Grid"}</Badge>
+          </InlineStack>
+        </Box>
 
         <div style={{ display: "grid", gridTemplateColumns: upsellIsSlider ? "24px minmax(0, 1fr) 24px" : "minmax(0, 1fr)", gap: 6, alignItems: "center", padding: "0 8px 8px" }}>
           {upsellIsSlider && (
@@ -1028,11 +1061,7 @@ function CartDrawerPreview({
                 }}
               >
                 {product.image ? (
-                  <img
-                    src={product.image}
-                    alt={product.title}
-                    style={{ width: 50, height: 50, borderRadius: 9, objectFit: "cover", display: "block", background: "#f3f4f6" }}
-                  />
+                  <Thumbnail source={product.image} alt={product.title} size="small" />
                 ) : (
                   <div style={{ width: 50, height: 50, borderRadius: 9, background: index === 0 ? "linear-gradient(135deg,#111827,#6b7280)" : "linear-gradient(135deg,#f3f4f6,#dbeafe)", display: "flex", alignItems: "center", justifyContent: "center", color: index === 0 ? "#fff" : upsellArrowColor }}>
                     <PreviewIcon source={PackageFulfilledIcon} size={20} color="currentColor" />
@@ -1086,23 +1115,32 @@ function CartDrawerPreview({
   const annColor = announcementText || "#fff";
 
   return (
-    <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", background: bg || "#fff", color: tc, userSelect: "none", minHeight: 600, fontSize: `${fs}px` }}>
+    <div style={{ border: `1px solid ${brc}`, borderRadius: 12, overflow: "hidden", ...drawerBackgroundStyle, color: tc, userSelect: "none", minHeight: 600, fontSize: `${fs}px`, fontFamily }}>
       {/* Marquee keyframes */}
       <style>{`
         @keyframes cp-mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
         @keyframes cp-upsell-slide-in{0%{opacity:0;transform:translateX(18px)}100%{opacity:1;transform:translateX(0)}}
       `}</style>
 
+      <Box padding="300" background="bg-surface-secondary">
+        <InlineStack gap="150" align="center">
+          <Badge tone={drawerAutoOpen ? "success" : "attention"}>{behaviorLabel}</Badge>
+          <Badge>{positionLabel}</Badge>
+          <Badge>{mobileLabel}</Badge>
+          <Badge tone={stickyCheckout ? "info" : undefined}>{checkoutModeLabel}</Badge>
+        </InlineStack>
+      </Box>
+
       {/* ── Header ── */}
-      <div style={{ ...headerBgStyle, padding: "14px 16px" }}>
-        <InlineStack align="space-between" blockAlign="center">
-          <InlineStack gap="200" blockAlign="center">
+      <div style={{ ...headerBgStyle, padding: "14px 16px", borderTop: `1px solid ${brc}` }}>
+        <InlineStack align="space-between" blockAlign="center" wrap={false}>
+          <InlineStack gap="200" blockAlign="center" wrap={false}>
             {showCustomCartIcon ? (
               <img src={cartIconUrl} alt="Cart icon" style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0 }} />
             ) : (
               <PreviewIcon source={selectedCartIcon} size={22} color={ic} />
             )}
-            <span style={{ color: hc, fontWeight: 700, fontSize: 17, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>Cart</span>
+            <span style={{ color: hc, fontWeight: 800, fontSize: `${headingFs}px`, lineHeight: 1.15, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>Cart</span>
           </InlineStack>
           <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.88)", borderRadius: 20, padding: "4px 12px", cursor: "pointer" }}>
             <PreviewIcon source={XIcon} size={12} color={ic} />
@@ -1133,6 +1171,9 @@ function CartDrawerPreview({
       <div style={{ padding: "14px 16px 4px", background: drawerSectionBg }}>
         <div style={{ textAlign: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 11, color: ptc, opacity: 0.7 }}>{nextGoalText}</span>
+        </div>
+        <div style={{ marginBottom: 10, opacity: 0.32 }}>
+          <ProgressBar progress={progressFill} size="small" />
         </div>
 
         {/* Track + milestone circles */}
@@ -1176,8 +1217,9 @@ function CartDrawerPreview({
       </div>
 
       {/* ── Cart items ── */}
-      <CartItem name="Sample Product" variant="Small / Black" price="300 INR" />
-      <CartItem name="Another Product" variant="M / White" price="450 INR" />
+      <CartItem name="Sample Product" variant="Small / Black" price="300 INR" image="/images/upsellproduct.png" />
+      <CartItem name="Another Product" variant="M / White" price="450 INR" image="/images/cart-lift.png" />
+      <CartItem name="Free Gift Product" variant="Unlocked reward" price="Free" compareAt="250 INR" image="/images/FreeProduct.png" badge="Free product" isReward />
 
       {showUpsell && <UpsellPreview />}
 
@@ -1243,14 +1285,14 @@ function CartDrawerPreview({
       )}
 
       {/* ── Total + Checkout ── */}
-      <div style={{ display: "flex", alignItems: "stretch", borderTop: `1px solid ${brc}` }}>
+      <div style={{ display: "flex", alignItems: "stretch", borderTop: `1px solid ${brc}`, position: stickyCheckout ? "sticky" : "relative", bottom: stickyCheckout ? 0 : "auto", background: drawerBgMode === "color" ? bg || "#fff" : "rgba(255,255,255,0.82)", boxShadow: stickyCheckout ? "0 -10px 24px rgba(15,23,42,0.08)" : "none" }}>
         <div style={{ flex: 1, padding: "12px 16px" }}>
           <BlockStack gap="050">
             <span style={{ color: tc, opacity: 0.65 }}>Total</span>
             <span style={{ color: tc, fontSize: 16, fontWeight: 700 }}>750 INR</span>
           </BlockStack>
         </div>
-        <div style={{ background: bc, color: blc, padding: "0 36px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, cursor: "pointer", minWidth: 260, borderRadius: `0 0 ${r}px 0` }}>
+        <div style={{ background: bc, color: blc, padding: "0 36px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: `${Math.max(fs, 13)}px`, fontWeight: 700, cursor: "pointer", minWidth: 260, borderRadius: `0 0 ${Math.max(r, 0)}px 0` }}>
           {checkoutText || "Checkout"}
         </div>
       </div>
@@ -1283,6 +1325,7 @@ export default function CustomizePreview() {
   const isSaving = navigation.state === "submitting";
 
   // Typography & Sizes
+  const [font, setFont] = useState(s.font ?? DEFAULT_STYLE.font);
   const [base, setBase] = useState(s.base ?? DEFAULT_STYLE.base);
   const [headingScale, setHeadingScale] = useState(s.headingScale ?? DEFAULT_STYLE.headingScale);
   const [radius, setRadius] = useState(s.radius ?? DEFAULT_STYLE.radius);
@@ -1342,7 +1385,7 @@ export default function CustomizePreview() {
 
   const handleSave = () => {
     submit({
-      base, headingScale, radius,
+      font, base, headingScale, radius,
       textColor, bg, progress, buttonColor, buttonLabelColor, borderColor, iconColor,
       announcementBarBackgroundColor: announcementBg, announcementBarTextColor: announcementText, announcementBarText: announcementBarMsg,
       checkoutButtonText, discountCodeApply,
@@ -1388,7 +1431,14 @@ export default function CustomizePreview() {
             {/* Typography & Sizes */}
             <SectionCard icon={ThemeIcon} title="Typography & Sizes">
               <BlockStack gap="400">
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+                  <TextField
+                    label="Font family"
+                    value={font}
+                    onChange={setFont}
+                    autoComplete="off"
+                    helpText="CSS font family used inside the cart drawer."
+                  />
                   <TextField
                     label="Base size (px)"
                     value={base}
@@ -1626,11 +1676,12 @@ export default function CustomizePreview() {
 
           {/* ── Sidebar: full-size preview only ── */}
           <div className="cp-preview-sticky">
-            <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid #e1e3e5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <Text variant="bodyMd" fontWeight="semibold" as="p">Live Preview</Text>
-              </div>
-              <div style={{ padding: "16px" }}>
+            <Card>
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Live Preview</Text>
+                  <Badge tone="info">Polaris mockup</Badge>
+                </InlineStack>
                 <CartDrawerPreview
                   bg={previewBg}
                   uiBg={bg}
@@ -1642,6 +1693,8 @@ export default function CustomizePreview() {
                   progress={progress}
                   radius={radius}
                   base={base}
+                  headingScale={headingScale}
+                  font={font}
                   checkoutText={checkoutButtonText}
                   announcementBg={announcementBg}
                   announcementText={announcementText}
@@ -1659,12 +1712,16 @@ export default function CustomizePreview() {
                   iconColor={iconColor}
                   drawerBgMode={drawerBgMode}
                   drawerImage={drawerImage}
+                  drawerAutoOpen={drawerAutoOpen}
+                  drawerPosition={drawerPosition}
+                  stickyCheckout={stickyCheckout}
+                  mobileLayout={mobileLayout}
                   cartIconUrl={cartIconUrl}
                   cartIconType={cartIconType}
                   cartDefaultIcon={cartDefaultIcon}
                 />
-              </div>
-            </div>
+              </BlockStack>
+            </Card>
           </div>
         </div>
       </Box>
