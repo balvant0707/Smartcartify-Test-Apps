@@ -33,6 +33,10 @@ function formatCartGoalCampaignName(rule, index) {
   return name;
 }
 
+function ruleTypeSortRank(ruleType) {
+  return ruleType === "cart-goal" ? 0 : 1;
+}
+
 async function nextCartGoalCampaignName(shop) {
   const rows = await prisma.cartGoalRule.findMany({
     where: { shop },
@@ -179,7 +183,11 @@ export const loader = async ({ request }) => {
     })),
   ]
     .filter((rule) => !HIDDEN_CAMPAIGN_TYPES.has(rule.ruleType))
-    .sort((a, b) => (Number(b.priority || 0) - Number(a.priority || 0)) || (new Date(b.updatedAt) - new Date(a.updatedAt)));
+    .sort((a, b) =>
+      (ruleTypeSortRank(a.ruleType) - ruleTypeSortRank(b.ruleType)) ||
+      (Number(b.priority || 0) - Number(a.priority || 0)) ||
+      (new Date(b.updatedAt) - new Date(a.updatedAt))
+    );
 
   return { rules };
 };
