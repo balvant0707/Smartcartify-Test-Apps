@@ -6768,21 +6768,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const unitPrice = Number(it.price) || 0;
         const compareUnit = Number(it.compare_at_price) || 0;
         const compareLine = Math.max(0, compareUnit * qty);
-        const rewardOriginalCents = isReward
-          ? Math.max(
-            0,
-            Number(it?.original_line_price) ||
-            Number(it?.line_price) ||
-            (unitPrice * qty) ||
-            compareLine ||
-            finalLine
-          )
+        const rewardCompareCents = isReward
+          ? [
+            Number(it?.original_line_price),
+            compareLine,
+            unitPrice * qty,
+          ].find((value) => Number.isFinite(value) && value > 0) || 0
           : 0;
         const hasCompare = isReward
-          ? rewardOriginalCents > 0
+          ? rewardCompareCents > 0
           : compareUnit > 0 && compareUnit > unitPrice;
 
-        const showPrice = true;
+        const showPrice = !isReward;
         const displayPrice = Math.max(
           0,
           isReward ? 0 : Number(it.final_line_price) ||
@@ -6826,8 +6823,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
                   <button type="button" data-qty="inc" aria-label="Increase">+</button>
                 </div>`}
                 <div class="sc-pricebox">
-                  ${hasCompare && showPrice
-            ? `<span class="sc-compare">${formatMoney(isReward ? rewardOriginalCents : compareLine, currency)}</span>`
+                  ${hasCompare
+            ? `<span class="sc-compare">${formatMoney(isReward ? rewardCompareCents : compareLine, currency)}</span>`
             : ``
           }
                   ${showPrice ? `<span class="${priceClass}">${priceText}</span>` : ``}

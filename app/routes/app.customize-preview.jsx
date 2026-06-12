@@ -7,7 +7,7 @@ import {
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, Banner, DropZone, Card, Badge, Thumbnail, ProgressBar,
+  Icon, Banner, DropZone, Card, Badge, Thumbnail,
 } from "@shopify/polaris";
 import {
   ThemeIcon, MinimizeIcon, MaximizeIcon,
@@ -805,11 +805,6 @@ function CartDrawerPreview({
   const ic = iconColor || pc;
   const uiSurface = uiBg || "#ffffff";
   const softPanel = drawerBgMode === "color" ? uiSurface : "rgba(255,255,255,0.76)";
-  const behaviorLabel = drawerAutoOpen ? "Auto-open on" : "Auto-open off";
-  const positionLabel = String(drawerPosition || "right") === "left" ? "Left drawer" : "Right drawer";
-  const mobileLabel = String(mobileLayout || "drawer") === "bottom_sheet" ? "Bottom sheet" : "Mobile drawer";
-  const checkoutModeLabel = stickyCheckout ? "Sticky checkout" : "Static checkout";
-
   // ── Build announcement messages ──────────────────────────────────────────────
   const announceMessages = [];
   if (announcementBarText) announceMessages.push(announcementBarText);
@@ -1122,17 +1117,8 @@ function CartDrawerPreview({
         @keyframes cp-upsell-slide-in{0%{opacity:0;transform:translateX(18px)}100%{opacity:1;transform:translateX(0)}}
       `}</style>
 
-      <Box padding="300" background="bg-surface-secondary">
-        <InlineStack gap="150" align="center">
-          <Badge tone={drawerAutoOpen ? "success" : "attention"}>{behaviorLabel}</Badge>
-          <Badge>{positionLabel}</Badge>
-          <Badge>{mobileLabel}</Badge>
-          <Badge tone={stickyCheckout ? "info" : undefined}>{checkoutModeLabel}</Badge>
-        </InlineStack>
-      </Box>
-
       {/* ── Header ── */}
-      <div style={{ ...headerBgStyle, padding: "14px 16px", borderTop: `1px solid ${brc}` }}>
+      <div style={{ ...headerBgStyle, padding: "14px 16px" }}>
         <InlineStack align="space-between" blockAlign="center" wrap={false}>
           <InlineStack gap="200" blockAlign="center" wrap={false}>
             {showCustomCartIcon ? (
@@ -1172,10 +1158,6 @@ function CartDrawerPreview({
         <div style={{ textAlign: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 11, color: ptc, opacity: 0.7 }}>{nextGoalText}</span>
         </div>
-        <div style={{ marginBottom: 10, opacity: 0.32 }}>
-          <ProgressBar progress={progressFill} size="small" />
-        </div>
-
         {/* Track + milestone circles */}
         <div style={{ position: "relative", height: 34, marginBottom: 8 }}>
           <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 8, background: brc, borderRadius: 999, transform: "translateY(-50%)" }}>
@@ -1680,7 +1662,6 @@ export default function CustomizePreview() {
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="center">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Live Preview</Text>
-                  <Badge tone="info">Polaris mockup</Badge>
                 </InlineStack>
                 <CartDrawerPreview
                   bg={previewBg}
