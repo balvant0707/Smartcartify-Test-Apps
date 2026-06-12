@@ -1783,6 +1783,9 @@ export default function RuleCartGoal() {
           gap: 20px;
           align-items: start;
         }
+        .cg-layout .Polaris-ShadowBevel {
+          border-radius: 12px;
+        }
         .cg-savingOverlay {
           position: fixed;
           inset: 0;
@@ -1814,10 +1817,11 @@ export default function RuleCartGoal() {
         }
         .cg-roundedSurface {
           background: #fff;
+          border-radius: 12px;
           overflow: hidden;
         }
         .cg-roundedSurface > .Polaris-ShadowBevel {
-          border-radius: 10px;
+          border-radius: 12px;
         }
         .cg-milestoneList {
           display: grid;
