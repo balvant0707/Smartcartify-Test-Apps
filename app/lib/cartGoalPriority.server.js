@@ -64,7 +64,9 @@ async function setAutomaticDiscountActive(admin, discountId, enabled) {
     ? "discountAutomaticActivate"
     : "discountAutomaticDeactivate";
 
-  const result = await (await admin.graphql(mutation, { variables: { id: discountId } })).json();
+  const result = await (await admin.graphql(mutation, {
+    variables: { id: automaticDiscountNodeId(discountId) },
+  })).json();
   const topLevelErrors = result?.errors || [];
   const userErrors = result?.data?.[rootKey]?.userErrors || [];
 
@@ -130,6 +132,15 @@ function automaticDiscountUpdateId(id, discountType) {
   );
 }
 
+function automaticDiscountNodeId(id) {
+  const raw = String(id || "").trim();
+  if (!raw) return raw;
+  return raw
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticBasic\//, "gid://shopify/DiscountAutomaticNode/")
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticBxgy\//, "gid://shopify/DiscountAutomaticNode/")
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticFreeShipping\//, "gid://shopify/DiscountAutomaticNode/");
+}
+
 function combinesWithForDiscountClasses(discountClasses = []) {
   const classes = new Set(
     (Array.isArray(discountClasses) ? discountClasses : [])
@@ -148,7 +159,7 @@ function combinesWithForDiscountClasses(discountClasses = []) {
 
 async function getAutomaticDiscountDetails(admin, discountId) {
   const result = await (await admin.graphql(DISCOUNT_CLASSES_QUERY, {
-    variables: { id: discountId },
+    variables: { id: automaticDiscountNodeId(discountId) },
   })).json();
 
   const topLevelErrors = result?.errors || [];
@@ -182,15 +193,19 @@ async function setCartGoalDiscountCombines(admin, discountId) {
     DiscountAutomaticFreeShipping: {
       mutation: FREE_SHIPPING_COMBINES_UPDATE,
       rootKey: "discountAutomaticFreeShippingUpdate",
-      discountType: "DiscountAutomaticFreeShipping",
+      discountType: null,
     },
   }[discount.__typename];
 
   if (!updateConfig) return;
 
+  const updateId = updateConfig.discountType
+    ? automaticDiscountUpdateId(discountId, updateConfig.discountType)
+    : automaticDiscountNodeId(discountId);
+
   const result = await (await admin.graphql(updateConfig.mutation, {
     variables: {
-      id: automaticDiscountUpdateId(discountId, updateConfig.discountType),
+      id: updateId,
       input: {
         combinesWith,
       },

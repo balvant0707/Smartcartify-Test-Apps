@@ -104,6 +104,15 @@ function automaticDiscountUpdateId(id, discountType) {
   );
 }
 
+function automaticDiscountNodeId(id) {
+  const raw = String(id || "").trim();
+  if (!raw) return raw;
+  return raw
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticBasic\//, "gid://shopify/DiscountAutomaticNode/")
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticBxgy\//, "gid://shopify/DiscountAutomaticNode/")
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticFreeShipping\//, "gid://shopify/DiscountAutomaticNode/");
+}
+
 function withAppNameTitle(title, fallback = "Discount") {
   const base = String(title || fallback).trim() || fallback;
   return base.toLowerCase().includes(SHOPIFY_TITLE_APP_NAME.toLowerCase())
@@ -477,7 +486,7 @@ export async function upsertFreeShipping(admin, {
 
   if (existingId) {
     const data = await gql(admin, FREE_SHIPPING_UPDATE, {
-      id: automaticDiscountUpdateId(existingId, "DiscountAutomaticFreeShipping"),
+      id: automaticDiscountNodeId(existingId),
       input,
     });
     assertDiscountMutationSuccess(data, "discountAutomaticFreeShippingUpdate", "Shopify free shipping discount update");

@@ -227,10 +227,21 @@ const DELIVERY_PROFILE_UPDATE = `#graphql
     }
   }`;
 
+function automaticDiscountNodeId(id) {
+  const raw = String(id || "").trim();
+  if (!raw) return raw;
+  return raw
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticBasic\//, "gid://shopify/DiscountAutomaticNode/")
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticBxgy\//, "gid://shopify/DiscountAutomaticNode/")
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticFreeShipping\//, "gid://shopify/DiscountAutomaticNode/");
+}
+
 async function deleteShopifyDiscount(admin, id) {
   if (!id) return;
   try {
-    await (await admin.graphql(DELETE_AUTOMATIC, { variables: { id } })).json();
+    await (await admin.graphql(DELETE_AUTOMATIC, {
+      variables: { id: automaticDiscountNodeId(id) },
+    })).json();
   } catch {
     try {
       await (await admin.graphql(DELETE_CODE, { variables: { id } })).json();

@@ -92,6 +92,15 @@ const automaticDiscountUpdateId = (id, discountType) => {
   );
 };
 
+const automaticDiscountNodeId = (id) => {
+  const raw = String(id || "").trim();
+  if (!raw) return raw;
+  return raw
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticBasic\//, "gid://shopify/DiscountAutomaticNode/")
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticBxgy\//, "gid://shopify/DiscountAutomaticNode/")
+    .replace(/^gid:\/\/shopify\/DiscountAutomaticFreeShipping\//, "gid://shopify/DiscountAutomaticNode/");
+};
+
 const adminGraphql = async (
   shopDomain,
   accessToken,
@@ -396,7 +405,9 @@ const deleteShopifyDiscountById = async (
   `;
 
   try {
-    await adminGraphql(shopDomain, accessToken, deleteAutomaticMutation, { id });
+    await adminGraphql(shopDomain, accessToken, deleteAutomaticMutation, {
+      id: automaticDiscountNodeId(id),
+    });
     return true;
   } catch (automaticErr) {
     logger.warn("deleteShopifyDiscountById: automatic delete failed, trying code delete", automaticErr?.message ?? automaticErr);
@@ -436,7 +447,9 @@ const setShopifyDiscountActiveState = async ({
     ? AUTOMATIC_DISCOUNT_ACTIVATE_MUTATION
     : AUTOMATIC_DISCOUNT_DEACTIVATE_MUTATION;
 
-  await adminGraphql(shopDomain, accessToken, mutation, { id: discountId });
+  await adminGraphql(shopDomain, accessToken, mutation, {
+    id: automaticDiscountNodeId(discountId),
+  });
 };
 
 // ---------- BASIC MIN-AMOUNT FREE GIFT DISCOUNT ----------
