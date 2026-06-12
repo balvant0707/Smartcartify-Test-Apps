@@ -7,6 +7,7 @@ import {
 import {
   DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon,
   DeleteIcon, PlusIcon, DuplicateIcon, ChevronUpIcon, ChevronDownIcon,
+  ProductIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -29,6 +30,19 @@ function formatCartStep(value) {
 }
 
 const ANNOUNCEMENT_BAR_LABEL = "Announcement Bar";
+
+function parseStoredIds(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(Boolean) : [];
+  } catch {
+    return typeof raw === "string"
+      ? raw.split(",").map((item) => item.trim()).filter(Boolean)
+      : [];
+  }
+}
 
 function formatCartGoalCampaignName(rule, index) {
   const name = String(rule?.campaignName || "").trim();
@@ -64,7 +78,7 @@ export const loader = async ({ request }) => {
     console.warn("Cart Goal priority reconciliation failed", err?.message || err);
   }
 
-  const [shippingRows, discountRows, freeRows, bxgyRows, cartGoalRows] = await Promise.all([
+  const [shippingRows, discountRows, freeRows, bxgyRows, cartGoalRows, upsellRow] = await Promise.all([
     prisma.shippingRule.findMany({
       where: { shop },
       orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
@@ -90,6 +104,20 @@ export const loader = async ({ request }) => {
       orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
       select: { id: true, campaignName: true, enabled: true, updatedAt: true, trackBy: true, shownGoals: true, priority: true },
     }),
+    prisma.upsellSettings.findUnique({
+      where: { shop },
+      select: {
+        id: true,
+        enabled: true,
+        updatedAt: true,
+        recommendationMode: true,
+        sectionTitle: true,
+        showAsSlider: true,
+        autoplay: true,
+        selectedProductIds: true,
+        selectedCollectionIds: true,
+      },
+    }).catch(() => null),
   ]);
 
   const fmtMoney = (v) => (v ? `$${v}` : null);
@@ -121,6 +149,26 @@ export const loader = async ({ request }) => {
         ? `Min ${fmtMoney(r.minPurchase)}`
         : "No minimum";
     return `Free gift Â· ${trigger}`;
+  };
+
+  const upsellMeta = (r) => {
+    const productCount = parseStoredIds(r.selectedProductIds).length;
+    const collectionCount = parseStoredIds(r.selectedCollectionIds).length;
+    const mode = String(r.recommendationMode || "auto").toLowerCase();
+    const source =
+      mode === "manual"
+        ? productCount > 0
+          ? `${productCount} selected product${productCount === 1 ? "" : "s"}`
+          : collectionCount > 0
+            ? `${collectionCount} selected collection${collectionCount === 1 ? "" : "s"}`
+            : "Manual selection"
+        : "Automatic recommendations";
+    const display = r.showAsSlider === false
+      ? "Static list"
+      : r.autoplay === false
+        ? "Slider"
+        : "Autoplay slider";
+    return `${source} · ${display}`;
   };
 
   const rules = [
@@ -188,6 +236,17 @@ export const loader = async ({ request }) => {
       cartStep: "Cart Drawer",
       priority: r.priority || 0,
     })),
+    ...(upsellRow ? [{
+      id: upsellRow.id,
+      ruleType: "upsell-product",
+      name: upsellRow.sectionTitle || "Upsell Product",
+      status: upsellRow.enabled ? "active" : "disabled",
+      updatedAt: upsellRow.updatedAt,
+      meta: upsellMeta(upsellRow),
+      cartStep: "Cart Drawer",
+      priority: 0,
+      singleton: true,
+    }] : []),
   ]
     .filter((rule) => !HIDDEN_CAMPAIGN_TYPES.has(rule.ruleType))
     .sort((a, b) =>
@@ -281,6 +340,10 @@ function getRuleModel(ruleType) {
 }
 
 async function duplicateRule(ruleType, id, shop) {
+  if (ruleType === "upsell-product") {
+    throw new Error("Upsell Product is a single settings rule and cannot be duplicated.");
+  }
+
   const model = getRuleModel(ruleType);
   if (!model) throw new Error("Unknown rule type");
 
@@ -332,6 +395,8 @@ async function duplicateRule(ruleType, id, shop) {
 }
 
 async function setRulePriority(ruleType, id, shop, priority) {
+  if (ruleType === "upsell-product") return;
+
   const model = getRuleModel(ruleType);
   if (!model) throw new Error("Unknown rule type");
   await model.updateMany({
@@ -406,6 +471,9 @@ export const action = async ({ request }) => {
         await prisma.cartGoalRule.deleteMany({ where: { id, shop } });
         await reconcileCartGoalPriorityDiscounts(admin, shop);
         break;
+      case "upsell-product":
+        await prisma.upsellSettings.deleteMany({ where: { id, shop } });
+        break;
       default:
         return Response.json({ error: "Unknown rule type" }, { status: 400 });
     }
@@ -461,6 +529,7 @@ const RULE_ROUTES = {
   "code-discount": "/app/rule-code-discount",
   "buy-x-get-y": "/app/rule-bxgy",
   "cart-goal": "/app/rule-cart-goal",
+  "upsell-product": "/app/rule-upsell",
 };
 
 const RULE_META = {
@@ -470,6 +539,7 @@ const RULE_META = {
   "code-discount": { label: "Code Discount", icon: CodeIcon, color: "#10b981", bg: "#ecfdf5", image: "/images/campaigns/Code Discount.svg" },
   "buy-x-get-y": { label: "Buy X Get Y Discount", icon: GiftCardIcon, color: "#ef4444", bg: "#fff1f2", image: "/images/campaigns/buyxgety.svg" },
   "cart-goal": { label: "Cart Goal", icon: DiscountIcon, color: "#d946ef", bg: "#fdf4ff", image: "/images/campaigns/campaign-ico-cart-goal.svg" },
+  "upsell-product": { label: "Upsell Product", icon: ProductIcon, color: "#2563eb", bg: "#eff6ff", image: "/images/campaigns/Upsell Product Rules.svg" },
 };
 
 const TABS = [
@@ -477,6 +547,7 @@ const TABS = [
   { id: "code-discount", content: "Code Discount" },
   { id: "buy-x-get-y", content: "Buy X Get Y Discount" },
   { id: "cart-goal", content: "Cart Goal" },
+  { id: "upsell-product", content: "Upsell Product" },
 ];
 
 const TABLE_HEADINGS = [
@@ -554,6 +625,7 @@ export default function MyRules() {
   const filtered = activeType === "all"
     ? rules
     : rules.filter((r) => r.ruleType === activeType);
+  const movableFiltered = filtered.filter((row) => !row.singleton);
 
   const handleEdit = (rule) => {
     const base = RULE_ROUTES[rule.ruleType];
@@ -590,7 +662,7 @@ export default function MyRules() {
         id: rule.id,
         ruleType: rule.ruleType,
         direction,
-        rows: filtered.map((row) => ({ id: row.id, ruleType: row.ruleType })),
+        rows: movableFiltered.map((row) => ({ id: row.id, ruleType: row.ruleType })),
       },
       { method: "post", encType: "application/json" }
     );
@@ -656,6 +728,11 @@ export default function MyRules() {
             >
               {filtered.map((rule, i) => {
                 const meta = RULE_META[rule.ruleType] || {};
+                const movableIndex = rule.singleton
+                  ? -1
+                  : movableFiltered.findIndex((row) =>
+                    row.id === rule.id && row.ruleType === rule.ruleType
+                  );
                 return (
                   <IndexTable.Row
                     key={`${rule.ruleType}-${rule.id}`}
@@ -704,41 +781,47 @@ export default function MyRules() {
                           accessibilityLabel={`Delete ${rule.name}`}
                           loading={deletingKey === `${rule.ruleType}-${rule.id}`}
                         />
-                        <Tooltip content="Duplicate rule">
-                          <Button
-                            size="slim"
-                            icon={DuplicateIcon}
-                            onClick={() => handleDuplicate(rule)}
-                            loading={busyKey === `duplicate-${rule.ruleType}-${rule.id}`}
-                            accessibilityLabel={`Duplicate ${rule.name}`}
-                          />
-                        </Tooltip>
+                        {!rule.singleton && (
+                          <Tooltip content="Duplicate rule">
+                            <Button
+                              size="slim"
+                              icon={DuplicateIcon}
+                              onClick={() => handleDuplicate(rule)}
+                              loading={busyKey === `duplicate-${rule.ruleType}-${rule.id}`}
+                              accessibilityLabel={`Duplicate ${rule.name}`}
+                            />
+                          </Tooltip>
+                        )}
                       </InlineStack>
                     </IndexTable.Cell>
 
                     <IndexTable.Cell>
-                      <InlineStack gap="100" align="center" wrap={false}>
-                        <Tooltip content="Move up">
-                          <Button
-                            variant="plain"
-                            icon={ChevronUpIcon}
-                            disabled={i === 0}
-                            onClick={() => handleMove(rule, "up")}
-                            loading={busyKey === `move-up-${rule.ruleType}-${rule.id}`}
-                            accessibilityLabel={`Move ${rule.name} up`}
-                          />
-                        </Tooltip>
-                        <Tooltip content="Move down">
-                          <Button
-                            variant="plain"
-                            icon={ChevronDownIcon}
-                            disabled={i === filtered.length - 1}
-                            onClick={() => handleMove(rule, "down")}
-                            loading={busyKey === `move-down-${rule.ruleType}-${rule.id}`}
-                            accessibilityLabel={`Move ${rule.name} down`}
-                          />
-                        </Tooltip>
-                      </InlineStack>
+                      {rule.singleton ? (
+                        <Text as="span" tone="subdued">Fixed</Text>
+                      ) : (
+                        <InlineStack gap="100" align="center" wrap={false}>
+                          <Tooltip content="Move up">
+                            <Button
+                              variant="plain"
+                              icon={ChevronUpIcon}
+                              disabled={movableIndex <= 0}
+                              onClick={() => handleMove(rule, "up")}
+                              loading={busyKey === `move-up-${rule.ruleType}-${rule.id}`}
+                              accessibilityLabel={`Move ${rule.name} up`}
+                            />
+                          </Tooltip>
+                          <Tooltip content="Move down">
+                            <Button
+                              variant="plain"
+                              icon={ChevronDownIcon}
+                              disabled={movableIndex < 0 || movableIndex === movableFiltered.length - 1}
+                              onClick={() => handleMove(rule, "down")}
+                              loading={busyKey === `move-down-${rule.ruleType}-${rule.id}`}
+                              accessibilityLabel={`Move ${rule.name} down`}
+                            />
+                          </Tooltip>
+                        </InlineStack>
+                      )}
                     </IndexTable.Cell>
 
                   </IndexTable.Row>
