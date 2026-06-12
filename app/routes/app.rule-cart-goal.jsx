@@ -1557,6 +1557,7 @@ export default function RuleCartGoal() {
   const [productPickerGoalIndex, setProductPickerGoalIndex] = useState(null);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [leaveAfterDraftSave, setLeaveAfterDraftSave] = useState(false);
 
   const isSaving = navigation.state === "submitting" && !savingDraft;
   const isSavingDraft = navigation.state === "submitting" && savingDraft;
@@ -1578,13 +1579,26 @@ export default function RuleCartGoal() {
 
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle") {
-      navigate(withHost("/app/campaigns"));
+      if (leaveAfterDraftSave) {
+        const campaignsPath = host
+          ? `/app/campaigns?host=${encodeURIComponent(host)}`
+          : "/app/campaigns";
+        navigate(campaignsPath);
+        return;
+      }
+
+      if (!id && actionData.id) {
+        const idParam = `id=${encodeURIComponent(actionData.id)}`;
+        const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
+        navigate(`/app/rule-cart-goal?${idParam}${hostParam}`, { replace: true });
+      }
     }
-  }, [actionData, navigation.state]);
+  }, [actionData, host, id, leaveAfterDraftSave, navigate, navigation.state]);
 
   useEffect(() => {
     if (navigation.state === "idle") {
       setSavingDraft(false);
+      setLeaveAfterDraftSave(false);
     }
   }, [navigation.state]);
 
@@ -1757,6 +1771,7 @@ export default function RuleCartGoal() {
 
   const handleSaveDraftAndLeave = () => {
     setSavingDraft(true);
+    setLeaveAfterDraftSave(true);
     submit(
       {
         _action: "saveDraft",
