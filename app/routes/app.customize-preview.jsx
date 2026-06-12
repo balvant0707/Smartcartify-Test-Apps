@@ -214,6 +214,33 @@ const productToUpsellPreview = (product, tag) => {
   };
 };
 
+const parseCartGoalArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const cartGoalPrioritySort = (a = {}, b = {}) => {
+  const priorityDiff = Number(b.priority || 0) - Number(a.priority || 0);
+  if (priorityDiff) return priorityDiff;
+
+  const bUpdated = new Date(b.updatedAt || 0).getTime() || 0;
+  const aUpdated = new Date(a.updatedAt || 0).getTime() || 0;
+  const updatedDiff = bUpdated - aUpdated;
+  if (updatedDiff) return updatedDiff;
+
+  return Number(b.id || 0) - Number(a.id || 0);
+};
+
+const hasConfiguredCartGoals = (rule = {}) =>
+  Array.isArray(rule.goals) &&
+  rule.goals.some((goal) => Number(goal?.goal || 0) > 0);
+
 const toShopifyGid = (type, id) => {
   const raw = String(id || "").trim();
   if (!raw) return "";
@@ -298,7 +325,7 @@ export const loader = async ({ request }) => {
 
   const [
     styleRow, shippingRules, discountRules, freeGiftRules,
-    upsellSettings, bxgyRules, codeDiscountRules,
+    upsellSettings, bxgyRules, codeDiscountRules, rawCartGoalRules,
   ] = await Promise.all([
     prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } }),
     prisma.shippingRule.findMany({
@@ -327,7 +354,30 @@ export const loader = async ({ request }) => {
       orderBy: { id: "asc" },
       select: { discountCode: true, value: true, valueType: true, campaignName: true, iconChoice: true, progressTextBefore: true },
     }),
+    prisma.cartGoalRule.findMany({
+      where: { shop, enabled: true },
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        campaignName: true,
+        enabled: true,
+        trackBy: true,
+        shownGoals: true,
+        goals: true,
+        priority: true,
+        updatedAt: true,
+      },
+    }),
   ]);
+
+  const cartGoalRules = (rawCartGoalRules || [])
+    .map((rule) => ({
+      ...rule,
+      goals: parseCartGoalArray(rule.goals),
+      updatedAt: rule.updatedAt?.toISOString?.() || rule.updatedAt || null,
+    }))
+    .filter(hasConfiguredCartGoals)
+    .sort(cartGoalPrioritySort);
 
   const [styleWithIcon, upsellPreviewItems] = await Promise.all([
     loadCartIconUrl(prisma, styleRow),
@@ -343,6 +393,7 @@ export const loader = async ({ request }) => {
     upsellPreviewItems,
     bxgyRules: bxgyRules || [],
     codeDiscountRules: codeDiscountRules || [],
+    cartGoalRules,
     shop,
   };
 };
@@ -471,9 +522,16 @@ function fmtAmount(val) {
 
 function resolveStepText(text, amount, discountOpts = {}) {
   if (!text) return null;
-  let result = text.replace(/\{\{amount\}\}/gi, fmtAmount(amount));
+  const goalValue = discountOpts.goal ?? amount;
+  const formattedGoal = discountOpts.trackBy === "quantity"
+    ? String(goalValue ?? "")
+    : fmtAmount(goalValue);
+  let result = text
+    .replace(/\{\{amount\}\}/gi, fmtAmount(amount))
+    .replace(/\{\{goal\}\}/gi, formattedGoal);
   if (discountOpts.value !== undefined) {
-    const ds = discountOpts.valueType === "percent"
+    const valueType = String(discountOpts.valueType || "").toLowerCase();
+    const ds = valueType === "percent" || valueType === "percentage"
       ? `${parseFloat(discountOpts.value)}%`
       : fmtAmount(discountOpts.value);
     result = result.replace(/\{\{discount\}\}/gi, ds);
@@ -484,6 +542,57 @@ function resolveStepText(text, amount, discountOpts = {}) {
   return result || null;
 }
 
+function normalizeCartGoalRewardType(goal = {}) {
+  const rawType = String(goal.type ?? goal.rewardType ?? goal.ruleType ?? "").toLowerCase();
+  if (rawType.includes("ship")) return "shipping";
+  if (rawType.includes("discount") || rawType.includes("off")) return "discount";
+  if (rawType.includes("gift") || rawType.includes("free") || rawType.includes("product")) return "free";
+  if (goal.discountType || goal.value) return "discount";
+  return "free";
+}
+
+function buildCartGoalPreviewRules(campaign) {
+  if (!campaign) return [];
+  const trackBy = String(campaign.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
+  return parseCartGoalArray(campaign.goals)
+    .filter((goal) => goal && Number(goal.goal) > 0)
+    .map((goal, index) => {
+      const type = normalizeCartGoalRewardType(goal);
+      const threshold = Number(goal.goal);
+      const texts = goal.texts || {};
+      const rule = {
+        ...goal,
+        _ruleType: type,
+        _defaultIcon: type === "shipping" ? DeliveryIcon : type === "discount" ? DiscountIcon : GiftCardIcon,
+        isCartGoal: true,
+        campaignId: campaign.id,
+        campaignName: campaign.campaignName || "Cart Goal",
+        priority: campaign.priority || 0,
+        cartStepName: `step${index + 1}`,
+        triggerType: trackBy === "quantity" ? "quantity" : "amount",
+        progressTextBefore: texts.aboveBefore || "",
+        progressTextAfter: texts.aboveAfter || "",
+        progressTextBelow: texts.below || "",
+        iconChoice: type === "shipping" ? "shipping" : type === "discount" ? "tag" : "gift",
+      };
+
+      if (trackBy === "quantity") {
+        rule.minQuantity = Number.isFinite(threshold) ? threshold : null;
+      } else if (type === "shipping") {
+        rule.minSubtotal = Number.isFinite(threshold) ? threshold : null;
+      } else {
+        rule.minPurchase = Number.isFinite(threshold) ? threshold : null;
+      }
+
+      if (type === "discount") {
+        rule.value = goal.value;
+        rule.valueType = goal.discountType === "amount" ? "amount" : "percentage";
+      }
+
+      return rule;
+    });
+}
+
 // Returns a short human-readable label for a step milestone
 function ruleStepLabel(rule) {
   if (rule._ruleType === "shipping") {
@@ -492,7 +601,7 @@ function ruleStepLabel(rule) {
   }
   if (rule._ruleType === "discount") {
     if (!rule.value) return "Discount";
-    return rule.valueType === "percent"
+    return rule.valueType === "percent" || rule.valueType === "percentage"
       ? `${parseFloat(rule.value)}% Off`
       : `${fmtAmount(rule.value)} Off`;
   }
@@ -502,7 +611,9 @@ function ruleStepLabel(rule) {
 
 // Generates a default "before" progress message when merchant hasn't configured one
 function buildDefaultProgressBefore(rule) {
-  const amt = rule._ruleType === "shipping"
+  const amt = rule.triggerType === "quantity"
+    ? String(rule.minQuantity || 0)
+    : rule._ruleType === "shipping"
     ? fmtAmount(rule.minSubtotal)
     : fmtAmount(rule.minPurchase || "0");
   if (rule._ruleType === "shipping") {
@@ -512,12 +623,20 @@ function buildDefaultProgressBefore(rule) {
   }
   if (rule._ruleType === "discount") {
     const lbl = !rule.value ? "a discount"
-      : rule.valueType === "percent" ? `${parseFloat(rule.value)}% off`
+      : rule.valueType === "percent" || rule.valueType === "percentage" ? `${parseFloat(rule.value)}% off`
       : `${fmtAmount(rule.value)} off`;
-    return `Spend ${amt} more to get ${lbl}`;
+    return rule.triggerType === "quantity"
+      ? `Add ${amt} items to get ${lbl}`
+      : `Spend ${amt} more to get ${lbl}`;
   }
-  if (rule._ruleType === "free") return `Spend ${amt} more for a free gift`;
-  return `Spend ${amt} more to unlock your reward`;
+  if (rule._ruleType === "free") {
+    return rule.triggerType === "quantity"
+      ? `Add ${amt} items for a free gift`
+      : `Spend ${amt} more for a free gift`;
+  }
+  return rule.triggerType === "quantity"
+    ? `Add ${amt} items to unlock your reward`
+    : `Spend ${amt} more to unlock your reward`;
 }
 
 // Generates a default "after" progress message when merchant hasn't configured one
@@ -529,7 +648,7 @@ function buildDefaultProgressAfter(rule) {
   }
   if (rule._ruleType === "discount") {
     if (!rule.value) return "Discount unlocked! 🎉";
-    const lbl = rule.valueType === "percent"
+    const lbl = rule.valueType === "percent" || rule.valueType === "percentage"
       ? `${parseFloat(rule.value)}% off`
       : `${fmtAmount(rule.value)} off`;
     return `${lbl} unlocked! 🎉`;
@@ -585,7 +704,7 @@ function CartDrawerPreview({
   bg, uiBg, textColor, progressTextColor, headerColor, buttonColor, buttonLabelColor,
   progress, radius, base, checkoutText,
   announcementBg, announcementText, announcementBarText,
-  shippingRules, discountRules, freeGiftRules, upsellSettings,
+  shippingRules, discountRules, freeGiftRules, cartGoalRules, upsellSettings,
   upsellPreviewItems,
   bxgyRules, codeDiscountRules,
   drawerBgMode, drawerImage,
@@ -631,7 +750,9 @@ function CartDrawerPreview({
   if (!announceMessages.length) announceMessages.push("Cart Announcement Goes here");
 
   // ── Build cart steps 1–4 ─────────────────────────────────────────────────────
-  const taggedRules = [
+  const topCartGoalCampaign = (cartGoalRules || [])[0] || null;
+  const cartGoalPreviewRules = buildCartGoalPreviewRules(topCartGoalCampaign);
+  const taggedRules = cartGoalPreviewRules.length ? cartGoalPreviewRules : [
     ...(shippingRules || []).map((r) => ({ ...r, _ruleType: "shipping", _defaultIcon: DeliveryIcon })),
     ...(discountRules || []).map((r) => ({ ...r, _ruleType: "discount", _defaultIcon: DiscountIcon })),
     ...(freeGiftRules || []).map((r) => ({ ...r, _ruleType: "free", _defaultIcon: GiftCardIcon })),
@@ -660,10 +781,14 @@ function CartDrawerPreview({
   const firstPending = steps[0]?.rule;
   const nextGoalText = (() => {
     if (!firstPending) return "Add more to complete your reward";
-    const amount = firstPending._ruleType === "shipping" ? firstPending.minSubtotal : firstPending.minPurchase;
+    const amount = firstPending.triggerType === "quantity"
+      ? firstPending.minQuantity
+      : firstPending._ruleType === "shipping"
+      ? firstPending.minSubtotal
+      : firstPending.minPurchase;
     const discountOpts = firstPending._ruleType === "discount"
-      ? { value: firstPending.value, valueType: firstPending.valueType }
-      : {};
+      ? { value: firstPending.value, valueType: firstPending.valueType, goal: amount, trackBy: firstPending.triggerType }
+      : { goal: amount, trackBy: firstPending.triggerType };
     return resolveStepText(firstPending.progressTextBefore, amount, discountOpts) || ruleStepLabel(firstPending);
   })();
 
@@ -1079,6 +1204,7 @@ export default function CustomizePreview() {
   const upsellPreviewItems = loaderData?.upsellPreviewItems || [];
   const bxgyRules = loaderData?.bxgyRules || [];
   const codeDiscountRules = loaderData?.codeDiscountRules || [];
+  const cartGoalRules = loaderData?.cartGoalRules || [];
   const isSaving = navigation.state === "submitting";
 
   // Typography & Sizes
@@ -1429,6 +1555,34 @@ export default function CustomizePreview() {
               <div style={{ padding: "12px 16px", borderBottom: "1px solid #e1e3e5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Live Preview</Text>
               </div>
+              {cartGoalRules.length > 0 && (
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid #e1e3e5", background: "#f9fafb" }}>
+                  <BlockStack gap="200">
+                    <Text variant="bodySm" fontWeight="semibold" as="p">Cart Goal priority</Text>
+                    <BlockStack gap="150">
+                      {cartGoalRules.map((rule, index) => (
+                        <div
+                          key={rule.id || index}
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "28px minmax(0, 1fr) auto",
+                            gap: 8,
+                            alignItems: "center",
+                            fontSize: 12,
+                            color: index === 0 ? "#111827" : "#4b5563",
+                          }}
+                        >
+                          <span style={{ fontWeight: 800 }}>#{index + 1}</span>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: index === 0 ? 700 : 500 }}>
+                            {rule.campaignName || "Cart Goal"}
+                          </span>
+                          <span style={{ fontWeight: 700 }}>P{Number(rule.priority || 0)}</span>
+                        </div>
+                      ))}
+                    </BlockStack>
+                  </BlockStack>
+                </div>
+              )}
               <div style={{ padding: "16px" }}>
                 <CartDrawerPreview
                   bg={previewBg}
@@ -1448,6 +1602,7 @@ export default function CustomizePreview() {
                   shippingRules={shippingRules}
                   discountRules={discountRules}
                   freeGiftRules={freeGiftRules}
+                  cartGoalRules={cartGoalRules}
                   upsellSettings={upsellSettings}
                   upsellPreviewItems={upsellPreviewItems}
                   bxgyRules={bxgyRules}
