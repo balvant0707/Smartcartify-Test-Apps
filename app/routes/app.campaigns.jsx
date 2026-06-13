@@ -439,7 +439,7 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
         alignItems: "center",
         gap: "10px",
         padding: "5px 10px",
-        borderRadius: "8px",
+        borderRadius: "12px",
         cursor: "pointer",
         backgroundColor: isSelected ? "#ffe2e2" : "#fff",
         border: isSelected ? "1.5px solid #ffb2b2" : "1px solid #e1e3e5",
@@ -453,7 +453,7 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
         alt={ruleType.title}
         width={58}
         height={58}
-        style={{ flexShrink: 0, borderRadius: "8px", objectFit: "contain" }}
+        style={{ flexShrink: 0, borderRadius: "12px", objectFit: "contain" }}
       />
       <div style={{ flex: 1, minWidth: 0, display: "grid", gap: "3px" }}>
         <Text variant="headingSm" fontWeight="bold" as="p">
@@ -477,7 +477,7 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
       style={{
         backgroundColor: "#fff",
         border: "1px solid #e1e3e5",
-        borderRadius: "8px",
+        borderRadius: "12px",
         height: "100%",
         boxSizing: "border-box",
         overflow: "hidden",
@@ -492,7 +492,7 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
       >
         <div
           style={{
-            borderRadius: "8px",
+            borderRadius: "12px",
             overflow: "hidden",
             display: "flex",
             alignItems: "center",
@@ -562,7 +562,7 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
               key={stat.label}
               style={{
                 backgroundColor: "#fff",
-                borderRadius: "8px",
+                borderRadius: "12px",
                 padding: "20px 18px",
                 textAlign: "center",
                 border: "1px solid #e1e3e5",
@@ -592,7 +592,7 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
             <div
               style={{
                 border: "1px solid #e1e3e5",
-                borderRadius: "8px",
+                borderRadius: "12px",
                 overflow: "hidden",
                 backgroundColor: "#fff",
               }}

@@ -663,7 +663,7 @@ export async function upsertAutomaticBasic(admin, {
  */
 export async function upsertBxgy(admin, {
   existingId, title, startsAt, endsAt, minReqType, minQty, minSpend, rewardQty, rewardType, rewardDiscount, enabled = true,
-  scope, appliesTo, rewardAppliesTo,
+  scope, appliesTo, rewardAppliesTo, usesPerOrderLimit,
 }) {
   const selection = await resolveBxgySelection(admin, { scope, appliesTo });
   const rewardSelection = rewardAppliesTo
@@ -671,6 +671,7 @@ export async function upsertBxgy(admin, {
     : selection;
   const buyItems = buildBxgyItemsInput(selection);
   const getItems = buildBxgyItemsInput(rewardSelection);
+  const parsedUsesPerOrderLimit = parseInt(usesPerOrderLimit || "", 10);
   const input = {
     title: withAppNameTitle(title, "Buy X Get Y Discount"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
@@ -691,6 +692,9 @@ export async function upsertBxgy(admin, {
         },
       },
     },
+    ...(Number.isFinite(parsedUsesPerOrderLimit) && parsedUsesPerOrderLimit > 0
+      ? { usesPerOrderLimit: parsedUsesPerOrderLimit }
+      : {}),
     combinesWith: COMBINES_WITH_ORDER_DISCOUNTS,
   };
 

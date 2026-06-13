@@ -194,6 +194,14 @@ model BxgyRule {
   afterOfferUnlockMessage  String?
   beforeOfferUnlockMessage String?
   campaignName             String?   @db.VarChar(255)
+  status                   String    @default("draft") @db.VarChar(32)
+  conditionType            String?   @db.VarChar(64)
+  buyProductIds            String?   @db.LongText
+  buyCollectionIds         String?   @db.LongText
+  rewardProductIds         String?   @db.LongText
+  minQuantity              String?   @db.VarChar(255)
+  minSpend                 String?   @db.VarChar(255)
+  maxUsesPerOrder          String?   @db.VarChar(255)
   startsAt                 DateTime?
   endsAt                   DateTime?
   priority                 Int       @default(0)

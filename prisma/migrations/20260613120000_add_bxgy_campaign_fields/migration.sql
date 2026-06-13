@@ -1,0 +1,9 @@
+ALTER TABLE `bxgyrule`
+  ADD COLUMN `status` VARCHAR(32) NOT NULL DEFAULT 'draft',
+  ADD COLUMN `conditionType` VARCHAR(64) NULL,
+  ADD COLUMN `buyProductIds` LONGTEXT NULL,
+  ADD COLUMN `buyCollectionIds` LONGTEXT NULL,
+  ADD COLUMN `rewardProductIds` LONGTEXT NULL,
+  ADD COLUMN `minQuantity` VARCHAR(255) NULL,
+  ADD COLUMN `minSpend` VARCHAR(255) NULL,
+  ADD COLUMN `maxUsesPerOrder` VARCHAR(255) NULL;

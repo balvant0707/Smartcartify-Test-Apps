@@ -171,6 +171,9 @@ const parseTranslations = (raw, englishContent) => {
 };
 
 const inferConditionType = (record) => {
+  if (Object.values(CONDITION_TYPES).includes(record?.conditionType)) {
+    return record.conditionType;
+  }
   if (Object.values(CONDITION_TYPES).includes(record?.templateKey)) {
     return record.templateKey;
   }
@@ -279,6 +282,7 @@ export const action = async ({ request }) => {
   const dbData = {
     shop,
     campaignName: campaignName || "Buy X Get Y Free",
+    status: status || (isActive ? "active" : "draft"),
     enabled: isActive,
     xQty: xValue || "1",
     yQty: "1",
@@ -287,6 +291,19 @@ export const action = async ({ request }) => {
     giftType: "specific",
     giftSku: selectedRewards.length ? JSON.stringify(selectedRewards) : null,
     maxGifts: maxUsesEnabled ? String(maxGifts || "1") : null,
+    conditionType: normalizedCondition,
+    buyProductIds: JSON.stringify(selectedBuyProducts),
+    buyCollectionIds: JSON.stringify(selectedBuyCollections),
+    rewardProductIds: JSON.stringify(selectedRewards),
+    minQuantity:
+      normalizedCondition === CONDITION_TYPES.SPEND_COLLECTION
+        ? null
+        : String(minQuantity || "1"),
+    minSpend:
+      normalizedCondition === CONDITION_TYPES.SPEND_COLLECTION
+        ? String(minSpend || "")
+        : null,
+    maxUsesPerOrder: maxUsesEnabled ? String(maxGifts || "1") : null,
     allowStacking: false,
     appliesStore: false,
     appliesProductIds: scope === "specific_products" ? JSON.stringify(selectedBuyProducts) : null,
@@ -342,6 +359,7 @@ export const action = async ({ request }) => {
         scope,
         appliesTo: appliesToPayload,
         rewardAppliesTo: JSON.stringify({ products: selectedRewards, collections: [] }),
+        usesPerOrderLimit: maxUsesEnabled ? maxGifts || "1" : null,
       });
       if (shopifyId) dbData.buyxgetyId = shopifyId;
     } else if (existingShopifyId) {
@@ -513,9 +531,7 @@ function SelectedItemsDisplay({ ids, allItems, onRemove }) {
   );
 }
 
-function SectionCard({ icon, title, children, defaultOpen = true }) {
-  const [open, setOpen] = useState(defaultOpen);
-
+function SectionCard({ id, icon, title, children, open, onOpenChange }) {
   return (
     <section className="bxgy-card">
       <div className="bxgy-cardHeader">
@@ -528,15 +544,15 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
         <Button
           size="slim"
           icon={open ? MinimizeIcon : MaximizeIcon}
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => onOpenChange(!open)}
         >
           {open ? "Collapse" : "Expand"}
         </Button>
       </div>
-      <Collapsible open={open} id={`bxgy-${title}`}>
+      <Collapsible open={open} id={`bxgy-${id}`}>
         <div className="bxgy-cardBody">{children}</div>
         <div className="bxgy-cardFooter">
-          <Button variant="plain" icon={MinimizeIcon} onClick={() => setOpen(false)}>
+          <Button variant="plain" icon={MinimizeIcon} onClick={() => onOpenChange(false)}>
             Collapse
           </Button>
         </div>
@@ -677,26 +693,39 @@ export default function RuleBxgy() {
   );
   const initialCondition = r ? inferConditionType(r) : null;
   const defaultCampaignName = template === "free" ? "Buy X Get Y Free" : "Buy X Get Y";
+  const storedBuyProductIds = r?.buyProductIds
+    ? parseJsonArray(r.buyProductIds)
+    : applies.products;
+  const storedBuyCollectionIds = r?.buyCollectionIds
+    ? parseJsonArray(r.buyCollectionIds)
+    : applies.collections;
+  const storedRewardProductIds = r?.rewardProductIds
+    ? parseJsonArray(r.rewardProductIds)
+    : parseJsonArray(r?.giftSku);
+  const storedMaxUsesPerOrder = r?.maxUsesPerOrder ?? r?.maxGifts;
 
-  const [status, setStatus] = useState(r?.enabled ? "active" : "draft");
+  const [status, setStatus] = useState(r?.status ?? (r?.enabled ? "active" : "draft"));
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? defaultCampaignName);
   const [conditionType, setConditionType] = useState(initialCondition);
-  const [buyProductIds, setBuyProductIds] = useState(applies.products);
-  const [buyCollectionIds, setBuyCollectionIds] = useState(applies.collections);
+  const [buyProductIds, setBuyProductIds] = useState(storedBuyProductIds);
+  const [buyCollectionIds, setBuyCollectionIds] = useState(storedBuyCollectionIds);
   const [minQuantity, setMinQuantity] = useState(
-    initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? "1" : r?.xQty ?? "1"
+    r?.minQuantity ??
+      (initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? "1" : r?.xQty ?? "1")
   );
   const [minSpend, setMinSpend] = useState(
-    initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? r?.xQty ?? "" : ""
+    r?.minSpend ??
+      (initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? r?.xQty ?? "" : "")
   );
-  const [rewardProductIds, setRewardProductIds] = useState(parseJsonArray(r?.giftSku));
-  const [maxUsesEnabled, setMaxUsesEnabled] = useState(Boolean(r?.maxGifts));
-  const [maxGifts, setMaxGifts] = useState(r?.maxGifts ?? "1");
+  const [rewardProductIds, setRewardProductIds] = useState(storedRewardProductIds);
+  const [maxUsesEnabled, setMaxUsesEnabled] = useState(Boolean(storedMaxUsesPerOrder));
+  const [maxGifts, setMaxGifts] = useState(storedMaxUsesPerOrder ?? "1");
   const [translations, setTranslations] = useState(storedTranslations);
   const [editingLanguage, setEditingLanguage] = useState("en");
   const [contentModalOpen, setContentModalOpen] = useState(false);
   const [addLanguageModalOpen, setAddLanguageModalOpen] = useState(false);
   const [languageToAdd, setLanguageToAdd] = useState("es");
+  const [openSection, setOpenSection] = useState("rewards");
 
   const today = new Date().toISOString().split("T")[0];
   const [startDate, setStartDate] = useState(
@@ -759,6 +788,10 @@ export default function RuleBxgy() {
     setConditionType(nextCondition);
     setBuyProductIds([]);
     setBuyCollectionIds([]);
+  };
+
+  const setSectionOpen = (section, open) => {
+    setOpenSection(open ? section : null);
   };
 
   const handleEditLanguage = (language) => {
@@ -842,38 +875,38 @@ export default function RuleBxgy() {
     >
       <style>{`
         .bxgy-layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:20px;align-items:start}
-        .bxgy-card{background:#fff;border:1px solid #dfe3e8;border-radius:8px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+        .bxgy-card{background:#fff;border:1px solid #dfe3e8;border-radius:12px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
         .bxgy-cardHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #ebeef1}
         .bxgy-cardBody{padding:18px}
         .bxgy-cardFooter{display:flex;justify-content:flex-end;padding:8px 18px 16px}
-        .bxgy-requirements{border:2px solid #e1e3e5;border-radius:8px;overflow:hidden;background:#fff}
+        .bxgy-requirements{border:2px solid #e1e3e5;border-radius:12px;overflow:hidden;background:#fff}
         .bxgy-conditionRow{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:22px 20px;background:#fff;border:0;border-top:1px solid #e1e3e5;text-align:left;cursor:pointer}
         .bxgy-conditionRow:first-child{border-top:0}
         .bxgy-conditionRow:hover{background:#fafafa}
-        .bxgy-conditionSelected{display:block;padding:22px 20px;border:2px solid #e1e3e5;border-radius:8px}
+        .bxgy-conditionSelected{display:block;padding:22px 20px;border:2px solid #e1e3e5;border-radius:12px}
         .bxgy-conditionTop{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid #ebeef1}
         .bxgy-conditionControls{display:grid;gap:16px;padding-top:18px}
         .bxgy-selectedItems{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-        .bxgy-selectedItem{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:6px 8px;background:#f6f6f7;border:1px solid #e1e3e5;border-radius:8px;font-size:13px;font-weight:600}
+        .bxgy-selectedItem{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:6px 8px;background:#f6f6f7;border:1px solid #e1e3e5;border-radius:12px;font-size:13px;font-weight:600}
         .bxgy-selectedItem button{display:flex;align-items:center;background:transparent;border:0;padding:0;cursor:pointer;color:#6d7175}
         .bxgy-selectedThumb{width:24px;height:24px;border-radius:4px;object-fit:cover;border:1px solid #e1e3e5}
-        .bxgy-stepper{width:max-content;display:grid;grid-template-columns:38px 56px 38px;gap:6px;align-items:center;padding:5px;background:#f1f1f1;border-radius:8px}
+        .bxgy-stepper{width:max-content;display:grid;grid-template-columns:38px 56px 38px;gap:6px;align-items:center;padding:5px;background:#f1f1f1;border-radius:12px}
         .bxgy-stepper span{text-align:center;font-weight:700}
-        .bxgy-segmented{display:inline-flex;background:#f1f1f1;border-radius:8px;padding:4px}
+        .bxgy-segmented{display:inline-flex;background:#f1f1f1;border-radius:12px;padding:4px}
         .bxgy-segmented button{border:0;background:transparent;border-radius:8px;padding:8px 12px;cursor:pointer;color:#6d7175;font-weight:600}
         .bxgy-segmented button[aria-pressed="true"]{background:#fff;color:#202223;box-shadow:0 1px 4px rgba(0,0,0,.12)}
-        .bxgy-softPanel{padding:16px;background:#f7f7f7;border-radius:8px}
+        .bxgy-softPanel{padding:16px;background:#f7f7f7;border-radius:12px}
         .bxgy-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        .bxgy-sidebarCard{background:#fff;border:1px solid #dfe3e8;border-radius:8px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+        .bxgy-sidebarCard{background:#fff;border:1px solid #dfe3e8;border-radius:12px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
         .bxgy-sidebarBody{padding:18px}
         .bxgy-paused{display:flex;align-items:center;gap:10px;padding:13px 16px;background:#fff6d6;border-bottom:2px solid #ffe66d;color:#5f4b00;font-weight:700}
-        .bxgy-contentList{border:2px solid #e1e3e5;border-radius:8px;overflow:hidden}
+        .bxgy-contentList{border:2px solid #e1e3e5;border-radius:12px;overflow:hidden}
         .bxgy-contentRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-top:1px solid #e1e3e5}
         .bxgy-contentRow:first-child{border-top:0}
         .bxgy-pickerList{max-height:360px;overflow:auto;display:grid;gap:4px}
-        .bxgy-pickerItem{width:100%;display:flex;align-items:center;gap:12px;padding:10px 8px;border:0;border-bottom:1px solid #f1f3f5;background:transparent;text-align:left;cursor:pointer;border-radius:6px}
+        .bxgy-pickerItem{width:100%;display:flex;align-items:center;gap:12px;padding:10px 8px;border:0;border-bottom:1px solid #f1f3f5;background:transparent;text-align:left;cursor:pointer;border-radius:12px}
         .bxgy-pickerItem:hover,.bxgy-pickerItemSelected{background:#f0f7ff}
-        .bxgy-pickerImage{width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #e1e3e5;flex-shrink:0;background:#f1f3f5}
+        .bxgy-pickerImage{width:44px;height:44px;object-fit:cover;border-radius:12px;border:1px solid #e1e3e5;flex-shrink:0;background:#f1f3f5}
         .bxgy-pickerImageEmpty::before{content:"";display:block;width:18px;height:18px;margin:12px auto;border:2px solid #8c9196;border-radius:4px}
         .bxgy-pickerText{display:grid;gap:2px;min-width:0;flex:1}
         .bxgy-pickerSelected{font-size:12px;font-weight:700;color:#2563eb}
@@ -894,7 +927,13 @@ export default function RuleBxgy() {
       <Box paddingBlockEnd="800">
         <div className="bxgy-layout">
           <BlockStack gap="400">
-            <SectionCard icon={TransferInternalIcon} title="Rewards">
+            <SectionCard
+              id="rewards"
+              icon={TransferInternalIcon}
+              title="Rewards"
+              open={openSection === "rewards"}
+              onOpenChange={(open) => setSectionOpen("rewards", open)}
+            >
               <BlockStack gap="500">
                 <BlockStack gap="200">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">
@@ -956,6 +995,7 @@ export default function RuleBxgy() {
                             </Text>
                             <Button
                               variant="primary"
+                              size="slim"
                               onClick={() => setPicker("buy-products")}
                               loading={productFetcher.state === "loading"}
                             >
@@ -976,6 +1016,7 @@ export default function RuleBxgy() {
                             </Text>
                             <Button
                               variant="primary"
+                              size="slim"
                               onClick={() => setPicker("buy-collections")}
                               loading={productFetcher.state === "loading"}
                             >
@@ -1018,6 +1059,7 @@ export default function RuleBxgy() {
                   </Text>
                   <Button
                     variant="primary"
+                    size="slim"
                     onClick={() => setPicker("rewards")}
                     loading={productFetcher.state === "loading"}
                   >
@@ -1069,7 +1111,13 @@ export default function RuleBxgy() {
               </BlockStack>
             </SectionCard>
 
-            <SectionCard icon={EditIcon} title="Content">
+            <SectionCard
+              id="content"
+              icon={EditIcon}
+              title="Content"
+              open={openSection === "content"}
+              onOpenChange={(open) => setSectionOpen("content", open)}
+            >
               <BlockStack gap="300">
                 <Text variant="bodyMd" fontWeight="semibold" as="p">
                   Edit content
@@ -1099,6 +1147,7 @@ export default function RuleBxgy() {
                   <div className="bxgy-contentRow" style={{ justifyContent: "center" }}>
                     <Button
                       variant="primary"
+                      size="slim"
                       onClick={() => {
                         const nextLanguage =
                           LANGUAGE_OPTIONS.find((language) => !translations[language.value])
@@ -1114,7 +1163,13 @@ export default function RuleBxgy() {
               </BlockStack>
             </SectionCard>
 
-            <SectionCard icon={SettingsIcon} title="Settings">
+            <SectionCard
+              id="settings"
+              icon={SettingsIcon}
+              title="Settings"
+              open={openSection === "settings"}
+              onOpenChange={(open) => setSectionOpen("settings", open)}
+            >
               <BlockStack gap="300">
                 <BlockStack gap="050">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">
