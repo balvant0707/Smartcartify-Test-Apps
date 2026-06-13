@@ -711,11 +711,11 @@ export default function RuleBxgy() {
   const [buyCollectionIds, setBuyCollectionIds] = useState(storedBuyCollectionIds);
   const [minQuantity, setMinQuantity] = useState(
     r?.minQuantity ??
-      (initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? "1" : r?.xQty ?? "1")
+    (initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? "1" : r?.xQty ?? "1")
   );
   const [minSpend, setMinSpend] = useState(
     r?.minSpend ??
-      (initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? r?.xQty ?? "" : "")
+    (initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? r?.xQty ?? "" : "")
   );
   const [rewardProductIds, setRewardProductIds] = useState(storedRewardProductIds);
   const [maxUsesEnabled, setMaxUsesEnabled] = useState(Boolean(storedMaxUsesPerOrder));
@@ -746,34 +746,34 @@ export default function RuleBxgy() {
   const pickerConfig =
     picker === "buy-products"
       ? {
-          open: true,
-          title: "Select the product visitor must buy",
-          items: productPickerItems,
-          selected: buyProductIds,
-          onApply: setBuyProductIds,
-          kindLabel: "products",
-          emptyText: "No products available.",
-        }
+        open: true,
+        title: "Select the product visitor must buy",
+        items: productPickerItems,
+        selected: buyProductIds,
+        onApply: setBuyProductIds,
+        kindLabel: "products",
+        emptyText: "No products available.",
+      }
       : picker === "buy-collections"
         ? {
-            open: true,
-            title: "Select the collection from which visitor must buy",
-            items: collectionPickerItems,
-            selected: buyCollectionIds,
-            onApply: setBuyCollectionIds,
-            kindLabel: "collections",
-            emptyText: "No collections available.",
-          }
+          open: true,
+          title: "Select the collection from which visitor must buy",
+          items: collectionPickerItems,
+          selected: buyCollectionIds,
+          onApply: setBuyCollectionIds,
+          kindLabel: "collections",
+          emptyText: "No collections available.",
+        }
         : picker === "rewards"
           ? {
-              open: true,
-              title: "Select products they get for free",
-              items: productPickerItems,
-              selected: rewardProductIds,
-              onApply: setRewardProductIds,
-              kindLabel: "products",
-              emptyText: "No products available.",
-            }
+            open: true,
+            title: "Select products they get for free",
+            items: productPickerItems,
+            selected: rewardProductIds,
+            onApply: setRewardProductIds,
+            kindLabel: "products",
+            emptyText: "No products available.",
+          }
           : { open: false };
 
   useEffect(() => {
@@ -875,7 +875,7 @@ export default function RuleBxgy() {
     >
       <style>{`
         .bxgy-layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:20px;align-items:start}
-        .bxgy-card{background:#fff;border:1px solid #dfe3e8;border-radius:12px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+        .bxgy-card{background:#fff;border:1px solid #dfe3e8;border-radius:12px !important;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
         .bxgy-cardHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #ebeef1}
         .bxgy-cardBody{padding:18px}
         .bxgy-cardFooter{display:flex;justify-content:flex-end;padding:8px 18px 16px}
@@ -914,7 +914,8 @@ export default function RuleBxgy() {
         .bxgy-modalFields{display:grid;gap:18px}
         @media(max-width:980px){.bxgy-layout{grid-template-columns:1fr}.bxgy-sidebar{order:-1}}
         @media(max-width:640px){.bxgy-grid2{grid-template-columns:1fr}.bxgy-conditionRow,.bxgy-conditionTop{grid-template-columns:1fr;display:grid}.bxgy-layout{gap:14px}}
-      `}</style>
+        .bxgy-paused .Polaris-Icon{margin:unset !important;}
+        `}</style>
 
       {actionData?.error && (
         <Box paddingBlockEnd="400">
@@ -1275,7 +1276,7 @@ export default function RuleBxgy() {
         items={pickerConfig.items || []}
         multi
         selected={pickerConfig.selected || []}
-        onApply={pickerConfig.onApply || (() => {})}
+        onApply={pickerConfig.onApply || (() => { })}
         emptyText={pickerConfig.emptyText}
         kindLabel={pickerConfig.kindLabel}
       />
