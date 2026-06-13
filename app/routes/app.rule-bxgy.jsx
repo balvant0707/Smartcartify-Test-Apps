@@ -74,6 +74,19 @@ const CONTENT_DEFAULTS = {
   afterText: "Yay! you got the reward",
 };
 
+const LANGUAGE_OPTIONS = [
+  { label: "English", value: "en" },
+  { label: "Spanish", value: "es" },
+  { label: "French", value: "fr" },
+  { label: "German", value: "de" },
+  { label: "Italian", value: "it" },
+  { label: "Portuguese", value: "pt" },
+  { label: "Hindi", value: "hi" },
+];
+
+const languageLabel = (code) =>
+  LANGUAGE_OPTIONS.find((language) => language.value === code)?.label || code.toUpperCase();
+
 const parseJsonArray = (raw) => {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
@@ -132,6 +145,31 @@ const parseContent = (beforeMessage, afterMessage) => {
   return parsed;
 };
 
+const normalizeContent = (content = {}) => ({
+  beforeTitle: content.beforeTitle || CONTENT_DEFAULTS.beforeTitle,
+  afterTitle: content.afterTitle || CONTENT_DEFAULTS.afterTitle,
+  beforeText: content.beforeText || CONTENT_DEFAULTS.beforeText,
+  afterText: content.afterText || CONTENT_DEFAULTS.afterText,
+});
+
+const parseTranslations = (raw, englishContent) => {
+  const translations = { en: normalizeContent(englishContent) };
+  if (!raw) return translations;
+
+  try {
+    const parsed = JSON.parse(raw);
+    Object.entries(parsed || {}).forEach(([code, value]) => {
+      if (!code || !value || typeof value !== "object") return;
+      translations[code] = normalizeContent(value);
+    });
+  } catch {
+    return translations;
+  }
+
+  translations.en = normalizeContent({ ...translations.en, ...englishContent });
+  return translations;
+};
+
 const inferConditionType = (record) => {
   if (Object.values(CONDITION_TYPES).includes(record?.templateKey)) {
     return record.templateKey;
@@ -180,6 +218,7 @@ export const action = async ({ request }) => {
     afterTitle,
     beforeText,
     afterText,
+    translations,
     startsAt,
     endsAt,
   } = body;
@@ -213,6 +252,29 @@ export const action = async ({ request }) => {
     title: afterTitle || CONTENT_DEFAULTS.afterTitle,
     text: afterText || CONTENT_DEFAULTS.afterText,
   });
+  const normalizedTranslations = (() => {
+    try {
+      const parsed = JSON.parse(translations || "{}");
+      return JSON.stringify({
+        ...parsed,
+        en: normalizeContent({
+          beforeTitle,
+          afterTitle,
+          beforeText,
+          afterText,
+        }),
+      });
+    } catch {
+      return JSON.stringify({
+        en: normalizeContent({
+          beforeTitle,
+          afterTitle,
+          beforeText,
+          afterText,
+        }),
+      });
+    }
+  })();
 
   const dbData = {
     shop,
@@ -237,6 +299,7 @@ export const action = async ({ request }) => {
     customerTarget: "all",
     customerTags: null,
     templateKey: normalizedCondition,
+    translations: normalizedTranslations,
   };
 
   try {
@@ -497,14 +560,14 @@ function QuantityStepper({ value, onChange }) {
   );
 }
 
-function ContentModal({ open, onClose, content, onChange }) {
+function ContentModal({ open, onClose, language, content, onChange }) {
   const patch = (key, value) => onChange({ ...content, [key]: value });
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Edit English Texts"
+      title={`Edit ${languageLabel(language)} Texts`}
       primaryAction={{ content: "Done", onAction: onClose }}
     >
       <Modal.Section>
@@ -534,6 +597,34 @@ function ContentModal({ open, onClose, content, onChange }) {
             autoComplete="off"
           />
         </div>
+      </Modal.Section>
+    </Modal>
+  );
+}
+
+function AddLanguageModal({ open, onClose, languages, value, onChange, onAdd }) {
+  const options = LANGUAGE_OPTIONS.filter((language) => !languages.includes(language.value));
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Add language"
+      primaryAction={{
+        content: "Add language",
+        onAction: onAdd,
+        disabled: !value || options.length === 0,
+      }}
+      secondaryActions={[{ content: "Cancel", onAction: onClose }]}
+    >
+      <Modal.Section>
+        <Select
+          label="Language"
+          options={options.length ? options : [{ label: "All languages added", value: "" }]}
+          value={value}
+          onChange={onChange}
+          disabled={options.length === 0}
+        />
       </Modal.Section>
     </Modal>
   );
@@ -580,6 +671,10 @@ export default function RuleBxgy() {
     () => parseContent(r?.beforeOfferUnlockMessage, r?.afterOfferUnlockMessage),
     [r?.beforeOfferUnlockMessage, r?.afterOfferUnlockMessage]
   );
+  const storedTranslations = useMemo(
+    () => parseTranslations(r?.translations, storedContent),
+    [r?.translations, storedContent]
+  );
   const initialCondition = r ? inferConditionType(r) : null;
   const defaultCampaignName = template === "free" ? "Buy X Get Y Free" : "Buy X Get Y";
 
@@ -597,8 +692,11 @@ export default function RuleBxgy() {
   const [rewardProductIds, setRewardProductIds] = useState(parseJsonArray(r?.giftSku));
   const [maxUsesEnabled, setMaxUsesEnabled] = useState(Boolean(r?.maxGifts));
   const [maxGifts, setMaxGifts] = useState(r?.maxGifts ?? "1");
-  const [content, setContent] = useState(storedContent);
+  const [translations, setTranslations] = useState(storedTranslations);
+  const [editingLanguage, setEditingLanguage] = useState("en");
   const [contentModalOpen, setContentModalOpen] = useState(false);
+  const [addLanguageModalOpen, setAddLanguageModalOpen] = useState(false);
+  const [languageToAdd, setLanguageToAdd] = useState("es");
 
   const today = new Date().toISOString().split("T")[0];
   const [startDate, setStartDate] = useState(
@@ -663,7 +761,40 @@ export default function RuleBxgy() {
     setBuyCollectionIds([]);
   };
 
+  const handleEditLanguage = (language) => {
+    setEditingLanguage(language);
+    setContentModalOpen(true);
+  };
+
+  const handleContentChange = (nextContent) => {
+    setTranslations((prev) => ({
+      ...prev,
+      [editingLanguage]: normalizeContent(nextContent),
+    }));
+  };
+
+  const handleAddLanguage = () => {
+    if (!languageToAdd || translations[languageToAdd]) return;
+    setTranslations((prev) => ({
+      ...prev,
+      [languageToAdd]: normalizeContent(prev.en),
+    }));
+    setEditingLanguage(languageToAdd);
+    setAddLanguageModalOpen(false);
+    setContentModalOpen(true);
+  };
+
+  const handleRemoveLanguage = (language) => {
+    if (language === "en") return;
+    setTranslations((prev) => {
+      const next = { ...prev };
+      delete next[language];
+      return next;
+    });
+  };
+
   const handleSave = () => {
+    const englishContent = normalizeContent(translations.en);
     submit(
       {
         id: recordId,
@@ -677,10 +808,11 @@ export default function RuleBxgy() {
         rewardProductIds: JSON.stringify(rewardProductIds),
         maxUsesEnabled,
         maxGifts,
-        beforeTitle: content.beforeTitle,
-        afterTitle: content.afterTitle,
-        beforeText: content.beforeText,
-        afterText: content.afterText,
+        beforeTitle: englishContent.beforeTitle,
+        afterTitle: englishContent.afterTitle,
+        beforeText: englishContent.beforeText,
+        afterText: englishContent.afterText,
+        translations: JSON.stringify(translations),
         startsAt: combineDateTime(startDate, startTime),
         endsAt: hasEndDate ? combineDateTime(endDate, endTime) : null,
       },
@@ -690,6 +822,7 @@ export default function RuleBxgy() {
 
   const condition = CONDITION_OPTIONS.find((option) => option.id === conditionType);
   const isPaused = status !== "active";
+  const contentLanguages = Object.keys(translations);
 
   return (
     <Page
@@ -709,31 +842,29 @@ export default function RuleBxgy() {
     >
       <style>{`
         .bxgy-layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:20px;align-items:start}
-        .bxgy-card{background:#fff;border:1px solid #dfe3e8;border-radius:12px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+        .bxgy-card{background:#fff;border:1px solid #dfe3e8;border-radius:8px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
         .bxgy-cardHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #ebeef1}
         .bxgy-cardBody{padding:18px}
         .bxgy-cardFooter{display:flex;justify-content:flex-end;padding:8px 18px 16px}
-        .bxgy-requirements{border:2px solid #e1e3e5;border-radius:10px;overflow:hidden;background:#fff}
+        .bxgy-requirements{border:2px solid #e1e3e5;border-radius:8px;overflow:hidden;background:#fff}
         .bxgy-conditionRow{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:center;padding:22px 20px;background:#fff;border:0;border-top:1px solid #e1e3e5;text-align:left;cursor:pointer}
         .bxgy-conditionRow:first-child{border-top:0}
         .bxgy-conditionRow:hover{background:#fafafa}
         .bxgy-conditionSelected{display:block;padding:22px 20px;border:2px solid #e1e3e5;border-radius:8px}
         .bxgy-conditionTop{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid #ebeef1}
         .bxgy-conditionControls{display:grid;gap:16px;padding-top:18px}
-        .bxgy-blackButton,.Polaris-Button.bxgy-blackButton{background:#303030;color:#fff;border-color:#303030;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 1px 1px rgba(0,0,0,.18)}
-        .Polaris-Button.bxgy-blackButton *{color:#fff}
         .bxgy-selectedItems{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
         .bxgy-selectedItem{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:6px 8px;background:#f6f6f7;border:1px solid #e1e3e5;border-radius:8px;font-size:13px;font-weight:600}
         .bxgy-selectedItem button{display:flex;align-items:center;background:transparent;border:0;padding:0;cursor:pointer;color:#6d7175}
         .bxgy-selectedThumb{width:24px;height:24px;border-radius:4px;object-fit:cover;border:1px solid #e1e3e5}
-        .bxgy-stepper{width:max-content;display:grid;grid-template-columns:38px 56px 38px;gap:6px;align-items:center;padding:5px;background:#f1f1f1;border-radius:10px}
+        .bxgy-stepper{width:max-content;display:grid;grid-template-columns:38px 56px 38px;gap:6px;align-items:center;padding:5px;background:#f1f1f1;border-radius:8px}
         .bxgy-stepper span{text-align:center;font-weight:700}
-        .bxgy-segmented{display:inline-flex;background:#f1f1f1;border-radius:10px;padding:4px}
+        .bxgy-segmented{display:inline-flex;background:#f1f1f1;border-radius:8px;padding:4px}
         .bxgy-segmented button{border:0;background:transparent;border-radius:8px;padding:8px 12px;cursor:pointer;color:#6d7175;font-weight:600}
         .bxgy-segmented button[aria-pressed="true"]{background:#fff;color:#202223;box-shadow:0 1px 4px rgba(0,0,0,.12)}
         .bxgy-softPanel{padding:16px;background:#f7f7f7;border-radius:8px}
         .bxgy-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-        .bxgy-sidebarCard{background:#fff;border:1px solid #dfe3e8;border-radius:12px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+        .bxgy-sidebarCard{background:#fff;border:1px solid #dfe3e8;border-radius:8px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
         .bxgy-sidebarBody{padding:18px}
         .bxgy-paused{display:flex;align-items:center;gap:10px;padding:13px 16px;background:#fff6d6;border-bottom:2px solid #ffe66d;color:#5f4b00;font-weight:700}
         .bxgy-contentList{border:2px solid #e1e3e5;border-radius:8px;overflow:hidden}
@@ -794,7 +925,7 @@ export default function RuleBxgy() {
                               {option.description}
                             </Text>
                           </span>
-                          <Button size="slim">Select</Button>
+                          <Button variant="primary" size="slim">Select</Button>
                         </div>
                       ))}
                     </div>
@@ -824,7 +955,7 @@ export default function RuleBxgy() {
                               Select the product visitor must buy
                             </Text>
                             <Button
-                              className="bxgy-blackButton"
+                              variant="primary"
                               onClick={() => setPicker("buy-products")}
                               loading={productFetcher.state === "loading"}
                             >
@@ -844,7 +975,7 @@ export default function RuleBxgy() {
                               Select the collection from which visitor must buy
                             </Text>
                             <Button
-                              className="bxgy-blackButton"
+                              variant="primary"
                               onClick={() => setPicker("buy-collections")}
                               loading={productFetcher.state === "loading"}
                             >
@@ -886,7 +1017,7 @@ export default function RuleBxgy() {
                     Select products they get for free
                   </Text>
                   <Button
-                    className="bxgy-blackButton"
+                    variant="primary"
                     onClick={() => setPicker("rewards")}
                     loading={productFetcher.state === "loading"}
                   >
@@ -944,16 +1075,40 @@ export default function RuleBxgy() {
                   Edit content
                 </Text>
                 <div className="bxgy-contentList">
-                  <div className="bxgy-contentRow">
-                    <Text variant="bodyMd" fontWeight="semibold" as="p">
-                      English
-                    </Text>
-                    <Button icon={EditIcon} onClick={() => setContentModalOpen(true)}>
-                      Edit
-                    </Button>
-                  </div>
+                  {contentLanguages.map((language) => (
+                    <div className="bxgy-contentRow" key={language}>
+                      <Text variant="bodyMd" fontWeight="semibold" as="p">
+                        {languageLabel(language)}
+                      </Text>
+                      <InlineStack gap="200" blockAlign="center">
+                        {language !== "en" && (
+                          <Button
+                            variant="plain"
+                            tone="critical"
+                            onClick={() => handleRemoveLanguage(language)}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                        <Button icon={EditIcon} onClick={() => handleEditLanguage(language)}>
+                          Edit
+                        </Button>
+                      </InlineStack>
+                    </div>
+                  ))}
                   <div className="bxgy-contentRow" style={{ justifyContent: "center" }}>
-                    <Button variant="plain">+ Add language</Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        const nextLanguage =
+                          LANGUAGE_OPTIONS.find((language) => !translations[language.value])
+                            ?.value || "";
+                        setLanguageToAdd(nextLanguage);
+                        setAddLanguageModalOpen(true);
+                      }}
+                    >
+                      + Add language
+                    </Button>
                   </div>
                 </div>
               </BlockStack>
@@ -1073,8 +1228,18 @@ export default function RuleBxgy() {
       <ContentModal
         open={contentModalOpen}
         onClose={() => setContentModalOpen(false)}
-        content={content}
-        onChange={setContent}
+        language={editingLanguage}
+        content={translations[editingLanguage] || CONTENT_DEFAULTS}
+        onChange={handleContentChange}
+      />
+
+      <AddLanguageModal
+        open={addLanguageModalOpen}
+        onClose={() => setAddLanguageModalOpen(false)}
+        languages={contentLanguages}
+        value={languageToAdd}
+        onChange={setLanguageToAdd}
+        onAdd={handleAddLanguage}
       />
     </Page>
   );

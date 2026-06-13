@@ -421,15 +421,25 @@ const RULE_ROUTES = {
 // ─── RuleTypeListItem ─────────────────────────────────────────────────────────
 
 function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
+  const handleSelect = () => onSelect(ruleType.id);
+
   return (
     <div
-      onClick={() => onSelect(ruleType.id)}
+      role="button"
+      tabIndex={0}
+      onClick={handleSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleSelect();
+        }
+      }}
       style={{
         display: "flex",
         alignItems: "center",
         gap: "10px",
         padding: "5px 10px",
-        borderRadius: "10px",
+        borderRadius: "8px",
         cursor: "pointer",
         backgroundColor: isSelected ? "#ffe2e2" : "#fff",
         border: isSelected ? "1.5px solid #ffb2b2" : "1px solid #e1e3e5",
@@ -443,7 +453,7 @@ function RuleTypeListItem({ ruleType, isSelected, onSelect }) {
         alt={ruleType.title}
         width={58}
         height={58}
-        style={{ flexShrink: 0, borderRadius: "10px", objectFit: "contain" }}
+        style={{ flexShrink: 0, borderRadius: "8px", objectFit: "contain" }}
       />
       <div style={{ flex: 1, minWidth: 0, display: "grid", gap: "3px" }}>
         <Text variant="headingSm" fontWeight="bold" as="p">
@@ -467,7 +477,7 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
       style={{
         backgroundColor: "#fff",
         border: "1px solid #e1e3e5",
-        borderRadius: "16px",
+        borderRadius: "8px",
         height: "100%",
         boxSizing: "border-box",
         overflow: "hidden",
@@ -482,7 +492,7 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
       >
         <div
           style={{
-            borderRadius: "14px 14px 0 0",
+            borderRadius: "8px",
             overflow: "hidden",
             display: "flex",
             alignItems: "center",
@@ -552,7 +562,7 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
               key={stat.label}
               style={{
                 backgroundColor: "#fff",
-                borderRadius: "10px",
+                borderRadius: "8px",
                 padding: "20px 18px",
                 textAlign: "center",
                 border: "1px solid #e1e3e5",
@@ -582,7 +592,7 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
             <div
               style={{
                 border: "1px solid #e1e3e5",
-                borderRadius: "10px",
+                borderRadius: "8px",
                 overflow: "hidden",
                 backgroundColor: "#fff",
               }}
