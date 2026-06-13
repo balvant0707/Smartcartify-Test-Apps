@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useActionData,
   useFetcher,
@@ -21,6 +21,7 @@ import {
   Modal,
   Page,
   Select,
+  Spinner,
   Text,
   TextField,
 } from "@shopify/polaris";
@@ -31,6 +32,7 @@ import {
   MaximizeIcon,
   MinimizeIcon,
   PauseCircleIcon,
+  ReplaceIcon,
   SearchIcon,
   SettingsIcon,
   TransferInternalIcon,
@@ -184,6 +186,15 @@ const inferConditionType = (record) => {
 const combineDateTime = (date, time) => {
   if (!date) return null;
   return new Date(`${date}T${time || "00:00"}`).toISOString();
+};
+
+const mergeById = (current = [], next = []) => {
+  const seen = new Set();
+  return [...current, ...next].filter((item) => {
+    if (!item?.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 };
 
 export const loader = async ({ request }) => {
@@ -392,9 +403,13 @@ function ResourcePickerModal({
   onClose,
   title,
   items,
+  loading = false,
+  loadingMore = false,
+  hasMore = false,
   multi = true,
   selected = [],
   onApply,
+  onLoadMore,
   emptyText = "No items found.",
   kindLabel = "items",
 }) {
@@ -452,7 +467,14 @@ function ResourcePickerModal({
       </Modal.Section>
       <Modal.Section>
         <div className="bxgy-pickerList">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="bxgy-pickerLoading">
+              <Spinner size="small" />
+              <Text tone="subdued" as="p">
+                Loading {kindLabel}...
+              </Text>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="bxgy-pickerEmpty">
               <Text tone="subdued" as="p">
                 {emptyText}
@@ -509,6 +531,13 @@ function ResourcePickerModal({
             })
           )}
         </div>
+        {!loading && hasMore && !search ? (
+          <div className="bxgy-pickerLoadMore">
+            <Button onClick={onLoadMore} loading={loadingMore} disabled={!onLoadMore}>
+              Load more
+            </Button>
+          </div>
+        ) : null}
       </Modal.Section>
     </Modal>
   );
@@ -669,21 +698,56 @@ export default function RuleBxgy() {
   const isSaving = navigation.state === "submitting";
 
   const productFetcher = useFetcher();
+  const [pickerProducts, setPickerProducts] = useState([]);
+  const [pickerCollections, setPickerCollections] = useState([]);
+  const [pickerPageInfo, setPickerPageInfo] = useState({
+    products: { hasNextPage: false, endCursor: null },
+    collections: { hasNextPage: false, endCursor: null },
+  });
+  const [loadingResource, setLoadingResource] = useState(null);
+
   useEffect(() => {
-    if (productFetcher.state === "idle" && !productFetcher.data) {
-      productFetcher.load("/api/products");
+    const data = productFetcher.data;
+    if (!data) return;
+
+    if (data.resource === "products" || data.resource === "both") {
+      setPickerProducts((current) => mergeById(current, data.products || []));
+      setPickerPageInfo((current) => ({
+        ...current,
+        products: data.pageInfo?.products || current.products,
+      }));
     }
+
+    if (data.resource === "collections" || data.resource === "both") {
+      setPickerCollections((current) => mergeById(current, data.collections || []));
+      setPickerPageInfo((current) => ({
+        ...current,
+        collections: data.pageInfo?.collections || current.collections,
+      }));
+    }
+
+    if (productFetcher.state === "idle") setLoadingResource(null);
+  }, [productFetcher.data, productFetcher.state]);
+
+  const loadPickerResource = useCallback((resource, after = null) => {
+    if (productFetcher.state !== "idle") return;
+    const afterParam =
+      after && resource === "products"
+        ? `&productAfter=${encodeURIComponent(after)}`
+        : after && resource === "collections"
+          ? `&collectionAfter=${encodeURIComponent(after)}`
+          : "";
+    setLoadingResource(resource);
+    productFetcher.load(`/api/products?resource=${resource}&limit=10${afterParam}`);
   }, [productFetcher]);
 
-  const allProducts = productFetcher.data?.products || [];
-  const allCollections = productFetcher.data?.collections || [];
-  const productPickerItems = allProducts.map((product) => ({
+  const productPickerItems = pickerProducts.map((product) => ({
     id: product.id,
     title: product.title,
     subtitle: product.price ? `$${product.price}` : undefined,
     image: product.image,
   }));
-  const collectionPickerItems = allCollections.map((collection) => ({
+  const collectionPickerItems = pickerCollections.map((collection) => ({
     id: collection.id,
     title: collection.title,
     subtitle: collection.handle ? `/${collection.handle}` : undefined,
@@ -750,6 +814,43 @@ export default function RuleBxgy() {
   );
 
   const [picker, setPicker] = useState(null);
+  const pickerResource = picker === "buy-collections" ? "collections" : picker ? "products" : null;
+  const pickerItems = pickerResource === "collections" ? collectionPickerItems : productPickerItems;
+  const pickerLoading =
+    Boolean(pickerResource) &&
+    loadingResource === pickerResource &&
+    productFetcher.state === "loading" &&
+    pickerItems.length === 0;
+  const pickerLoadingMore =
+    Boolean(pickerResource) &&
+    loadingResource === pickerResource &&
+    productFetcher.state === "loading" &&
+    pickerItems.length > 0;
+
+  useEffect(() => {
+    if (!pickerResource || productFetcher.state !== "idle") return;
+    if (pickerResource === "products" && productPickerItems.length === 0) {
+      loadPickerResource("products");
+    }
+    if (pickerResource === "collections" && collectionPickerItems.length === 0) {
+      loadPickerResource("collections");
+    }
+  }, [
+    pickerResource,
+    productFetcher.state,
+    productPickerItems.length,
+    collectionPickerItems.length,
+    loadPickerResource,
+  ]);
+
+  const loadMorePickerItems = () => {
+    if (!pickerResource) return;
+    const nextPage = pickerPageInfo[pickerResource];
+    if (nextPage?.hasNextPage && nextPage?.endCursor) {
+      loadPickerResource(pickerResource, nextPage.endCursor);
+    }
+  };
+
   const pickerConfig =
     picker === "buy-products"
       ? {
@@ -760,6 +861,7 @@ export default function RuleBxgy() {
         onApply: setBuyProductIds,
         kindLabel: "products",
         emptyText: "No products available.",
+        hasMore: pickerPageInfo.products.hasNextPage,
       }
       : picker === "buy-collections"
         ? {
@@ -770,6 +872,7 @@ export default function RuleBxgy() {
           onApply: setBuyCollectionIds,
           kindLabel: "collections",
           emptyText: "No collections available.",
+          hasMore: pickerPageInfo.collections.hasNextPage,
         }
         : picker === "rewards"
           ? {
@@ -780,6 +883,7 @@ export default function RuleBxgy() {
             onApply: setRewardProductIds,
             kindLabel: "products",
             emptyText: "No products available.",
+            hasMore: pickerPageInfo.products.hasNextPage,
           }
           : { open: false };
 
@@ -919,6 +1023,8 @@ export default function RuleBxgy() {
         .bxgy-pickerText{display:grid;gap:2px;min-width:0;flex:1}
         .bxgy-pickerCheckbox{display:flex;align-items:center;flex-shrink:0}
         .bxgy-pickerSelected{font-size:12px;font-weight:700;color:#2563eb}
+        .bxgy-pickerLoading{min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+        .bxgy-pickerLoadMore{display:flex;justify-content:center;padding-top:14px}
         .bxgy-pickerEmpty{padding:24px 0;text-align:center}
         .bxgy-modalFields{display:grid;gap:18px}
         @media(max-width:980px){.bxgy-layout{grid-template-columns:1fr}.bxgy-sidebar{order:-1}}
@@ -990,6 +1096,7 @@ export default function RuleBxgy() {
                           </Text>
                         </span>
                         <Button
+                          icon={ReplaceIcon}
                           variant="plain"
                           onClick={() => setConditionType(null)}
                         >
@@ -1289,9 +1396,13 @@ export default function RuleBxgy() {
         onClose={() => setPicker(null)}
         title={pickerConfig.title}
         items={pickerConfig.items || []}
+        loading={pickerLoading}
+        loadingMore={pickerLoadingMore}
+        hasMore={Boolean(pickerConfig.hasMore)}
         multi
         selected={pickerConfig.selected || []}
         onApply={pickerConfig.onApply || (() => { })}
+        onLoadMore={loadMorePickerItems}
         emptyText={pickerConfig.emptyText}
         kindLabel={pickerConfig.kindLabel}
       />

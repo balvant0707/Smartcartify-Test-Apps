@@ -3,6 +3,13 @@ import { authenticate } from "../shopify.server";
 
 // tiny helper
 const edge = (x) => (x && x.edges ? x.edges.map((e) => e.node) : []);
+const pageInfo = (x) => x?.pageInfo || { hasNextPage: false, endCursor: null };
+
+const clampLimit = (value, fallback) => {
+  const parsed = parseInt(value || "", 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, 250);
+};
 
 export async function loader({ request }) {
   try {
@@ -10,11 +17,19 @@ export async function loader({ request }) {
     const url = new URL(request.url);
     const includeCollectionProducts =
       url.searchParams.get("includeCollectionProducts") === "1";
+    const resource = url.searchParams.get("resource") || "both";
+    const legacyRequest = !url.searchParams.has("resource") && !url.searchParams.has("limit");
+    const limit = clampLimit(url.searchParams.get("limit"), legacyRequest ? 250 : 10);
+    const productAfter = url.searchParams.get("productAfter");
+    const collectionAfter = url.searchParams.get("collectionAfter");
+
+    const wantsProducts = resource === "both" || resource === "products";
+    const wantsCollections = resource === "both" || resource === "collections";
 
     const gql = includeCollectionProducts
       ? `
-          query ProductsForPicker {
-            products(first: 250, sortKey: TITLE) {
+          query ProductsForPicker($productFirst: Int!, $productAfter: String, $collectionFirst: Int!, $collectionAfter: String) {
+            products(first: $productFirst, after: $productAfter, sortKey: TITLE) @include(if: ${wantsProducts}) {
               edges {
                 node {
                   id
@@ -24,8 +39,9 @@ export async function loader({ request }) {
                   images(first: 1)   { edges { node { url altText } } }
                 }
               }
+              pageInfo { hasNextPage endCursor }
             }
-            collections(first: 250, sortKey: TITLE) {
+            collections(first: $collectionFirst, after: $collectionAfter, sortKey: TITLE) @include(if: ${wantsCollections}) {
               edges {
                 node {
                   id
@@ -44,12 +60,13 @@ export async function loader({ request }) {
                   }
                 }
               }
+              pageInfo { hasNextPage endCursor }
             }
           }
         `
       : `
-          query ProductsForPicker {
-            products(first: 250, sortKey: TITLE) {
+          query ProductsForPicker($productFirst: Int!, $productAfter: String, $collectionFirst: Int!, $collectionAfter: String) {
+            products(first: $productFirst, after: $productAfter, sortKey: TITLE) @include(if: ${wantsProducts}) {
               edges {
                 node {
                   id
@@ -59,8 +76,9 @@ export async function loader({ request }) {
                   images(first: 1)   { edges { node { url altText } } }
                 }
               }
+              pageInfo { hasNextPage endCursor }
             }
-            collections(first: 250, sortKey: TITLE) {
+            collections(first: $collectionFirst, after: $collectionAfter, sortKey: TITLE) @include(if: ${wantsCollections}) {
               edges {
                 node {
                   id
@@ -68,11 +86,19 @@ export async function loader({ request }) {
                   handle
                 }
               }
+              pageInfo { hasNextPage endCursor }
             }
           }
         `;
 
-    const resp = await admin.graphql(gql);
+    const resp = await admin.graphql(gql, {
+      variables: {
+        productFirst: wantsProducts ? limit : 1,
+        productAfter: wantsProducts ? productAfter || null : null,
+        collectionFirst: wantsCollections ? limit : 1,
+        collectionAfter: wantsCollections ? collectionAfter || null : null,
+      },
+    });
     const data = await resp.json();
 
     const items = edge(data?.data?.products).map((p) => {
@@ -115,7 +141,15 @@ export async function loader({ request }) {
       };
     });
 
-    return new Response(JSON.stringify({ products: items, collections }), {
+    return new Response(JSON.stringify({
+      resource,
+      products: items,
+      collections,
+      pageInfo: {
+        products: pageInfo(data?.data?.products),
+        collections: pageInfo(data?.data?.collections),
+      },
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
