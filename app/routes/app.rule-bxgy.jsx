@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useActionData,
   useFetcher,
@@ -560,7 +560,7 @@ function SelectedItemsDisplay({ ids, allItems, onRemove }) {
     <div className="bxgy-selectedItems">
       {ids.map((id) => {
         const found = allItems.find((item) => item.id === id);
-        const label = found?.title || id.split("/").pop() || id;
+        const label = found?.title || "Selected item";
         return (
           <span className="bxgy-selectedItem" key={id}>
             {found?.image ? (
@@ -708,6 +708,10 @@ export default function RuleBxgy() {
   const isSaving = navigation.state === "submitting";
 
   const productFetcher = useFetcher();
+  const selectedProductsFetcher = useFetcher();
+  const selectedCollectionsFetcher = useFetcher();
+  const requestedProductIdsRef = useRef(new Set());
+  const requestedCollectionIdsRef = useRef(new Set());
   const [pickerProducts, setPickerProducts] = useState([]);
   const [pickerCollections, setPickerCollections] = useState([]);
   const [pickerPageInfo, setPickerPageInfo] = useState({
@@ -738,6 +742,20 @@ export default function RuleBxgy() {
 
     if (productFetcher.state === "idle") setLoadingResource(null);
   }, [productFetcher.data, productFetcher.state]);
+
+  useEffect(() => {
+    const data = selectedProductsFetcher.data;
+    if (data?.products?.length) {
+      setPickerProducts((current) => mergeById(current, data.products));
+    }
+  }, [selectedProductsFetcher.data]);
+
+  useEffect(() => {
+    const data = selectedCollectionsFetcher.data;
+    if (data?.collections?.length) {
+      setPickerCollections((current) => mergeById(current, data.collections));
+    }
+  }, [selectedCollectionsFetcher.data]);
 
   const loadPickerResource = useCallback((resource, after = null) => {
     if (productFetcher.state !== "idle") return;
@@ -824,6 +842,37 @@ export default function RuleBxgy() {
   );
 
   const [picker, setPicker] = useState(null);
+  const selectedProductIds = useMemo(
+    () => [...new Set([...buyProductIds, ...rewardProductIds])],
+    [buyProductIds, rewardProductIds]
+  );
+
+  useEffect(() => {
+    if (selectedProductsFetcher.state !== "idle") return;
+    const loadedIds = new Set(pickerProducts.map((product) => product.id));
+    const missingIds = selectedProductIds.filter(
+      (id) => !loadedIds.has(id) && !requestedProductIdsRef.current.has(id)
+    );
+    if (!missingIds.length) return;
+    missingIds.forEach((id) => requestedProductIdsRef.current.add(id));
+    selectedProductsFetcher.load(
+      `/api/products?resource=products&ids=${encodeURIComponent(missingIds.join(","))}`
+    );
+  }, [selectedProductIds, pickerProducts, selectedProductsFetcher]);
+
+  useEffect(() => {
+    if (selectedCollectionsFetcher.state !== "idle") return;
+    const loadedIds = new Set(pickerCollections.map((collection) => collection.id));
+    const missingIds = buyCollectionIds.filter(
+      (id) => !loadedIds.has(id) && !requestedCollectionIdsRef.current.has(id)
+    );
+    if (!missingIds.length) return;
+    missingIds.forEach((id) => requestedCollectionIdsRef.current.add(id));
+    selectedCollectionsFetcher.load(
+      `/api/products?resource=collections&ids=${encodeURIComponent(missingIds.join(","))}`
+    );
+  }, [buyCollectionIds, pickerCollections, selectedCollectionsFetcher]);
+
   const pickerResource = picker === "buy-collections" ? "collections" : picker ? "products" : null;
   const pickerItems = pickerResource === "collections" ? collectionPickerItems : productPickerItems;
   const pickerLoading =
