@@ -475,12 +475,19 @@ function ResourcePickerModal({
                     }
                   }}
                 >
-                  <Checkbox
-                    label=""
-                    labelHidden
-                    checked={checked}
-                    onChange={() => toggle(item.id)}
-                  />
+                  <span
+                    className="bxgy-pickerCheckbox"
+                    role="presentation"
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
+                    <Checkbox
+                      label=""
+                      labelHidden
+                      checked={checked}
+                      onChange={() => toggle(item.id)}
+                    />
+                  </span>
                   {item.image ? (
                     <img src={item.image} alt={item.title} className="bxgy-pickerImage" />
                   ) : (
@@ -886,6 +893,7 @@ export default function RuleBxgy() {
         .bxgy-conditionSelected{display:block;padding:22px 20px;border:2px solid #e1e3e5;border-radius:12px}
         .bxgy-conditionTop{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:1px solid #ebeef1}
         .bxgy-conditionControls{display:grid;gap:16px;padding-top:18px}
+        .bxgy-compactAction{width:max-content;max-width:100%}
         .bxgy-selectedItems{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
         .bxgy-selectedItem{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:6px 8px;background:#f6f6f7;border:1px solid #e1e3e5;border-radius:12px;font-size:13px;font-weight:600}
         .bxgy-selectedItem button{display:flex;align-items:center;background:transparent;border:0;padding:0;cursor:pointer;color:#6d7175}
@@ -909,6 +917,7 @@ export default function RuleBxgy() {
         .bxgy-pickerImage{width:44px;height:44px;object-fit:cover;border-radius:12px;border:1px solid #e1e3e5;flex-shrink:0;background:#f1f3f5}
         .bxgy-pickerImageEmpty::before{content:"";display:block;width:18px;height:18px;margin:12px auto;border:2px solid #8c9196;border-radius:4px}
         .bxgy-pickerText{display:grid;gap:2px;min-width:0;flex:1}
+        .bxgy-pickerCheckbox{display:flex;align-items:center;flex-shrink:0}
         .bxgy-pickerSelected{font-size:12px;font-weight:700;color:#2563eb}
         .bxgy-pickerEmpty{padding:24px 0;text-align:center}
         .bxgy-modalFields{display:grid;gap:18px}
@@ -994,14 +1003,16 @@ export default function RuleBxgy() {
                             <Text variant="bodyMd" fontWeight="semibold" as="p">
                               Select the product visitor must buy
                             </Text>
-                            <Button
-                              variant="primary"
-                              size="slim"
-                              onClick={() => setPicker("buy-products")}
-                              loading={productFetcher.state === "loading"}
-                            >
-                              Select a product
-                            </Button>
+                            <div className="bxgy-compactAction">
+                              <Button
+                                variant="primary"
+                                size="slim"
+                                onClick={() => setPicker("buy-products")}
+                                loading={productFetcher.state === "loading"}
+                              >
+                                Select product
+                              </Button>
+                            </div>
                             <SelectedItemsDisplay
                               ids={buyProductIds}
                               allItems={productPickerItems}
@@ -1015,14 +1026,16 @@ export default function RuleBxgy() {
                             <Text variant="bodyMd" fontWeight="semibold" as="p">
                               Select the collection from which visitor must buy
                             </Text>
-                            <Button
-                              variant="primary"
-                              size="slim"
-                              onClick={() => setPicker("buy-collections")}
-                              loading={productFetcher.state === "loading"}
-                            >
-                              Select a collection
-                            </Button>
+                            <div className="bxgy-compactAction">
+                              <Button
+                                variant="primary"
+                                size="slim"
+                                onClick={() => setPicker("buy-collections")}
+                                loading={productFetcher.state === "loading"}
+                              >
+                                Select collection
+                              </Button>
+                            </div>
                             <SelectedItemsDisplay
                               ids={buyCollectionIds}
                               allItems={collectionPickerItems}
@@ -1058,14 +1071,16 @@ export default function RuleBxgy() {
                   <Text variant="bodyMd" fontWeight="semibold" as="p">
                     Select products they get for free
                   </Text>
-                  <Button
-                    variant="primary"
-                    size="slim"
-                    onClick={() => setPicker("rewards")}
-                    loading={productFetcher.state === "loading"}
-                  >
-                    + Add a product
-                  </Button>
+                  <div className="bxgy-compactAction">
+                    <Button
+                      variant="primary"
+                      size="slim"
+                      onClick={() => setPicker("rewards")}
+                      loading={productFetcher.state === "loading"}
+                    >
+                      Add product
+                    </Button>
+                  </div>
                   <SelectedItemsDisplay
                     ids={rewardProductIds}
                     allItems={productPickerItems}
