@@ -1125,7 +1125,6 @@ export default function RuleBxgy() {
                                 variant="primary"
                                 size="slim"
                                 onClick={() => setPicker("buy-products")}
-                                loading={productFetcher.state === "loading"}
                               >
                                 Select product
                               </Button>
@@ -1148,7 +1147,6 @@ export default function RuleBxgy() {
                                 variant="primary"
                                 size="slim"
                                 onClick={() => setPicker("buy-collections")}
-                                loading={productFetcher.state === "loading"}
                               >
                                 Select collection
                               </Button>
@@ -1193,7 +1191,6 @@ export default function RuleBxgy() {
                       variant="primary"
                       size="slim"
                       onClick={() => setPicker("rewards")}
-                      loading={productFetcher.state === "loading"}
                     >
                       Add product
                     </Button>
