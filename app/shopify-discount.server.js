@@ -57,6 +57,14 @@ const BXGY_UPDATE = `#graphql
     }
   }`;
 
+const AUTOMATIC_DELETE = `#graphql
+  mutation DiscountAutomaticDelete($id: ID!) {
+    discountAutomaticDelete(id: $id) {
+      deletedAutomaticDiscountId
+      userErrors { field message }
+    }
+  }`;
+
 // ─── Discount Code (Basic) ────────────────────────────────────────────────────
 
 const CODE_BASIC_CREATE = `#graphql
@@ -147,6 +155,19 @@ const normalizeIds = (value) =>
     ? [...new Set(value.map(String).map((id) => id.trim()).filter(Boolean))]
     : [];
 
+function shopifyGid(id, type) {
+  const raw = String(id || "").trim();
+  if (!raw || raw.startsWith("gid://")) return raw;
+  if (!/^\d+$/.test(raw)) return raw;
+  return `gid://shopify/${type}/${raw}`;
+}
+
+const normalizeProductIds = (value) =>
+  normalizeIds(value).map((id) => shopifyGid(id, "Product"));
+
+const normalizeCollectionIds = (value) =>
+  normalizeIds(value).map((id) => shopifyGid(id, "Collection"));
+
 function normalizeBxgyScope(scope) {
   switch (scope) {
     case "store":
@@ -182,15 +203,15 @@ function parseBxgyAppliesTo(appliesTo, scope) {
 
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
     return {
-      products: normalizeIds(parsed.products),
-      collections: normalizeIds(parsed.collections),
+      products: normalizeProductIds(parsed.products),
+      collections: normalizeCollectionIds(parsed.collections),
     };
   }
 
   const ids = normalizeIds(parsed);
   return normalizedScope === "collection"
-    ? { products: [], collections: ids }
-    : { products: ids, collections: [] };
+    ? { products: [], collections: normalizeCollectionIds(ids) }
+    : { products: normalizeProductIds(ids), collections: [] };
 }
 
 async function fetchBxgyStoreProductIds(admin) {
@@ -208,16 +229,43 @@ async function fetchBxgyStoreProductIds(admin) {
   return normalizeIds(edgeNodes(data?.data?.products).map((product) => product.id));
 }
 
-function buildBxgyItemsInput(selection = {}) {
-  const products = normalizeIds(selection.products);
-  const collections = normalizeIds(selection.collections);
+function buildBxgyItemsInput(selection = {}, previousSelection = {}) {
+  const products = normalizeProductIds(selection.products);
+  const collections = normalizeCollectionIds(selection.collections);
+  const previousProducts = normalizeProductIds(previousSelection.products);
+  const previousCollections = normalizeCollectionIds(previousSelection.collections);
+  const productsToRemove = previousProducts.filter((id) => !products.includes(id));
+  const collectionsToRemove = previousCollections.filter((id) => !collections.includes(id));
+  const input = {};
 
   if (products.length) {
-    return { products: { productsToAdd: products } };
+    input.products = { productsToAdd: products };
+  } else if (productsToRemove.length) {
+    input.products = {};
   }
 
   if (collections.length) {
-    return { collections: { add: collections } };
+    input.collections = { add: collections };
+  } else if (collectionsToRemove.length) {
+    input.collections = {};
+  }
+
+  if (productsToRemove.length) {
+    input.products = {
+      ...(input.products || {}),
+      productsToRemove,
+    };
+  }
+
+  if (collectionsToRemove.length) {
+    input.collections = {
+      ...(input.collections || {}),
+      remove: collectionsToRemove,
+    };
+  }
+
+  if (Object.keys(input).length) {
+    return input;
   }
 
   throw new Error(
@@ -270,6 +318,22 @@ function assertDiscountMutationSuccess(data, mutationName, label) {
   if (errors.length) {
     throw new Error(`${label} failed: ${userErrorMessage(errors)}`);
   }
+}
+
+function isBxgyUpdateStateConflict(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("cannot have collection prerequisites in combination with product prerequisites") ||
+    message.includes("customer buys quantity cannot be defined when customer buys amount is defined") ||
+    message.includes("customer buys amount cannot be defined when customer buys quantity is defined")
+  );
+}
+
+async function deleteAutomaticDiscount(admin, id) {
+  const data = await gql(admin, AUTOMATIC_DELETE, {
+    id: automaticDiscountNodeId(id),
+  });
+  assertDiscountMutationSuccess(data, "discountAutomaticDelete", "Shopify automatic discount delete");
 }
 
 function hasUniqueTitleError(data, mutationName) {
@@ -663,23 +727,36 @@ export async function upsertAutomaticBasic(admin, {
  */
 export async function upsertBxgy(admin, {
   existingId, title, startsAt, endsAt, minReqType, minQty, minSpend, rewardQty, rewardType, rewardDiscount, enabled = true,
-  scope, appliesTo, rewardAppliesTo, usesPerOrderLimit,
+  scope, appliesTo, rewardAppliesTo, usesPerOrderLimit, previousScope, previousAppliesTo, previousRewardAppliesTo,
 }) {
   const selection = await resolveBxgySelection(admin, { scope, appliesTo });
+  const previousSelection = previousAppliesTo
+    ? parseBxgyAppliesTo(previousAppliesTo, previousScope || scope)
+    : {};
   const rewardSelection = rewardAppliesTo
     ? parseBxgyAppliesTo(rewardAppliesTo, "product")
     : selection;
-  const buyItems = buildBxgyItemsInput(selection);
-  const getItems = buildBxgyItemsInput(rewardSelection);
+  const previousRewardSelection = previousRewardAppliesTo
+    ? parseBxgyAppliesTo(previousRewardAppliesTo, "product")
+    : {};
+  const buyItems = buildBxgyItemsInput(selection, existingId ? previousSelection : {});
+  const getItems = buildBxgyItemsInput(rewardSelection, existingId ? previousRewardSelection : {});
   const parsedUsesPerOrderLimit = parseInt(usesPerOrderLimit || "", 10);
+  const buyValue = minReqType === "spend"
+    ? {
+        amount: String(parseFloat(minSpend || "0")),
+        ...(existingId ? { quantity: null } : {}),
+      }
+    : {
+        quantity: String(parseInt(minQty || "1", 10)),
+        ...(existingId ? { amount: null } : {}),
+      };
   const input = {
     title: withAppNameTitle(title, "Buy X Get Y Discount"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
     customerBuys: {
       items: buyItems,
-      value: minReqType === "spend"
-        ? { amount: String(parseFloat(minSpend || "0")) }
-        : { quantity: String(parseInt(minQty || "1", 10)) },
+      value: buyValue,
     },
     customerGets: {
       items: getItems,
@@ -710,8 +787,26 @@ export async function upsertBxgy(admin, {
         },
       });
     }
-    assertDiscountMutationSuccess(data, "discountAutomaticBxgyUpdate", "Shopify Buy X Get Y discount update");
-    return data?.data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id || existingId;
+    try {
+      assertDiscountMutationSuccess(data, "discountAutomaticBxgyUpdate", "Shopify Buy X Get Y discount update");
+      return data?.data?.discountAutomaticBxgyUpdate?.automaticDiscountNode?.id || existingId;
+    } catch (error) {
+      if (!isBxgyUpdateStateConflict(error)) throw error;
+      await deleteAutomaticDiscount(admin, existingId);
+      let createData = await gql(admin, BXGY_CREATE, { input });
+      if (hasUniqueTitleError(createData, "discountAutomaticBxgyCreate")) {
+        createData = await gql(admin, BXGY_CREATE, {
+          input: {
+            ...input,
+            title: uniqueDiscountTitle(input.title),
+          },
+        });
+      }
+      assertDiscountMutationSuccess(createData, "discountAutomaticBxgyCreate", "Shopify Buy X Get Y discount recreate");
+      const recreatedId = createData?.data?.discountAutomaticBxgyCreate?.automaticDiscountNode?.id;
+      if (!recreatedId) throw new Error("Shopify Buy X Get Y discount recreate failed: missing discount id");
+      return recreatedId;
+    }
   }
   let data = await gql(admin, BXGY_CREATE, { input });
   if (hasUniqueTitleError(data, "discountAutomaticBxgyCreate")) {

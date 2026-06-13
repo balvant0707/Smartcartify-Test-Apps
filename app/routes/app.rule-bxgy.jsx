@@ -344,13 +344,22 @@ export const action = async ({ request }) => {
       return { error: "Select at least one free product before activating this campaign." };
     }
 
+    let existingRule = null;
     let existingShopifyId = null;
     if (id) {
-      const existing = await prisma.bxgyRule.findFirst({
+      existingRule = await prisma.bxgyRule.findFirst({
         where: { id: parseInt(id, 10), shop },
-        select: { buyxgetyId: true },
+        select: {
+          buyxgetyId: true,
+          scope: true,
+          appliesTo: true,
+          appliesProductIds: true,
+          appliesCollectionIds: true,
+          giftSku: true,
+          rewardProductIds: true,
+        },
       });
-      existingShopifyId = existing?.buyxgetyId || null;
+      existingShopifyId = existingRule?.buyxgetyId || null;
     }
 
     if (isActive && hasBuySelection && hasRewardSelection) {
@@ -370,6 +379,17 @@ export const action = async ({ request }) => {
         scope,
         appliesTo: appliesToPayload,
         rewardAppliesTo: JSON.stringify({ products: selectedRewards, collections: [] }),
+        previousScope: existingRule?.scope || null,
+        previousAppliesTo:
+          existingRule?.appliesTo ||
+          JSON.stringify({
+            products: parseJsonArray(existingRule?.appliesProductIds),
+            collections: parseJsonArray(existingRule?.appliesCollectionIds),
+          }),
+        previousRewardAppliesTo: JSON.stringify({
+          products: parseJsonArray(existingRule?.rewardProductIds || existingRule?.giftSku),
+          collections: [],
+        }),
         usesPerOrderLimit: maxUsesEnabled ? maxGifts || "1" : null,
       });
       if (shopifyId) dbData.buyxgetyId = shopifyId;
