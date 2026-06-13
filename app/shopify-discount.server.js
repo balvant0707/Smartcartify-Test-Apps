@@ -678,7 +678,7 @@ export async function upsertBxgy(admin, {
     customerBuys: {
       items: buyItems,
       value: minReqType === "spend"
-        ? { subtotalAmount: { amount: String(parseFloat(minSpend || "0")), currencyCode: "USD" } }
+        ? { amount: String(parseFloat(minSpend || "0")) }
         : { quantity: String(parseInt(minQty || "1", 10)) },
     },
     customerGets: {
