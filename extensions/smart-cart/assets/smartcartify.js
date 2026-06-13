@@ -7075,10 +7075,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
 
+  const firstGiftSkuProductId = (value) => {
+    const raw = trimToNull(value);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return trimToNull(parsed[0]);
+      if (Array.isArray(parsed?.products)) return trimToNull(parsed.products[0]);
+    } catch (_) { }
+    return raw;
+  };
+
   const resolveRewardVariantForAdd = async (rule, variant) => {
     if (getVariantLegacyId(variant)) return variant;
     const giftType = String(rule?.giftType || "").toLowerCase();
-    const giftSkuRaw = trimToNull(rule?.giftSku);
+    const giftSkuRaw = firstGiftSkuProductId(rule?.giftSku);
     const productIdCandidate =
       trimToNull(variant?.productId) ||
       trimToNull(rule?.bonusProductId) ||
@@ -7136,7 +7147,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     // BxgyRule: giftType "specific" — giftSku stores the reward product ID
     const giftType = String(rule?.giftType || "same").toLowerCase();
-    const giftSkuRaw = trimToNull(rule?.giftSku);
+    const giftSkuRaw = firstGiftSkuProductId(rule?.giftSku);
     if (giftType === "specific" && giftSkuRaw) {
       const productId = normalizeProductNumericId(giftSkuRaw) || gidToId(giftSkuRaw) || giftSkuRaw;
       return { productId: String(productId) };

@@ -663,21 +663,25 @@ export async function upsertAutomaticBasic(admin, {
  */
 export async function upsertBxgy(admin, {
   existingId, title, startsAt, endsAt, minReqType, minQty, minSpend, rewardQty, rewardType, rewardDiscount, enabled = true,
-  scope, appliesTo,
+  scope, appliesTo, rewardAppliesTo,
 }) {
   const selection = await resolveBxgySelection(admin, { scope, appliesTo });
-  const items = buildBxgyItemsInput(selection);
+  const rewardSelection = rewardAppliesTo
+    ? parseBxgyAppliesTo(rewardAppliesTo, "product")
+    : selection;
+  const buyItems = buildBxgyItemsInput(selection);
+  const getItems = buildBxgyItemsInput(rewardSelection);
   const input = {
     title: withAppNameTitle(title, "Buy X Get Y Discount"),
     ...discountScheduleFields({ enabled, startsAt, endsAt }),
     customerBuys: {
-      items,
+      items: buyItems,
       value: minReqType === "spend"
         ? { subtotalAmount: { amount: String(parseFloat(minSpend || "0")), currencyCode: "USD" } }
         : { quantity: String(parseInt(minQty || "1", 10)) },
     },
     customerGets: {
-      items,
+      items: getItems,
       value: {
         discountOnQuantity: {
           quantity: String(parseInt(rewardQty || "1", 10)),
