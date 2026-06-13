@@ -437,6 +437,14 @@ function ResourcePickerModal({
     );
   };
 
+  const handleScroll = (event) => {
+    if (loading || loadingMore || !hasMore || search || !onLoadMore) return;
+    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 80) {
+      onLoadMore();
+    }
+  };
+
   return (
     <Modal
       open={open}
@@ -466,7 +474,7 @@ function ResourcePickerModal({
         />
       </Modal.Section>
       <Modal.Section>
-        <div className="bxgy-pickerList">
+        <div className="bxgy-pickerList" onScroll={handleScroll}>
           {loading ? (
             <div className="bxgy-pickerLoading">
               <Spinner size="small" />
@@ -481,68 +489,70 @@ function ResourcePickerModal({
               </Text>
             </div>
           ) : (
-            filtered.map((item) => {
-              const checked = draft.includes(item.id);
-              return (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  key={item.id}
-                  className={`bxgy-pickerItem ${checked ? "bxgy-pickerItemSelected" : ""}`}
-                  onClick={() => toggle(item.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      toggle(item.id);
-                    }
-                  }}
-                >
-                  <span
-                    className="bxgy-pickerCheckbox"
-                    role="presentation"
-                    onClick={(event) => event.stopPropagation()}
-                    onKeyDown={(event) => event.stopPropagation()}
+            <>
+              {filtered.map((item) => {
+                const checked = draft.includes(item.id);
+                return (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    key={item.id}
+                    className={`bxgy-pickerItem ${checked ? "bxgy-pickerItemSelected" : ""}`}
+                    onClick={() => toggle(item.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        toggle(item.id);
+                      }
+                    }}
                   >
-                    <Checkbox
-                      label=""
-                      labelHidden
-                      checked={checked}
-                      onChange={() => toggle(item.id)}
-                    />
-                  </span>
-                  {item.image ? (
-                    <img src={item.image} alt={item.title} className="bxgy-pickerImage" />
-                  ) : (
-                    <span className="bxgy-pickerImage bxgy-pickerImageEmpty" />
-                  )}
-                  <span className="bxgy-pickerText">
-                    <Text variant="bodySm" fontWeight="semibold" as="span">
-                      {item.title}
-                    </Text>
-                    {item.subtitle && (
-                      <Text variant="bodySm" tone="subdued" as="span">
-                        {item.subtitle}
-                      </Text>
+                    <span
+                      className="bxgy-pickerCheckbox"
+                      role="presentation"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <Checkbox
+                        label=""
+                        labelHidden
+                        checked={checked}
+                        onChange={() => toggle(item.id)}
+                      />
+                    </span>
+                    {item.image ? (
+                      <img src={item.image} alt={item.title} className="bxgy-pickerImage" />
+                    ) : (
+                      <span className="bxgy-pickerImage bxgy-pickerImageEmpty" />
                     )}
-                  </span>
-                  {checked && <span className="bxgy-pickerSelected">Selected</span>}
+                    <span className="bxgy-pickerText">
+                      <Text variant="bodySm" fontWeight="semibold" as="span">
+                        {item.title}
+                      </Text>
+                      {item.subtitle && (
+                        <Text variant="bodySm" tone="subdued" as="span">
+                          {item.subtitle}
+                        </Text>
+                      )}
+                    </span>
+                    {checked && <span className="bxgy-pickerSelected">Selected</span>}
+                  </div>
+                );
+              })}
+              {loadingMore && (
+                <div className="bxgy-pickerLoadingMore">
+                  <Spinner size="small" />
+                  <Text tone="subdued" as="p">
+                    Loading more {kindLabel}...
+                  </Text>
                 </div>
-              );
-            })
+              )}
+            </>
           )}
         </div>
-        {!loading && hasMore && !search ? (
-          <div className="bxgy-pickerLoadMore">
-            <Button onClick={onLoadMore} loading={loadingMore} disabled={!onLoadMore}>
-              Load more
-            </Button>
-          </div>
-        ) : null}
       </Modal.Section>
     </Modal>
   );
 }
-
 function SelectedItemsDisplay({ ids, allItems, onRemove }) {
   if (!ids?.length) return null;
 
@@ -1024,7 +1034,7 @@ export default function RuleBxgy() {
         .bxgy-pickerCheckbox{display:flex;align-items:center;flex-shrink:0}
         .bxgy-pickerSelected{font-size:12px;font-weight:700;color:#2563eb}
         .bxgy-pickerLoading{min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
-        .bxgy-pickerLoadMore{display:flex;justify-content:center;padding-top:14px}
+        .bxgy-pickerLoadingMore{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 8px}
         .bxgy-pickerEmpty{padding:24px 0;text-align:center}
         .bxgy-modalFields{display:grid;gap:18px}
         @media(max-width:980px){.bxgy-layout{grid-template-columns:1fr}.bxgy-sidebar{order:-1}}
