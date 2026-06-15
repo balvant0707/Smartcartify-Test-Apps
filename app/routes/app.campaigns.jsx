@@ -22,6 +22,17 @@ function formatCartGoalCampaignName(rule, index) {
   return name;
 }
 
+function parseStoredIds(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(Boolean) : [];
+  } catch {
+    return typeof raw === "string" ? raw.split(",").map((item) => item.trim()).filter(Boolean) : [];
+  }
+}
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 // Reads from all four legacy rule tables: ShippingRule, DiscountRule,
 // FreeGiftRule, BxgyRule. Returns a unified `rules` array for the "My rules"
@@ -140,7 +151,19 @@ export const loader = async ({ request }) => {
       name: r.campaignName || "Buy X Get Y Discount",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
-      meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " · Storewide" : ""}`,
+      meta: (() => {
+        const appliesProductIds = parseStoredIds(r.appliesProductIds);
+        const appliesCollectionIds = parseStoredIds(r.appliesCollectionIds);
+        let scopeDetail = "";
+        if (r.scope === "store") {
+          scopeDetail = " · Storewide";
+        } else if (r.scope === "specific_products") {
+          scopeDetail = ` · ${appliesProductIds.length} product${appliesProductIds.length === 1 ? "" : "s"}`;
+        } else if (r.scope === "specific_collections") {
+          scopeDetail = ` · ${appliesCollectionIds.length} collection${appliesCollectionIds.length === 1 ? "" : "s"}`;
+        }
+        return `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${scopeDetail}`;
+      })(),
       cartStep: announcementBarLabel,
     })),
     ...cartGoalRows.map((r, index) => ({
