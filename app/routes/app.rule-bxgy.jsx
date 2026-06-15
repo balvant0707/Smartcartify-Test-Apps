@@ -76,6 +76,11 @@ const CONTENT_DEFAULTS = {
   afterText: "Yay! you got the reward",
 };
 
+const PICKER_PAGE_LIMITS = {
+  products: 10,
+  collections: 250,
+};
+
 const LANGUAGE_OPTIONS = [
   { label: "English", value: "en" },
   { label: "Spanish", value: "es" },
@@ -799,6 +804,7 @@ export default function RuleBxgy() {
 
   const loadPickerResource = useCallback((resource, after = null) => {
     if (productFetcher.state !== "idle") return;
+    const limit = PICKER_PAGE_LIMITS[resource] || 10;
     const afterParam =
       after && resource === "products"
         ? `&productAfter=${encodeURIComponent(after)}`
@@ -806,7 +812,7 @@ export default function RuleBxgy() {
           ? `&collectionAfter=${encodeURIComponent(after)}`
           : "";
     setLoadingResource(resource);
-    productFetcher.load(`/api/products?resource=${resource}&limit=10${afterParam}`);
+    productFetcher.load(`/api/products?resource=${resource}&limit=${limit}${afterParam}`);
   }, [productFetcher]);
 
   const productPickerItems = useMemo(
@@ -973,6 +979,13 @@ export default function RuleBxgy() {
     const nextPage = pickerPageInfo[pickerResource];
     if (nextPage?.hasNextPage && nextPage?.endCursor) {
       loadPickerResource(pickerResource, nextPage.endCursor);
+    }
+  };
+
+  const openCollectionPicker = () => {
+    setPicker("buy-collections");
+    if (productFetcher.state === "idle" && collectionPickerItems.length === 0) {
+      loadPickerResource("collections");
     }
   };
 
@@ -1261,7 +1274,7 @@ export default function RuleBxgy() {
                               <Button
                                 variant="primary"
                                 size="slim"
-                                onClick={() => setPicker("buy-collections")}
+                                onClick={openCollectionPicker}
                               >
                                 Select collection
                               </Button>
