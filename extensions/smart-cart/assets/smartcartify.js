@@ -7766,9 +7766,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const displayPrice = Math.max(
           0,
           isReward ? 0 : Number(it.final_line_price) ||
-          Number(it.line_price) ||
-          (unitPrice * qty) ||
-          finalLine
+            Number(it.line_price) ||
+            (unitPrice * qty) ||
+            finalLine
         );
         const priceText = formatMoney(displayPrice, currency);
         const priceClass = `sc-price${displayPrice === 0 ? " sc-price-free" : ""}`;
