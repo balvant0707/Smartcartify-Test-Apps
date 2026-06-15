@@ -188,6 +188,11 @@ const combineDateTime = (date, time) => {
   return new Date(`${date}T${time || "00:00"}`).toISOString();
 };
 
+const positiveNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
 const mergeById = (current = [], next = []) => {
   const seen = new Set();
   return [...current, ...next].filter((item) => {
@@ -352,6 +357,13 @@ export const action = async ({ request }) => {
     if (isActive && !hasRewardSelection) {
       return { error: "Select at least one free product before activating this campaign." };
     }
+    if (
+      isActive &&
+      normalizedCondition === CONDITION_TYPES.SPEND_COLLECTION &&
+      !positiveNumber(minSpend)
+    ) {
+      return { error: "Minimum spend must be greater than 0 before activating this campaign." };
+    }
 
     let existingRule = null;
     let existingShopifyId = null;
@@ -381,7 +393,7 @@ export const action = async ({ request }) => {
         minReqType:
           normalizedCondition === CONDITION_TYPES.SPEND_COLLECTION ? "spend" : "quantity",
         minQty: minQuantity || "1",
-        minSpend: minSpend || null,
+        minSpend: String(positiveNumber(minSpend) || ""),
         rewardQty: "1",
         rewardType: "free_product",
         rewardDiscount: null,
@@ -1270,6 +1282,8 @@ export default function RuleBxgy() {
                             type="number"
                             value={minSpend}
                             onChange={setMinSpend}
+                            min={0.01}
+                            step={0.01}
                             autoComplete="off"
                           />
                         ) : (

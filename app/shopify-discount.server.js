@@ -168,6 +168,11 @@ const normalizeProductIds = (value) =>
 const normalizeCollectionIds = (value) =>
   normalizeIds(value).map((id) => shopifyGid(id, "Collection"));
 
+function positiveNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 function expectedShopifyType(type) {
   return type === "Collection" ? "Collection" : "Product";
 }
@@ -809,13 +814,21 @@ export async function upsertBxgy(admin, {
   const buyItems = buildBxgyItemsInput(selection, existingId ? previousSelection : {});
   const getItems = buildBxgyItemsInput(rewardSelection, existingId ? previousRewardSelection : {});
   const parsedUsesPerOrderLimit = parseInt(usesPerOrderLimit || "", 10);
+  const spendAmount = positiveNumber(minSpend);
+  const quantityAmount = Math.floor(positiveNumber(minQty) || 0);
+  if (minReqType === "spend" && !spendAmount) {
+    throw new Error("Minimum spend must be greater than 0 for Buy X Get Y discounts.");
+  }
+  if (minReqType !== "spend" && quantityAmount < 1) {
+    throw new Error("Minimum quantity must be at least 1 for Buy X Get Y discounts.");
+  }
   const buyValue = minReqType === "spend"
     ? {
-        amount: String(parseFloat(minSpend || "0")),
+        amount: String(spendAmount),
         ...(existingId ? { quantity: null } : {}),
       }
     : {
-        quantity: String(parseInt(minQty || "1", 10)),
+        quantity: String(quantityAmount),
         ...(existingId ? { amount: null } : {}),
       };
   const input = {
