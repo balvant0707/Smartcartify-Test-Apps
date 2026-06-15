@@ -1042,11 +1042,6 @@ function CartDrawerPreview({
       }),
   ];
 
-  const freeGiftRule = (freeGiftRules || [])[0];
-  const freeGiftTitle = freeGiftRule?.campaignName || "Free Gift!!";
-  const freeGiftText = resolveStepText(freeGiftRule?.progressTextBefore, freeGiftRule?.minPurchase)
-    || "Add more to get Free Gift with this order";
-
   const showUpsell = upsellSettings?.enabled !== false;
   const showOfferTabs = offerButtonEnabled !== false;
   const upsellShowAsSlider = upsellSettings?.showAsSlider !== false;
@@ -1317,7 +1312,7 @@ function CartDrawerPreview({
         </div>
 
         <Box padding="300" paddingBlockStart="200">
-          <div style={{ position: "relative", height: 62, margin: "0 12px" }}>
+          <div style={{ position: "relative", height: 58, margin: "0 12px" }}>
             <div style={{ position: "absolute", top: 15, left: 0, right: 0, height: 6, borderRadius: 999, background: `${pc}33` }} />
             <div style={{ position: "absolute", top: 15, left: 0, width: `${progressFill}%`, height: 6, borderRadius: 999, background: pc }} />
 
@@ -1331,18 +1326,18 @@ function CartDrawerPreview({
                   key={`${step.slot}-${index}`}
                   style={{
                     position: "absolute",
-                    top: 0,
+                    top: 6,
                     left: `${pct}%`,
-                    transform: index === stepCount - 1 ? "translateX(-70%)" : "translateX(-50%)",
-                    width: 92,
+                    transform: "translateX(-50%)",
+                    width: 84,
                     textAlign: "center",
                     zIndex: 2,
                   }}
                 >
                   <div
                     style={{
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       margin: "0 auto",
                       borderRadius: "50%",
                       display: "grid",
@@ -1353,7 +1348,7 @@ function CartDrawerPreview({
                       boxShadow: "0 1px 4px rgba(15,23,42,.18)",
                     }}
                   >
-                    <PreviewIcon source={iconSrc} size={11} color="currentColor" />
+                    <PreviewIcon source={iconSrc} size={10} color="currentColor" />
                   </div>
                   <div
                     style={{
@@ -1412,23 +1407,6 @@ function CartDrawerPreview({
                   <div style={{ color: tc, fontWeight: 900 }}>{mainProduct.price || "300 INR"}</div>
                 </InlineStack>
               </div>
-            </InlineStack>
-          </Box>
-
-          <Divider />
-
-          <Box padding="400">
-            <InlineStack gap="300" blockAlign="center" wrap={false}>
-              <ProductImage src="/images/FreeProduct.png" alt={freeGiftTitle} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ color: tc, fontWeight: 900, fontSize: Math.max(fs + 1, 13), lineHeight: "17px" }}>
-                  {freeGiftTitle}
-                </div>
-                <div style={{ color: `${tc}99`, fontSize: Math.max(fs - 1, 11), lineHeight: "15px", marginTop: 2 }}>
-                  {freeGiftText}
-                </div>
-              </div>
-              <SmallIconButton icon={ChevronRightIcon} label="View gift" />
             </InlineStack>
           </Box>
 
@@ -1728,19 +1706,20 @@ function CartDrawerPreview({
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
+            minHeight: 58,
             borderTop: `1px solid ${brc}`,
             background: surface,
             boxShadow: stickyCheckout ? "0 -8px 18px rgba(15,23,42,.08)" : "none",
             flexShrink: 0,
-            margin: discountCodeApply ? "0 10px 10px" : "8px 10px 10px",
+            margin: discountCodeApply ? "0 10px 8px" : "8px 10px 8px",
             borderRadius: `0 0 ${Math.max(r, 8)}px ${Math.max(r, 8)}px`,
             overflow: "hidden",
           }}
         >
-          <Box padding="300">
+          <Box padding="200">
             <BlockStack gap="050">
               <div style={{ color: `${tc}99`, fontSize: Math.max(fs - 2, 10), fontWeight: 700 }}>Total</div>
-              <div style={{ color: tc, fontSize: Math.max(fs + 3, 15), fontWeight: 900 }}>{totalPrice}</div>
+              <div style={{ color: tc, fontSize: Math.max(fs + 2, 14), fontWeight: 900, lineHeight: "18px" }}>{totalPrice}</div>
             </BlockStack>
           </Box>
 
@@ -1751,9 +1730,9 @@ function CartDrawerPreview({
               background: bc,
               color: blc,
               fontWeight: 900,
-              fontSize: Math.max(fs, 13),
+              fontSize: Math.max(fs, 12),
               textAlign: "center",
-              padding: "0 14px",
+              padding: "0 12px",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
