@@ -763,6 +763,10 @@ export default function RuleBxgy() {
     products: { hasNextPage: false, endCursor: null },
     collections: { hasNextPage: false, endCursor: null },
   });
+  const [pickerResourcesLoaded, setPickerResourcesLoaded] = useState({
+    products: false,
+    collections: false,
+  });
   const [loadingResource, setLoadingResource] = useState(null);
 
   useEffect(() => {
@@ -775,6 +779,7 @@ export default function RuleBxgy() {
         ...current,
         products: data.pageInfo?.products || current.products,
       }));
+      setPickerResourcesLoaded((current) => ({ ...current, products: true }));
     }
 
     if (data.resource === "collections" || data.resource === "both") {
@@ -783,6 +788,7 @@ export default function RuleBxgy() {
         ...current,
         collections: data.pageInfo?.collections || current.collections,
       }));
+      setPickerResourcesLoaded((current) => ({ ...current, collections: true }));
     }
 
     if (productFetcher.state === "idle") setLoadingResource(null);
@@ -960,17 +966,17 @@ export default function RuleBxgy() {
 
   useEffect(() => {
     if (!pickerResource || productFetcher.state !== "idle") return;
-    if (pickerResource === "products" && productPickerItems.length === 0) {
+    if (pickerResource === "products" && !pickerResourcesLoaded.products) {
       loadPickerResource("products");
     }
-    if (pickerResource === "collections" && collectionPickerItems.length === 0) {
+    if (pickerResource === "collections" && !pickerResourcesLoaded.collections) {
       loadPickerResource("collections");
     }
   }, [
     pickerResource,
     productFetcher.state,
-    productPickerItems.length,
-    collectionPickerItems.length,
+    pickerResourcesLoaded.products,
+    pickerResourcesLoaded.collections,
     loadPickerResource,
   ]);
 
@@ -984,7 +990,7 @@ export default function RuleBxgy() {
 
   const openCollectionPicker = () => {
     setPicker("buy-collections");
-    if (productFetcher.state === "idle" && collectionPickerItems.length === 0) {
+    if (productFetcher.state === "idle" && !pickerResourcesLoaded.collections) {
       loadPickerResource("collections");
     }
   };
