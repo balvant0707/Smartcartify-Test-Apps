@@ -1277,10 +1277,13 @@ function CartDrawerPreview({
 
         <div
           style={{
-            padding: "10px 14px 0",
+            padding: "10px 14px 12px",
+            margin: "0 10px 10px",
             textAlign: "center",
-            background: "rgba(255,255,255,.66)",
+            background: surface,
             color: ptc,
+            border: `1px solid ${brc}`,
+            borderRadius: Math.max(r, 8),
             flexShrink: 0,
           }}
         >
@@ -1291,9 +1294,9 @@ function CartDrawerPreview({
               style={{
                 position: "absolute",
                 left: 0,
-                top: 0,
-                width: 18,
-                height: 18,
+                top: -1,
+                width: 24,
+                height: 24,
                 border: 0,
                 background: "transparent",
                 color: ic,
@@ -1303,18 +1306,16 @@ function CartDrawerPreview({
                 cursor: "pointer",
               }}
             >
-              <PreviewIcon source={ChevronLeftIcon} size={14} color="currentColor" />
+              <PreviewIcon source={ChevronLeftIcon} size={18} color="currentColor" />
             </button>
             <Text as="p" variant="bodySm" fontWeight="semibold">
               {nextGoalText}
             </Text>
           </div>
-        </div>
 
-        <Box padding="300" paddingBlockStart="200">
-          <div style={{ position: "relative", height: 58, margin: "0 12px" }}>
-            <div style={{ position: "absolute", top: 15, left: 0, right: 0, height: 6, borderRadius: 999, background: `${pc}33` }} />
-            <div style={{ position: "absolute", top: 15, left: 0, width: `${progressFill}%`, height: 6, borderRadius: 999, background: pc }} />
+          <div style={{ position: "relative", height: 72, margin: "12px 12px 0" }}>
+            <div style={{ position: "absolute", top: 18, left: 0, right: 0, height: 8, borderRadius: 999, background: withAlpha(pc, 0.22) }} />
+            <div style={{ position: "absolute", top: 18, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
 
             {displaySteps.map((step, index) => {
               const pct = stepPosition(index);
@@ -1326,35 +1327,35 @@ function CartDrawerPreview({
                   key={`${step.slot}-${index}`}
                   style={{
                     position: "absolute",
-                    top: 6,
+                    top: 2,
                     left: `${pct}%`,
                     transform: "translateX(-50%)",
-                    width: 84,
+                    width: 96,
                     textAlign: "center",
                     zIndex: 2,
                   }}
                 >
                   <div
                     style={{
-                      width: 18,
-                      height: 18,
+                      width: 34,
+                      height: 34,
                       margin: "0 auto",
                       borderRadius: "50%",
                       display: "grid",
                       placeItems: "center",
-                      background: done ? pc : "#ffffff",
+                      background: done ? pc : surface,
                       color: done ? blc : ic,
                       border: `2px solid ${done ? pc : brc}`,
                       boxShadow: "0 1px 4px rgba(15,23,42,.18)",
                     }}
                   >
-                    <PreviewIcon source={iconSrc} size={10} color="currentColor" />
+                    <PreviewIcon source={iconSrc} size={19} color="currentColor" />
                   </div>
                   <div
                     style={{
-                      marginTop: 5,
-                      fontSize: Math.max(fs - 3, 9),
-                      lineHeight: "12px",
+                      marginTop: 6,
+                      fontSize: Math.max(fs - 2, 10),
+                      lineHeight: "13px",
                       color: ptc,
                       fontWeight: 800,
                       whiteSpace: "nowrap",
@@ -1368,7 +1369,7 @@ function CartDrawerPreview({
               );
             })}
           </div>
-        </Box>
+        </div>
 
         <div
           style={{
@@ -1690,13 +1691,29 @@ function CartDrawerPreview({
                 <TextField
                   label="Discount code"
                   labelHidden
-                  placeholder={codeDiscountRules?.[0]?.discountCode ? String(codeDiscountRules[0].discountCode).toUpperCase() : "Apply Discount Code"}
+                  placeholder="Apply Discount Code"
                   value=""
                   onChange={() => { }}
                   autoComplete="off"
                 />
               </div>
-              <Button variant="primary">Apply</Button>
+              <button
+                type="button"
+                style={{
+                  border: 0,
+                  borderRadius: Math.max(r, 6),
+                  background: bc,
+                  color: blc,
+                  padding: "0 16px",
+                  minHeight: 36,
+                  fontWeight: 900,
+                  fontSize: Math.max(fs - 1, 11),
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Apply
+              </button>
             </InlineStack>
           </div>
         )}

@@ -2529,6 +2529,17 @@
     }, 1200);
   };
 
+  const showOfferCodeCopyFeedback = (button) => {
+    if (!button) return;
+    button.classList.add("is-copied");
+    button.setAttribute("aria-label", "Discount code copied");
+    if (button.__scOfferCopyTimer) clearTimeout(button.__scOfferCopyTimer);
+    button.__scOfferCopyTimer = setTimeout(() => {
+      button.classList.remove("is-copied");
+      button.setAttribute("aria-label", "Copy discount code");
+    }, 1200);
+  };
+
   const setAnnouncementMessages = (arr) => {
     ANNOUNCE_MESSAGES = (arr || [])
       .map((x) => stripCurrencySymbolIfCodePresent(trimToNull(x), CART?.currency))
@@ -3314,7 +3325,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   height:20px;
 }
 .sc-title{
-  font-size:var(--sc-heading-font-size);
+  font-size:20px;
   font-weight:700;
   margin:0;
   color:var(--sc-drawer-header-color);
@@ -4316,7 +4327,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     top: 8%;
     right: 0;
     z-index: 25;
-    height: 83%;
+    height: 85%;
     max-width: 445px;
     width: 100% !important;
     background: var(--sc-drawer-bg);
@@ -4373,23 +4384,51 @@ body.sc-cartify-open .shopify-section-group-header-group{
   line-height:1.35;
 }
 .sc-offer-codebox{
-  min-width:116px;
+  min-width:104px;
   border:1px solid var(--sc-border);
   border-radius:var(--sc-btn-radius);
-  overflow:hidden;
   background:#fff;
-  text-align:center;
-}
-.sc-offer-code{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
   padding:8px 10px;
   color:var(--sc-drawer-text-color);
-  font-weight:900;
+  cursor:pointer;
+  position:relative;
 }
-.sc-offer-code-apply{
-  padding:9px 10px;
+.sc-offer-code{
+  font-weight:900;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sc-offer-copy-icon{
+  width:18px;
+  height:18px;
+  flex:0 0 auto;
+  color:var(--sc-checkout-bg);
+}
+.sc-offer-copy-icon svg{
+  width:18px;
+  height:18px;
+  display:block;
+}
+.sc-offer-copied-text{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
   background:var(--sc-checkout-bg);
   color:var(--sc-checkout-text);
   font-weight:900;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .15s ease;
+}
+.sc-offer-codebox.is-copied .sc-offer-copied-text{
+  opacity:1;
 }
 .sc-offer-action{
   border:2px solid var(--sc-checkout-bg);
@@ -5659,7 +5698,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   overlay.addEventListener("click", closeDrawer);
   $("[data-close]")?.addEventListener("click", closeDrawer);
-  drawer.addEventListener("click", (e) => {
+  drawer.addEventListener("click", async (e) => {
     const el = e.target;
     if (!(el instanceof Element)) return;
     if (el.closest("[data-close]")) closeDrawer();
@@ -5692,9 +5731,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (codeButton) {
       e.preventDefault();
       const code = trimToNull(codeButton.getAttribute("data-offer-code"));
-      if (code && discountInput) {
-        discountInput.value = code;
-        applyDiscountCode(code);
+      if (code) {
+        const ok = await copyTextToClipboard(code);
+        if (ok) showOfferCodeCopyFeedback(codeButton);
       }
       return;
     }
@@ -5708,9 +5747,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       openRewardPopupFor({
         kind,
         rule: offer.rule,
-        ruleKey: offer.key,
+        ruleKey: offer.ruleKey || offer.key,
         slot: offer.slot,
         title: offer.title,
+        force: true
       });
     }
   });
@@ -6928,9 +6968,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         key: `code:${code}:${index}`,
         type: "code",
         title: "Discount Code",
-        subtitle: "Apply this discount code",
+        subtitle: "Copy this discount code",
         code,
-        action: "Apply Code",
+        action: "Copy code",
       });
     });
 
@@ -6947,6 +6987,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           : "Buy something and get something";
         rows.push({
           key: `bxgy:${key}`,
+          ruleKey: getRuleKey(rule, "bxgy"),
           type: "bxgy",
           title: trimToNull(rule?.campaignName) || "Buy X Get Y Discount",
           subtitle: trimToNull(rule?.beforeOfferUnlockMessage) || fallback,
@@ -6958,8 +6999,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     (Array.isArray(steps) ? steps : []).forEach((step, index) => {
       if (!step?.rule) return;
       const type = String(step.type || "").toLowerCase();
+      const ruleKey = getRuleKey(step.rule, type || "rule");
       rows.push({
         key: `step:${type}:${index}`,
+        ruleKey,
         type,
         title: getOfferStepTitle(step),
         subtitle: step.progressTextBefore || step.title || "Reward available in this order",
@@ -6983,9 +7026,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     offersPanel.innerHTML = rows.map((offer, index) => {
       const actionHtml = offer.type === "code"
-        ? `<button class="sc-offer-codebox" type="button" data-offer-code="${safe(offer.code)}">
+        ? `<button class="sc-offer-codebox" type="button" data-offer-code="${safe(offer.code)}" aria-label="Copy discount code">
             <span class="sc-offer-code">${safe(offer.code)}</span>
-            <span class="sc-offer-code-apply">${safe(offer.action)}</span>
+            <span class="sc-offer-copy-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M8 8h10v12H8V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="sc-offer-copied-text">Copied</span>
           </button>`
         : offer.action
           ? `<button class="sc-offer-action" type="button" data-offer-action="${index}">${safe(offer.action)}</button>`
@@ -6995,7 +7044,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg(offer.type)}</span>
           <span class="sc-offer-copy">
             <p class="sc-offer-title">${safe(offer.title)}</p>
-            <p class="sc-offer-subtitle">${safe(offer.subtitle)}</p>
+            <p class="sc-offer-subtitle">${safe(offer.subtitle.text)}</p>
           </span>
           ${actionHtml}
         </div>
@@ -7234,11 +7283,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("code")}</span>
         <span class="sc-offer-copy">
           <p class="sc-offer-title">Discount Code</p>
-          <p class="sc-offer-subtitle">Apply this discount code</p>
+          <p class="sc-offer-subtitle">Copy this discount code</p>
         </span>
-        <button class="sc-offer-codebox" type="button" data-offer-code="smart123">
+        <button class="sc-offer-codebox" type="button" data-offer-code="smart123" aria-label="Copy discount code">
           <span class="sc-offer-code">smart123</span>
-          <span class="sc-offer-code-apply">Apply Code</span>
+          <span class="sc-offer-copy-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M8 8h10v12H8V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="sc-offer-copied-text">Copied</span>
         </button>
       </div>
       <div class="sc-offer-row">
@@ -8269,7 +8324,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     };
 
     const updateFreeGiftSelection = (value) => {
-      if (!rewardPopupCache?.current || rewardPopupCache.current.kind !== "free") return;
+      if (
+        !rewardPopupCache?.current ||
+        (rewardPopupCache.current.kind !== "free" && rewardPopupCache.current.kind !== "bxgy")
+      )
+        return;
       const selectedId = trimToNull(value);
       rewardPopupCache.current.selectedOptionId = selectedId;
       const options = Array.isArray(rewardPopupCache.current.options)
@@ -8306,6 +8365,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         ? event.target.closest(".sc-freegift-option")
         : null;
       if (!optionRow) return;
+      if (optionRow.classList.contains("sc-freegift-reference")) return;
       event.preventDefault();
       updateFreeGiftSelection(optionRow.getAttribute("data-option-id"));
     });
@@ -8318,8 +8378,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         addBtn.classList.add("loading");
 
         try {
-          const selectedOption = cur.kind === "free" ? cur.selectedOption : null;
-          if (cur.kind === "free" && !selectedOption) {
+          const isMultiOption =
+            cur.kind === "free" ||
+            (cur.kind === "bxgy" && Array.isArray(cur.options) && cur.options.length > 0);
+          const selectedOption = isMultiOption ? cur.selectedOption : null;
+
+          if (isMultiOption && !selectedOption) {
             if (rewardPopupCache.messageEl) {
               rewardPopupCache.messageEl.classList.add("is-error");
               rewardPopupCache.messageEl.textContent = "Please select one free gift before adding.";
@@ -8415,9 +8479,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const products = Array.isArray(rule?.bonusProducts)
       ? rule.bonusProducts
       : parseArrayish(rule?.bonusProducts);
-    const ids = Array.isArray(rule?.bonusProductIds)
-      ? rule.bonusProductIds
-      : parseArrayish(rule?.bonusProductIds);
+    const bonusIds = Array.isArray(rule?.bonusProductIds) ? rule.bonusProductIds : parseArrayish(rule?.bonusProductIds);
+    const rewardIds = Array.isArray(rule?.rewardProductIds) ? rule.rewardProductIds : parseArrayish(rule?.rewardProductIds);
+    const ids = bonusIds.length > 0 ? bonusIds : rewardIds;
+
     const stringFallbackIds =
       !ids.length && typeof rule?.bonusProductIds === "string" && trimToNull(rule.bonusProductIds)
         ? [rule.bonusProductIds]
@@ -8651,7 +8716,85 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
   };
 
-  const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title }) => {
+  const getBxgyReferenceItems = (rule) => {
+    const rawAppliesTo = rule?.appliesTo || rule?.applyTo || {};
+    const appliesTo = typeof rawAppliesTo === "object"
+      ? rawAppliesTo
+      : (() => {
+        try {
+          return JSON.parse(rawAppliesTo || "{}");
+        } catch {
+          return {};
+        }
+      })();
+    const productRefs = [
+      ...(Array.isArray(appliesTo?.products) ? appliesTo.products : []),
+      ...parseArrayish(rule?.appliesProductIds),
+      ...parseArrayish(rule?.buyProductIds),
+      ...parseArrayish(rule?.rewardProductIds),
+      ...parseArrayish(rule?.giftSku),
+    ];
+    const collectionRefs = [
+      ...(Array.isArray(appliesTo?.collections) ? appliesTo.collections : []),
+      ...parseArrayish(rule?.appliesCollectionIds),
+      ...parseArrayish(rule?.buyCollectionIds),
+    ];
+    const normalizeRef = (item, type, index) => {
+      const rawId = trimToNull(item?.id || item?.productId || item?.collectionId || item);
+      if (!rawId) return null;
+      const numeric = gidToId(rawId) || rawId;
+      const title =
+        trimToNull(item?.title) ||
+        trimToNull(item?.name) ||
+        `${type === "collection" ? "Collection" : "Product"} ${String(numeric).split("/").pop()}`;
+      return {
+        optionId: `${type}:${rawId}:${index}`,
+        type,
+        title,
+      };
+    };
+    const items = [
+      ...productRefs.map((item, index) => normalizeRef(item, "product", index)),
+      ...collectionRefs.map((item, index) => normalizeRef(item, "collection", index)),
+    ].filter(Boolean);
+    const seen = new Set();
+    return items.filter((item) => {
+      const key = String(item.optionId).toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const renderBxgyReferenceItems = (state, items) => {
+    if (!state?.listEl) return;
+    const optionsEl = state.optionsEl || state.listEl;
+    state.listEl.hidden = false;
+    state.listEl.style.removeProperty("display");
+    state.current.options = [];
+    optionsEl.innerHTML = items.length
+      ? items.map((item) => `
+        <div class="sc-freegift-option sc-freegift-reference">
+          <span class="sc-freegift-thumb sc-freegift-thumb-empty">${safe(item.type === "collection" ? "C" : "P")}</span>
+          <span class="sc-freegift-option-main">
+            <span class="sc-freegift-option-title">${safe(item.title)}</span>
+            <span class="sc-freegift-option-price"><span class="sc-freegift-free-pill">${safe(item.type === "collection" ? "Collection" : "Product")}</span></span>
+          </span>
+        </div>
+      `).join("")
+      : `<div class="sc-freegift-loading">No products or collections found for this offer.</div>`;
+    if (state.messageEl) {
+      state.messageEl.hidden = false;
+      state.messageEl.classList.remove("is-error");
+      state.messageEl.textContent = "These products or collections are included in this Buy X Get Y offer.";
+    }
+    if (state.addButton) {
+      state.addButton.style.display = "none";
+      state.addButton.disabled = true;
+    }
+  };
+
+  const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title, force = false }) => {
     console.debug("[SmartCartify] openRewardPopupFor called:", { kind, ruleKey, slot, rule: rule ? { bonusProductIds: rule.bonusProductIds, bonusProductId: rule.bonusProductId, bonus: rule.bonus } : null });
     console.info("[SmartCartify] reward popup rule products:", {
       kind,
@@ -8666,9 +8809,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     // For cart goal free products with multiple options, variant will be null
     // Allow the popup to open so options can be resolved asynchronously
     const hasBonusProductIds = getFreeGiftProductIds(rule).length > 0;
-    const isCartGoalFreeMultiple = kind === "free" && hasBonusProductIds;
+    const isMultiOptionReward = (kind === "free" || kind === "bxgy") && hasBonusProductIds;
+    const bxgyReferenceItems = kind !== "free" ? getBxgyReferenceItems(rule) : [];
+    const hasBxgyReferences = bxgyReferenceItems.length > 0;
 
-    if (!variant && !isCartGoalFreeMultiple) return false;
+    if (!variant && !isMultiOptionReward && !hasBxgyReferences) return false;
 
     const canResolveByProductId =
       !!normalizeProductNumericId(
@@ -8676,17 +8821,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         trimToNull(rule?.bonusProductId) ||
         trimToNull(rule?.bonus)
       );
-    if (variant && !getVariantLegacyId(variant) && !canResolveByProductId) return false;
-    if (!variant && !isCartGoalFreeMultiple && !canResolveByProductId) return false;
+    if (variant && !getVariantLegacyId(variant) && !canResolveByProductId && !isMultiOptionReward && !hasBxgyReferences) return false;
+    if (!variant && !isMultiOptionReward && !canResolveByProductId && !hasBxgyReferences) return false;
 
     const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
 
     // already shown in this session storage (page refresh safe)
-    if (guardKey && !canShowPopupFor(kind, guardKey)) return false;
+    if (guardKey && !force && !canShowPopupFor(kind, guardKey)) return false;
 
-    if (guardKey && drawer.__sc_reward_popup_for === `${kind}:${guardKey}`) return false;
+    if (guardKey && !force && drawer.__sc_reward_popup_for === `${kind}:${guardKey}`) return false;
 
-    if (guardKey && cartHasRewardForKey(kind, guardKey)) return false;
+    if (guardKey && !force && cartHasRewardForKey(kind, guardKey)) return false;
 
     if (!drawer.classList.contains("open")) openDrawer();
 
@@ -8759,9 +8904,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     drawer.__sc_reward_popup_for = `${kind}:${guardKey || ""}`;
 
     // BXGY is marked on open. Free gifts are marked only after the shopper adds one.
-    if (guardKey && kind !== "free") markPopupShown(kind, guardKey);
+    if (guardKey && kind !== "free" && !force) markPopupShown(kind, guardKey);
 
-    if (kind === "free") {
+    if (!variant && !isMultiOptionReward && hasBxgyReferences) {
+      if (state.contentEl) state.contentEl.hidden = true;
+      if (state.headerSubEl) state.headerSubEl.textContent = "Products or collections included in this offer";
+      renderBxgyReferenceItems(state, bxgyReferenceItems);
+    } else if (isMultiOptionReward) {
       if (guardKey) scStore.set(keyPendingFreeGift(guardKey), "1");
       if (state.contentEl) state.contentEl.hidden = true;
       if (state.listEl) {
@@ -8792,7 +8941,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       void resolveFreeGiftOptions(rule)
         .then((options) => {
           const activeState = rewardPopupCache || state;
-          if (!activeState.current || activeState.current.kind !== "free") return;
+          if (!activeState.current) return;
           if (drawer.__sc_reward_popup_for !== currentPopupKey) return;
           renderFreeGiftPopupOptions(activeState, options, currency);
         })
