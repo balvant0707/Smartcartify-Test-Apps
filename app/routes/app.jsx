@@ -1,10 +1,18 @@
 // app/routes/app.jsx
 
 // 1) Import dependencies at the top
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import { Outlet, useFetchers, useLoaderData, useNavigation, useRouteError } from "react-router";
+import { useEffect, useRef, useState } from "react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider as BridgeProvider } from "@shopify/shopify-app-react-router/react";
-import { AppProvider as PolarisProvider, Page, Box, Text } from "@shopify/polaris";
+import {
+  AppProvider as PolarisProvider,
+  Page,
+  Box,
+  InlineStack,
+  Spinner,
+  Text,
+} from "@shopify/polaris";
 import en from "@shopify/polaris/locales/en.json";
 import { authenticate, apiVersion } from "../shopify.server";
 import { normalizeShopDomain } from "../lib/shopUtils.server.js";
@@ -78,7 +86,76 @@ s-section::part(content) {
   --pc-shadow-bevel-border-radius-xl: 14px;
   --pc-box-border-radius: 14px ;
 }
+
+.global-save-feedback {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 10000;
+  max-width: min(360px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.global-save-feedback__panel {
+  background: #ffffff;
+  border: 1px solid #dcdfe4;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  padding: 12px 14px;
+  pointer-events: auto;
+}
 `;
+
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function isMutationMethod(method) {
+  return MUTATION_METHODS.has(String(method || "").toUpperCase());
+}
+
+function SaveConfigurationFeedback() {
+  const navigation = useNavigation();
+  const fetchers = useFetchers();
+  const wasSavingRef = useRef(false);
+  const [savedVisible, setSavedVisible] = useState(false);
+
+  const navigationSaving =
+    navigation.state !== "idle" && isMutationMethod(navigation.formMethod);
+  const fetcherSaving = fetchers.some(
+    (fetcher) => fetcher.state !== "idle" && isMutationMethod(fetcher.formMethod),
+  );
+  const isSaving = navigationSaving || fetcherSaving;
+
+  useEffect(() => {
+    if (isSaving) {
+      wasSavingRef.current = true;
+      setSavedVisible(false);
+      return undefined;
+    }
+
+    if (!wasSavingRef.current) return undefined;
+
+    wasSavingRef.current = false;
+    setSavedVisible(true);
+    const timer = setTimeout(() => setSavedVisible(false), 2500);
+    return () => clearTimeout(timer);
+  }, [isSaving]);
+
+  if (!isSaving && !savedVisible) return null;
+
+  return (
+    <div className="global-save-feedback" role="status" aria-live="polite">
+      <div className="global-save-feedback__panel">
+        <InlineStack gap="200" blockAlign="center" wrap={false}>
+          {isSaving ? (
+            <Spinner accessibilityLabel="Saving configuration" size="small" />
+          ) : null}
+          <Text as="span" variant="bodyMd" fontWeight="semibold">
+            {isSaving ? "Saving configuration..." : "Configuration saved"}
+          </Text>
+        </InlineStack>
+      </div>
+    </div>
+  );
+}
 
 // 2) Loader (auth check)
 export const loader = async ({ request }) => {
@@ -204,6 +281,8 @@ export default function App() {
           <a href={analyticsHref}>Analytics</a>
           <a href={docsHref}>Documents</a>
         </ui-nav-menu>
+
+        <SaveConfigurationFeedback />
 
         {/* Nested routes render here */}
         <Outlet />

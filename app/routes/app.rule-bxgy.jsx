@@ -81,19 +81,6 @@ const PICKER_PAGE_LIMITS = {
   collections: 250,
 };
 
-const LANGUAGE_OPTIONS = [
-  { label: "English", value: "en" },
-  { label: "Spanish", value: "es" },
-  { label: "French", value: "fr" },
-  { label: "German", value: "de" },
-  { label: "Italian", value: "it" },
-  { label: "Portuguese", value: "pt" },
-  { label: "Hindi", value: "hi" },
-];
-
-const languageLabel = (code) =>
-  LANGUAGE_OPTIONS.find((language) => language.value === code)?.label || code.toUpperCase();
-
 const parseJsonArray = (raw) => {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
@@ -668,76 +655,6 @@ function QuantityStepper({ value, onChange }) {
   );
 }
 
-function ContentModal({ open, onClose, language, content, onChange }) {
-  const patch = (key, value) => onChange({ ...content, [key]: value });
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={`Edit ${languageLabel(language)} Texts`}
-      primaryAction={{ content: "Done", onAction: onClose }}
-    >
-      <Modal.Section>
-        <div className="bxgy-modalFields">
-          <TextField
-            label="Title before the getting the reward."
-            value={content.beforeTitle}
-            onChange={(value) => patch("beforeTitle", value)}
-            autoComplete="off"
-          />
-          <TextField
-            label="Title after the getting the reward"
-            value={content.afterTitle}
-            onChange={(value) => patch("afterTitle", value)}
-            autoComplete="off"
-          />
-          <TextField
-            label="Text before the getting the reward"
-            value={content.beforeText}
-            onChange={(value) => patch("beforeText", value)}
-            autoComplete="off"
-          />
-          <TextField
-            label="Text after the getting the reward"
-            value={content.afterText}
-            onChange={(value) => patch("afterText", value)}
-            autoComplete="off"
-          />
-        </div>
-      </Modal.Section>
-    </Modal>
-  );
-}
-
-function AddLanguageModal({ open, onClose, languages, value, onChange, onAdd }) {
-  const options = LANGUAGE_OPTIONS.filter((language) => !languages.includes(language.value));
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Add language"
-      primaryAction={{
-        content: "Add language",
-        onAction: onAdd,
-        disabled: !value || options.length === 0,
-      }}
-      secondaryActions={[{ content: "Cancel", onAction: onClose }]}
-    >
-      <Modal.Section>
-        <Select
-          label="Language"
-          options={options.length ? options : [{ label: "All languages added", value: "" }]}
-          value={value}
-          onChange={onChange}
-          disabled={options.length === 0}
-        />
-      </Modal.Section>
-    </Modal>
-  );
-}
-
 export default function RuleBxgy() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -880,10 +797,6 @@ export default function RuleBxgy() {
   const [maxUsesEnabled, setMaxUsesEnabled] = useState(Boolean(storedMaxUsesPerOrder));
   const [maxGifts, setMaxGifts] = useState(storedMaxUsesPerOrder ?? "1");
   const [translations, setTranslations] = useState(storedTranslations);
-  const [editingLanguage, setEditingLanguage] = useState("en");
-  const [contentModalOpen, setContentModalOpen] = useState(false);
-  const [addLanguageModalOpen, setAddLanguageModalOpen] = useState(false);
-  const [languageToAdd, setLanguageToAdd] = useState("es");
   const [openSection, setOpenSection] = useState("rewards");
 
   const today = new Date().toISOString().split("T")[0];
@@ -1049,36 +962,14 @@ export default function RuleBxgy() {
     setOpenSection(open ? section : null);
   };
 
-  const handleEditLanguage = (language) => {
-    setEditingLanguage(language);
-    setContentModalOpen(true);
-  };
-
-  const handleContentChange = (nextContent) => {
+  const handleContentChange = (key, value) => {
     setTranslations((prev) => ({
       ...prev,
-      [editingLanguage]: normalizeContent(nextContent),
+      en: normalizeContent({
+        ...prev.en,
+        [key]: value,
+      }),
     }));
-  };
-
-  const handleAddLanguage = () => {
-    if (!languageToAdd || translations[languageToAdd]) return;
-    setTranslations((prev) => ({
-      ...prev,
-      [languageToAdd]: normalizeContent(prev.en),
-    }));
-    setEditingLanguage(languageToAdd);
-    setAddLanguageModalOpen(false);
-    setContentModalOpen(true);
-  };
-
-  const handleRemoveLanguage = (language) => {
-    if (language === "en") return;
-    setTranslations((prev) => {
-      const next = { ...prev };
-      delete next[language];
-      return next;
-    });
   };
 
   const handleSave = () => {
@@ -1110,7 +1001,7 @@ export default function RuleBxgy() {
 
   const condition = CONDITION_OPTIONS.find((option) => option.id === conditionType);
   const isPaused = status !== "active";
-  const contentLanguages = Object.keys(translations);
+  const englishContent = normalizeContent(translations.en);
 
   return (
     <Page
@@ -1129,7 +1020,7 @@ export default function RuleBxgy() {
       ]}
     >
       <style>{`
-        .bxgy-layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:20px;align-items:start}
+        .bxgy-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
         .bxgy-card{background:#fff;border:1px solid #dfe3e8;border-radius:12px !important;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
         .bxgy-cardHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #ebeef1}
         .bxgy-cardBody{padding:18px}
@@ -1385,46 +1276,31 @@ export default function RuleBxgy() {
               onOpenChange={(open) => setSectionOpen("content", open)}
             >
               <BlockStack gap="300">
-                <Text variant="bodyMd" fontWeight="semibold" as="p">
-                  Edit content
-                </Text>
-                <div className="bxgy-contentList">
-                  {contentLanguages.map((language) => (
-                    <div className="bxgy-contentRow" key={language}>
-                      <Text variant="bodyMd" fontWeight="semibold" as="p">
-                        {languageLabel(language)}
-                      </Text>
-                      <InlineStack gap="200" blockAlign="center">
-                        {language !== "en" && (
-                          <Button
-                            variant="plain"
-                            tone="critical"
-                            onClick={() => handleRemoveLanguage(language)}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                        <Button icon={EditIcon} onClick={() => handleEditLanguage(language)}>
-                          Edit
-                        </Button>
-                      </InlineStack>
-                    </div>
-                  ))}
-                  <div className="bxgy-contentRow" style={{ justifyContent: "center" }}>
-                    <Button
-                      variant="primary"
-                      size="slim"
-                      onClick={() => {
-                        const nextLanguage =
-                          LANGUAGE_OPTIONS.find((language) => !translations[language.value])
-                            ?.value || "";
-                        setLanguageToAdd(nextLanguage);
-                        setAddLanguageModalOpen(true);
-                      }}
-                    >
-                      + Add language
-                    </Button>
-                  </div>
+                <div className="bxgy-modalFields">
+                  <TextField
+                    label="Title before the getting the reward."
+                    value={englishContent.beforeTitle}
+                    onChange={(value) => handleContentChange("beforeTitle", value)}
+                    autoComplete="off"
+                  />
+                  <TextField
+                    label="Title after the getting the reward"
+                    value={englishContent.afterTitle}
+                    onChange={(value) => handleContentChange("afterTitle", value)}
+                    autoComplete="off"
+                  />
+                  <TextField
+                    label="Text before the getting the reward"
+                    value={englishContent.beforeText}
+                    onChange={(value) => handleContentChange("beforeText", value)}
+                    autoComplete="off"
+                  />
+                  <TextField
+                    label="Text after the getting the reward"
+                    value={englishContent.afterText}
+                    onChange={(value) => handleContentChange("afterText", value)}
+                    autoComplete="off"
+                  />
                 </div>
               </BlockStack>
             </SectionCard>
@@ -1548,23 +1424,6 @@ export default function RuleBxgy() {
         onLoadMore={loadMorePickerItems}
         emptyText={pickerConfig.emptyText}
         kindLabel={pickerConfig.kindLabel}
-      />
-
-      <ContentModal
-        open={contentModalOpen}
-        onClose={() => setContentModalOpen(false)}
-        language={editingLanguage}
-        content={translations[editingLanguage] || CONTENT_DEFAULTS}
-        onChange={handleContentChange}
-      />
-
-      <AddLanguageModal
-        open={addLanguageModalOpen}
-        onClose={() => setAddLanguageModalOpen(false)}
-        languages={contentLanguages}
-        value={languageToAdd}
-        onChange={setLanguageToAdd}
-        onAdd={handleAddLanguage}
       />
     </Page>
   );
