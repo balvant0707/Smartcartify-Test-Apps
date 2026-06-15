@@ -196,7 +196,9 @@ function getGiftProductIds(goal) {
 
 function getGiftChoiceQuantity(goal) {
   const selectedCount = getGiftProductIds(goal).length;
-  return String(Math.max(1, selectedCount || Number(goal?.qty || 1) || 1));
+  const maxChoices = Math.max(1, selectedCount || 1);
+  const quantity = Math.max(1, Number(goal?.qty || 1) || 1);
+  return String(Math.min(quantity, maxChoices));
 }
 
 function syncGiftChoiceQuantity(goal) {
@@ -656,7 +658,33 @@ function SectionCard({
   );
 }
 
-function SegmentControl({ options, value, onChange }) {
+function SegmentControl({ options, value, onChange, appearance = "default" }) {
+  if (appearance === "soft") {
+    return (
+      <div className="cg-softSegment" role="tablist">
+        {options.map((option) => {
+          const selected = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              className={
+                selected
+                  ? "cg-softSegmentButton cg-softSegmentButtonActive"
+                  : "cg-softSegmentButton"
+              }
+              onClick={() => onChange(option.value)}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <ButtonGroup variant="segmented">
       {options.map((option) => (
@@ -831,6 +859,11 @@ function GoalCard({
       id: productId,
       title: productId.split("/").pop(),
     }
+  );
+  const maxGiftChoices = Math.max(1, selectedGiftProductIds.length || 1);
+  const giftChoiceQuantity = Math.min(
+    maxGiftChoices,
+    Math.max(1, Number(goal.qty || 1) || 1)
   );
   const rewardChangeItems = Object.values(REWARD_CONFIG)
     .filter((reward) => reward.type !== goal.type)
@@ -1057,21 +1090,23 @@ function GoalCard({
                     </Text>
                     <div className="cg-stepper">
                       <Button
+                        disabled={giftChoiceQuantity <= 1}
                         onClick={() =>
                           onGoalChange(index, {
-                            qty: String(Math.max(1, Number(goal.qty || 1) - 1)),
+                            qty: String(Math.max(1, giftChoiceQuantity - 1)),
                           })
                         }
                       >
                         -
                       </Button>
                       <Text as="span" variant="bodyMd" fontWeight="semibold">
-                        {goal.qty || "1"}
+                        {giftChoiceQuantity}
                       </Text>
                       <Button
+                        disabled={giftChoiceQuantity >= maxGiftChoices}
                         onClick={() =>
                           onGoalChange(index, {
-                            qty: String(Math.max(1, Number(goal.qty || 1) + 1)),
+                            qty: String(Math.min(maxGiftChoices, giftChoiceQuantity + 1)),
                           })
                         }
                       >
@@ -1835,6 +1870,11 @@ export default function RuleCartGoal() {
     if (productPickerGoalIndex === null) return;
     const selectedIds = Array.isArray(productIds) ? productIds : productIds ? [productIds] : [];
     const firstProduct = productPickerItems.find((item) => item.id === selectedIds[0]);
+    const currentGiftGoal = goals[productPickerGoalIndex] || {};
+    const maxChoices = Math.max(1, selectedIds.length || 1);
+    const nextQty = String(
+      Math.min(maxChoices, Math.max(1, Number(currentGiftGoal.qty || 1) || 1))
+    );
     const selectedProducts = selectedIds
       .map((selectedId) => productPickerItems.find((item) => item.id === selectedId))
       .filter(Boolean)
@@ -1850,7 +1890,7 @@ export default function RuleCartGoal() {
       bonusProductId: selectedIds[0] || "",
       bonusProductTitle: firstProduct?.title || "",
       bonusProductVariantId: firstProduct?.variantId || "",
-      qty: String(Math.max(1, selectedIds.length || 1)),
+      qty: nextQty,
       shopifySyncWarning: null,
     });
   };
@@ -1956,6 +1996,40 @@ export default function RuleCartGoal() {
         .Polaris-Button.cg-activeButton * {
           color: #fff !important;
           fill: #fff !important;
+        }
+        .cg-softSegment {
+          display: inline-flex;
+          align-items: center;
+          gap: 0;
+          width: max-content;
+          max-width: 100%;
+          border-radius: 8px;
+          background: #f0f0f0;
+          padding: 4px;
+        }
+        .cg-softSegmentButton {
+          min-height: 38px;
+          border: 0;
+          border-radius: 7px;
+          background: transparent;
+          color: #6f6f6f;
+          cursor: pointer;
+          font: inherit;
+          font-size: 14px;
+          font-weight: 650;
+          line-height: 18px;
+          padding: 9px 14px;
+          white-space: nowrap;
+          transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
+        }
+        .cg-softSegmentButtonActive {
+          background: #fff;
+          color: #303030;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+        }
+        .cg-softSegmentButton:focus-visible {
+          outline: 2px solid #005bd3;
+          outline-offset: 2px;
         }
         .cg-layout,
         .cg-layout .Polaris-Layout__Section,
@@ -2464,17 +2538,7 @@ export default function RuleCartGoal() {
                     Choose what to track
                   </Text>
                   <SegmentControl
-                    style={{
-                      background: "#e5e4e3",
-                      display: "flex",
-                      flexWrap: "nowrap",
-                      marginTop: "10px",
-                      marginLeft: 0,
-                      gap: "5px",
-                      width: "fit-content",
-                      padding: "5px",
-                      borderRadius: "10px"
-                    }}
+                    appearance="soft"
                     value={trackBy}
                     onChange={setTrackBy}
                     options={[
