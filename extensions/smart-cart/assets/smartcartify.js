@@ -3339,6 +3339,45 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-weight:600;
   opacity:.9;
 }
+.sc-drawer.sc-offers-active .sc-header{
+  padding:32px 20px 28px;
+  min-height:100px;
+  align-items:flex-start;
+  border-bottom:0;
+  color:#ffffff;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(255,255,255,.72), rgba(255,255,255,0) 34%),
+    linear-gradient(135deg, #f43b23 0%, #d822c8 52%, #ffe4d2 100%) !important;
+}
+.sc-drawer.sc-offers-active .sc-title-icon{
+  display:none;
+}
+.sc-drawer.sc-offers-active .sc-title{
+  color:#ffffff;
+  font-size:28px;
+  line-height:1;
+  font-weight:900;
+}
+.sc-drawer.sc-offers-active .sc-close{
+  width:auto;
+  min-width:72px;
+  height:34px;
+  border-radius:999px;
+  padding:0 14px;
+  gap:4px;
+  background:#ffffff;
+  color:#20305f;
+  box-shadow:0 6px 18px rgba(15,23,42,.18);
+  font-size:13px;
+  font-weight:800;
+}
+.sc-drawer.sc-offers-active .sc-close::after{
+  content:"Close";
+}
+.sc-drawer.sc-offers-active .sc-close svg{
+  width:16px;
+  height:16px;
+}
 .sc-close{
   width:40px;height:40px;border-radius:10px;
   border:unset;
@@ -4323,96 +4362,143 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-footer-row{display:flex;gap:10px;align-items:stretch;}
 
 .sc-offers{
-  position: absolute;
-    top: 8%;
-    right: 0;
-    z-index: 25;
-    height: 85%;
-    max-width: 445px;
-    width: 100% !important;
-    background: var(--sc-drawer-bg);
-    background-size: cover;
-    background-position: center;
-    transition: transform .25s ease;
-    pointer-events: none !important;
-    display: flex !important;
-    flex-direction: column;
-    font-size: var(--sc-base-font-size);
-    color: var(--sc-drawer-text-color);
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    border-radius: var(--sc-radius);
-    box-shadow: 0 1px 3px rgba(15, 23, 42, .08);
+  position:relative;
+  z-index:25;
+  max-width:none;
+  width:auto !important;
+  background:#ffffff;
+  background-size:cover;
+  background-position:center;
+  transition:transform .25s ease;
+  pointer-events:auto !important;
+  display:flex !important;
+  flex-direction:column;
+  font-size:var(--sc-base-font-size);
+  color:var(--sc-drawer-text-color);
+  flex:1;
+  min-height:0;
+  overflow:auto;
+  border-radius:max(var(--sc-radius), 12px);
+  box-shadow:0 1px 3px rgba(15,23,42,.08);
+}
+.sc-drawer.sc-offers-active .content-cart-smartcartify,
+.sc-drawer.sc-offers-active .sc-footer{
+  background:#f4f4f4 !important;
+}
+.sc-drawer.sc-offers-active .sc-offers{
+  margin:-10px 16px 14px;
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:0 2px 8px rgba(15,23,42,.10);
 }
 .sc-offers[hidden]{display:none !important;}
 .sc-offer-row{
   display:grid;
-  grid-template-columns:64px minmax(0, 1fr) auto;
+  grid-template-columns:70px minmax(0, 1fr) auto;
   gap:14px;
   align-items:center;
-  padding:18px 14px;
+  padding:20px 16px;
   border-top:1px solid var(--sc-border);
+  min-height:92px;
 }
 .sc-offer-row:first-child{border-top:0;}
 .sc-offer-icon{
-  width:52px;
-  height:52px;
+  width:58px;
+  height:58px;
   border-radius:8px;
   display:grid;
   place-items:center;
-  border:1px solid var(--sc-border);
+  border:0;
   background:#fff;
   color:var(--sc-icon-color);
 }
 .sc-offer-icon svg{
-  width:31px;
-  height:31px;
+  width:48px;
+  height:48px;
+  display:block;
+  stroke-width:1.8;
+}
+.sc-offer-thumbs{
+  width:58px;
+  min-height:58px;
+  display:grid;
+  grid-template-columns:repeat(2, 26px);
+  grid-auto-rows:26px;
+  gap:5px;
+  align-content:center;
+  justify-content:center;
+}
+.sc-offer-thumb{
+  width:26px;
+  height:26px;
+  border-radius:7px;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+  background:#eef1f4;
+  color:#0b1d57;
+  font-size:11px;
+  font-weight:900;
+  box-shadow:inset 0 0 0 1px rgba(15,23,42,.06);
+}
+.sc-offer-thumb img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
   display:block;
 }
 .sc-offer-title{
   margin:0;
-  color:var(--sc-drawer-text-color);
-  font-size:calc(var(--sc-base-font-size) * 1.08);
+  color:#102864;
+  font-size:calc(var(--sc-base-font-size) * 1.12);
   line-height:1.25;
   font-weight:900;
 }
 .sc-offer-subtitle{
-  margin:2px 0 0;
-  color:var(--sc-muted);
-  font-size:var(--sc-base-font-size);
-  line-height:1.35;
+  margin:4px 0 0;
+  color:#7f8b98;
+  font-size:calc(var(--sc-base-font-size) * 1.02);
+  line-height:1.42;
+  font-weight:650;
 }
 .sc-offer-codebox{
-  min-width:104px;
+  min-width:124px;
   border:1px solid var(--sc-border);
   border-radius:var(--sc-btn-radius);
+  overflow:hidden;
   background:#fff;
+  display:grid;
+  text-align:center;
+}
+.sc-offer-code-copy{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:8px;
-  padding:8px 10px;
+  gap:5px;
+  min-height:40px;
+  padding:7px 8px;
+  border:0;
+  background:#ffffff;
   color:var(--sc-drawer-text-color);
   cursor:pointer;
   position:relative;
 }
 .sc-offer-code{
   font-weight:900;
+  font-size:calc(var(--sc-base-font-size) * 1.04);
   min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 .sc-offer-copy-icon{
-  width:18px;
-  height:18px;
+  width:16px;
+  height:16px;
   flex:0 0 auto;
-  color:var(--sc-checkout-bg);
+  color:#6b7280;
 }
 .sc-offer-copy-icon svg{
-  width:18px;
-  height:18px;
+  width:16px;
+  height:16px;
   display:block;
 }
 .sc-offer-copied-text{
@@ -4427,18 +4513,29 @@ body.sc-cartify-open .shopify-section-group-header-group{
   pointer-events:none;
   transition:opacity .15s ease;
 }
-.sc-offer-codebox.is-copied .sc-offer-copied-text{
+.sc-offer-code-copy.is-copied .sc-offer-copied-text{
   opacity:1;
+}
+.sc-offer-code-apply{
+  min-height:40px;
+  border:0;
+  background:var(--sc-checkout-bg);
+  color:var(--sc-checkout-text);
+  font-size:calc(var(--sc-base-font-size) * 1.05);
+  font-weight:900;
+  cursor:pointer;
+  padding:8px 10px;
 }
 .sc-offer-action{
   border:2px solid var(--sc-checkout-bg);
   background:#fff;
   color:var(--sc-checkout-bg);
   border-radius:var(--sc-btn-radius);
-  padding:9px 12px;
+  padding:10px 14px;
   font-weight:900;
   white-space:nowrap;
   cursor:pointer;
+  font-size:calc(var(--sc-base-font-size) * 1.02);
 }
 .sc-offers-empty{
   padding:24px;
@@ -4844,22 +4941,33 @@ body.sc-cartify-open .shopify-section-group-header-group{
   box-shadow:0 1px 3px rgba(15,23,42,.08);
 }
 
-@media (max-width: 640px){
+@media (max-width: 420px){
   .sc-offers{
     margin:8px;
   }
   .sc-offer-row{
-    grid-template-columns:48px minmax(0, 1fr);
+    grid-template-columns:52px minmax(0, 1fr);
     gap:10px;
     padding:14px 10px;
   }
-  .sc-offer-icon{
-    width:42px;
-    height:42px;
+  .sc-offer-icon,
+  .sc-offer-thumbs{
+    width:44px;
+    min-height:44px;
   }
   .sc-offer-icon svg{
-    width:26px;
-    height:26px;
+    width:34px;
+    height:34px;
+  }
+  .sc-offer-thumbs{
+    grid-template-columns:repeat(2, 20px);
+    grid-auto-rows:20px;
+    gap:4px;
+  }
+  .sc-offer-thumb{
+    width:20px;
+    height:20px;
+    border-radius:6px;
   }
   .sc-offer-codebox,
   .sc-offer-action{
@@ -5727,13 +5835,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       setDrawerTab(tabButton.getAttribute("data-drawer-tab"));
       return;
     }
-    const codeButton = el.closest("[data-offer-code]");
-    if (codeButton) {
+    const codeCopyButton = el.closest("[data-offer-code-copy]");
+    if (codeCopyButton) {
       e.preventDefault();
-      const code = trimToNull(codeButton.getAttribute("data-offer-code"));
+      const code = trimToNull(codeCopyButton.getAttribute("data-offer-code-copy"));
       if (code) {
         const ok = await copyTextToClipboard(code);
-        if (ok) showOfferCodeCopyFeedback(codeButton);
+        if (ok) showOfferCodeCopyFeedback(codeCopyButton);
+      }
+      return;
+    }
+    const codeApplyButton = el.closest("[data-offer-code-apply]");
+    if (codeApplyButton) {
+      e.preventDefault();
+      const code = trimToNull(codeApplyButton.getAttribute("data-offer-code-apply"));
+      if (code) {
+        if (discountInput) discountInput.value = code;
+        await applyDiscountCode(code);
       }
       return;
     }
@@ -6959,18 +7077,120 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return step?.title || "Offer";
   };
 
+  const getOfferRuleTitle = (type, rule, fallback = "Offer") => {
+    const normalized = String(type || "").toLowerCase();
+    if (normalized === "code") return "Discount Code";
+    if (normalized === "shipping") return trimToNull(rule?.campaignName) || "Free Shipping";
+    if (normalized === "free") return trimToNull(rule?.campaignName) || "Free Gift";
+    if (normalized === "bxgy" || normalized === "buyxgety") {
+      return trimToNull(rule?.campaignName) || "Buy X Get Y Discount";
+    }
+    if (normalized === "discount") {
+      const tokens = getDiscountValueTokens(rule);
+      const value = trimToNull(tokens?.value) || trimToNull(tokens?.valueWithOff);
+      if (value) return `${String(value).replace(/\s*off\b/gi, "").trim()} Discount`;
+      return trimToNull(rule?.campaignName) || fallback || "Order Discount";
+    }
+    return trimToNull(rule?.campaignName) || fallback;
+  };
+
+  const getOfferRuleSubtitle = (type, rule, fallback = "Reward available in this order") => {
+    const normalized = String(type || "").toLowerCase();
+    const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor();
+    const configured =
+      trimToNull(getProgressBefore(rule)) ||
+      trimToNull(rule?.beforeOfferUnlockMessage) ||
+      trimToNull(rule?.message) ||
+      "";
+    const textType = normalized === "code" ? "discount" : normalized;
+    const replaced = replaceProgressText({
+      text: configured || fallback,
+      type: textType,
+      rule,
+      subtotalRupees,
+      useRemainingForGoal: true,
+    });
+    return trimToNull(replaced) || fallback;
+  };
+
+  const getOfferProductThumbs = (type, rule) => {
+    const products = [
+      ...parseArrayish(rule?.bonusProducts),
+      ...parseArrayish(rule?.rewardProducts),
+      ...parseArrayish(rule?.products),
+    ];
+    const ids = [
+      ...parseArrayish(rule?.bonusProductIds),
+      ...parseArrayish(rule?.rewardProductIds),
+      ...parseArrayish(rule?.giftSku),
+      trimToNull(rule?.bonusProductId),
+      trimToNull(rule?.bonus),
+    ].filter(Boolean);
+    const out = [];
+    products.forEach((product) => {
+      const title =
+        trimToNull(product?.title) ||
+        trimToNull(product?.name) ||
+        trimToNull(product?.productTitle) ||
+        "Gift";
+      const image =
+        trimToNull(product?.image) ||
+        trimToNull(product?.featuredImage?.url) ||
+        trimToNull(product?.featuredImage) ||
+        trimToNull(product?.productImage) ||
+        "";
+      out.push({ title, image });
+    });
+    ids.forEach((id) => {
+      if (out.length >= 4) return;
+      out.push({ title: String(id).split("/").pop() || "Gift", image: "" });
+    });
+    if (!out.length && (type === "bxgy" || type === "buyxgety" || type === "free")) {
+      out.push({ title: type === "free" ? "Gift" : "Offer", image: "" });
+    }
+    return out.slice(0, 4);
+  };
+
+  const renderOfferVisual = (offer) => {
+    const thumbs = Array.isArray(offer.thumbs) ? offer.thumbs : [];
+    if (thumbs.length) {
+      return `
+        <span class="sc-offer-thumbs" aria-hidden="true">
+          ${thumbs.map((thumb) => {
+            const label = safe((thumb.title || "G").slice(0, 1).toUpperCase());
+            const image = trimToNull(thumb.image);
+            return `<span class="sc-offer-thumb">${image
+              ? `<img src="${safe(image)}" alt="">`
+              : `<span>${label}</span>`}</span>`;
+          }).join("")}
+        </span>
+      `;
+    }
+    return `<span class="sc-offer-icon" aria-hidden="true">${offerIconSvg(offer.type)}</span>`;
+  };
+
   const buildOfferRows = (steps = []) => {
     const rows = [];
+    const seen = new Set();
+    const pushRow = (row) => {
+      if (!row?.key) return;
+      const key = String(row.identity || row.key).toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      rows.push(row);
+    };
+
     (Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : []).forEach((rule, index) => {
       const code = getDiscountRuleCode(rule) || "";
       if (!code) return;
-      rows.push({
-        key: `code:${code}:${index}`,
+      pushRow({
+        key: `code:${code}:${getRuleKey(rule, "code") || index}`,
         type: "code",
         title: "Discount Code",
-        subtitle: "Copy this discount code",
+        subtitle: getOfferRuleSubtitle("code", rule, "Apply this discount code"),
         code,
-        action: "Copy code",
+        action: "Apply Code",
+        rule,
       });
     });
 
@@ -6985,14 +7205,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const fallback = Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0
           ? `Buy ${x} and get ${y} free`
           : "Buy something and get something";
-        rows.push({
-          key: `bxgy:${key}`,
-          ruleKey: getRuleKey(rule, "bxgy"),
+        const ruleKey = getRuleKey(rule, "bxgy");
+        pushRow({
+          key: `bxgy:${ruleKey || key}`,
+          identity: `bxgy:${ruleKey || key}`,
+          ruleKey,
           type: "bxgy",
-          title: trimToNull(rule?.campaignName) || "Buy X Get Y Discount",
-          subtitle: trimToNull(rule?.beforeOfferUnlockMessage) || fallback,
+          title: getOfferRuleTitle("bxgy", rule, "Buy X Get Y Discount"),
+          subtitle: getOfferRuleSubtitle("bxgy", rule, fallback),
           action: "Show Gifts",
           rule,
+          thumbs: getOfferProductThumbs("bxgy", rule),
         });
       });
 
@@ -7000,15 +7223,74 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (!step?.rule) return;
       const type = String(step.type || "").toLowerCase();
       const ruleKey = getRuleKey(step.rule, type || "rule");
-      rows.push({
-        key: `step:${type}:${index}`,
+      const identityType = type === "buyxgety" ? "bxgy" : type;
+      pushRow({
+        key: `step:${type}:${ruleKey || index}`,
+        identity: `${identityType}:${ruleKey || index}`,
         ruleKey,
         type,
         title: getOfferStepTitle(step),
-        subtitle: step.progressTextBefore || step.title || "Reward available in this order",
+        subtitle: trimToNull(step.progressTextBefore) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order"),
         action: type === "free" || type === "bxgy" || type === "buyxgety" ? "Show Gifts" : "",
         rule: step.rule,
         slot: step.slot,
+        thumbs: getOfferProductThumbs(type, step.rule),
+      });
+    });
+
+    const shippingList = getProxyArray(PROXY, ["shippingRules", "shippingRule", "shippingrule"]);
+    (Array.isArray(shippingList) ? shippingList : []).forEach((rule, index) => {
+      if (!isRuleEnabled(rule)) return;
+      const ruleKey = getRuleKey(rule, "shipping");
+      pushRow({
+        key: `shipping:${ruleKey || index}`,
+        identity: `shipping:${ruleKey || index}`,
+        ruleKey,
+        type: "shipping",
+        title: getOfferRuleTitle("shipping", rule, "Free Shipping"),
+        subtitle: getOfferRuleSubtitle("shipping", rule, "Add more to get free shipping on this order"),
+        action: "",
+        rule,
+      });
+    });
+
+    const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
+    (Array.isArray(discountList) ? discountList : []).forEach((rule, index) => {
+      if (!isRuleEnabled(rule)) return;
+      const ruleType = String(rule?.type ?? rule?.ruleType ?? "").trim().toLowerCase();
+      const hasBxgy =
+        trimToNull(rule?.beforeOfferUnlockMessage) ||
+        trimToNull(rule?.afterOfferUnlockMessage) ||
+        Number(rule?.xQty ?? rule?.x ?? 0) > 0 ||
+        Number(rule?.yQty ?? rule?.y ?? 0) > 0;
+      if (ruleType === "code" || hasBxgy) return;
+      const ruleKey = getRuleKey(rule, "discount");
+      pushRow({
+        key: `discount:${ruleKey || index}`,
+        identity: `discount:${ruleKey || index}`,
+        ruleKey,
+        type: "discount",
+        title: getOfferRuleTitle("discount", rule, "Order Discount"),
+        subtitle: getOfferRuleSubtitle("discount", rule, "Add more to get a discount on this order"),
+        action: "",
+        rule,
+      });
+    });
+
+    const freeList = getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]);
+    (Array.isArray(freeList) ? freeList : []).forEach((rule, index) => {
+      if (!isRuleEnabled(rule)) return;
+      const ruleKey = getRuleKey(rule, "free");
+      pushRow({
+        key: `free:${ruleKey || index}`,
+        identity: `free:${ruleKey || index}`,
+        ruleKey,
+        type: "free",
+        title: getOfferRuleTitle("free", rule, "Free Gift"),
+        subtitle: getOfferRuleSubtitle("free", rule, "Add more to get Free Gift with this order"),
+        action: "Show Gifts",
+        rule,
+        thumbs: getOfferProductThumbs("free", rule),
       });
     });
 
@@ -7026,25 +7308,28 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     offersPanel.innerHTML = rows.map((offer, index) => {
       const actionHtml = offer.type === "code"
-        ? `<button class="sc-offer-codebox" type="button" data-offer-code="${safe(offer.code)}" aria-label="Copy discount code">
-            <span class="sc-offer-code">${safe(offer.code)}</span>
-            <span class="sc-offer-copy-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M8 8h10v12H8V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                <path d="M6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </span>
-            <span class="sc-offer-copied-text">Copied</span>
-          </button>`
+        ? `<span class="sc-offer-codebox">
+            <button class="sc-offer-code-copy" type="button" data-offer-code-copy="${safe(offer.code)}" aria-label="Copy discount code">
+              <span class="sc-offer-code">${safe(offer.code)}</span>
+              <span class="sc-offer-copy-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M8 8h10v12H8V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <span class="sc-offer-copied-text">Copied</span>
+            </button>
+            <button class="sc-offer-code-apply" type="button" data-offer-code-apply="${safe(offer.code)}">${safe(offer.action || "Apply Code")}</button>
+          </span>`
         : offer.action
           ? `<button class="sc-offer-action" type="button" data-offer-action="${index}">${safe(offer.action)}</button>`
           : "";
       return `
         <div class="sc-offer-row">
-          <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg(offer.type)}</span>
+          ${renderOfferVisual(offer)}
           <span class="sc-offer-copy">
             <p class="sc-offer-title">${safe(offer.title)}</p>
-            <p class="sc-offer-subtitle">${safe(offer.subtitle.text)}</p>
+            <p class="sc-offer-subtitle">${safe(offer.subtitle)}</p>
           </span>
           ${actionHtml}
         </div>
@@ -7283,18 +7568,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("code")}</span>
         <span class="sc-offer-copy">
           <p class="sc-offer-title">Discount Code</p>
-          <p class="sc-offer-subtitle">Copy this discount code</p>
+          <p class="sc-offer-subtitle">Apply this discount code</p>
         </span>
-        <button class="sc-offer-codebox" type="button" data-offer-code="smart123" aria-label="Copy discount code">
-          <span class="sc-offer-code">smart123</span>
-          <span class="sc-offer-copy-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M8 8h10v12H8V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-              <path d="M6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </span>
-          <span class="sc-offer-copied-text">Copied</span>
-        </button>
+        <span class="sc-offer-codebox">
+          <button class="sc-offer-code-copy" type="button" data-offer-code-copy="smart123" aria-label="Copy discount code">
+            <span class="sc-offer-code">smart123</span>
+            <span class="sc-offer-copy-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M8 8h10v12H8V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="sc-offer-copied-text">Copied</span>
+          </button>
+          <button class="sc-offer-code-apply" type="button" data-offer-code-apply="smart123">Apply Code</button>
+        </span>
       </div>
       <div class="sc-offer-row">
         <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("bxgy")}</span>
