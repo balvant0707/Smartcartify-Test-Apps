@@ -168,6 +168,67 @@ const normalizeProductIds = (value) =>
 const normalizeCollectionIds = (value) =>
   normalizeIds(value).map((id) => shopifyGid(id, "Collection"));
 
+function expectedShopifyType(type) {
+  return type === "Collection" ? "Collection" : "Product";
+}
+
+function invalidResourceMessage(ids, context, type) {
+  const label = type === "Collection" ? "collection" : "product";
+  const sample = ids.map((id) => id.split("/").pop()).join(", ");
+  return `${context} includes invalid or deleted Shopify ${label}${ids.length === 1 ? "" : "s"} (${sample}). Reselect the ${label}${ids.length === 1 ? "" : "s"} and save again.`;
+}
+
+async function filterExistingShopifyIds(admin, ids, type, { context, strict = false } = {}) {
+  const normalizedIds = normalizeIds(ids);
+  if (!normalizedIds.length) return [];
+
+  const data = await gql(
+    admin,
+    `#graphql
+      query ValidateDiscountResourceIds($ids: [ID!]!) {
+        nodes(ids: $ids) {
+          id
+          __typename
+        }
+      }`,
+    { ids: normalizedIds }
+  );
+  const nodes = data?.data?.nodes || [];
+  const expectedType = expectedShopifyType(type);
+  const validIds = [];
+  const invalidIds = [];
+
+  normalizedIds.forEach((id, index) => {
+    const node = nodes[index];
+    if (node?.id === id && node?.__typename === expectedType) {
+      validIds.push(id);
+    } else {
+      invalidIds.push(id);
+    }
+  });
+
+  if (strict && invalidIds.length) {
+    throw new Error(invalidResourceMessage(invalidIds, context || "Selection", type));
+  }
+
+  return validIds;
+}
+
+async function filterExistingBxgySelection(admin, selection = {}, options = {}) {
+  const [products, collections] = await Promise.all([
+    filterExistingShopifyIds(admin, selection.products, "Product", {
+      ...options,
+      context: `${options.context || "Selection"} products`,
+    }),
+    filterExistingShopifyIds(admin, selection.collections, "Collection", {
+      ...options,
+      context: `${options.context || "Selection"} collections`,
+    }),
+  ]);
+
+  return { products, collections };
+}
+
 function normalizeBxgyScope(scope) {
   switch (scope) {
     case "store":
@@ -729,16 +790,22 @@ export async function upsertBxgy(admin, {
   existingId, title, startsAt, endsAt, minReqType, minQty, minSpend, rewardQty, rewardType, rewardDiscount, enabled = true,
   scope, appliesTo, rewardAppliesTo, usesPerOrderLimit, previousScope, previousAppliesTo, previousRewardAppliesTo,
 }) {
-  const selection = await resolveBxgySelection(admin, { scope, appliesTo });
-  const previousSelection = previousAppliesTo
+  const rawSelection = await resolveBxgySelection(admin, { scope, appliesTo });
+  const rawPreviousSelection = previousAppliesTo
     ? parseBxgyAppliesTo(previousAppliesTo, previousScope || scope)
     : {};
-  const rewardSelection = rewardAppliesTo
+  const rawRewardSelection = rewardAppliesTo
     ? parseBxgyAppliesTo(rewardAppliesTo, "product")
-    : selection;
-  const previousRewardSelection = previousRewardAppliesTo
+    : rawSelection;
+  const rawPreviousRewardSelection = previousRewardAppliesTo
     ? parseBxgyAppliesTo(previousRewardAppliesTo, "product")
     : {};
+  const [selection, previousSelection, rewardSelection, previousRewardSelection] = await Promise.all([
+    filterExistingBxgySelection(admin, rawSelection, { context: "Customer buys", strict: true }),
+    filterExistingBxgySelection(admin, rawPreviousSelection, { context: "Previous customer buys" }),
+    filterExistingBxgySelection(admin, rawRewardSelection, { context: "Customer gets", strict: true }),
+    filterExistingBxgySelection(admin, rawPreviousRewardSelection, { context: "Previous customer gets" }),
+  ]);
   const buyItems = buildBxgyItemsInput(selection, existingId ? previousSelection : {});
   const getItems = buildBxgyItemsInput(rewardSelection, existingId ? previousRewardSelection : {});
   const parsedUsesPerOrderLimit = parseInt(usesPerOrderLimit || "", 10);

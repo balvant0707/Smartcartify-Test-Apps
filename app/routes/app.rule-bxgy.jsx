@@ -197,6 +197,15 @@ const mergeById = (current = [], next = []) => {
   });
 };
 
+const sameStringArray = (left = [], right = []) =>
+  left.length === right.length && left.every((item, index) => item === right[index]);
+
+const normalizeSelectedIdsFromItems = (ids = [], items = []) =>
+  ids.map((id) => {
+    const match = items.find((item) => item.id === id || item.originalId === id);
+    return match?.id || id;
+  });
+
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
@@ -788,17 +797,25 @@ export default function RuleBxgy() {
     productFetcher.load(`/api/products?resource=${resource}&limit=10${afterParam}`);
   }, [productFetcher]);
 
-  const productPickerItems = pickerProducts.map((product) => ({
-    id: product.id,
-    title: product.title,
-    subtitle: product.price ? `$${product.price}` : undefined,
-    image: product.image,
-  }));
-  const collectionPickerItems = pickerCollections.map((collection) => ({
-    id: collection.id,
-    title: collection.title,
-    subtitle: collection.handle ? `/${collection.handle}` : undefined,
-  }));
+  const productPickerItems = useMemo(
+    () => pickerProducts.map((product) => ({
+      id: product.id,
+      originalId: product.originalId,
+      title: product.title,
+      subtitle: product.price ? `$${product.price}` : undefined,
+      image: product.image,
+    })),
+    [pickerProducts]
+  );
+  const collectionPickerItems = useMemo(
+    () => pickerCollections.map((collection) => ({
+      id: collection.id,
+      originalId: collection.originalId,
+      title: collection.title,
+      subtitle: collection.handle ? `/${collection.handle}` : undefined,
+    })),
+    [pickerCollections]
+  );
 
   const applies = useMemo(() => parseAppliesTo(r?.appliesTo), [r?.appliesTo]);
   const storedContent = useMemo(
@@ -891,6 +908,24 @@ export default function RuleBxgy() {
       `/api/products?resource=collections&ids=${encodeURIComponent(missingIds.join(","))}`
     );
   }, [buyCollectionIds, pickerCollections, selectedCollectionsFetcher]);
+
+  useEffect(() => {
+    setBuyProductIds((prev) => {
+      const next = normalizeSelectedIdsFromItems(prev, productPickerItems);
+      return sameStringArray(prev, next) ? prev : next;
+    });
+    setRewardProductIds((prev) => {
+      const next = normalizeSelectedIdsFromItems(prev, productPickerItems);
+      return sameStringArray(prev, next) ? prev : next;
+    });
+  }, [productPickerItems]);
+
+  useEffect(() => {
+    setBuyCollectionIds((prev) => {
+      const next = normalizeSelectedIdsFromItems(prev, collectionPickerItems);
+      return sameStringArray(prev, next) ? prev : next;
+    });
+  }, [collectionPickerItems]);
 
   const pickerResource = picker === "buy-collections" ? "collections" : picker ? "products" : null;
   const pickerItems = pickerResource === "collections" ? collectionPickerItems : productPickerItems;

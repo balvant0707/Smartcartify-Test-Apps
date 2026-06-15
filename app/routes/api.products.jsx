@@ -24,11 +24,12 @@ const clampLimit = (value, fallback) => {
   return Math.min(parsed, 250);
 };
 
-const mapProduct = (p, idOverride = null) => {
+const mapProduct = (p, originalId = null) => {
   const v = edge(p?.variants)[0];
   const img = edge(p?.images)[0];
   return {
-    id: idOverride || p.id,
+    id: p.id,
+    originalId,
     gid: p.id,
     title: p.title,
     handle: p.handle,
@@ -40,13 +41,14 @@ const mapProduct = (p, idOverride = null) => {
   };
 };
 
-const mapCollection = (c, includeCollectionProducts = false, idOverride = null) => {
+const mapCollection = (c, includeCollectionProducts = false, originalId = null) => {
   const collectionProducts = includeCollectionProducts
     ? edge(c?.products).map(mapProduct)
     : [];
 
   return {
-    id: idOverride || c.id,
+    id: c.id,
+    originalId,
     gid: c.id,
     title: c.title,
     handle: c.handle,
