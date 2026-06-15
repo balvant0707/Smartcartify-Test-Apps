@@ -1,4 +1,4 @@
-﻿(() => {
+﻿﻿(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -3340,24 +3340,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   opacity:.9;
 }
 .sc-drawer.sc-offers-active .sc-header{
-  padding:32px 20px 28px;
-  min-height:100px;
+  padding:15px 15px 15px;
   align-items:flex-start;
-  border-bottom:0;
-  color:#ffffff;
-  background:
-    radial-gradient(circle at 88% 0%, rgba(255,255,255,.72), rgba(255,255,255,0) 34%),
-    linear-gradient(135deg, #f43b23 0%, #d822c8 52%, #ffe4d2 100%) !important;
 }
 .sc-drawer.sc-offers-active .sc-title-icon{
   display:none;
 }
-.sc-drawer.sc-offers-active .sc-title{
-  color:#ffffff;
-  font-size:28px;
-  line-height:1;
-  font-weight:900;
-}
+
 .sc-drawer.sc-offers-active .sc-close{
   width:auto;
   min-width:72px;
@@ -4362,32 +4351,30 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-footer-row{display:flex;gap:10px;align-items:stretch;}
 
 .sc-offers{
-  position:relative;
-  z-index:25;
-  max-width:none;
-  width:auto !important;
-  background:#ffffff;
-  background-size:cover;
-  background-position:center;
-  transition:transform .25s ease;
-  pointer-events:auto !important;
-  display:flex !important;
-  flex-direction:column;
-  font-size:var(--sc-base-font-size);
-  color:var(--sc-drawer-text-color);
-  flex:1;
-  min-height:0;
-  overflow:auto;
-  border-radius:max(var(--sc-radius), 12px);
-  box-shadow:0 1px 3px rgba(15,23,42,.08);
+  position: absolute;
+    z-index: 25;
+    height: 83%;
+    max-width: 449px !important;
+    width: 100% !important;
+    background: var(--sc-cart-drawer-bg);
+    background-size: cover;
+    background-position: center;
+    transition: transform .25s ease;
+    pointer-events: auto !important;
+    display: flex !important;
+    flex-direction: column;
+    font-size: var(--sc-base-font-size);
+    color: var(--sc-drawer-text-color);
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .08);
 }
 .sc-drawer.sc-offers-active .content-cart-smartcartify,
 .sc-drawer.sc-offers-active .sc-footer{
   background:#f4f4f4 !important;
 }
 .sc-drawer.sc-offers-active .sc-offers{
-  margin:-10px 16px 14px;
-  border:1px solid rgba(15,23,42,.08);
   box-shadow:0 2px 8px rgba(15,23,42,.10);
 }
 .sc-offers[hidden]{display:none !important;}
