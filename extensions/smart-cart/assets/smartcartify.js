@@ -3221,7 +3221,6 @@
   pointer-events:none !important;
   display:flex !important;
   flex-direction:column;
-  font-family:var(--sc-font);
   font-size:var(--sc-base-font-size);
   color:var(--sc-drawer-text-color);
 }
@@ -4327,7 +4326,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
     pointer-events: none !important;
     display: flex !important;
     flex-direction: column;
-    font-family: var(--sc-font);
     font-size: var(--sc-base-font-size);
     color: var(--sc-drawer-text-color);
     flex: 1;
@@ -4449,7 +4447,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   background:var(--sc-static-shell-bg, #f4f4f4) !important;
   color:var(--sc-static-text, #0b2364) !important;
   box-shadow:-12px 0 28px rgba(15,23,42,.18);
-  font-family:var(--sc-font, Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
 }
 .sc-static-design .content-cart-smartcartify{
   background:var(--sc-static-shell-bg, #f4f4f4);
