@@ -69,23 +69,14 @@ s-section::part(root),
 s-section::part(section),
 s-section::part(container),
 s-section::part(content) {
-  border-radius: 14px !important;
-  --pc-shadow-bevel-border-radius: 14px !important;
-  --pc-shadow-bevel-border-radius-xs: 14px !important;
-  --pc-shadow-bevel-border-radius-sm: 14px !important;
-  --pc-shadow-bevel-border-radius-md: 14px !important;
-  --pc-shadow-bevel-border-radius-lg: 14px !important;
-  --pc-shadow-bevel-border-radius-xl: 14px !important;
-  --pc-box-border-radius: 14px !important;
-}
-
-.Polaris-Button,
-.Polaris-Button::before,
-.Polaris-Button::after,
-s-button,
-s-button::part(base),
-s-button::part(button) {
-  border-radius: 14px !important;
+  border-radius: 14px;
+  --pc-shadow-bevel-border-radius: 14px;
+  --pc-shadow-bevel-border-radius-xs: 14px;
+  --pc-shadow-bevel-border-radius-sm: 14px;
+  --pc-shadow-bevel-border-radius-md: 14px;
+  --pc-shadow-bevel-border-radius-lg: 14px;
+  --pc-shadow-bevel-border-radius-xl: 14px;
+  --pc-box-border-radius: 14px ;
 }
 `;
 

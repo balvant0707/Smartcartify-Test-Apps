@@ -10,52 +10,7 @@
   --p-border-radius-750: 4px;
 }
 
-.Polaris-Card,
-.Polaris-LegacyCard,
-.Polaris-ShadowBevel,
-.Polaris-ShadowBevel::before,
-[class^="Polaris-ShadowBevel"],
-[class^="Polaris-ShadowBevel"]::before,
-[class*=" Polaris-ShadowBevel"],
-[class*=" Polaris-ShadowBevel"]::before,
-s-box,
-s-box::part(base),
-s-box::part(container),
-s-card,
-s-card::part(base),
-s-card::part(container),
-m-card,
-m-card::part(base),
-m-card::part(container),
-section,
-s-section,
-s-section::part(base),
-s-section::part(root),
-s-section::part(section),
-s-section::part(container),
-s-section::part(content),
-.Polaris-Page__Section,
-.Polaris-Page-Section,
-.Polaris-Card__Section,
-.Polaris-LegacyCard__Section {
-  border-radius: 14px !important;
-  --pc-shadow-bevel-border-radius: 14px !important;
-  --pc-shadow-bevel-border-radius-xs: 14px !important;
-  --pc-shadow-bevel-border-radius-sm: 14px !important;
-  --pc-shadow-bevel-border-radius-md: 14px !important;
-  --pc-shadow-bevel-border-radius-lg: 14px !important;
-  --pc-shadow-bevel-border-radius-xl: 14px !important;
-  --pc-box-border-radius: 14px !important;
-}
 
-.Polaris-Button,
-.Polaris-Button::before,
-.Polaris-Button::after,
-s-button,
-s-button::part(base),
-s-button::part(button) {
-  border-radius: 14px !important;
-}
 
 body {
   background: #f6f6f7;
