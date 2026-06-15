@@ -983,19 +983,18 @@ function CartDrawerPreview({
 
   const headerHasImage = drawerBgMode === "image" && drawerImage;
   const drawerSectionBg = uiSurface;
-  const previewRadius = Math.max(r, 12);
   const drawerBackgroundStyle = headerHasImage
-    ? { backgroundImage: `linear-gradient(rgba(255,255,255,0.94), rgba(255,255,255,0.94)), url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+    ? { backgroundImage: `linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.92)), url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
     : { background: uiSurface };
   const headerBgStyle = headerHasImage
-    ? { backgroundImage: `linear-gradient(135deg, rgba(236,47,137,0.82), rgba(255,138,101,0.72)), url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+    ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
     : drawerBgMode === "gradient"
-      ? { background: `linear-gradient(135deg, ${gradStart} 0%, ${gradEnd} 100%)` }
-      : { background: "linear-gradient(135deg, #ec2f89 0%, #ff8a65 100%)" };
+      ? { background: `linear-gradient(90deg, ${gradStart}, ${gradEnd})` }
+      : { background: bg || uiSurface };
 
   const previewItemImageStyle = {
-    width: 50,
-    height: 50,
+    width: 58,
+    height: 58,
     borderRadius: Math.max(r, 8),
     border: `1px solid ${brc}`,
     background: softPanel,
@@ -1019,8 +1018,8 @@ function CartDrawerPreview({
 
   // Cart item row using the compact sample layout from the storefront reference.
   const CartItem = ({ name, variant, price, image, badge, compareAt, isReward = false }) => (
-    <div style={{ padding: "13px 14px", borderBottom: `1px solid ${brc}`, background: uiSurface }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+    <div style={{ padding: "12px 14px", borderBottom: `1px solid ${brc}`, background: uiSurface }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
         <img src={image || "/images/upsellproduct.png"} alt={name} style={previewItemImageStyle} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
@@ -1058,27 +1057,32 @@ function CartDrawerPreview({
   );
 
   const FreeGiftOffer = () => (
-    <div style={{ borderBottom: `1px solid ${brc}`, background: uiSurface, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 14px" }}>
-        <img src="/images/FreeProduct.png" alt={fgLabel} style={{ ...previewItemImageStyle, width: 50, height: 50 }} />
+    <div style={{ margin: "10px 12px 0", border: `1px solid ${brc}`, borderRadius: Math.max(r, 10), background: uiSurface, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
+        <img src="/images/FreeProduct.png" alt={fgLabel} style={{ ...previewItemImageStyle, width: 52, height: 52 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ color: tc, fontSize: `${Math.max(fs, 13)}px`, lineHeight: "18px", fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {hasFreeGift ? fgLabel : "Free Gift!!"}
           </div>
-          <div style={{ color: tc, opacity: 0.58, fontSize: `${Math.max(fs - 1, 10)}px`, lineHeight: "16px", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ color: tc, opacity: 0.55, fontSize: `${Math.max(fs - 1, 10)}px`, lineHeight: "16px", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {hasFreeGift ? fgText : "Add more to get Free Gift with this order"}
           </div>
         </div>
-        <button type="button" aria-label="View free gift" style={{ ...iconButtonStyle, width: 24, height: 24, borderRadius: "50%", border: `1px solid ${withAlpha(ic, 0.18)}`, background: "#ffffff", color: ic, opacity: 0.72 }}>
-          <PreviewIcon source={ChevronRightIcon} size={13} color="currentColor" />
+        <button type="button" aria-label="View free gift" style={{ ...iconButtonStyle, border: "none", background: "transparent", color: ic, opacity: 0.65 }}>
+          <PreviewIcon source={ChevronRightIcon} size={14} color="currentColor" />
         </button>
+      </div>
+      <div style={{ display: "flex", gap: 5, justifyContent: "center", padding: "0 0 10px" }}>
+        {[0, 1, 2].map((n) => (
+          <span key={n} style={{ width: n === 0 ? 16 : 6, height: 6, borderRadius: 999, background: n === 0 ? pc : brc, display: "inline-block" }} />
+        ))}
       </div>
     </div>
   );
 
   const UpsellPreview = () => (
-    <div style={{ padding: "14px 12px 16px", background: upsellBg }}>
-      <div style={{ color: upsellText, opacity: 0.76, fontSize: `${Math.max(fs, 12)}px`, lineHeight: "16px", fontWeight: 800, textAlign: "center", marginBottom: 10 }}>
+    <div style={{ padding: "14px 12px 10px", background: upsellBg }}>
+      <div style={{ color: upsellText, opacity: 0.72, fontSize: `${Math.max(fs, 12)}px`, lineHeight: "16px", fontWeight: 800, textAlign: "center", marginBottom: 10 }}>
         {upsellTitle.endsWith("...") ? upsellTitle : `${upsellTitle}...`}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: upsellIsSlider ? "24px minmax(0, 1fr) 24px" : "minmax(0, 1fr)", gap: 6, alignItems: "center" }}>
@@ -1100,7 +1104,7 @@ function CartDrawerPreview({
               key={upsellIsSlider ? `${product.id || product.title || index}-${activeUpsellIndex}` : product.id || product.title || index}
               style={{
                 display: "grid",
-                gridTemplateColumns: "52px minmax(0, 1fr) auto",
+                gridTemplateColumns: "58px minmax(0, 1fr) auto",
                 gap: 10,
                 alignItems: "center",
                 padding: 0,
@@ -1109,9 +1113,9 @@ function CartDrawerPreview({
               }}
             >
               {product.image ? (
-                <img src={product.image} alt={product.title} style={{ ...previewItemImageStyle, width: 52, height: 44, borderColor: upsellBorder }} />
+                <img src={product.image} alt={product.title} style={{ ...previewItemImageStyle, width: 58, height: 44, borderColor: upsellBorder }} />
               ) : (
-                <div style={{ width: 52, height: 44, borderRadius: Math.max(r, 8), border: `1px solid ${upsellBorder}`, background: "#f5f7fb", display: "flex", alignItems: "center", justifyContent: "center", color: upsellArrowColor }}>
+                <div style={{ width: 58, height: 44, borderRadius: Math.max(r, 8), border: `1px solid ${upsellBorder}`, background: "#f5f7fb", display: "flex", alignItems: "center", justifyContent: "center", color: upsellArrowColor }}>
                   <PreviewIcon source={PackageFulfilledIcon} size={20} color="currentColor" />
                 </div>
               )}
@@ -1162,7 +1166,7 @@ function CartDrawerPreview({
   const annColor = announcementText || "#fff";
 
   return (
-    <div style={{ border: `1px solid ${brc}`, borderRadius: previewRadius, overflow: "hidden", ...drawerBackgroundStyle, color: tc, userSelect: "none", minHeight: 680, height: 680, display: "flex", flexDirection: "column", fontSize: `${fs}px`, fontFamily, boxShadow: "0 18px 38px rgba(15, 23, 42, 0.08)" }}>
+    <div style={{ border: `1px solid ${brc}`, borderRadius: Math.max(r, 10), overflow: "hidden", ...drawerBackgroundStyle, color: tc, userSelect: "none", minHeight: 680, height: 680, display: "flex", flexDirection: "column", fontSize: `${fs}px`, fontFamily }}>
       {/* Marquee keyframes */}
       <style>{`
         @keyframes cp-mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
@@ -1170,21 +1174,39 @@ function CartDrawerPreview({
       `}</style>
 
       {/* ── Header ── */}
-      <div style={{ ...headerBgStyle, padding: "10px 14px 9px", flexShrink: 0 }}>
+      <div style={{ ...headerBgStyle, padding: "14px 16px", flexShrink: 0 }}>
         <InlineStack align="space-between" blockAlign="center" wrap={false}>
-          <span style={{ color: "#ffffff", fontWeight: 900, fontSize: `${Math.max(headingFs, 20)}px`, lineHeight: 1.1, textShadow: "0 1px 5px rgba(0,0,0,0.16)" }}>Cart</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(255,255,255,0.95)", border: "none", borderRadius: 20, padding: "4px 9px", cursor: "pointer", color: "#5b6475", boxShadow: "0 2px 8px rgba(15,23,42,0.10)" }}>
-            <PreviewIcon source={XIcon} size={10} color="currentColor" />
-            <span style={{ color: "#5b6475", fontSize: `${Math.max(fs - 3, 9)}px`, lineHeight: "12px", fontWeight: 800 }}>Close</span>
+          <span style={{ color: hc, fontWeight: 900, fontSize: `${Math.max(headingFs, 20)}px`, lineHeight: 1.1, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>Cart</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.94)", border: `1px solid ${brc}`, borderRadius: 20, padding: "4px 10px", cursor: "pointer", color: ic }}>
+            <PreviewIcon source={XIcon} size={12} color={ic} />
+            <span style={{ color: tc, fontSize: `${Math.max(fs - 2, 10)}px`, lineHeight: "14px", fontWeight: 700 }}>Close</span>
           </div>
         </InlineStack>
       </div>
 
+      {/* ── Announcement bar — sliding marquee ── */}
+      <div style={{ background: announcementBg || "#000", borderBottom: `1px solid ${brc}`, overflow: "hidden", flexShrink: 0 }}>
+        <div style={{ padding: "7px 0" }}>
+          <div style={{ display: "flex", width: "max-content", animation: "cp-mq 16s linear infinite", willChange: "transform" }}>
+            {[0, 1].map((k) => (
+              <span key={k} style={{ display: "inline-flex", alignItems: "center", paddingRight: 56, whiteSpace: "nowrap" }}>
+                {announceMessages.map((msg, i) => (
+                  <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
+                    {i > 0 && <span style={{ margin: "0 10px", color: annColor, opacity: 0.45 }}>★</span>}
+                    <span style={{ color: annColor, fontSize: `${Math.max(fs - 1, 11)}px`, fontWeight: 600 }}>{msg}</span>
+                  </span>
+                ))}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* ── Goal message banner ── */}
-      <div style={{ background: withAlpha(pc, 0.12), borderBottom: `1px solid ${withAlpha(pc, 0.16)}`, padding: "10px 14px", flexShrink: 0 }}>
+      <div style={{ background: messageBannerBg, borderBottom: `1px solid ${withAlpha(pc, 0.18)}`, padding: "10px 14px", flexShrink: 0 }}>
         <div style={{ display: "grid", gridTemplateColumns: "18px minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
-          <PreviewIcon source={ChevronLeftIcon} size={13} color={ptc} />
-          <div style={{ textAlign: "center", color: ptc, fontSize: `${Math.max(fs, 12)}px`, lineHeight: "16px", fontWeight: 700 }}>
+          <PreviewIcon source={ChevronLeftIcon} size={14} color={ptc} />
+          <div style={{ textAlign: "center", color: ptc, fontSize: `${Math.max(fs, 12)}px`, lineHeight: "16px", fontWeight: 600 }}>
             {bannerPrefix}
             <span style={{ fontWeight: 900 }}>{bannerHeadline}</span>
           </div>
@@ -1194,13 +1216,13 @@ function CartDrawerPreview({
       {/* ── Scrollable body ── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: drawerSectionBg, overflow: "hidden" }}>
         {/* ── Cart steps progress ── */}
-        <div style={{ margin: 0, padding: "12px 18px 8px", background: uiSurface, borderBottom: `1px solid ${withAlpha(brc, 0.78)}`, flexShrink: 0 }}>
-          <div style={{ textAlign: "center", marginBottom: 11 }}>
-            <span style={{ fontSize: `${Math.max(fs - 2, 10)}px`, lineHeight: "14px", color: ptc, fontWeight: 800 }}>{nextGoalText}</span>
+        <div style={{ margin: "10px 12px 0", padding: "14px 12px 12px", borderRadius: Math.max(r, 12), background: progressPanelBg, border: `1px solid ${withAlpha(pc, 0.16)}`, flexShrink: 0 }}>
+          <div style={{ textAlign: "center", marginBottom: 14 }}>
+            <span style={{ fontSize: `${Math.max(fs - 1, 11)}px`, lineHeight: "15px", color: ptc, fontWeight: 700 }}>{nextGoalText}</span>
           </div>
-          <div style={{ position: "relative", height: 52, margin: "0 4px" }}>
-            <div style={{ position: "absolute", left: 0, right: 0, top: 12, height: 5, background: withAlpha(pc, 0.18), borderRadius: 999 }} />
-            <div style={{ position: "absolute", left: 0, top: 12, height: 5, width: `${progressFill}%`, background: pc, borderRadius: 999, zIndex: 1, transition: "width .25s ease" }} />
+          <div style={{ position: "relative", height: 68, margin: "0 4px" }}>
+            <div style={{ position: "absolute", left: 0, right: 0, top: 15, height: 8, background: pc, opacity: 0.35, borderRadius: 999 }} />
+            <div style={{ position: "absolute", left: 0, top: 15, height: 8, width: `${progressFill}%`, background: pc, borderRadius: 999, zIndex: 1, transition: "width .25s ease" }} />
             {displaySteps.map((step, index) => {
               const pct = stepPosition(index);
               const done = pct <= progressFill;
@@ -1222,20 +1244,20 @@ function CartDrawerPreview({
                 >
                   <div
                     style={{
-                      width: 22,
-                      height: 22,
+                      width: 30,
+                      height: 30,
                       borderRadius: "50%",
                       background: done ? pc : "#ffffff",
-                      border: `2px solid ${done ? pc : withAlpha(pc, 0.36)}`,
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+                      border: `2px solid ${done ? pc : "#6f6f6f"}`,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.14)",
                       display: "grid",
                       placeItems: "center",
                       color: done ? blc : pc,
                     }}
                   >
-                    <PreviewIcon source={iconSrc} size={12} color={done ? blc : pc} />
+                    <PreviewIcon source={iconSrc} size={16} color={done ? blc : pc} />
                   </div>
-                  <div style={{ marginTop: 6, fontSize: `${Math.max(fs - 4, 9)}px`, lineHeight: "12px", color: ptc, fontWeight: 800, textAlign: "center", whiteSpace: "nowrap", maxWidth: 92, overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div style={{ marginTop: 6, fontSize: `${Math.max(fs - 3, 9)}px`, lineHeight: "12px", color: ptc, fontWeight: 800, textAlign: "center", whiteSpace: "nowrap", maxWidth: 92, overflow: "hidden", textOverflow: "ellipsis" }}>
                     {resolveStepLabel(step)}
                   </div>
                 </div>
@@ -1245,7 +1267,7 @@ function CartDrawerPreview({
         </div>
 
         {/* ── Cart items area ── */}
-        <div style={{ flex: 1, minHeight: 0, overflow: "auto", margin: "0 10px 0", border: `1px solid ${brc}`, borderRadius: previewRadius, background: uiSurface, boxShadow: "0 8px 22px rgba(15, 23, 42, 0.04)" }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto", margin: "10px 5px 0", border: `1px solid ${brc}`, borderRadius: Math.max(r, 10), background: uiSurface }}>
           <CartItem name="Sample Product" variant="Small" price="300 INR" image="/images/upsellproduct.png" />
           <FreeGiftOffer />
 
@@ -1282,7 +1304,7 @@ function CartDrawerPreview({
       </div>
 
       {discountCodeApply && (
-        <div style={{ padding: "9px 12px 6px", background: uiSurface, flexShrink: 0 }}>
+        <div style={{ padding: "10px 14px 0", background: uiSurface, flexShrink: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
             <div>
               <TextField
@@ -1299,9 +1321,9 @@ function CartDrawerPreview({
               style={{
                 alignSelf: "stretch",
                 minHeight: 40,
-                minWidth: 66,
+                minWidth: 70,
                 border: `1px solid ${bc}`,
-                borderRadius: 8,
+                borderRadius: Math.max(r, 6),
                 backgroundColor: "#ffffff",
                 color: bc,
                 fontSize: `${Math.max(fs, 12)}px`,
@@ -1318,7 +1340,7 @@ function CartDrawerPreview({
 
       {/* ── Total + Checkout ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", alignItems: "stretch", borderTop: `1px solid ${brc}`, position: stickyCheckout ? "sticky" : "relative", bottom: stickyCheckout ? 0 : "auto", background: uiSurface, boxShadow: stickyCheckout ? "0 -8px 18px rgba(15,23,42,0.08)" : "none", flexShrink: 0 }}>
-        <div style={{ padding: "10px 16px" }}>
+        <div style={{ padding: "11px 16px" }}>
           <BlockStack gap="050">
             <span style={{ color: tc, opacity: 0.7, fontSize: `${Math.max(fs - 2, 10)}px`, lineHeight: "13px", fontWeight: 700 }}>Total</span>
             <span style={{ color: tc, fontSize: `${Math.max(fs + 3, 15)}px`, lineHeight: "18px", fontWeight: 900 }}>327 INR</span>
