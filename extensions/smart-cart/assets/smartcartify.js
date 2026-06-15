@@ -4313,14 +4313,28 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-footer-row{display:flex;gap:10px;align-items:stretch;}
 
 .sc-offers{
-  flex:1;
-  min-height:0;
-  margin:12px;
-  overflow:auto;
-  background:#ffffff;
-  border:1px solid var(--sc-border);
-  border-radius:var(--sc-radius);
-  box-shadow:0 1px 3px rgba(15,23,42,.08);
+  position: absolute;
+    top: 8%;
+    right: 0;
+    z-index: 25;
+    height: 83%;
+    max-width: 445px;
+    width: 100% !important;
+    background: var(--sc-drawer-bg);
+    background-size: cover;
+    background-position: center;
+    transition: transform .25s ease;
+    pointer-events: none !important;
+    display: flex !important;
+    flex-direction: column;
+    font-family: var(--sc-font);
+    font-size: var(--sc-base-font-size);
+    color: var(--sc-drawer-text-color);
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-radius: var(--sc-radius);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .08);
 }
 .sc-offers[hidden]{display:none !important;}
 .sc-offer-row{
@@ -4406,7 +4420,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-footer-tabs[hidden]{display:none !important;}
 .sc-footer-tab{
-  min-height:58px;
+  min-height:40px;
   border:0;
   border-bottom:3px solid transparent;
   background:#fff;
@@ -4846,7 +4860,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:flex;
   align-items:center;
   justify-content:center;
-  position:relative;min-height:56px;
+  position:relative;
+  min-height:40px;
   font-weight:700;
 }
 .sc-badge{
@@ -7774,8 +7789,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const priceClass = `sc-price${displayPrice === 0 ? " sc-price-free" : ""}`;
         const freeTagText = isReward
           ? isFreeGift
-            ? "Free product"
-            : "Offer product"
+            ? "Free"
+            : "Offer"
           : "Free";
         const rewardBadge = isReward
           ? `<span class="sc-free-tag sc-free-tag-under sc-reward-line-badge">${safe(freeTagText)}</span>`
