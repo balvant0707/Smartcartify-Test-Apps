@@ -687,8 +687,8 @@ function buildDefaultProgressBefore(rule) {
   const amt = rule.triggerType === "quantity"
     ? String(rule.minQuantity || 0)
     : rule._ruleType === "shipping"
-    ? fmtAmount(rule.minSubtotal)
-    : fmtAmount(rule.minPurchase || "0");
+      ? fmtAmount(rule.minSubtotal)
+      : fmtAmount(rule.minPurchase || "0");
   if (rule._ruleType === "shipping") {
     if (rule.rewardType === "reduce" && rule.amount)
       return `Spend ${amt} more to get ${fmtAmount(rule.amount)} shipping`;
@@ -697,7 +697,7 @@ function buildDefaultProgressBefore(rule) {
   if (rule._ruleType === "discount") {
     const lbl = !rule.value ? "a discount"
       : rule.valueType === "percent" || rule.valueType === "percentage" ? `${parseFloat(rule.value)}% off`
-      : `${fmtAmount(rule.value)} off`;
+        : `${fmtAmount(rule.value)} off`;
     return rule.triggerType === "quantity"
       ? `Add ${amt} items to get ${lbl}`
       : `Spend ${amt} more to get ${lbl}`;
@@ -853,10 +853,10 @@ function CartDrawerPreview({
   const displaySteps = steps.length
     ? steps
     : PREVIEW_FALLBACK_STEPS.map((entry, index) => ({
-        slot: index + 1,
-        rule: entry.rule,
-        fallbackLabel: entry.label,
-      }));
+      slot: index + 1,
+      rule: entry.rule,
+      fallbackLabel: entry.label,
+    }));
   const stepCount = displaySteps.length;
   const stepPosition = (index) => (index === stepCount - 1 ? 100 : ((index + 1) / stepCount) * 100);
   const progressFill = stepCount ? stepPosition(0) : 33;
@@ -868,8 +868,8 @@ function CartDrawerPreview({
     const amount = firstPending.triggerType === "quantity"
       ? firstPending.minQuantity
       : firstPending._ruleType === "shipping"
-      ? firstPending.minSubtotal
-      : firstPending.minPurchase;
+        ? firstPending.minSubtotal
+        : firstPending.minPurchase;
     const discountOpts = firstPending._ruleType === "discount"
       ? { value: firstPending.value, valueType: firstPending.valueType, goal: amount, trackBy: firstPending.triggerType }
       : { goal: amount, trackBy: firstPending.triggerType };
@@ -888,8 +888,8 @@ function CartDrawerPreview({
     const amount = rule.triggerType === "quantity"
       ? rule.minQuantity
       : rule._ruleType === "shipping"
-      ? rule.minSubtotal
-      : rule.minPurchase;
+        ? rule.minSubtotal
+        : rule.minPurchase;
     const discountOpts = rule._ruleType === "discount"
       ? { value: rule.value, valueType: rule.valueType, goal: amount, trackBy: rule.triggerType }
       : { goal: amount, trackBy: rule.triggerType };
@@ -929,18 +929,18 @@ function CartDrawerPreview({
   const fallbackUpsellPreviewProducts =
     upsellSelectionKind === "products"
       ? [
-          { title: "Selected Product", tag: "Curated pick", price: "300 INR" },
-          { title: "Matching Add-on", tag: "Manual upsell", price: "450 INR" },
-        ]
+        { title: "Selected Product", tag: "Curated pick", price: "300 INR" },
+        { title: "Matching Add-on", tag: "Manual upsell", price: "450 INR" },
+      ]
       : upsellSelectionKind === "collections"
         ? [
-            { title: "Collection Favorite", tag: "From selected collection", price: "300 INR" },
-            { title: "New Arrival", tag: "Collection item", price: "450 INR" },
-          ]
+          { title: "Collection Favorite", tag: "From selected collection", price: "300 INR" },
+          { title: "New Arrival", tag: "Collection item", price: "450 INR" },
+        ]
         : [
-            { title: "Store Bestseller", tag: "Recommended for this cart", price: "300 INR" },
-            { title: "Popular Add-on", tag: "", price: "450 INR" },
-          ];
+          { title: "Store Bestseller", tag: "Recommended for this cart", price: "300 INR" },
+          { title: "Popular Add-on", tag: "", price: "450 INR" },
+        ];
   const upsellPreviewProducts = configuredUpsellPreviewProducts.length
     ? configuredUpsellPreviewProducts
     : fallbackUpsellPreviewProducts;
@@ -983,18 +983,19 @@ function CartDrawerPreview({
 
   const headerHasImage = drawerBgMode === "image" && drawerImage;
   const drawerSectionBg = uiSurface;
+  const previewRadius = Math.max(r, 12);
   const drawerBackgroundStyle = headerHasImage
-    ? { backgroundImage: `linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.92)), url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+    ? { backgroundImage: `linear-gradient(rgba(255,255,255,0.94), rgba(255,255,255,0.94)), url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
     : { background: uiSurface };
   const headerBgStyle = headerHasImage
-    ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+    ? { backgroundImage: `linear-gradient(135deg, rgba(236,47,137,0.82), rgba(255,138,101,0.72)), url(${drawerImage})`, backgroundSize: "cover", backgroundPosition: "center" }
     : drawerBgMode === "gradient"
-      ? { background: `linear-gradient(90deg, ${gradStart}, ${gradEnd})` }
-      : { background: bg || uiSurface };
+      ? { background: `linear-gradient(135deg, ${gradStart} 0%, ${gradEnd} 100%)` }
+      : { background: "linear-gradient(135deg, #ec2f89 0%, #ff8a65 100%)" };
 
   const previewItemImageStyle = {
-    width: 58,
-    height: 58,
+    width: 50,
+    height: 50,
     borderRadius: Math.max(r, 8),
     border: `1px solid ${brc}`,
     background: softPanel,
@@ -1018,8 +1019,8 @@ function CartDrawerPreview({
 
   // Cart item row using the compact sample layout from the storefront reference.
   const CartItem = ({ name, variant, price, image, badge, compareAt, isReward = false }) => (
-    <div style={{ padding: "12px 14px", borderBottom: `1px solid ${brc}`, background: uiSurface }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+    <div style={{ padding: "13px 14px", borderBottom: `1px solid ${brc}`, background: uiSurface }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
         <img src={image || "/images/upsellproduct.png"} alt={name} style={previewItemImageStyle} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
@@ -1057,116 +1058,111 @@ function CartDrawerPreview({
   );
 
   const FreeGiftOffer = () => (
-    <div style={{ margin: "10px 12px 0", border: `1px solid ${brc}`, borderRadius: Math.max(r, 10), background: uiSurface, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px" }}>
-        <img src="/images/FreeProduct.png" alt={fgLabel} style={{ ...previewItemImageStyle, width: 52, height: 52 }} />
+    <div style={{ borderBottom: `1px solid ${brc}`, background: uiSurface, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 14px" }}>
+        <img src="/images/FreeProduct.png" alt={fgLabel} style={{ ...previewItemImageStyle, width: 50, height: 50 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ color: tc, fontSize: `${Math.max(fs, 13)}px`, lineHeight: "18px", fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {hasFreeGift ? fgLabel : "Free Gift!!"}
           </div>
-          <div style={{ color: tc, opacity: 0.55, fontSize: `${Math.max(fs - 1, 10)}px`, lineHeight: "16px", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ color: tc, opacity: 0.58, fontSize: `${Math.max(fs - 1, 10)}px`, lineHeight: "16px", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {hasFreeGift ? fgText : "Add more to get Free Gift with this order"}
           </div>
         </div>
-        <button type="button" aria-label="View free gift" style={{ ...iconButtonStyle, border: "none", background: "transparent", color: ic, opacity: 0.65 }}>
-          <PreviewIcon source={ChevronRightIcon} size={14} color="currentColor" />
+        <button type="button" aria-label="View free gift" style={{ ...iconButtonStyle, width: 24, height: 24, borderRadius: "50%", border: `1px solid ${withAlpha(ic, 0.18)}`, background: "#ffffff", color: ic, opacity: 0.72 }}>
+          <PreviewIcon source={ChevronRightIcon} size={13} color="currentColor" />
         </button>
-      </div>
-      <div style={{ display: "flex", gap: 5, justifyContent: "center", padding: "0 0 10px" }}>
-        {[0, 1, 2].map((n) => (
-          <span key={n} style={{ width: n === 0 ? 16 : 6, height: 6, borderRadius: 999, background: n === 0 ? pc : brc, display: "inline-block" }} />
-        ))}
       </div>
     </div>
   );
 
   const UpsellPreview = () => (
-    <div style={{ padding: "14px 12px 10px", background: upsellBg }}>
-      <div style={{ color: upsellText, opacity: 0.72, fontSize: `${Math.max(fs, 12)}px`, lineHeight: "16px", fontWeight: 800, textAlign: "center", marginBottom: 10 }}>
+    <div style={{ padding: "14px 12px 16px", background: upsellBg }}>
+      <div style={{ color: upsellText, opacity: 0.76, fontSize: `${Math.max(fs, 12)}px`, lineHeight: "16px", fontWeight: 800, textAlign: "center", marginBottom: 10 }}>
         {upsellTitle.endsWith("...") ? upsellTitle : `${upsellTitle}...`}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: upsellIsSlider ? "24px minmax(0, 1fr) 24px" : "minmax(0, 1fr)", gap: 6, alignItems: "center" }}>
-          {upsellIsSlider && (
-            <button
-              type="button"
-              aria-label="Previous upsell product"
-              onClick={() => moveUpsellPreview(-1)}
-              disabled={!canSlideUpsell}
-              style={{ ...iconButtonStyle, borderColor: upsellBorder, color: upsellArrowColor, borderRadius: "50%", opacity: canSlideUpsell ? 1 : 0.45, cursor: canSlideUpsell ? "pointer" : "default" }}
-            >
-              <PreviewIcon source={ChevronLeftIcon} size={13} color={upsellArrowColor} />
-            </button>
-          )}
+        {upsellIsSlider && (
+          <button
+            type="button"
+            aria-label="Previous upsell product"
+            onClick={() => moveUpsellPreview(-1)}
+            disabled={!canSlideUpsell}
+            style={{ ...iconButtonStyle, borderColor: upsellBorder, color: upsellArrowColor, borderRadius: "50%", opacity: canSlideUpsell ? 1 : 0.45, cursor: canSlideUpsell ? "pointer" : "default" }}
+          >
+            <PreviewIcon source={ChevronLeftIcon} size={13} color={upsellArrowColor} />
+          </button>
+        )}
 
-          <div style={{ display: "grid", gap: 8 }}>
-            {displayedUpsellProducts.map((product, index) => (
-              <div
-                key={upsellIsSlider ? `${product.id || product.title || index}-${activeUpsellIndex}` : product.id || product.title || index}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "58px minmax(0, 1fr) auto",
-                  gap: 10,
-                  alignItems: "center",
-                  padding: 0,
-                  background: "transparent",
-                  animation: upsellIsSlider ? "cp-upsell-slide-in 220ms ease-out" : "none",
-                }}
-              >
-                {product.image ? (
-                  <img src={product.image} alt={product.title} style={{ ...previewItemImageStyle, width: 58, height: 44, borderColor: upsellBorder }} />
-                ) : (
-                  <div style={{ width: 58, height: 44, borderRadius: Math.max(r, 8), border: `1px solid ${upsellBorder}`, background: "#f5f7fb", display: "flex", alignItems: "center", justifyContent: "center", color: upsellArrowColor }}>
-                    <PreviewIcon source={PackageFulfilledIcon} size={20} color="currentColor" />
-                  </div>
-                )}
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ color: upsellText, fontSize: `${Math.max(fs - 1, 11)}px`, lineHeight: "15px", fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {product.title}
-                  </div>
-                  <div style={{ color: upsellText, fontSize: `${Math.max(fs - 2, 10)}px`, lineHeight: "14px", fontWeight: 900, marginTop: 2 }}>
-                    {product.price}
-                  </div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {displayedUpsellProducts.map((product, index) => (
+            <div
+              key={upsellIsSlider ? `${product.id || product.title || index}-${activeUpsellIndex}` : product.id || product.title || index}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "52px minmax(0, 1fr) auto",
+                gap: 10,
+                alignItems: "center",
+                padding: 0,
+                background: "transparent",
+                animation: upsellIsSlider ? "cp-upsell-slide-in 220ms ease-out" : "none",
+              }}
+            >
+              {product.image ? (
+                <img src={product.image} alt={product.title} style={{ ...previewItemImageStyle, width: 52, height: 44, borderColor: upsellBorder }} />
+              ) : (
+                <div style={{ width: 52, height: 44, borderRadius: Math.max(r, 8), border: `1px solid ${upsellBorder}`, background: "#f5f7fb", display: "flex", alignItems: "center", justifyContent: "center", color: upsellArrowColor }}>
+                  <PreviewIcon source={PackageFulfilledIcon} size={20} color="currentColor" />
                 </div>
-                <button type="button" style={{ border: "none", borderRadius: Math.max(r, 6), backgroundColor: upsellButtonBg, color: upsellButtonTextColor, fontSize: `${Math.max(fs - 1, 11)}px`, lineHeight: "14px", fontWeight: 900, padding: "9px 12px", maxWidth: 86, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}>
-                  {upsellButtonText}
-                </button>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: upsellText, fontSize: `${Math.max(fs - 1, 11)}px`, lineHeight: "15px", fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {product.title}
+                </div>
+                <div style={{ color: upsellText, fontSize: `${Math.max(fs - 2, 10)}px`, lineHeight: "14px", fontWeight: 900, marginTop: 2 }}>
+                  {product.price}
+                </div>
               </div>
-            ))}
-          </div>
-
-          {upsellIsSlider && (
-            <button
-              type="button"
-              aria-label="Next upsell product"
-              onClick={() => moveUpsellPreview(1)}
-              disabled={!canSlideUpsell}
-              style={{ ...iconButtonStyle, borderColor: upsellBorder, color: upsellArrowColor, borderRadius: "50%", opacity: canSlideUpsell ? 1 : 0.45, cursor: canSlideUpsell ? "pointer" : "default" }}
-            >
-              <PreviewIcon source={ChevronRightIcon} size={13} color={upsellArrowColor} />
-            </button>
-          )}
+              <button type="button" style={{ border: "none", borderRadius: Math.max(r, 6), backgroundColor: upsellButtonBg, color: upsellButtonTextColor, fontSize: `${Math.max(fs - 1, 11)}px`, lineHeight: "14px", fontWeight: 900, padding: "9px 12px", maxWidth: 86, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer" }}>
+                {upsellButtonText}
+              </button>
+            </div>
+          ))}
         </div>
 
         {upsellIsSlider && (
-          <div style={{ display: "flex", gap: 5, justifyContent: "center", padding: "12px 0 0" }}>
-            {upsellPreviewProducts.map((product, n) => (
-              <button
-                key={product.id || product.title || n}
-                type="button"
-                aria-label={`Show upsell product ${n + 1}`}
-                onClick={() => setUpsellPreviewIndex(n)}
-                style={{ width: n === activeUpsellIndex ? 18 : 6, height: 6, borderRadius: 999, background: n === activeUpsellIndex ? upsellButtonBg : upsellBorder, border: "none", padding: 0, cursor: "pointer" }}
-              />
-            ))}
-          </div>
+          <button
+            type="button"
+            aria-label="Next upsell product"
+            onClick={() => moveUpsellPreview(1)}
+            disabled={!canSlideUpsell}
+            style={{ ...iconButtonStyle, borderColor: upsellBorder, color: upsellArrowColor, borderRadius: "50%", opacity: canSlideUpsell ? 1 : 0.45, cursor: canSlideUpsell ? "pointer" : "default" }}
+          >
+            <PreviewIcon source={ChevronRightIcon} size={13} color={upsellArrowColor} />
+          </button>
         )}
+      </div>
+
+      {upsellIsSlider && (
+        <div style={{ display: "flex", gap: 5, justifyContent: "center", padding: "12px 0 0" }}>
+          {upsellPreviewProducts.map((product, n) => (
+            <button
+              key={product.id || product.title || n}
+              type="button"
+              aria-label={`Show upsell product ${n + 1}`}
+              onClick={() => setUpsellPreviewIndex(n)}
+              style={{ width: n === activeUpsellIndex ? 18 : 6, height: 6, borderRadius: 999, background: n === activeUpsellIndex ? upsellButtonBg : upsellBorder, border: "none", padding: 0, cursor: "pointer" }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 
   const annColor = announcementText || "#fff";
 
   return (
-    <div style={{ border: `1px solid ${brc}`, borderRadius: Math.max(r, 10), overflow: "hidden", ...drawerBackgroundStyle, color: tc, userSelect: "none", minHeight: 680, height: 680, display: "flex", flexDirection: "column", fontSize: `${fs}px`, fontFamily }}>
+    <div style={{ border: `1px solid ${brc}`, borderRadius: previewRadius, overflow: "hidden", ...drawerBackgroundStyle, color: tc, userSelect: "none", minHeight: 680, height: 680, display: "flex", flexDirection: "column", fontSize: `${fs}px`, fontFamily, boxShadow: "0 18px 38px rgba(15, 23, 42, 0.08)" }}>
       {/* Marquee keyframes */}
       <style>{`
         @keyframes cp-mq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
@@ -1174,39 +1170,21 @@ function CartDrawerPreview({
       `}</style>
 
       {/* ── Header ── */}
-      <div style={{ ...headerBgStyle, padding: "14px 16px", flexShrink: 0 }}>
+      <div style={{ ...headerBgStyle, padding: "10px 14px 9px", flexShrink: 0 }}>
         <InlineStack align="space-between" blockAlign="center" wrap={false}>
-          <span style={{ color: hc, fontWeight: 900, fontSize: `${Math.max(headingFs, 20)}px`, lineHeight: 1.1, textShadow: headerHasImage ? "0 1px 4px rgba(0,0,0,0.5)" : "none" }}>Cart</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.94)", border: `1px solid ${brc}`, borderRadius: 20, padding: "4px 10px", cursor: "pointer", color: ic }}>
-            <PreviewIcon source={XIcon} size={12} color={ic} />
-            <span style={{ color: tc, fontSize: `${Math.max(fs - 2, 10)}px`, lineHeight: "14px", fontWeight: 700 }}>Close</span>
+          <span style={{ color: "#ffffff", fontWeight: 900, fontSize: `${Math.max(headingFs, 20)}px`, lineHeight: 1.1, textShadow: "0 1px 5px rgba(0,0,0,0.16)" }}>Cart</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(255,255,255,0.95)", border: "none", borderRadius: 20, padding: "4px 9px", cursor: "pointer", color: "#5b6475", boxShadow: "0 2px 8px rgba(15,23,42,0.10)" }}>
+            <PreviewIcon source={XIcon} size={10} color="currentColor" />
+            <span style={{ color: "#5b6475", fontSize: `${Math.max(fs - 3, 9)}px`, lineHeight: "12px", fontWeight: 800 }}>Close</span>
           </div>
         </InlineStack>
       </div>
 
-      {/* ── Announcement bar — sliding marquee ── */}
-      <div style={{ background: announcementBg || "#000", borderBottom: `1px solid ${brc}`, overflow: "hidden", flexShrink: 0 }}>
-        <div style={{ padding: "7px 0" }}>
-          <div style={{ display: "flex", width: "max-content", animation: "cp-mq 16s linear infinite", willChange: "transform" }}>
-            {[0, 1].map((k) => (
-              <span key={k} style={{ display: "inline-flex", alignItems: "center", paddingRight: 56, whiteSpace: "nowrap" }}>
-                {announceMessages.map((msg, i) => (
-                  <span key={i} style={{ display: "inline-flex", alignItems: "center" }}>
-                    {i > 0 && <span style={{ margin: "0 10px", color: annColor, opacity: 0.45 }}>★</span>}
-                    <span style={{ color: annColor, fontSize: `${Math.max(fs - 1, 11)}px`, fontWeight: 600 }}>{msg}</span>
-                  </span>
-                ))}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* ── Goal message banner ── */}
-      <div style={{ background: messageBannerBg, borderBottom: `1px solid ${withAlpha(pc, 0.18)}`, padding: "10px 14px", flexShrink: 0 }}>
+      <div style={{ background: withAlpha(pc, 0.12), borderBottom: `1px solid ${withAlpha(pc, 0.16)}`, padding: "10px 14px", flexShrink: 0 }}>
         <div style={{ display: "grid", gridTemplateColumns: "18px minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
-          <PreviewIcon source={ChevronLeftIcon} size={14} color={ptc} />
-          <div style={{ textAlign: "center", color: ptc, fontSize: `${Math.max(fs, 12)}px`, lineHeight: "16px", fontWeight: 600 }}>
+          <PreviewIcon source={ChevronLeftIcon} size={13} color={ptc} />
+          <div style={{ textAlign: "center", color: ptc, fontSize: `${Math.max(fs, 12)}px`, lineHeight: "16px", fontWeight: 700 }}>
             {bannerPrefix}
             <span style={{ fontWeight: 900 }}>{bannerHeadline}</span>
           </div>
@@ -1215,96 +1193,96 @@ function CartDrawerPreview({
 
       {/* ── Scrollable body ── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: drawerSectionBg, overflow: "hidden" }}>
-      {/* ── Cart steps progress ── */}
-      <div style={{ margin: "10px 12px 0", padding: "14px 12px 12px", borderRadius: Math.max(r, 12), background: progressPanelBg, border: `1px solid ${withAlpha(pc, 0.16)}`, flexShrink: 0 }}>
-        <div style={{ textAlign: "center", marginBottom: 14 }}>
-          <span style={{ fontSize: `${Math.max(fs - 1, 11)}px`, lineHeight: "15px", color: ptc, fontWeight: 700 }}>{nextGoalText}</span>
-        </div>
-        <div style={{ position: "relative", height: 68, margin: "0 4px" }}>
-          <div style={{ position: "absolute", left: 0, right: 0, top: 15, height: 8, background: pc, opacity: 0.35, borderRadius: 999 }} />
-          <div style={{ position: "absolute", left: 0, top: 15, height: 8, width: `${progressFill}%`, background: pc, borderRadius: 999, zIndex: 1, transition: "width .25s ease" }} />
-          {displaySteps.map((step, index) => {
-            const pct = stepPosition(index);
-            const done = pct <= progressFill;
-            const iconSrc = iconForChoice(step.rule?.iconChoice, step.rule?._defaultIcon || GiftCardIcon);
-            return (
-              <div
-                key={step.slot || index}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: `${pct}%`,
-                  transform: index === stepCount - 1 ? "translateX(-70%)" : "translateX(-50%)",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  minWidth: 76,
-                  zIndex: 2,
-                }}
-              >
+        {/* ── Cart steps progress ── */}
+        <div style={{ margin: 0, padding: "12px 18px 8px", background: uiSurface, borderBottom: `1px solid ${withAlpha(brc, 0.78)}`, flexShrink: 0 }}>
+          <div style={{ textAlign: "center", marginBottom: 11 }}>
+            <span style={{ fontSize: `${Math.max(fs - 2, 10)}px`, lineHeight: "14px", color: ptc, fontWeight: 800 }}>{nextGoalText}</span>
+          </div>
+          <div style={{ position: "relative", height: 52, margin: "0 4px" }}>
+            <div style={{ position: "absolute", left: 0, right: 0, top: 12, height: 5, background: withAlpha(pc, 0.18), borderRadius: 999 }} />
+            <div style={{ position: "absolute", left: 0, top: 12, height: 5, width: `${progressFill}%`, background: pc, borderRadius: 999, zIndex: 1, transition: "width .25s ease" }} />
+            {displaySteps.map((step, index) => {
+              const pct = stepPosition(index);
+              const done = pct <= progressFill;
+              const iconSrc = iconForChoice(step.rule?.iconChoice, step.rule?._defaultIcon || GiftCardIcon);
+              return (
                 <div
+                  key={step.slot || index}
                   style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: "50%",
-                    background: done ? pc : "#ffffff",
-                    border: `2px solid ${done ? pc : "#6f6f6f"}`,
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.14)",
-                    display: "grid",
-                    placeItems: "center",
-                    color: done ? blc : pc,
+                    position: "absolute",
+                    top: 0,
+                    left: `${pct}%`,
+                    transform: index === stepCount - 1 ? "translateX(-70%)" : "translateX(-50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    minWidth: 76,
+                    zIndex: 2,
                   }}
                 >
-                  <PreviewIcon source={iconSrc} size={16} color={done ? blc : pc} />
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      background: done ? pc : "#ffffff",
+                      border: `2px solid ${done ? pc : withAlpha(pc, 0.36)}`,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+                      display: "grid",
+                      placeItems: "center",
+                      color: done ? blc : pc,
+                    }}
+                  >
+                    <PreviewIcon source={iconSrc} size={12} color={done ? blc : pc} />
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: `${Math.max(fs - 4, 9)}px`, lineHeight: "12px", color: ptc, fontWeight: 800, textAlign: "center", whiteSpace: "nowrap", maxWidth: 92, overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {resolveStepLabel(step)}
+                  </div>
                 </div>
-                <div style={{ marginTop: 6, fontSize: `${Math.max(fs - 3, 9)}px`, lineHeight: "12px", color: ptc, fontWeight: 800, textAlign: "center", whiteSpace: "nowrap", maxWidth: 92, overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {resolveStepLabel(step)}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Cart items area ── */}
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto", margin: "0 10px 0", border: `1px solid ${brc}`, borderRadius: previewRadius, background: uiSurface, boxShadow: "0 8px 22px rgba(15, 23, 42, 0.04)" }}>
+          <CartItem name="Sample Product" variant="Small" price="300 INR" image="/images/upsellproduct.png" />
+          <FreeGiftOffer />
+
+          {showUpsell && <UpsellPreview />}
+
+          {/* ── Free gift reward row ── */}
+          {false && (
+            <div style={{ padding: "12px 16px", borderTop: `1px solid ${brc}` }}>
+              <InlineStack align="start" blockAlign="center" gap="300" wrap={false}>
+                <div style={{ width: 48, height: 48, background: "#f0f0f0", borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <PreviewIcon source={iconForChoice(fgRule?.iconChoice, GiftCardIcon)} size={22} color={ic} />
                 </div>
-              </div>
-            );
-          })}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: tc, fontWeight: 600 }}>{fgLabel}</div>
+                  <div style={{ marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ color: tc, opacity: 0.65 }}>{fgText}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                    {[0, 1, 2].map((n) => <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : brc }} />)}
+                  </div>
+                </div>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${brc}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <PreviewIcon source={ChevronRightIcon} size={14} color={ic} />
+                </div>
+              </InlineStack>
+            </div>
+          )}
+
+          {/* ── Upsell section ── */}
+
+          {/* ── Discount code input ── */}
+          <div style={{ flex: 1, minHeight: 24 }} />
         </div>
-      </div>
-
-      {/* ── Cart items area ── */}
-      <div style={{ flex: 1, minHeight: 0, overflow: "auto", margin: "10px 5px 0", border: `1px solid ${brc}`, borderRadius: Math.max(r, 10), background: uiSurface }}>
-      <CartItem name="Sample Product" variant="Small" price="300 INR" image="/images/upsellproduct.png" />
-      <FreeGiftOffer />
-
-      {showUpsell && <UpsellPreview />}
-
-      {/* ── Free gift reward row ── */}
-      {false && (
-        <div style={{ padding: "12px 16px", borderTop: `1px solid ${brc}` }}>
-          <InlineStack align="start" blockAlign="center" gap="300" wrap={false}>
-            <div style={{ width: 48, height: 48, background: "#f0f0f0", borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <PreviewIcon source={iconForChoice(fgRule?.iconChoice, GiftCardIcon)} size={22} color={ic} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: tc, fontWeight: 600 }}>{fgLabel}</div>
-              <div style={{ marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                <span style={{ color: tc, opacity: 0.65 }}>{fgText}</span>
-              </div>
-              <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
-                {[0, 1, 2].map((n) => <div key={n} style={{ width: 6, height: 6, borderRadius: "50%", background: n === 0 ? pc : brc }} />)}
-              </div>
-            </div>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", border: `1px solid ${brc}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <PreviewIcon source={ChevronRightIcon} size={14} color={ic} />
-            </div>
-          </InlineStack>
-        </div>
-      )}
-
-      {/* ── Upsell section ── */}
-
-      {/* ── Discount code input ── */}
-      <div style={{ flex: 1, minHeight: 24 }} />
-      </div>
       </div>
 
       {discountCodeApply && (
-        <div style={{ padding: "10px 14px 0", background: uiSurface, flexShrink: 0 }}>
+        <div style={{ padding: "9px 12px 6px", background: uiSurface, flexShrink: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}>
             <div>
               <TextField
@@ -1312,7 +1290,7 @@ function CartDrawerPreview({
                 labelHidden
                 placeholder="Apply Discount Code"
                 value=""
-                onChange={() => {}}
+                onChange={() => { }}
                 autoComplete="off"
               />
             </div>
@@ -1321,9 +1299,9 @@ function CartDrawerPreview({
               style={{
                 alignSelf: "stretch",
                 minHeight: 40,
-                minWidth: 70,
+                minWidth: 66,
                 border: `1px solid ${bc}`,
-                borderRadius: Math.max(r, 6),
+                borderRadius: 8,
                 backgroundColor: "#ffffff",
                 color: bc,
                 fontSize: `${Math.max(fs, 12)}px`,
@@ -1340,7 +1318,7 @@ function CartDrawerPreview({
 
       {/* ── Total + Checkout ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", alignItems: "stretch", borderTop: `1px solid ${brc}`, position: stickyCheckout ? "sticky" : "relative", bottom: stickyCheckout ? 0 : "auto", background: uiSurface, boxShadow: stickyCheckout ? "0 -8px 18px rgba(15,23,42,0.08)" : "none", flexShrink: 0 }}>
-        <div style={{ padding: "11px 16px" }}>
+        <div style={{ padding: "10px 16px" }}>
           <BlockStack gap="050">
             <span style={{ color: tc, opacity: 0.7, fontSize: `${Math.max(fs - 2, 10)}px`, lineHeight: "13px", fontWeight: 700 }}>Total</span>
             <span style={{ color: tc, fontSize: `${Math.max(fs + 3, 15)}px`, lineHeight: "18px", fontWeight: 900 }}>327 INR</span>
@@ -1575,40 +1553,40 @@ export default function CustomizePreview() {
                 )}
                 {cartIconType === "custom" && (
                   <>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  Upload a custom icon shown on the cart button. PNG, JPG, WebP, GIF, or SVG up to 2 MB.
-                  Leave empty to use the default cart icon.
-                </Text>
-                {cartIconError && <Banner tone="critical">{cartIconError}</Banner>}
-                <DropZone
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
-                  allowMultiple={false}
-                  type="image"
-                  onDrop={handleCartIconDrop}
-                  disabled={cartIconUploading}
-                >
-                  {cartIconUrl ? (
-                    <InlineStack gap="300" blockAlign="center" align="center">
-                      <img
-                        src={cartIconUrl}
-                        alt="Cart icon"
-                        style={{ width: 48, height: 48, objectFit: "contain", border: "1px solid #dcdfe4", borderRadius: 6, padding: 6, background: "#fff" }}
-                      />
-                      <BlockStack gap="100">
-                        <Text variant="bodySm" as="p">Current cart icon</Text>
-                        <Text variant="bodySm" tone="subdued" as="p">Drop a new image to replace it.</Text>
-                      </BlockStack>
-                    </InlineStack>
-                  ) : (
-                    <DropZone.FileUpload
-                      actionTitle={cartIconUploading ? "Uploading…" : "Upload cart icon"}
-                      actionHint="PNG, JPG, WebP, GIF, or SVG up to 2 MB"
-                    />
-                  )}
-                </DropZone>
-                {cartIconUrl && (
-                  <Button variant="plain" tone="critical" onClick={() => setCartIconUrl("")}>Remove cart icon</Button>
-                )}
+                    <Text variant="bodySm" tone="subdued" as="p">
+                      Upload a custom icon shown on the cart button. PNG, JPG, WebP, GIF, or SVG up to 2 MB.
+                      Leave empty to use the default cart icon.
+                    </Text>
+                    {cartIconError && <Banner tone="critical">{cartIconError}</Banner>}
+                    <DropZone
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                      allowMultiple={false}
+                      type="image"
+                      onDrop={handleCartIconDrop}
+                      disabled={cartIconUploading}
+                    >
+                      {cartIconUrl ? (
+                        <InlineStack gap="300" blockAlign="center" align="center">
+                          <img
+                            src={cartIconUrl}
+                            alt="Cart icon"
+                            style={{ width: 48, height: 48, objectFit: "contain", border: "1px solid #dcdfe4", borderRadius: 6, padding: 6, background: "#fff" }}
+                          />
+                          <BlockStack gap="100">
+                            <Text variant="bodySm" as="p">Current cart icon</Text>
+                            <Text variant="bodySm" tone="subdued" as="p">Drop a new image to replace it.</Text>
+                          </BlockStack>
+                        </InlineStack>
+                      ) : (
+                        <DropZone.FileUpload
+                          actionTitle={cartIconUploading ? "Uploading…" : "Upload cart icon"}
+                          actionHint="PNG, JPG, WebP, GIF, or SVG up to 2 MB"
+                        />
+                      )}
+                    </DropZone>
+                    {cartIconUrl && (
+                      <Button variant="plain" tone="critical" onClick={() => setCartIconUrl("")}>Remove cart icon</Button>
+                    )}
                   </>
                 )}
               </BlockStack>
