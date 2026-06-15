@@ -219,7 +219,7 @@ export const loader = async ({ request }) => {
     ...bxgyRows.map((r) => ({
       id: r.id,
       ruleType: "buy-x-get-y",
-      name: r.campaignName || "Buy X Get Y",
+      name: r.campaignName || "Buy X Get Y Discount",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
       meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " Â· Storewide" : ""}`,

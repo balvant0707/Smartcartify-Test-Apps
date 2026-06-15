@@ -137,7 +137,7 @@ export const loader = async ({ request }) => {
     ...bxgyRows.map((r) => ({
       id: r.id,
       ruleType: "buy-x-get-y",
-      name: r.campaignName || "Buy X Get Y",
+      name: r.campaignName || "Buy X Get Y Discount",
       status: r.enabled ? "active" : "disabled",
       updatedAt: r.updatedAt,
       meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " · Storewide" : ""}`,
@@ -329,27 +329,6 @@ const RULE_TYPES = [
     },
   },
   {
-    id: "buy-x-get-y-free",
-    category: "discounts",
-    title: "Buy X Get Y Free",
-    subtitle: "Offer free products after shoppers buy products or collections",
-    icon: ICO("buyxgety.svg"),
-    preview: {
-      title: "Buy X Get Y Free",
-      description:
-        "Create a free-gift campaign where shoppers buy a specific product, spend in a collection, or buy from a collection to unlock selected free products.",
-      banner: ICO("Buy X Get Y Discount.svg"),
-      bannerBg: "#eef3ff",
-      aovBoost: "Upto 10%",
-      setupTime: "5-8 mins",
-      usecases: [
-        "Buy product A and get product B free.",
-        "Spend a minimum amount in a collection to unlock a free gift.",
-        "Buy a set quantity from a collection and choose eligible free products.",
-      ],
-    },
-  },
-  {
     id: "upsell",
     category: "upsell",
     title: "Upsell Product Rules",
@@ -412,7 +391,6 @@ const RULE_ROUTES = {
   "free-product": "/app/rule-free-product",
   "code-discount": "/app/rule-code-discount",
   "buy-x-get-y": "/app/rule-bxgy",
-  "buy-x-get-y-free": "/app/rule-bxgy?template=free",
   "upsell": "/app/rule-upsell",
   "cart-goal": "/app/rule-cart-goal",
   "customize-preview": "/app/customize-preview",

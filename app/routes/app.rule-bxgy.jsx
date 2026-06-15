@@ -292,7 +292,7 @@ export const action = async ({ request }) => {
 
   const dbData = {
     shop,
-    campaignName: campaignName || "Buy X Get Y Free",
+    campaignName: campaignName || "Buy X Get Y Discount",
     status: status || (isActive ? "active" : "draft"),
     enabled: isActive,
     xQty: xValue || "1",
@@ -365,7 +365,7 @@ export const action = async ({ request }) => {
     if (isActive && hasBuySelection && hasRewardSelection) {
       const shopifyId = await upsertBxgy(admin, {
         existingId: existingShopifyId,
-        title: campaignName || "Buy X Get Y Free",
+        title: campaignName || "Buy X Get Y Discount",
         startsAt: startsAt || null,
         endsAt: endsAt || null,
         enabled: true,
@@ -716,7 +716,6 @@ export default function RuleBxgy() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
-  const template = searchParams.get("template");
   const withHost = (path) => (host ? `${path}?host=${encodeURIComponent(host)}` : path);
 
   const loaderData = useLoaderData();
@@ -811,7 +810,7 @@ export default function RuleBxgy() {
     [r?.translations, storedContent]
   );
   const initialCondition = r ? inferConditionType(r) : null;
-  const defaultCampaignName = template === "free" ? "Buy X Get Y Free" : "Buy X Get Y";
+  const defaultCampaignName = "Buy X Get Y Discount";
   const storedBuyProductIds = r?.buyProductIds
     ? parseJsonArray(r.buyProductIds)
     : applies.products;
@@ -1053,7 +1052,7 @@ export default function RuleBxgy() {
         content: "Campaigns",
         onAction: () => navigate(withHost("/app/campaigns")),
       }}
-      title={campaignName || "Buy X Get Y Free"}
+      title={campaignName || "Buy X Get Y Discount"}
       titleMetadata={isPaused ? <Badge tone="attention">Paused</Badge> : <Badge tone="success">Active</Badge>}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
       secondaryActions={[

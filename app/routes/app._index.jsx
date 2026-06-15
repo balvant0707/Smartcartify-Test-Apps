@@ -271,15 +271,15 @@ export const loader = async ({ request }) => {
   const [shopRecord, codeDiscountRuleCount, bxgyRuleCount] =
     shop
       ? await Promise.all([
-          prisma.shop.findUnique({
-            where: { shop },
-            select: {
-              reviewSubmittedAt: true,
-            },
-          }),
-          prisma.discountRule.count({ where: { shop, type: "code" } }),
-          prisma.bxgyRule.count({ where: { shop } }),
-        ])
+        prisma.shop.findUnique({
+          where: { shop },
+          select: {
+            reviewSubmittedAt: true,
+          },
+        }),
+        prisma.discountRule.count({ where: { shop, type: "code" } }),
+        prisma.bxgyRule.count({ where: { shop } }),
+      ])
       : [null, 0, 0];
 
   let embedEnabled = false;
@@ -299,8 +299,8 @@ export const loader = async ({ request }) => {
     Number(bxgyRuleCount || 0);
   const shouldShowReviewPopup = Boolean(
     shopRecord &&
-      totalRulesCount >= REVIEW_MODAL_RULE_THRESHOLD &&
-      !shopRecord.reviewSubmittedAt
+    totalRulesCount >= REVIEW_MODAL_RULE_THRESHOLD &&
+    !shopRecord.reviewSubmittedAt
   );
 
   return {
@@ -587,269 +587,263 @@ export default function Index() {
       </Modal>
 
       <s-page heading="CartLift: Cart Drawer & Upsell">
-      <style
-        type="text/css"
-        dangerouslySetInnerHTML={{ __html: CUSTOM_ICON_CSS }}
-      />
+        <style
+          type="text/css"
+          dangerouslySetInnerHTML={{ __html: CUSTOM_ICON_CSS }}
+        />
 
-      <div style={{ marginTop: "16px" }}>
-        <Card padding="0">
-          <div
-            className="dashboard-status-card"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "6px 1fr",
-              overflow: "hidden",
-              borderRadius: 10,
-              backgroundColor: "#ffffff",
-            }}
-          >
+        <div style={{ marginTop: "16px" }}>
+          <Card padding="0">
             <div
-              aria-hidden="true"
+              className="dashboard-status-card"
               style={{
-                background: embedEnabled ? "#16a34a" : "#ef4444",
-              }}
-            />
-            <div style={{ padding: "22px 24px" }}>
-              <InlineStack align="space-between" blockAlign="start" gap="400" wrap>
-                <BlockStack gap="300">
-                  <BlockStack gap="100">
-                    <Text as="h2" variant="headingMd">
-                      App embed status
-                    </Text>
-                    <Text as="p" tone="subdued">
-                      Enable the CartLift app embed in your Shopify theme editor so the cart drawer can appear on your storefront.
-                    </Text>
-                  </BlockStack>
-                  <InlineStack gap="300" blockAlign="center" wrap>
-                    <Button
-                      url={openAppEmbedsUrl}
-                      variant="primary"
-                      target="_blank"
-                      disabled={!openAppEmbedsUrl}
-                    >
-                      Open App Embeds
-                    </Button>
-                    <Text as="p" tone="subdued">
-                      Save your theme changes after enabling it.
-                    </Text>
-                  </InlineStack>
-                </BlockStack>
-                <span style={embedStatusStyle}>{embedStatusLabel}</span>
-              </InlineStack>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div style={{ marginTop: "16px" }}>
-        <BlockStack gap="500">
-          <Card padding="600">
-            <div
-              style={{
-                background: "#f4f4f4",
-                borderRadius: 14,
-                padding: "28px 32px",
+                display: "grid",
+                gridTemplateColumns: "6px 1fr",
+                overflow: "hidden",
+                borderRadius: 10,
+                backgroundColor: "#ffffff",
               }}
             >
-              <InlineStack gap="600" blockAlign="center" wrap={false}>
-                <Box minWidth="0" width="34%">
-                  <img
-                    src="/images/campaigns/Offer gifts.svg"
-                    alt=""
-                    aria-hidden="true"
-                    style={{
-                      width: "100%",
-                      maxWidth: 360,
-                      display: "block",
-                    }}
-                  />
-                </Box>
-                <Box minWidth="0" width="66%">
+              <div
+                aria-hidden="true"
+                style={{
+                  background: embedEnabled ? "#16a34a" : "#ef4444",
+                }}
+              />
+              <div style={{ padding: "22px 24px" }}>
+                <InlineStack align="space-between" blockAlign="start" gap="400" wrap>
                   <BlockStack gap="300">
-                    <Text as="h2" variant="headingMd">
-                      Offer gifts based on purchase milestones
-                    </Text>
-                    <Text as="p" variant="bodyMd" tone="subdued">
-                      Create a campaign that offers gifts to customers based on their purchase milestones. For example, offer a free gift when a customer spends $100.
-                    </Text>
-                    <InlineStack>
-                      <Button url={withHost("/app/rules?tab=free")} variant="primary" target="_blank">
-                        Create a cart goal campaign
+                    <BlockStack gap="100">
+                      <Text as="h2" variant="headingMd">
+                        App embed status
+                      </Text>
+                      <Text as="p" tone="subdued">
+                        Enable the CartLift app embed in your Shopify theme editor so the cart drawer can appear on your storefront.
+                      </Text>
+                    </BlockStack>
+                    <InlineStack gap="300" blockAlign="center" wrap>
+                      <Button
+                        url={openAppEmbedsUrl}
+                        variant="primary"
+                        target="_blank"
+                        disabled={!openAppEmbedsUrl}
+                      >
+                        Open App Embeds
                       </Button>
+                      <Text as="p" tone="subdued">
+                        Save your theme changes after enabling it.
+                      </Text>
                     </InlineStack>
                   </BlockStack>
-                </Box>
-              </InlineStack>
+                  <span style={embedStatusStyle}>{embedStatusLabel}</span>
+                </InlineStack>
+              </div>
             </div>
           </Card>
+        </div>
 
-          <div className="dashboard-help-grid">
-            {contactCards.map((card) => (
-              <Card key={card.title} padding="500">
-                <div className="dashboard-help-card">
-                  <BlockStack gap="400">
+        <div style={{ marginTop: "16px" }}>
+          <BlockStack gap="500">
+            <Card padding="600">
+              <div className="dashboard-help-card">
+                <InlineStack gap="600" blockAlign="center" wrap={false}>
+                  <Box minWidth="0" width="34%">
                     <img
-                      src={card.imageSrc}
+                      src="/images/campaigns/Offer gifts.svg"
                       alt=""
                       aria-hidden="true"
                       style={{
-                        width: 86,
-                        height: 86,
-                        objectFit: "contain",
+                        width: "100%",
+                        maxWidth: 360,
                         display: "block",
                       }}
                     />
-                    <BlockStack gap="200">
-                      <Text as="h3" variant="headingMd">
-                        {card.title}
+                  </Box>
+                  <Box minWidth="0" width="66%">
+                    <BlockStack gap="300">
+                      <Text as="h2" variant="headingMd">
+                        Offer gifts based on purchase milestones
                       </Text>
                       <Text as="p" variant="bodyMd" tone="subdued">
-                        {card.body}
+                        Create a campaign that offers gifts to customers based on their purchase milestones. For example, offer a free gift when a customer spends $100.
                       </Text>
+                      <InlineStack>
+                        <Button url={withHost("/app/rules?tab=free")} variant="primary" target="_blank">
+                          Create a cart goal campaign
+                        </Button>
+                      </InlineStack>
                     </BlockStack>
-                    <Button url={card.href} fullWidth target="_blank">
-                      {card.button}
-                    </Button>
-                  </BlockStack>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </BlockStack>
-      </div>
+                  </Box>
+                </InlineStack>
+              </div>
+            </Card>
 
-      <div style={{ marginTop: "16px" }}>
-        <Card padding="500">
-          <div style={{ backgroundColor: "#ffffff" }}>
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                Recommended Our Growth Apps
-              </Text>
-              <div className="app-dashboard-grid">
-                {dashboardApps.map((app) => (
-                  <s-box
-                    key={app.title}
-                    className="dashboard-app-card"
-                    padding="base"
-                    borderWidth="base"
-                    background="white"
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "14px",
-                      minHeight: "190px",
-                      justifyContent: "space-between",
-                      backgroundColor: "#ffffff",
-                      boxShadow: "0 2px 10px #ffffff",
-                    }}
-                  >
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <div
+            <div className="dashboard-help-grid">
+              {contactCards.map((card) => (
+                <Card key={card.title} padding="500">
+                  <div className="dashboard-help-card">
+                    <BlockStack gap="400">
+                      <img
+                        src={card.imageSrc}
+                        alt=""
+                        aria-hidden="true"
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "10px",
+                          width: 86,
+                          height: 86,
+                          objectFit: "contain",
+                          display: "block",
                         }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                          <div
-                            style={{
-                              width: 38,
-                              height: 38,
-                              borderRadius: 4,
-                              overflow: "hidden",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {app.imageSrc ? (
-                              <img
-                                src={app.imageSrc}
-                                alt={app.imageAlt}
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                  display: "block",
-                                }}
-                              />
-                            ) : (
-                              <span
-                                style={{
-                                  color: "#0284c7",
-                                  transform: "scale(1.2)",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <Icon source={app.icon} tone="base" />
-                              </span>
-                            )}
+                      />
+                      <BlockStack gap="200">
+                        <Text as="h3" variant="headingMd">
+                          {card.title}
+                        </Text>
+                        <Text as="p" variant="bodyMd" tone="subdued">
+                          {card.body}
+                        </Text>
+                      </BlockStack>
+                      <Button url={card.href} fullWidth target="_blank">
+                        {card.button}
+                      </Button>
+                    </BlockStack>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </BlockStack>
+        </div>
+
+        <div style={{ marginTop: "16px" }}>
+          <Card padding="500">
+            <div style={{ backgroundColor: "#ffffff" }}>
+              <BlockStack gap="400">
+                <Text as="h2" variant="headingMd">
+                  Recommended Our Growth Apps
+                </Text>
+                <div className="app-dashboard-grid">
+                  {dashboardApps.map((app) => (
+                    <s-box
+                      key={app.title}
+                      className="dashboard-app-card"
+                      padding="base"
+                      borderWidth="base"
+                      background="white"
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "14px",
+                        minHeight: "190px",
+                        justifyContent: "space-between",
+                        backgroundColor: "#ffffff",
+                        boxShadow: "0 2px 10px #ffffff",
+                      }}
+                    >
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "10px",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                            <div
+                              style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: 4,
+                                overflow: "hidden",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {app.imageSrc ? (
+                                <img
+                                  src={app.imageSrc}
+                                  alt={app.imageAlt}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    display: "block",
+                                  }}
+                                />
+                              ) : (
+                                <span
+                                  style={{
+                                    color: "#0284c7",
+                                    transform: "scale(1.2)",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  <Icon source={app.icon} tone="base" />
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: 700,
+                                color: "#303030",
+                                lineHeight: 1.25,
+                              }}
+                            >
+                              {app.title}
+                            </span>
                           </div>
                           <span
                             style={{
-                              fontSize: "14px",
-                              fontWeight: 700,
-                              color: "#303030",
-                              lineHeight: 1.25,
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              color: "#6d6d6d",
+                              background: "#efefef",
+                              padding: "4px 10px",
+                              borderRadius: 4,
+                              flexShrink: 0,
                             }}
                           >
-                            {app.title}
+                            {app.category}
                           </span>
                         </div>
                         <span
                           style={{
                             fontSize: "12px",
-                            fontWeight: 600,
-                            color: "#6d6d6d",
-                            background: "#efefef",
-                            padding: "4px 10px",
-                            borderRadius: 4,
-                            flexShrink: 0,
+                            lineHeight: 1.35,
+                            color: "#5c5f62",
                           }}
                         >
-                          {app.category}
+                          {app.description}
                         </span>
                       </div>
-                      <span
+
+                      <s-button
+                        href={app.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="primary"
                         style={{
-                          fontSize: "12px",
-                          lineHeight: 1.35,
-                          color: "#5c5f62",
+                          backgroundColor: "#1f1f1f",
+                          color: "#ffffff",
+                          borderRadius: 4,
+                          width: "100%",
+                          textAlign: "center",
+                          justifyContent: "center",
                         }}
                       >
-                        {app.description}
-                      </span>
-                    </div>
-
-                    <s-button
-                      href={app.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      variant="primary"
-                      style={{
-                        backgroundColor: "#1f1f1f",
-                        color: "#ffffff",
-                        borderRadius: 4,
-                        width: "100%",
-                        textAlign: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      View app
-                    </s-button>
-                  </s-box>
-                ))}
-              </div>
-            </BlockStack>
-          </div>
-        </Card>
-      </div>
+                        View app
+                      </s-button>
+                    </s-box>
+                  ))}
+                </div>
+              </BlockStack>
+            </div>
+          </Card>
+        </div>
       </s-page>
     </>
   );
