@@ -69,14 +69,14 @@ s-section::part(root),
 s-section::part(section),
 s-section::part(container),
 s-section::part(content) {
-  border-radius: 4px !important;
-  --pc-shadow-bevel-border-radius: 4px !important;
-  --pc-shadow-bevel-border-radius-xs: 4px !important;
-  --pc-shadow-bevel-border-radius-sm: 4px !important;
-  --pc-shadow-bevel-border-radius-md: 4px !important;
-  --pc-shadow-bevel-border-radius-lg: 4px !important;
-  --pc-shadow-bevel-border-radius-xl: 4px !important;
-  --pc-box-border-radius: 4px !important;
+  border-radius: 14px !important;
+  --pc-shadow-bevel-border-radius: 14px !important;
+  --pc-shadow-bevel-border-radius-xs: 14px !important;
+  --pc-shadow-bevel-border-radius-sm: 14px !important;
+  --pc-shadow-bevel-border-radius-md: 14px !important;
+  --pc-shadow-bevel-border-radius-lg: 14px !important;
+  --pc-shadow-bevel-border-radius-xl: 14px !important;
+  --pc-box-border-radius: 14px !important;
 }
 
 .Polaris-Button,
@@ -85,7 +85,7 @@ s-section::part(content) {
 s-button,
 s-button::part(base),
 s-button::part(button) {
-  border-radius: 4px !important;
+  border-radius: 14px !important;
 }
 `;
 
@@ -109,10 +109,10 @@ export const loader = async ({ request }) => {
         const s = restBody?.shop;
         if (s) {
           const nameParts = (s.shop_owner || "").trim().split(/\s+/);
-          firstName     = nameParts[0] || null;
-          lastName      = nameParts.slice(1).join(" ") || null;
-          email         = s.email || null;
-          domain        = s.domain || s.myshopify_domain || resolvedShop;
+          firstName = nameParts[0] || null;
+          lastName = nameParts.slice(1).join(" ") || null;
+          email = s.email || null;
+          domain = s.domain || s.myshopify_domain || resolvedShop;
           contactNumber = s.phone || null;
         }
       } else {
@@ -149,10 +149,10 @@ export const loader = async ({ request }) => {
             accessToken,
             installed: true,
             appStatus: "active",
-            firstName:     firstName     ?? existing.firstName,
-            lastName:      lastName      ?? existing.lastName,
-            email:         email         ?? existing.email,
-            domain:        domain        ?? existing.domain,
+            firstName: firstName ?? existing.firstName,
+            lastName: lastName ?? existing.lastName,
+            email: email ?? existing.email,
+            domain: domain ?? existing.domain,
             contactNumber: contactNumber ?? existing.contactNumber,
           },
         });

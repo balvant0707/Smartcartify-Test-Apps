@@ -38,14 +38,14 @@ s-section::part(content),
 .Polaris-Page-Section,
 .Polaris-Card__Section,
 .Polaris-LegacyCard__Section {
-  border-radius: 4px !important;
-  --pc-shadow-bevel-border-radius: 4px !important;
-  --pc-shadow-bevel-border-radius-xs: 4px !important;
-  --pc-shadow-bevel-border-radius-sm: 4px !important;
-  --pc-shadow-bevel-border-radius-md: 4px !important;
-  --pc-shadow-bevel-border-radius-lg: 4px !important;
-  --pc-shadow-bevel-border-radius-xl: 4px !important;
-  --pc-box-border-radius: 4px !important;
+  border-radius: 14px !important;
+  --pc-shadow-bevel-border-radius: 14px !important;
+  --pc-shadow-bevel-border-radius-xs: 14px !important;
+  --pc-shadow-bevel-border-radius-sm: 14px !important;
+  --pc-shadow-bevel-border-radius-md: 14px !important;
+  --pc-shadow-bevel-border-radius-lg: 14px !important;
+  --pc-shadow-bevel-border-radius-xl: 14px !important;
+  --pc-box-border-radius: 14px !important;
 }
 
 .Polaris-Button,
@@ -54,7 +54,7 @@ s-section::part(content),
 s-button,
 s-button::part(base),
 s-button::part(button) {
-  border-radius: 4px !important;
+  border-radius: 14px !important;
 }
 
 body {
