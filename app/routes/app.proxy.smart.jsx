@@ -401,7 +401,7 @@ const mergeStyleCartIconUrl = async (styleSettings) => {
 
   try {
     const rows = await prisma.$queryRaw`
-      SELECT cartIconUrl, cartIconType, cartDefaultIcon, cartDrawerGradientStart, cartDrawerGradientEnd
+      SELECT cartIconUrl, cartIconType, cartDefaultIcon, cartDrawerGradientStart, cartDrawerGradientEnd, offerButtonEnabled
       FROM stylesettings
       WHERE id = ${styleSettings.id}
       LIMIT 1
@@ -414,6 +414,7 @@ const mergeStyleCartIconUrl = async (styleSettings) => {
       cartDefaultIcon: row?.cartDefaultIcon || "cart",
       cartDrawerGradientStart: row?.cartDrawerGradientStart || styleSettings.cartDrawerGradientStart || "",
       cartDrawerGradientEnd: row?.cartDrawerGradientEnd || styleSettings.cartDrawerGradientEnd || "",
+      offerButtonEnabled: row?.offerButtonEnabled !== false && row?.offerButtonEnabled !== 0,
     };
   } catch (error) {
     logger.warn("[proxy] Failed to load style cart icon URL", error);

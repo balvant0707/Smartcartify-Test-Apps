@@ -281,6 +281,7 @@ model StyleSettings {
   drawerPosition                 String   @default("right") @db.VarChar(32)
   stickyCheckout                 Boolean  @default(true)
   mobileLayout                   String   @default("drawer") @db.VarChar(32)
+  offerButtonEnabled             Boolean  @default(true)
 
   @@map("stylesettings")
 }

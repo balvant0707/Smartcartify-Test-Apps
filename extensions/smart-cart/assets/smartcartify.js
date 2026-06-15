@@ -204,6 +204,10 @@
 
   let discountPopupShownForCode = null;
   let DISCOUNT_PANEL_STYLE_ENABLED = false;
+  let OFFER_TABS_ENABLED = true;
+  let ACTIVE_DRAWER_TAB = "cart";
+  const STATIC_FRONTEND_CART_DESIGN = true;
+  const STATIC_CART_DRAWER_DESIGN = true;
   const MANUAL_DISCOUNT_CODE_KEY = "__SC_MANUAL_DISCOUNT_CODE__";
 
   let __SC_PRIMED_POPUPS__ = false;
@@ -4308,6 +4312,512 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 .sc-footer-row{display:flex;gap:10px;align-items:stretch;}
 
+.sc-offers{
+  flex:1;
+  min-height:0;
+  margin:12px;
+  overflow:auto;
+  background:#ffffff;
+  border:1px solid var(--sc-border);
+  border-radius:var(--sc-radius);
+  box-shadow:0 1px 3px rgba(15,23,42,.08);
+}
+.sc-offers[hidden]{display:none !important;}
+.sc-offer-row{
+  display:grid;
+  grid-template-columns:64px minmax(0, 1fr) auto;
+  gap:14px;
+  align-items:center;
+  padding:18px 14px;
+  border-top:1px solid var(--sc-border);
+}
+.sc-offer-row:first-child{border-top:0;}
+.sc-offer-icon{
+  width:52px;
+  height:52px;
+  border-radius:8px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--sc-border);
+  background:#fff;
+  color:var(--sc-icon-color);
+}
+.sc-offer-icon svg{
+  width:31px;
+  height:31px;
+  display:block;
+}
+.sc-offer-title{
+  margin:0;
+  color:var(--sc-drawer-text-color);
+  font-size:calc(var(--sc-base-font-size) * 1.08);
+  line-height:1.25;
+  font-weight:900;
+}
+.sc-offer-subtitle{
+  margin:2px 0 0;
+  color:var(--sc-muted);
+  font-size:var(--sc-base-font-size);
+  line-height:1.35;
+}
+.sc-offer-codebox{
+  min-width:116px;
+  border:1px solid var(--sc-border);
+  border-radius:var(--sc-btn-radius);
+  overflow:hidden;
+  background:#fff;
+  text-align:center;
+}
+.sc-offer-code{
+  padding:8px 10px;
+  color:var(--sc-drawer-text-color);
+  font-weight:900;
+}
+.sc-offer-code-apply{
+  padding:9px 10px;
+  background:var(--sc-checkout-bg);
+  color:var(--sc-checkout-text);
+  font-weight:900;
+}
+.sc-offer-action{
+  border:2px solid var(--sc-checkout-bg);
+  background:#fff;
+  color:var(--sc-checkout-bg);
+  border-radius:var(--sc-btn-radius);
+  padding:9px 12px;
+  font-weight:900;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.sc-offers-empty{
+  padding:24px;
+  text-align:center;
+  color:var(--sc-muted);
+  font-weight:800;
+}
+.sc-footer-tabs{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  border:1px solid var(--sc-border);
+  border-radius:var(--sc-radius);
+  overflow:hidden;
+  background:#fff;
+  box-shadow:0 -4px 14px rgba(15,23,42,.06);
+}
+.sc-footer-tabs[hidden]{display:none !important;}
+.sc-footer-tab{
+  min-height:58px;
+  border:0;
+  border-bottom:3px solid transparent;
+  background:#fff;
+  color:var(--sc-drawer-text-color);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  font-size:var(--sc-base-font-size);
+  font-weight:900;
+  cursor:pointer;
+}
+.sc-footer-tab.is-active{
+  color:var(--sc-checkout-bg);
+  border-bottom-color:var(--sc-checkout-bg);
+}
+.sc-footer-tab-icon,
+.sc-footer-tab-icon svg{
+  width:16px;
+  height:16px;
+  display:block;
+}
+
+.sc-drawer.sc-static-design{
+  max-width:445px;
+  background:var(--sc-static-shell-bg, #f4f4f4) !important;
+  color:var(--sc-static-text, #0b2364) !important;
+  box-shadow:-12px 0 28px rgba(15,23,42,.18);
+  font-family:var(--sc-font, Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+}
+.sc-static-design .content-cart-smartcartify{
+  background:var(--sc-static-shell-bg, #f4f4f4);
+}
+.sc-static-design .sc-header{
+  min-height:94px;
+  padding:28px 20px 22px;
+  background:var(--sc-static-header-bg, linear-gradient(135deg,#ff3a2d 0%,#e329b7 46%,#f3dacd 100%)) !important;
+  border-bottom:0;
+  color:var(--sc-static-header-text, #ffffff);
+}
+.sc-static-design .sc-title-wrap{
+  gap:0;
+}
+.sc-static-design .sc-title-icon,
+.sc-static-design .sc-title-count{
+  display:none !important;
+}
+.sc-static-design .sc-title{
+  color:var(--sc-static-header-text, #ffffff) !important;
+  font-size:var(--sc-static-title-size, 24px) !important;
+  line-height:30px;
+  font-weight:900;
+}
+.sc-static-design .sc-close{
+  width:auto;
+  height:34px;
+  min-width:74px;
+  padding:0 13px;
+  border-radius:999px;
+  background:var(--sc-static-card-bg, #ffffff) !important;
+  color:var(--sc-static-text, #0f2a6f) !important;
+  font-size:14px;
+  font-weight:800;
+  box-shadow:0 5px 14px rgba(15,23,42,.14);
+}
+.sc-static-design .sc-close::after{
+  content:"Close";
+  margin-left:4px;
+}
+.sc-static-design .sc-close svg{
+  width:14px;
+  height:14px;
+}
+.sc-static-design .sc-close svg path{
+  fill:var(--sc-static-text, #0f2a6f) !important;
+}
+.sc-static-design .sc-announce{
+  display:none !important;
+}
+.sc-static-design .sc-progress{
+  margin:-1px 18px 0;
+  padding:18px 14px 10px;
+  background:var(--sc-static-card-bg, #ffffff) !important;
+  border-radius:var(--sc-static-radius, 10px) var(--sc-static-radius, 10px) 0 0;
+  border-bottom:1px solid var(--sc-static-border, #e5e7eb);
+  color:var(--sc-static-progress-text, #56669d);
+}
+.sc-static-design .sc-label{
+  margin:0 0 13px;
+  color:var(--sc-static-progress-text, #56669d) !important;
+  font-size:var(--sc-base-font-size, 16px) !important;
+  line-height:22px;
+  font-weight:700;
+}
+.sc-static-progress-track{
+  position:relative;
+  height:50px;
+  margin:0 26px;
+}
+.sc-static-progress-line{
+  position:absolute;
+  left:0;
+  right:0;
+  top:8px;
+  height:7px;
+  border-radius:999px;
+  background:var(--sc-static-progress-bg, #e9ebf2);
+}
+.sc-static-progress-fill{
+  position:absolute;
+  left:0;
+  top:8px;
+  width:28%;
+  height:7px;
+  border-radius:999px;
+  background:var(--sc-static-progress, #a93dea);
+}
+.sc-static-step{
+  position:absolute;
+  top:0;
+  transform:translateX(-50%);
+  display:grid;
+  justify-items:center;
+  gap:5px;
+  min-width:92px;
+  color:var(--sc-static-progress-text, #53649d);
+  font-size:13px;
+  line-height:16px;
+  font-weight:800;
+}
+.sc-static-step span{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:var(--sc-static-icon-bg, #102864);
+  color:var(--sc-static-button-text, #ffffff);
+  font-size:10px;
+  box-shadow:0 1px 4px rgba(15,23,42,.22);
+}
+.sc-static-step:nth-child(3){left:33%;}
+.sc-static-step:nth-child(4){left:66%;}
+.sc-static-step:nth-child(5){left:100%;transform:translateX(-60%);}
+.sc-static-design .sc-items{
+  margin:0 18px;
+  border:0;
+  border-radius:0 0 var(--sc-static-radius, 10px) var(--sc-static-radius, 10px);
+  background:var(--sc-static-card-bg, #ffffff);
+  min-height:414px;
+  box-shadow:0 1px 3px rgba(15,23,42,.08);
+  overflow:hidden;
+}
+.sc-static-design .sc-items-list{
+  gap:0;
+}
+.sc-static-cart-row{
+  position:relative;
+  display:grid;
+  grid-template-columns:86px minmax(0,1fr) auto;
+  gap:18px;
+  align-items:center;
+  padding:30px 26px;
+  border-bottom:1px solid #e7e7e7;
+}
+.sc-static-main-img,
+.sc-static-upsell-img{
+  overflow:hidden;
+  background:var(--sc-static-image-bg, #f0f0f0);
+  border-radius:calc(var(--sc-static-radius, 10px) - 3px);
+}
+.sc-static-main-img{
+  width:86px;
+  height:58px;
+}
+.sc-static-upsell-img{
+  width:62px;
+  height:42px;
+}
+.sc-static-main-img img,
+.sc-static-upsell-img img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.sc-static-product-title{
+  margin:0 0 12px;
+  color:var(--sc-static-text, #102864);
+  font-size:calc(var(--sc-base-font-size, 16px) + 2px);
+  line-height:23px;
+  font-weight:900;
+}
+.sc-static-qty{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+}
+.sc-static-qty button{
+  width:34px;
+  height:34px;
+  border:1px solid var(--sc-static-border, #dde2ea);
+  border-radius:calc(var(--sc-static-radius, 10px) - 2px);
+  background:var(--sc-static-card-bg, #ffffff);
+  color:var(--sc-static-muted, #7f8795);
+  font-size:24px;
+  line-height:1;
+  cursor:default;
+}
+.sc-static-qty strong{
+  min-width:16px;
+  color:var(--sc-static-text, #0f2a6f);
+  font-size:calc(var(--sc-base-font-size, 16px) + 2px);
+  line-height:22px;
+  text-align:center;
+}
+.sc-static-pricebox{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  color:var(--sc-static-text, #102864);
+  font-size:calc(var(--sc-base-font-size, 16px) + 1px);
+  font-weight:900;
+  white-space:nowrap;
+}
+.sc-static-compare{
+  color:var(--sc-static-muted, #8c9099);
+  text-decoration:line-through;
+  font-size:15px;
+  font-weight:600;
+}
+.sc-static-remove{
+  position:absolute;
+  top:30px;
+  right:22px;
+  color:var(--sc-static-muted, #a7adb6);
+  font-size:28px;
+  line-height:1;
+}
+.sc-static-upsell-block{
+  padding:16px 18px 170px;
+  background:var(--sc-static-upsell-bg, var(--sc-static-card-bg, #ffffff));
+}
+.sc-static-upsell-title{
+  margin:0 0 20px;
+  text-align:center;
+  color:var(--sc-static-upsell-muted, var(--sc-static-muted, #6f7a8a));
+  font-size:var(--sc-base-font-size, 16px);
+  line-height:20px;
+  font-weight:900;
+}
+.sc-static-upsell-row{
+  display:grid;
+  grid-template-columns:62px minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  border:1px solid var(--sc-static-upsell-border, transparent);
+  border-radius:var(--sc-static-radius, 10px);
+  padding:8px;
+}
+.sc-static-upsell-name{
+  margin:0 0 4px;
+  color:var(--sc-static-upsell-text, #102864);
+  font-size:calc(var(--sc-base-font-size, 16px) - 2px);
+  line-height:18px;
+  font-weight:900;
+}
+.sc-static-upsell-price{
+  color:var(--sc-static-upsell-muted, #667180);
+  font-size:calc(var(--sc-base-font-size, 16px) - 3px);
+  font-weight:900;
+}
+.sc-static-upsell-price s{
+  margin-right:5px;
+  color:var(--sc-static-muted, #8d929b);
+  font-weight:600;
+}
+.sc-static-add{
+  border:0;
+  border-radius:calc(var(--sc-static-radius, 10px) - 6px);
+  background:var(--sc-static-upsell-button-bg, #a93dea);
+  color:var(--sc-static-upsell-button-text, #ffffff);
+  padding:10px 17px;
+  font-size:15px;
+  font-weight:900;
+  cursor:default;
+}
+.sc-static-design .sc-items-footer{
+  margin:0;
+  background:var(--sc-static-card-bg, #ffffff);
+}
+.sc-static-design .sc-discount{
+  display:flex !important;
+  gap:10px;
+  padding:8px 12px 0;
+  margin:0;
+  background:var(--sc-static-card-bg, #ffffff);
+}
+.sc-static-design .sc-discount[hidden]{
+  display:none !important;
+}
+.sc-static-design .sc-discount input{
+  height:52px;
+  border:1px solid var(--sc-static-border, #dde2ea);
+  border-radius:calc(var(--sc-static-radius, 10px) - 4px);
+  background:var(--sc-static-card-bg, #ffffff);
+  color:var(--sc-static-muted, #6f7684);
+  font-size:var(--sc-base-font-size, 16px);
+}
+.sc-static-design .sc-discount button{
+  min-width:78px;
+  height:52px;
+  border:2px solid var(--sc-static-progress-text, #53649d);
+  border-radius:calc(var(--sc-static-radius, 10px) - 3px);
+  background:var(--sc-static-card-bg, #ffffff);
+  color:var(--sc-static-text, #102864);
+  font-size:var(--sc-base-font-size, 16px);
+  font-weight:900;
+}
+.sc-static-design .sc-discount-msg{
+  display:none !important;
+}
+.sc-static-design .sc-footer{
+  padding:0 18px 14px;
+  gap:12px;
+  background:var(--sc-static-shell-bg, #f4f4f4) !important;
+  box-shadow:none;
+}
+.sc-static-design .sc-footer-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0;
+  overflow:hidden;
+  border-radius:0 0 var(--sc-static-radius, 10px) var(--sc-static-radius, 10px);
+  background:var(--sc-static-card-bg, #ffffff);
+  box-shadow:0 1px 3px rgba(15,23,42,.08);
+}
+.sc-static-design .sc-subtotal-box{
+  border:0;
+  border-radius:0;
+  padding:16px 18px;
+  background:var(--sc-static-card-bg, #ffffff);
+}
+.sc-static-design .sc-sub-label{
+  color:var(--sc-static-muted, #8a92a0) !important;
+  font-size:calc(var(--sc-base-font-size, 16px) - 2px) !important;
+  font-weight:700;
+}
+.sc-static-design .sc-sub-value{
+  color:var(--sc-static-text, #102864) !important;
+  font-size:calc(var(--sc-base-font-size, 16px) + 6px) !important;
+  line-height:26px;
+  font-weight:900;
+}
+.sc-static-design .sc-checkout{
+  min-height:74px;
+  background:var(--sc-static-button-bg, #a93dea) !important;
+  color:var(--sc-static-button-text, #ffffff) !important;
+  font-size:calc(var(--sc-base-font-size, 16px) + 4px) !important;
+  font-weight:900;
+}
+.sc-static-design .sc-footer-tabs{
+  border:0;
+  border-radius:var(--sc-static-radius, 10px);
+  min-height:70px;
+  background:var(--sc-static-card-bg, #ffffff);
+  box-shadow:0 1px 3px rgba(15,23,42,.08);
+}
+.sc-static-design .sc-footer-tab{
+  min-height:70px;
+  color:var(--sc-static-text, #102864);
+  border-bottom:3px solid transparent;
+  font-size:18px;
+  background:var(--sc-static-card-bg, #ffffff);
+}
+.sc-static-design .sc-footer-tab.is-active{
+  color:var(--sc-static-button-bg, #a93dea);
+  border-bottom-color:var(--sc-static-button-bg, #a93dea);
+}
+.sc-static-design .sc-offers{
+  margin:0 18px;
+  border:0;
+  border-radius:var(--sc-static-radius, 10px);
+  background:var(--sc-static-card-bg, #ffffff);
+  box-shadow:0 1px 3px rgba(15,23,42,.08);
+}
+
+@media (max-width: 640px){
+  .sc-offers{
+    margin:8px;
+  }
+  .sc-offer-row{
+    grid-template-columns:48px minmax(0, 1fr);
+    gap:10px;
+    padding:14px 10px;
+  }
+  .sc-offer-icon{
+    width:42px;
+    height:42px;
+  }
+  .sc-offer-icon svg{
+    width:26px;
+    height:26px;
+  }
+  .sc-offer-codebox,
+  .sc-offer-action{
+    grid-column:2;
+    justify-self:start;
+  }
+}
+
 .sc-subtotal-box{
   flex:0 0 42%;
   border:1px solid var(--sc-border);
@@ -5057,11 +5567,27 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       </div>
     </div>
 
+    <div class="sc-offers" data-offers-panel hidden></div>
+
     <div class="sc-footer">
       <div class="sc-footer-milestones" data-footer-milestones hidden></div>
       <div class="sc-footer-row">
         <button class="sc-checkout" data-checkout type="button">
           <span class="sc-checkout-label">Checkout</span>
+        </button>
+      </div>
+      <div class="sc-footer-tabs" data-offer-tabs hidden>
+        <button class="sc-footer-tab is-active" data-drawer-tab="cart" type="button">
+          <span class="sc-footer-tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 6h15l-1.2 7H8L6 6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6H3M9 19h.01M18 19h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span>Cart</span>
+        </button>
+        <button class="sc-footer-tab" data-drawer-tab="offers" type="button">
+          <span class="sc-footer-tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M20 12v8H4v-8M3 8h18v4H3V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 8v12M12 8H8.5A2.5 2.5 0 1 1 11 5.5V8ZM12 8h3.5A2.5 2.5 0 1 0 13 5.5V8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span>Offers</span>
         </button>
       </div>
     </div>
@@ -5116,6 +5642,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const discountInput = drawer.querySelector("[data-discount-input]");
   const discountButton = drawer.querySelector("[data-discount-apply]");
   const discountMsg = drawer.querySelector("[data-discount-msg]");
+  const offersPanel = drawer.querySelector("[data-offers-panel]");
+  const offerTabs = drawer.querySelector("[data-offer-tabs]");
 
   overlay.addEventListener("click", closeDrawer);
   $("[data-close]")?.addEventListener("click", closeDrawer);
@@ -5123,6 +5651,56 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const el = e.target;
     if (!(el instanceof Element)) return;
     if (el.closest("[data-close]")) closeDrawer();
+    const staticQty = el.closest("[data-static-qty]");
+    if (staticQty) {
+      e.preventDefault();
+      const row = staticQty.closest("[data-line]");
+      const line = Number(row?.getAttribute("data-line"));
+      const current = Number(CART?.items?.[line - 1]?.quantity || 0);
+      if (line && current > 0) {
+        const delta = staticQty.getAttribute("data-static-qty") === "inc" ? 1 : -1;
+        applyLineQuantityChange(line, Math.max(0, current + delta));
+      }
+      return;
+    }
+    const staticRemove = el.closest("[data-static-remove]");
+    if (staticRemove) {
+      e.preventDefault();
+      const line = Number(staticRemove.getAttribute("data-static-remove"));
+      if (line) applyLineQuantityChange(line, 0);
+      return;
+    }
+    const tabButton = el.closest("[data-drawer-tab]");
+    if (tabButton) {
+      e.preventDefault();
+      setDrawerTab(tabButton.getAttribute("data-drawer-tab"));
+      return;
+    }
+    const codeButton = el.closest("[data-offer-code]");
+    if (codeButton) {
+      e.preventDefault();
+      const code = trimToNull(codeButton.getAttribute("data-offer-code"));
+      if (code && discountInput) {
+        discountInput.value = code;
+        applyDiscountCode(code);
+      }
+      return;
+    }
+    const offerAction = el.closest("[data-offer-action]");
+    if (offerAction) {
+      e.preventDefault();
+      const index = Number(offerAction.getAttribute("data-offer-action"));
+      const offer = Array.isArray(drawer.__sc_offerRows) ? drawer.__sc_offerRows[index] : null;
+      if (!offer?.rule) return;
+      const kind = offer.type === "free" ? "free" : "bxgy";
+      openRewardPopupFor({
+        kind,
+        rule: offer.rule,
+        ruleKey: offer.key,
+        slot: offer.slot,
+        title: offer.title,
+      });
+    }
   });
   document.addEventListener(
     "click",
@@ -5556,6 +6134,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     DISCOUNT_PANEL_STYLE_ENABLED =
       to01(pick(style, ["discountCodeApply"], defaults.discountCodeApply)) === 1;
+    OFFER_TABS_ENABLED = style?.offerButtonEnabled !== false && style?.offerButtonEnabled !== 0;
+    if (!OFFER_TABS_ENABLED) ACTIVE_DRAWER_TAB = "cart";
+    if (offerTabs) offerTabs.hidden = !OFFER_TABS_ENABLED;
   };
 
   const setDiscountMessage = (msg) => {
@@ -5774,9 +6355,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!enabled) setDiscountMessage("");
   };
 
-  const applyDiscountCode = async () => {
-    if (!discountInput || !drawerDiscountPanel || drawerDiscountPanel.hidden) return;
-    const code = trimToNull(discountInput.value);
+  const applyDiscountCode = async (codeOverride = "") => {
+    const overrideCode = trimToNull(codeOverride);
+    if (!overrideCode && (!discountInput || !drawerDiscountPanel || drawerDiscountPanel.hidden)) return;
+    const code = overrideCode || trimToNull(discountInput.value);
     if (!code) return;
 
     setDiscountMessage("");
@@ -5877,6 +6459,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       upsell.hidden = true;
       upsell.innerHTML = "";
     }
+    if (offersPanel) {
+      offersPanel.hidden = true;
+      offersPanel.innerHTML = "";
+    }
+    if (offerTabs) offerTabs.hidden = true;
+    ACTIVE_DRAWER_TAB = "cart";
     clearUpsellTimer();
 
     const label = $(".sc-label");
@@ -6297,6 +6885,398 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return steps;
   };
 
+  const offerIconSvg = (type) => {
+    if (type === "shipping") {
+      return `<svg viewBox="0 0 24 24" fill="none"><path d="M3 7h11v9H3V7ZM14 11h3.5l2.5 3v2h-6v-5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" stroke="currentColor" stroke-width="2"/></svg>`;
+    }
+    if (type === "code" || type === "discount") {
+      return `<svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m8 15 8-8M8.5 9.5h.01M15.5 14.5h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+    }
+    if (type === "bxgy" || type === "buyxgety") {
+      return `<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h16M8 4v4M16 4v4M6 8v12h12V8" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 13h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+    }
+    return `<svg viewBox="0 0 24 24" fill="none"><path d="M20 12v8H4v-8M3 8h18v4H3V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 8v12M12 8H8.5A2.5 2.5 0 1 1 11 5.5V8ZM12 8h3.5A2.5 2.5 0 1 0 13 5.5V8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+  };
+
+  const getOfferStepTitle = (step) => {
+    const type = String(step?.type || "").toLowerCase();
+    if (type === "shipping") return "Free Shipping";
+    if (type === "free") return "Free Gift";
+    if (type === "discount") return step?.progressTextBelow || step?.title || "Discount";
+    if (type === "bxgy" || type === "buyxgety") return step?.title || "Buy X Get Y Discount";
+    return step?.title || "Offer";
+  };
+
+  const buildOfferRows = (steps = []) => {
+    const rows = [];
+    (Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : []).forEach((rule, index) => {
+      const code = getDiscountRuleCode(rule) || "";
+      if (!code) return;
+      rows.push({
+        key: `code:${code}:${index}`,
+        type: "code",
+        title: "Discount Code",
+        subtitle: "Apply this discount code",
+        code,
+        action: "Apply Code",
+      });
+    });
+
+    const seenBxgy = new Set();
+    [...(Array.isArray(BXGY_RULES) ? BXGY_RULES : []), ...(Array.isArray(BUYXGETY_RULES) ? BUYXGETY_RULES : [])]
+      .forEach((rule, index) => {
+        const key = String(rule?.id || rule?.buyxgetyId || rule?.campaignName || index);
+        if (seenBxgy.has(key)) return;
+        seenBxgy.add(key);
+        const x = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy);
+        const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
+        const fallback = Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0
+          ? `Buy ${x} and get ${y} free`
+          : "Buy something and get something";
+        rows.push({
+          key: `bxgy:${key}`,
+          type: "bxgy",
+          title: trimToNull(rule?.campaignName) || "Buy X Get Y Discount",
+          subtitle: trimToNull(rule?.beforeOfferUnlockMessage) || fallback,
+          action: "Show Gifts",
+          rule,
+        });
+      });
+
+    (Array.isArray(steps) ? steps : []).forEach((step, index) => {
+      if (!step?.rule) return;
+      const type = String(step.type || "").toLowerCase();
+      rows.push({
+        key: `step:${type}:${index}`,
+        type,
+        title: getOfferStepTitle(step),
+        subtitle: step.progressTextBefore || step.title || "Reward available in this order",
+        action: type === "free" || type === "bxgy" || type === "buyxgety" ? "Show Gifts" : "",
+        rule: step.rule,
+        slot: step.slot,
+      });
+    });
+
+    return rows;
+  };
+
+  const renderOffersPanel = (steps = []) => {
+    if (!offersPanel) return;
+    const rows = buildOfferRows(steps);
+    drawer.__sc_offerRows = rows;
+    if (!rows.length) {
+      offersPanel.innerHTML = `<div class="sc-offers-empty">No offers configured yet.</div>`;
+      return;
+    }
+
+    offersPanel.innerHTML = rows.map((offer, index) => {
+      const actionHtml = offer.type === "code"
+        ? `<button class="sc-offer-codebox" type="button" data-offer-code="${safe(offer.code)}">
+            <span class="sc-offer-code">${safe(offer.code)}</span>
+            <span class="sc-offer-code-apply">${safe(offer.action)}</span>
+          </button>`
+        : offer.action
+          ? `<button class="sc-offer-action" type="button" data-offer-action="${index}">${safe(offer.action)}</button>`
+          : "";
+      return `
+        <div class="sc-offer-row">
+          <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg(offer.type)}</span>
+          <span class="sc-offer-copy">
+            <p class="sc-offer-title">${safe(offer.title)}</p>
+            <p class="sc-offer-subtitle">${safe(offer.subtitle)}</p>
+          </span>
+          ${actionHtml}
+        </div>
+      `;
+    }).join("");
+  };
+
+  const setDrawerTab = (tab) => {
+    ACTIVE_DRAWER_TAB = tab === "offers" && OFFER_TABS_ENABLED ? "offers" : "cart";
+    const isOffers = ACTIVE_DRAWER_TAB === "offers";
+    drawer.classList.toggle("sc-offers-active", isOffers);
+    const cartContent = drawer.querySelector(".sc-progress");
+    const items = drawer.querySelector(".sc-items");
+    const footerRow = drawer.querySelector(".sc-footer-row");
+    const footerMilestones = drawer.querySelector("[data-footer-milestones]");
+    if (cartContent) cartContent.hidden = isOffers;
+    if (items) items.hidden = isOffers;
+    if (offersPanel) offersPanel.hidden = !isOffers;
+    if (footerRow) footerRow.hidden = isOffers;
+    if (footerMilestones) footerMilestones.hidden = isOffers || !footerMilestones.innerHTML.trim();
+    drawer.querySelectorAll("[data-drawer-tab]").forEach((button) => {
+      const selected = button.getAttribute("data-drawer-tab") === ACTIVE_DRAWER_TAB;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
+    const title = drawer.querySelector(".sc-title");
+    const count = drawer.querySelector("[data-cart-title-count]");
+    if (title) {
+      title.childNodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) node.textContent = isOffers ? "Offers " : "Your Cart ";
+      });
+      if (count) count.hidden = isOffers;
+    }
+  };
+
+  const applyStaticFrontendCartDesign = () => {
+    drawer.classList.add("sc-static-design");
+    const style = PROXY?.styleSettings || {};
+    const upsell = PROXY?.upsellSettings || {};
+    OFFER_TABS_ENABLED = style?.offerButtonEnabled !== false && style?.offerButtonEnabled !== 0;
+    DISCOUNT_PANEL_STYLE_ENABLED = style?.discountCodeApply === true || style?.discountCodeApply === 1;
+    const r = document.documentElement.style;
+
+    const baseFontSize = Math.max(10, Number(style?.base) || 16);
+    const headingScaleValue = Math.max(1, Number(style?.headingScale) || 1.25);
+    const radius = Math.max(0, Number(style?.radius) || 10);
+    const cardBg = pickColor(style, ["bg"], "#ffffff");
+    const shellBg = pickColor(
+      style,
+      ["cartDrawerBackground", "cartDrawerBg", "drawerTopBg"],
+      "#f4f4f4"
+    );
+    const text = pickColor(
+      style,
+      ["cartDrawerTextColor", "textColor"],
+      "#102864"
+    );
+    const headerText = pickColor(
+      style,
+      ["cartDrawerHeaderColor", "headerColor"],
+      "#ffffff"
+    );
+    const border = pickColor(style, ["borderColor", "border"], "#e5e7eb");
+    const muted = pickColor(style, ["muted", "mutedColor"], "#6f7a8a");
+    const progressColor = pickColor(style, ["progress"], "#a93dea");
+    const buttonBg = pickColor(style, ["buttonColor"], "#a93dea");
+    const buttonText = pickColor(style, ["buttonLabelColor"], "#ffffff");
+    const iconColor = pickColor(style, ["iconColor"], text);
+    const mode = String(style?.cartDrawerBackgroundMode || "gradient").toLowerCase();
+    const gradientStart = pickColor(style, ["cartDrawerGradientStart"], "#ff3a2d");
+    const gradientEnd = pickColor(style, ["cartDrawerGradientEnd"], "#f3dacd");
+    const drawerImage = trimToNull(style?.cartDrawerImage);
+    const headerBg = mode === "gradient"
+      ? `linear-gradient(135deg, ${gradientStart} 0%, ${progressColor} 46%, ${gradientEnd} 100%)`
+      : mode === "image" && drawerImage
+        ? `linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)), ${buildCssUrl(drawerImage)}`
+        : shellBg;
+
+    const upsellBg = pickColor(upsell, ["backgroundColor"], cardBg);
+    const upsellText = pickColor(upsell, ["textColor"], text);
+    const upsellBorder = pickColor(upsell, ["borderColor"], border);
+    const upsellButtonBg = pickColor(upsell, ["buttonColor"], buttonBg);
+    const upsellButtonText = pickColor(upsell, ["buttonTextColor"], buttonText);
+    const upsellMuted = pickColor(upsell, ["arrowColor"], muted);
+
+    r.setProperty("--sc-font", style?.font || "Inter, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif");
+    r.setProperty("--sc-base-font-size", `${baseFontSize}px`);
+    r.setProperty("--sc-heading-scale", `${headingScaleValue}`);
+    r.setProperty("--sc-heading-font-size", `${Math.max(14, Math.round(baseFontSize * headingScaleValue))}px`);
+    r.setProperty("--sc-button-font-size", `${baseFontSize}px`);
+    r.setProperty("--sc-small-font-size", `${Math.max(10, baseFontSize - 3)}px`);
+    r.setProperty("--sc-static-shell-bg", shellBg);
+    r.setProperty("--sc-static-header-bg", headerBg);
+    r.setProperty("--sc-static-header-text", headerText);
+    r.setProperty("--sc-static-card-bg", cardBg);
+    r.setProperty("--sc-static-text", text);
+    r.setProperty("--sc-static-muted", muted);
+    r.setProperty("--sc-static-border", border);
+    r.setProperty("--sc-static-progress", progressColor);
+    r.setProperty("--sc-static-progress-bg", `${progressColor}22`);
+    r.setProperty("--sc-static-progress-text", pickColor(style, ["textColor"], "#56669d"));
+    r.setProperty("--sc-static-button-bg", buttonBg);
+    r.setProperty("--sc-static-button-text", buttonText);
+    r.setProperty("--sc-static-icon-bg", iconColor);
+    r.setProperty("--sc-static-image-bg", `${border}66`);
+    r.setProperty("--sc-static-radius", `${radius}px`);
+    r.setProperty("--sc-static-title-size", `${Math.max(18, Math.round(baseFontSize * headingScaleValue + 4))}px`);
+    r.setProperty("--sc-static-upsell-bg", upsellBg);
+    r.setProperty("--sc-static-upsell-text", upsellText);
+    r.setProperty("--sc-static-upsell-muted", upsellMuted);
+    r.setProperty("--sc-static-upsell-border", upsellBorder);
+    r.setProperty("--sc-static-upsell-button-bg", upsellButtonBg);
+    r.setProperty("--sc-static-upsell-button-text", upsellButtonText);
+
+    r.setProperty("--sc-drawer-bg", shellBg);
+    r.setProperty("--sc-drawer-text-color", text);
+    r.setProperty("--sc-drawer-header-color", headerText);
+    r.setProperty("--sc-border", border);
+    r.setProperty("--sc-muted", muted);
+    r.setProperty("--sc-progress", progressColor);
+    r.setProperty("--sc-progress-bg", cardBg);
+    r.setProperty("--sc-progress-text", pickColor(style, ["textColor"], "#56669d"));
+    r.setProperty("--sc-checkout-bg", buttonBg);
+    r.setProperty("--sc-checkout-text", buttonText);
+    r.setProperty("--sc-footer-bg", shellBg);
+    r.setProperty("--sc-icon-color", iconColor);
+    r.setProperty("--sc-radius", `${radius}px`);
+    r.setProperty("--sc-btn-radius", `${Math.max(4, radius - 3)}px`);
+    r.setProperty("--sc-input-bg", cardBg);
+    r.setProperty("--sc-input-border", border);
+    r.setProperty("--sc-input-text", muted);
+    r.setProperty("--sc-input-placeholder", muted);
+  };
+
+  const renderStaticProgress = () => {
+    const label = $(".sc-label");
+    const milestone = $(".sc-milestone");
+    const legends = $(".sc-legends");
+    const progressWrap = $(".sc-progress");
+    if (progressWrap) progressWrap.style.removeProperty("display");
+    if (label) label.textContent = "Add INR 500 more to get Free Shipping on this order";
+    if (milestone) {
+      milestone.innerHTML = `
+        <div class="sc-static-progress-track">
+          <div class="sc-static-progress-line"></div>
+          <div class="sc-static-progress-fill"></div>
+          <div class="sc-static-step"><span>▣</span>Free Shipping!</div>
+          <div class="sc-static-step"><span>▣</span>20% Off</div>
+          <div class="sc-static-step"><span>▣</span>Free Gift!</div>
+        </div>
+      `;
+    }
+    if (legends) legends.innerHTML = "";
+  };
+
+  const getStaticCartProduct = () => {
+    const first = Array.isArray(CART?.items) ? CART.items[0] : null;
+    return {
+      line: first ? 1 : null,
+      title: trimToNull(first?.product_title) || "Antique Drawers",
+      image: trimToNull(first?.image) || "/cdn/shop/files/antique-drawers.jpg",
+      qty: Math.max(1, Number(first?.quantity) || 2),
+      compare: "INR 600",
+      price: "INR 500",
+      url: trimToNull(first?.url) || "",
+    };
+  };
+
+  const renderStaticCartBody = () => {
+    const itemsWrap = $(".sc-items-list");
+    if (!itemsWrap) return;
+    const upsell = PROXY?.upsellSettings || {};
+    const upsellTitle = trimToNull(upsell?.sectionTitle) || "You may also like...";
+    const upsellButtonText = trimToNull(upsell?.buttonText) || "Add";
+    const product = getStaticCartProduct();
+    const imageHtml = product.image
+      ? `<img src="${safe(product.image)}" alt="${safe(product.title)}" loading="lazy">`
+      : "";
+    const titleHtml = product.url
+      ? `<a href="${safe(product.url)}">${safe(product.title)}</a>`
+      : safe(product.title);
+    itemsWrap.innerHTML = `
+      <div class="sc-static-cart-row" ${product.line ? `data-line="${product.line}"` : ""}>
+        <div class="sc-static-main-img">${imageHtml}</div>
+        <div>
+          <p class="sc-static-product-title">${titleHtml}</p>
+          <div class="sc-static-qty">
+            <button type="button" ${product.line ? `data-static-qty="dec"` : ""} aria-label="Decrease">-</button>
+            <strong>${safe(product.qty)}</strong>
+            <button type="button" ${product.line ? `data-static-qty="inc"` : ""} aria-label="Increase">+</button>
+          </div>
+        </div>
+        <div class="sc-static-pricebox">
+          <span class="sc-static-compare">${safe(product.compare)}</span>
+          <span>${safe(product.price)}</span>
+        </div>
+        <button class="sc-static-remove" type="button" ${product.line ? `data-static-remove="${product.line}"` : ""} aria-label="Remove">×</button>
+      </div>
+      <div class="sc-static-upsell-block">
+        <p class="sc-static-upsell-title">${safe(upsellTitle)}</p>
+        <div class="sc-static-upsell-row">
+          <div class="sc-static-upsell-img"></div>
+          <div>
+            <p class="sc-static-upsell-name">Bedside Table</p>
+            <div class="sc-static-upsell-price"><s>INR 85</s> INR 69.99</div>
+          </div>
+          <button class="sc-static-add" type="button">${safe(upsellButtonText)}</button>
+        </div>
+      </div>
+    `;
+  };
+
+  const renderStaticFooter = () => {
+    const style = PROXY?.styleSettings || {};
+    const subtotalEl = drawer.querySelector("[data-subtotal]");
+    if (subtotalEl) subtotalEl.textContent = "INR 500";
+    const checkoutLabelEl = drawer.querySelector(".sc-checkout-label");
+    if (checkoutLabelEl) checkoutLabelEl.textContent = trimToNull(style?.checkoutButtonText) || "Checkout";
+    const footerEl = drawer.querySelector(".sc-footer");
+    if (footerEl) footerEl.hidden = false;
+    const checkoutButton = drawer.querySelector("[data-checkout]");
+    if (checkoutButton) checkoutButton.hidden = false;
+    if (offerTabs) offerTabs.hidden = !OFFER_TABS_ENABLED;
+    if (!OFFER_TABS_ENABLED && ACTIVE_DRAWER_TAB === "offers") ACTIVE_DRAWER_TAB = "cart";
+    updateDiscountPanelVisibility({ isEmpty: false });
+    if (discountInput) {
+      discountInput.placeholder = "Apply Discount Code";
+      discountInput.value = "";
+    }
+  };
+
+  const renderStaticOffersPanel = () => {
+    if (!offersPanel) return;
+    offersPanel.innerHTML = `
+      <div class="sc-offer-row">
+        <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("code")}</span>
+        <span class="sc-offer-copy">
+          <p class="sc-offer-title">Discount Code</p>
+          <p class="sc-offer-subtitle">Apply this discount code</p>
+        </span>
+        <button class="sc-offer-codebox" type="button" data-offer-code="smart123">
+          <span class="sc-offer-code">smart123</span>
+          <span class="sc-offer-code-apply">Apply Code</span>
+        </button>
+      </div>
+      <div class="sc-offer-row">
+        <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("bxgy")}</span>
+        <span class="sc-offer-copy">
+          <p class="sc-offer-title">Buy X Get Y Discount</p>
+          <p class="sc-offer-subtitle">Buy something and get something</p>
+        </span>
+        <button class="sc-offer-action" type="button">Show Gifts</button>
+      </div>
+      <div class="sc-offer-row">
+        <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("shipping")}</span>
+        <span class="sc-offer-copy">
+          <p class="sc-offer-title">Free Shipping</p>
+          <p class="sc-offer-subtitle">Add INR 500 more to get free shipping on this order</p>
+        </span>
+      </div>
+      <div class="sc-offer-row">
+        <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("discount")}</span>
+        <span class="sc-offer-copy">
+          <p class="sc-offer-title">20% Discount</p>
+          <p class="sc-offer-subtitle">Add INR 1,000 more to get a 20% discount on this order</p>
+        </span>
+      </div>
+      <div class="sc-offer-row">
+        <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("free")}</span>
+        <span class="sc-offer-copy">
+          <p class="sc-offer-title">Free Gift</p>
+          <p class="sc-offer-subtitle">Add INR 1,050 more to get Free Gift with this order</p>
+        </span>
+        <button class="sc-offer-action" type="button">Show Gifts</button>
+      </div>
+    `;
+  };
+
+  const renderStaticFrontendCart = () => {
+    applyStaticFrontendCartDesign();
+    renderStaticProgress();
+    renderStaticCartBody();
+    renderStaticFooter();
+    renderStaticOffersPanel();
+    setAnnouncementMessages([]);
+    refreshCartIconMarkup();
+    const itemCount = Math.max(0, Number(CART?.item_count || 0));
+    syncOpenButtonBadge(itemCount);
+    drawer.classList.remove("sc-empty-state", "sc-loading-items", "sc-refreshing");
+    setDrawerTab(ACTIVE_DRAWER_TAB);
+    LAST_CART_SIG = getCartSignature(CART);
+  };
+
   const getLineItemMetaLines = (item) => {
     const lines = [];
 
@@ -6672,6 +7652,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const items = Array.isArray(CART?.items) ? CART.items : [];
     const stepsForFooter = buildSteps();
+    renderOffersPanel(stepsForFooter);
     const currency = normalizeCurrencyCode();
     const checkoutLabelBase =
       trimToNull(PROXY?.styleSettings?.checkoutButtonText) || "Checkout";
@@ -6738,8 +7719,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     updateDiscountPanelVisibility({ isEmpty });
     if (checkoutButton) checkoutButton.hidden = isEmpty;
     if (itemsFooter) itemsFooter.hidden = isEmpty;
-    if (footerEl) footerEl.hidden = isEmpty;
+    if (footerEl) footerEl.hidden = isEmpty && !OFFER_TABS_ENABLED;
+    if (offerTabs) offerTabs.hidden = !OFFER_TABS_ENABLED;
     drawer.classList.toggle("sc-empty-state", isEmpty);
+    setDrawerTab(ACTIVE_DRAWER_TAB);
 
     if (isEmpty) {
       itemsWrap.innerHTML = `<div class="sc-empty">
@@ -9285,6 +10268,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const renderAllFromCache = () => {
     if (!PROXY || !CART) return;
+    if (STATIC_FRONTEND_CART_DESIGN) {
+      renderStaticFrontendCart();
+      return;
+    }
     setDiscountMessage("");
     applyStyleSettings(PROXY?.styleSettings);
     renderCart();

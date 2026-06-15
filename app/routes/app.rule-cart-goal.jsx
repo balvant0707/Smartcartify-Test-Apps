@@ -152,6 +152,12 @@ const REWARD_ID_PREFIX = {
   shipping: "SHIP",
 };
 
+const REWARD_CHANGE_LABELS = {
+  gift: "Change reward to free product",
+  discount: "Change reward to order discount",
+  shipping: "Change reward to free shipping",
+};
+
 const CART_GOAL_ORDER_DISCOUNT_COMBINES_WITH = {
   orderDiscounts: false,
   productDiscounts: true,
@@ -171,13 +177,67 @@ function makeRewardId(type, index) {
 
 function makeGoal(type, index, expanded = false) {
   const config = REWARD_CONFIG[type];
-  return {
+  const goal = {
     ...config,
     id: makeRewardId(type, index),
     expanded,
     goal: String(Number(config.goal) + Math.floor(index / 3) * 50),
     texts: { ...config.texts },
   };
+
+  return type === "gift" ? { ...goal, qty: "1" } : goal;
+}
+
+function getGiftProductIds(goal) {
+  return Array.isArray(goal?.bonusProductIds)
+    ? goal.bonusProductIds.filter(Boolean)
+    : [goal?.bonusProductId || goal?.bonus || null].filter(Boolean);
+}
+
+function getGiftChoiceQuantity(goal) {
+  const selectedCount = getGiftProductIds(goal).length;
+  return String(Math.max(1, selectedCount || Number(goal?.qty || 1) || 1));
+}
+
+function syncGiftChoiceQuantity(goal) {
+  return goal?.type === "gift"
+    ? { ...goal, qty: getGiftChoiceQuantity(goal) }
+    : goal;
+}
+
+function convertGoalRewardType(goal, nextType, index) {
+  const type = REWARD_CONFIG[nextType] ? nextType : normalizeGoalType(goal);
+  const base = makeGoal(type, index, Boolean(goal?.expanded));
+  const converted = {
+    ...base,
+    goal: String(goal?.goal || base.goal),
+    id: makeRewardId(type, index),
+    expanded: Boolean(goal?.expanded),
+    texts: { ...base.texts },
+    shopifyDiscountId: null,
+    shopifySyncWarning: null,
+  };
+
+  if (type === "discount") {
+    return {
+      ...converted,
+      value: base.value,
+      discountType: base.discountType,
+    };
+  }
+
+  if (type === "gift") {
+    return syncGiftChoiceQuantity({
+      ...converted,
+      bonusProductIds: [],
+      bonusProducts: [],
+      bonusProductId: "",
+      bonusProductTitle: "",
+      bonusProductVariantId: "",
+    });
+  }
+
+  return converted;
 }
 
 function defaultSettings() {
@@ -236,7 +296,7 @@ function normalizeGoalType(goal) {
 function normalizeGoal(goal, index) {
   const type = normalizeGoalType(goal);
   const base = makeGoal(type, index);
-  return {
+  return syncGiftChoiceQuantity({
     ...base,
     ...goal,
     type,
@@ -246,7 +306,7 @@ function normalizeGoal(goal, index) {
     discountType: goal?.discountType || base.discountType,
     expanded: Boolean(goal?.expanded),
     texts: normalizeGoalTexts(goal, base),
-  };
+  });
 }
 
 function serializeGoals(goals) {
@@ -286,9 +346,7 @@ function getGoalValidationErrors(goals, trackBy) {
 function getRewardValidationErrors(goals) {
   return goals.map((goal) => {
     if (goal.type === "gift") {
-      const productIds = Array.isArray(goal.bonusProductIds)
-        ? goal.bonusProductIds.filter(Boolean)
-        : [goal.bonusProductId || goal.bonus || null].filter(Boolean);
+      const productIds = getGiftProductIds(goal);
 
       return productIds.length ? "" : "Select at least one free product";
     }
@@ -379,9 +437,7 @@ async function syncCartGoalDiscounts({
     }
 
     if (goal.type === "gift") {
-      const bonusProductIds = Array.isArray(goal.bonusProductIds)
-        ? goal.bonusProductIds.filter(Boolean)
-        : [goal.bonusProductId || goal.bonus || null].filter(Boolean);
+      const bonusProductIds = getGiftProductIds(goal);
 
       if (!bonusProductIds.length) {
         syncedGoals.push({
@@ -401,7 +457,7 @@ async function syncCartGoalDiscounts({
             minPurchase: trackBy === "value" ? goal.goal : null,
             minQuantity: trackBy === "quantity" ? goal.goal : null,
             triggerType: trackBy === "quantity" ? "quantity" : "amount",
-            qty: goal.qty || "1",
+            qty: getGiftChoiceQuantity(goal),
             limit: goal.limitPerOrder || null,
             enabled,
           },
@@ -707,7 +763,7 @@ function ProductPickerModal({
                     }
                   }}
                 >
-                  <span onClick={(event) => event.stopPropagation()}>
+                  <span role="presentation" onClick={(event) => event.stopPropagation()}>
                     <Checkbox
                       label=""
                       labelHidden
@@ -761,7 +817,9 @@ function GoalCard({
   onToggle,
   onMove,
   onDelete,
+  onRewardTypeChange,
 }) {
+  const [rewardMenuOpen, setRewardMenuOpen] = useState(false);
   const icon = REWARD_CONFIG[goal.type].icon;
   const goalPrefix = trackBy === "quantity" ? "Qty" : "INR";
   const ordinal = `${index + 1}${index === 0 ? "st" : index === 1 ? "nd" : "rd"}`;
@@ -774,6 +832,16 @@ function GoalCard({
       title: productId.split("/").pop(),
     }
   );
+  const rewardChangeItems = Object.values(REWARD_CONFIG)
+    .filter((reward) => reward.type !== goal.type)
+    .map((reward) => ({
+      content: REWARD_CHANGE_LABELS[reward.type],
+      icon: reward.icon,
+      onAction: () => {
+        setRewardMenuOpen(false);
+        onRewardTypeChange(index, reward.type);
+      },
+    }));
 
   return (
     <div className="cg-milestoneRow">
@@ -863,11 +931,26 @@ function GoalCard({
                   onDelete(index);
                 }}
               />
-              <Button
-                variant="plain"
-                icon={MenuHorizontalIcon}
-                onClick={(event) => event.stopPropagation()}
-              />
+              <Popover
+                active={rewardMenuOpen}
+                activator={
+                  <Button
+                    variant="plain"
+                    icon={MenuHorizontalIcon}
+                    accessibilityLabel={`Change reward for goal ${index + 1}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setRewardMenuOpen((open) => !open);
+                    }}
+                  />
+                }
+                autofocusTarget="first-node"
+                onClose={() => setRewardMenuOpen(false)}
+              >
+                <div role="presentation" onClick={(event) => event.stopPropagation()}>
+                  <ActionList items={rewardChangeItems} />
+                </div>
+              </Popover>
               <span className="cg-reorderControls" aria-label="Change rule position">
                 <button
                   type="button"
@@ -958,6 +1041,7 @@ function GoalCard({
                               bonusProductId: "",
                               bonusProductTitle: "",
                               bonusProductVariantId: "",
+                              qty: "1",
                             });
                           }}
                         >
@@ -1328,7 +1412,7 @@ function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
             Active dates
           </Text>
           <Text variant="bodyMd" as="p" tone="subdued">
-            Based on your browser's timezone: Asia/Calcutta
+            Based on your browser&apos;s timezone: Asia/Calcutta
           </Text>
           <Card>
             <BlockStack gap="300">
@@ -1706,6 +1790,15 @@ export default function RuleCartGoal() {
     setShowGoalValidation(true);
   };
 
+  const changeGoalRewardType = (index, nextType) => {
+    setGoals((current) =>
+      current.map((goal, goalIndex) =>
+        goalIndex === index ? convertGoalRewardType(goal, nextType, goalIndex) : goal
+      )
+    );
+    setShowGoalValidation(true);
+  };
+
   const toggleGoal = (index) => {
     setGoals((current) => {
       const isOpening = !current[index]?.expanded;
@@ -1757,6 +1850,7 @@ export default function RuleCartGoal() {
       bonusProductId: selectedIds[0] || "",
       bonusProductTitle: firstProduct?.title || "",
       bonusProductVariantId: firstProduct?.variantId || "",
+      qty: String(Math.max(1, selectedIds.length || 1)),
       shopifySyncWarning: null,
     });
   };
@@ -2370,6 +2464,17 @@ export default function RuleCartGoal() {
                     Choose what to track
                   </Text>
                   <SegmentControl
+                    style={{
+                      background: "#e5e4e3",
+                      display: "flex",
+                      flexWrap: "nowrap",
+                      marginTop: "10px",
+                      marginLeft: 0,
+                      gap: "5px",
+                      width: "fit-content",
+                      padding: "5px",
+                      borderRadius: "10px"
+                    }}
                     value={trackBy}
                     onChange={setTrackBy}
                     options={[
@@ -2414,6 +2519,7 @@ export default function RuleCartGoal() {
                             current.filter((_, currentIndex) => currentIndex !== goalIndex)
                           )
                         }
+                        onRewardTypeChange={changeGoalRewardType}
                       />
                     ))}
                   </div>
