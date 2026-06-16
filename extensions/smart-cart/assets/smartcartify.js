@@ -3459,15 +3459,20 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-progress{
   background: var(--sc-progress-bg);
   color: var(--sc-progress-text);
-  padding:5px 0 14px;
+  padding:10px 14px 12px;
+  margin:0 10px 10px;
+  border:1px solid var(--sc-border);
+  border-radius:max(var(--sc-radius), 8px);
   position:relative;
+  flex:0 0 auto;
+  overflow:hidden;
 }
 .sc-label{
   font-size:var(--sc-base-font-size) !important;
-  font-weight:600;margin:0 0 12px;
+  font-weight:700;margin:0 0 12px;
   text-align:center;
   min-height:22px;
-  padding:0 12px;
+  padding:0 28px;
   color: var(--sc-progress-text);
 }
 
@@ -3484,24 +3489,23 @@ body.sc-cartify-open .shopify-section-group-header-group{
 @keyframes scLine{0%{left:-40%}100%{left:110%}}
 @keyframes scSpin{to{transform:rotate(360deg)}}
 
-.sc-milestone{width:var(--sc-milestone-width);margin:0 auto}
-.sc-track{position:relative;height:calc(var(--sc-dot) + 28px);}
+.sc-milestone{width:min(100%, var(--sc-milestone-width));margin:0 auto}
+.sc-track{position:relative;height:72px;}
 .sc-track::before{
     content: "";
     position: absolute;
     left: 0;
     right: 0;
-    top: calc(var(--sc-dot) / 2);
-    height: var(--sc-track-h);
+    top: 18px;
+    height: max(var(--sc-track-h), 8px);
     transform: translateY(-50%);
-    background: var(--sc-progress);
+    background: color-mix(in srgb, var(--sc-progress) 22%, transparent);
     border-radius: 999px;
-    opacity: .5;
 }
 .sc-fill{
   position:absolute;left:0;
-  top:calc(var(--sc-dot) / 2);
-  height:var(--sc-track-h);
+  top:18px;
+  height:max(var(--sc-track-h), 8px);
   transform:translateY(-50%);
   width:0%;
   background:var(--sc-progress);
@@ -3513,30 +3517,30 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 .sc-dot-wrap{
   position:absolute;
-  top:calc(var(--sc-dot) / 2);
+  top:2px;
   transform:translateX(-50%);
   display:flex;
   flex-direction:column;
   align-items:center;
-  min-width:44px;
+  width:96px;
 }
 .sc-dot-wrap.last{transform:translateX(-70%);}
 .sc-dot-html svg{
-    height:16px !important;
-    width:18px !important;
+    height:19px !important;
+    width:19px !important;
 }
 .sc-dot-bubble{
-  width:30px;
-  height:30px;
+  width:34px;
+  height:34px;
   border-radius:999px;
-  background:#ffffff;
-  color:#111827;
+  background:var(--sc-progress-bg);
+  color:var(--sc-icon-color);
   display:flex;
   align-items:center;
   justify-content:center;
   font-size:var(--sc-base-font-size);
-  border: 1px solid var(--sc-progress);
-  transform:translateY(-50%);
+  border: 2px solid var(--sc-border);
+  box-shadow:0 1px 4px rgba(15,23,42,.18);
 }
 .sc-dot-bubble .sc-dot-svg{
   display:flex;
@@ -3545,19 +3549,19 @@ body.sc-cartify-open .shopify-section-group-header-group{
   line-height:0;
 }
 .sc-dot-bubble .sc-dot-svg svg{
-  width:18px;
-  height:18px;
+  width:19px;
+  height:19px;
   display:block;
-  fill: var(--sc-progress);
+  fill: currentColor;
 }
  .sc-upsell-arrow svg g {
     fill: var(--sc-icon-color) !important;
 }
 .sc-dot-bubble .sc-dot-html svg{
-  width:18px;
-  height:18px;
+  width:19px;
+  height:19px;
   display:block;
-  fill: var(--sc-progress);
+  fill: currentColor;
 }
 .sc-dot-bubble .sc-dot-html{
   display:flex;
@@ -3566,50 +3570,51 @@ body.sc-cartify-open .shopify-section-group-header-group{
   line-height:0;
 }
 .sc-dot-bubble .sc-dot-html i{
-  font-size:16px;
+  font-size:19px;
   line-height:1;
   display:block;
 }
 .sc-dot-bubble .sc-dot-emoji{
   line-height:1;
 }
-.sc-dot-wrap.done .sc-dot-bubble{background:var(--sc-progress);color:#111827}
+.sc-dot-wrap.done .sc-dot-bubble{background:var(--sc-progress);border-color:var(--sc-progress);color:var(--sc-checkout-text)}
 .sc-dot-wrap.done .sc-dot-bubble svg{
-  fill:#ffffff;
+  fill:currentColor;
 }
-.sc-dot-wrap.active .sc-dot-bubble{background:#fff;color:#111827}
+.sc-dot-wrap.active .sc-dot-bubble{background:var(--sc-progress-bg);color:var(--sc-icon-color)}
 .sc-progress.sc-cart-goal-progress{
-  padding:14px 0 18px;
+  padding:10px 14px 12px;
 }
 .sc-progress.sc-cart-goal-progress .sc-label{
-  margin-bottom:14px;
-  font-weight:600;
+  margin-bottom:12px;
+  font-weight:700;
   color:var(--sc-progress-text);
 }
 .sc-progress.sc-cart-goal-progress .sc-milestone{
-  width:min(92%, var(--sc-milestone-width));
+  width:min(100%, var(--sc-milestone-width));
 }
 .sc-progress.sc-cart-goal-progress .sc-track{
-  height:42px;
+  height:72px;
 }
 .sc-progress.sc-cart-goal-progress .sc-track::before{
-  height:8px;
-  opacity:.35;
+  top:18px;
+  height:max(var(--sc-track-h), 8px);
 }
 .sc-progress.sc-cart-goal-progress .sc-fill{
-  height:8px;
+  top:18px;
+  height:max(var(--sc-track-h), 8px);
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-bubble{
-  width:30px;
-  height:30px;
-  border:2px solid #6f6f6f;
-  background:#ffffff;
-  color:#2f2f2f;
-  box-shadow:0 1px 3px rgba(0,0,0,.14);
+  width:34px;
+  height:34px;
+  border:2px solid var(--sc-border);
+  background:var(--sc-progress-bg);
+  color:var(--sc-icon-color);
+  box-shadow:0 1px 4px rgba(15,23,42,.18);
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-bubble svg{
-  width:18px;
-  height:18px;
+  width:19px;
+  height:19px;
   display:block;
   fill:currentColor;
   stroke:none;
@@ -3624,31 +3629,35 @@ body.sc-cartify-open .shopify-section-group-header-group{
   stroke:none;
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-wrap:not(.done) .sc-dot-bubble{
-  background:#ffffff;
-  color:#2f2f2f;
+  background:var(--sc-progress-bg);
+  color:var(--sc-icon-color);
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-text{
-  margin-top:-4px;
-  max-width:none;
-  min-width:76px;
-  overflow:visible;
+  margin-top:6px;
+  width:96px;
+  max-width:96px;
+  min-width:0;
+  overflow:hidden;
   display:block;
   -webkit-line-clamp:unset;
   white-space:nowrap;
+  text-overflow:ellipsis;
 }
 
 .sc-dot-text{
   font-size:var(--sc-small-font-size);
   color:var(--sc-progress-text);
   text-align:center;
-  line-height:1.2;
-  max-width:80px;
+  line-height:13px;
+  width:96px;
+  max-width:96px;
+  margin-top:6px;
   overflow:hidden;
-  display:-webkit-box;
-  -webkit-line-clamp:2;
-  -webkit-box-orient:vertical;
-  word-break:break-word;
-  white-space:normal;
+  display:block;
+  text-overflow:ellipsis;
+  word-break:normal;
+  white-space:nowrap;
+  font-weight:800;
 }
 
 .sc-legends{display:none !important;}
@@ -4356,7 +4365,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     height: 83%;
     max-width: 449px !important;
     width: 100% !important;
-    background: var(--sc-cart-drawer-bg);
+    background: var(--sc-drawer-bg);
     background-size: cover;
     background-position: center;
     transition: transform .25s ease;

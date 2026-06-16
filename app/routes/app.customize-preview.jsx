@@ -1277,24 +1277,27 @@ function CartDrawerPreview({
 
         <div
           style={{
-            padding: "10px 14px 12px",
-            margin: "0 10px 10px",
+            padding: "12px 14px 13px",
+            margin: "0 12px 12px",
             textAlign: "center",
             background: surface,
             color: ptc,
-            border: `1px solid ${brc}`,
-            borderRadius: Math.max(r, 8),
+            border: `2px solid ${brc}`,
+            borderRadius: Math.max(r + 2, 10),
             flexShrink: 0,
+            boxShadow: "0 1px 3px rgba(15,23,42,.08)",
+            overflow: "hidden",
           }}
         >
-          <div style={{ position: "relative", minHeight: 18 }}>
+          <div style={{ position: "relative", minHeight: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <button
               type="button"
               aria-label="Back"
               style={{
                 position: "absolute",
                 left: 0,
-                top: -1,
+                top: "50%",
+                transform: "translateY(-50%)",
                 width: 24,
                 height: 24,
                 border: 0,
@@ -1308,14 +1311,27 @@ function CartDrawerPreview({
             >
               <PreviewIcon source={ChevronLeftIcon} size={18} color="currentColor" />
             </button>
-            <Text as="p" variant="bodySm" fontWeight="semibold">
+            <p
+              style={{
+                margin: 0,
+                padding: "0 28px",
+                color: ptc,
+                fontSize: Math.max(fs, 12),
+                lineHeight: "18px",
+                fontWeight: 800,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                width: "100%",
+              }}
+            >
               {nextGoalText}
-            </Text>
+            </p>
           </div>
 
-          <div style={{ position: "relative", height: 72, margin: "12px 12px 0" }}>
-            <div style={{ position: "absolute", top: 18, left: 0, right: 0, height: 8, borderRadius: 999, background: withAlpha(pc, 0.22) }} />
-            <div style={{ position: "absolute", top: 18, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
+          <div style={{ position: "relative", height: 74, margin: "14px 18px 0" }}>
+            <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: withAlpha(pc, 0.24) }} />
+            <div style={{ position: "absolute", top: 19, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
 
             {displaySteps.map((step, index) => {
               const pct = stepPosition(index);
@@ -1337,19 +1353,19 @@ function CartDrawerPreview({
                 >
                   <div
                     style={{
-                      width: 34,
-                      height: 34,
+                      width: 36,
+                      height: 36,
                       margin: "0 auto",
                       borderRadius: "50%",
                       display: "grid",
                       placeItems: "center",
                       background: done ? pc : surface,
                       color: done ? blc : ic,
-                      border: `2px solid ${done ? pc : brc}`,
+                      border: `2px solid ${done ? pc : withAlpha(ptc, 0.72)}`,
                       boxShadow: "0 1px 4px rgba(15,23,42,.18)",
                     }}
                   >
-                    <PreviewIcon source={iconSrc} size={19} color="currentColor" />
+                    <PreviewIcon source={iconSrc} size={20} color="currentColor" />
                   </div>
                   <div
                     style={{
