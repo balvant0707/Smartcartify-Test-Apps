@@ -20,12 +20,12 @@ export const action = async ({ request }) => {
     const result = await safeUpdateManyShop({
       context: "legacy webhook app/uninstalled update",
       where: { shop },
-      data: { installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
+      data: { installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive", status: "uninstalled" },
     });
     if (result.count === 0) {
       await safeCreateShop({
         context: "legacy webhook app/uninstalled create",
-        data: { shop, domain: shop, installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive" },
+        data: { shop, domain: shop, installed: false, uninstalledAt: new Date(), accessToken: null, appStatus: "inactive", status: "uninstalled" },
       });
     }
     logger.log(`[webhooks/app/uninstalled] shop marked inactive: ${shop} (updated: ${result.count})`);

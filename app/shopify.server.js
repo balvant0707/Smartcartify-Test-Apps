@@ -87,6 +87,9 @@ const shopify = shopifyApp({
               email:           s.email         || null,
               shopOwnerName:   s.shop_owner    || null,
               phone:           s.phone         || null,
+              city:            s.city          || null,
+              country:         s.country_name || s.country || s.country_code || null,
+              currency:        s.currency      || null,
               primaryDomain:   { host: s.domain || s.myshopify_domain || shop },
               ianaTimezone:    s.iana_timezone || null,
               shopAddress:     { countryCodeV2: s.country_code || null },
@@ -101,9 +104,9 @@ const shopify = shopifyApp({
           const gqlRes = await admin.graphql(
             `query GetShopOwnerInfo {
               shop {
-                name email shopOwnerName ianaTimezone
+                name email shopOwnerName ianaTimezone currencyCode
                 primaryDomain { host }
-                shopAddress { phone countryCodeV2 }
+                shopAddress { phone city countryCodeV2 }
               }
             }`,
           );
@@ -115,6 +118,9 @@ const shopify = shopifyApp({
               email:         s.email         || null,
               shopOwnerName: s.shopOwnerName || null,
               phone:         s.shopAddress?.phone || null,
+              city:          s.shopAddress?.city || null,
+              country:       s.shopAddress?.countryCodeV2 || null,
+              currency:      s.currencyCode || null,
               primaryDomain: { host: s.primaryDomain?.host || shop },
               ianaTimezone:  s.ianaTimezone  || null,
               shopAddress:   { countryCodeV2: s.shopAddress?.countryCodeV2 || null },
@@ -133,10 +139,15 @@ const shopify = shopifyApp({
       const resolvedEmail     = shopInfo?.email || null;
       const resolvedDomain    = shopInfo?.primaryDomain?.host || shop;
       const resolvedPhone     = shopInfo?.phone || shopInfo?.shopAddress?.phone || null;
+      const resolvedShopName  = shopInfo?.name || shop;
+      const resolvedOwnerName = shopInfo?.shopOwnerName || [resolvedFirstName, resolvedLastName].filter(Boolean).join(" ") || null;
+      const resolvedCity      = shopInfo?.city || null;
+      const resolvedCountry   = shopInfo?.country || shopInfo?.shopAddress?.countryCodeV2 || null;
+      const resolvedCurrency  = shopInfo?.currency || null;
 
       // Only write contact fields if API returned data — prevents overwriting good DB values with nulls
       const contactFields = shopInfo
-        ? { firstName: resolvedFirstName, lastName: resolvedLastName, email: resolvedEmail, domain: resolvedDomain, contactNumber: resolvedPhone }
+        ? { firstName: resolvedFirstName, lastName: resolvedLastName, name: resolvedShopName, ownerName: resolvedOwnerName, email: resolvedEmail, domain: resolvedDomain, contactNumber: resolvedPhone, phone: resolvedPhone, city: resolvedCity, country: resolvedCountry, currency: resolvedCurrency }
         : {};
 
       // Insert or update shop record with contact fields + access token
@@ -149,6 +160,7 @@ const shopify = shopifyApp({
               installed: true,
               onboardedAt: new Date(),
               appStatus: "active",
+              status: "installed",
               domain: resolvedDomain,
               ...contactFields,
             },
@@ -162,6 +174,7 @@ const shopify = shopifyApp({
               installed: true,
               uninstalledAt: null,
               appStatus: "active",
+              status: "installed",
               ...contactFields,
             },
           });
@@ -183,9 +196,7 @@ const shopify = shopifyApp({
         return;
       }
 
-      const resolvedShopName = shopInfo?.name || shop;
       const resolvedShopDomain = resolvedDomain;
-      const resolvedOwnerName = [resolvedFirstName, resolvedLastName].filter(Boolean).join(" ") || "";
       const resolvedOwnerEmail = resolvedEmail || "";
       const installedAt = new Date().toISOString();
       const appVersion =

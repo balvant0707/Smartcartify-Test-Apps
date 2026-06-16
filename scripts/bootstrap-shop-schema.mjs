@@ -58,10 +58,20 @@ const ensureShopTable = async () => {
         \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
         \`firstName\` VARCHAR(255) NULL,
         \`lastName\` VARCHAR(255) NULL,
+        \`name\` VARCHAR(255) NULL,
+        \`ownerName\` VARCHAR(255) NULL,
         \`email\` VARCHAR(320) NULL,
         \`domain\` VARCHAR(255) NULL,
         \`contactNumber\` VARCHAR(50) NULL,
+        \`phone\` VARCHAR(50) NULL,
+        \`city\` VARCHAR(255) NULL,
+        \`country\` VARCHAR(255) NULL,
+        \`currency\` VARCHAR(10) NULL,
         \`appStatus\` VARCHAR(20) NOT NULL DEFAULT 'active',
+        \`status\` VARCHAR(20) NOT NULL DEFAULT 'installed',
+        \`reviewSubmittedAt\` DATETIME(3) NULL,
+        \`reviewRating\` INTEGER NULL,
+        \`reviewComment\` TEXT NULL,
         PRIMARY KEY (\`id\`),
         UNIQUE INDEX \`shop_shop_key\` (\`shop\`)
       ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
@@ -98,13 +108,26 @@ const main = async () => {
   await ensureShopTable();
   await ensureColumn("firstName", "VARCHAR(255) NULL");
   await ensureColumn("lastName", "VARCHAR(255) NULL");
+  await ensureColumn("name", "VARCHAR(255) NULL");
+  await ensureColumn("ownerName", "VARCHAR(255) NULL");
   await ensureColumn("email", "VARCHAR(320) NULL");
   await ensureColumn("domain", "VARCHAR(255) NULL");
   await ensureColumn("contactNumber", "VARCHAR(50) NULL");
+  await ensureColumn("phone", "VARCHAR(50) NULL");
+  await ensureColumn("city", "VARCHAR(255) NULL");
+  await ensureColumn("country", "VARCHAR(255) NULL");
+  await ensureColumn("currency", "VARCHAR(10) NULL");
   await ensureColumn(
     "appStatus",
     "VARCHAR(20) NOT NULL DEFAULT 'active'",
   );
+  await ensureColumn(
+    "status",
+    "VARCHAR(20) NOT NULL DEFAULT 'installed'",
+  );
+  await ensureColumn("reviewSubmittedAt", "DATETIME(3) NULL");
+  await ensureColumn("reviewRating", "INTEGER NULL");
+  await ensureColumn("reviewComment", "TEXT NULL");
   await ensureUniqueShopIndex();
 };
 
@@ -113,4 +136,3 @@ try {
 } finally {
   await prisma.$disconnect();
 }
-

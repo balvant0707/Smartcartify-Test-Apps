@@ -101,6 +101,7 @@ export async function action({ request }) {
             installed: false,
             uninstalledAt: new Date(),
             appStatus: "inactive",
+            status: "uninstalled",
           },
         });
       } else {
@@ -111,6 +112,7 @@ export async function action({ request }) {
             installed: false,
             uninstalledAt: new Date(),
             appStatus: "inactive",
+            status: "uninstalled",
           },
         });
       }

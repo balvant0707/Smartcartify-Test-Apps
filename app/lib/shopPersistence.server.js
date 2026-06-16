@@ -5,10 +5,20 @@ import { normalizeShopDomain } from "./shopUtils.server.js";
 const COMPAT_FIELDS = new Set([
   "firstName",
   "lastName",
+  "name",
+  "ownerName",
   "email",
   "domain",
   "contactNumber",
+  "phone",
+  "city",
+  "country",
+  "currency",
   "appStatus",
+  "status",
+  "reviewSubmittedAt",
+  "reviewRating",
+  "reviewComment",
 ]);
 
 const COMPAT_ERROR_CODES = new Set(["P2021", "P2022"]);
@@ -163,4 +173,3 @@ export const safeCreateShop = async ({
     });
   }
 };
-

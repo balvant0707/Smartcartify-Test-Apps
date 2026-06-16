@@ -173,7 +173,8 @@ export const loader = async ({ request }) => {
 
   if (resolvedShop && accessToken) {
     // Fetch store owner contact info from Shopify
-    let firstName = null, lastName = null, email = null, contactNumber = null;
+    let firstName = null, lastName = null, name = null, ownerName = null, email = null, contactNumber = null;
+    let phone = null, city = null, country = null, currency = null;
     let domain = resolvedShop;
     try {
       const restRes = await fetch(
@@ -187,9 +188,15 @@ export const loader = async ({ request }) => {
           const nameParts = (s.shop_owner || "").trim().split(/\s+/);
           firstName = nameParts[0] || null;
           lastName = nameParts.slice(1).join(" ") || null;
+          name = s.name || null;
+          ownerName = s.shop_owner || [firstName, lastName].filter(Boolean).join(" ") || null;
           email = s.email || null;
           domain = s.domain || s.myshopify_domain || resolvedShop;
           contactNumber = s.phone || null;
+          phone = s.phone || null;
+          city = s.city || null;
+          country = s.country_name || s.country || s.country_code || null;
+          currency = s.currency || null;
         }
       } else {
         console.error(`[app.jsx loader] REST shop fetch failed: HTTP ${restRes.status}`);
@@ -209,12 +216,19 @@ export const loader = async ({ request }) => {
             accessToken,
             installed: true,
             appStatus: "active",
+            status: "installed",
             onboardedAt: new Date(),
             firstName,
             lastName,
+            name,
+            ownerName,
             email,
             domain,
             contactNumber,
+            phone,
+            city,
+            country,
+            currency,
           },
         });
       } else {
@@ -225,11 +239,18 @@ export const loader = async ({ request }) => {
             accessToken,
             installed: true,
             appStatus: "active",
+            status: "installed",
             firstName: firstName ?? existing.firstName,
             lastName: lastName ?? existing.lastName,
+            name: name ?? existing.name,
+            ownerName: ownerName ?? existing.ownerName,
             email: email ?? existing.email,
             domain: domain ?? existing.domain,
             contactNumber: contactNumber ?? existing.contactNumber,
+            phone: phone ?? existing.phone,
+            city: city ?? existing.city,
+            country: country ?? existing.country,
+            currency: currency ?? existing.currency,
           },
         });
       }
