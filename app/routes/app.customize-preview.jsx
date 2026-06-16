@@ -36,7 +36,7 @@ const CART_ICON_ALLOWED_TYPES = new Map([
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_STYLE = {
-  font: "Inter, sans-serif",
+  font: "",
   base: "12",
   headingScale: "1.25",
   radius: "0",

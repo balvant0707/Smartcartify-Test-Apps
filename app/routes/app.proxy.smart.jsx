@@ -401,7 +401,7 @@ const mergeStyleCartIconUrl = async (styleSettings) => {
 
   try {
     const rows = await prisma.$queryRaw`
-      SELECT cartIconUrl, cartIconType, cartDefaultIcon, cartDrawerGradientStart, cartDrawerGradientEnd, offerButtonEnabled
+      SELECT cartIconUrl, cartIconType, cartDefaultIcon, cartDrawerGradientStart, cartDrawerGradientEnd, offerButtonEnabled, progressBg
       FROM stylesettings
       WHERE id = ${styleSettings.id}
       LIMIT 1
@@ -415,6 +415,7 @@ const mergeStyleCartIconUrl = async (styleSettings) => {
       cartDrawerGradientStart: row?.cartDrawerGradientStart || styleSettings.cartDrawerGradientStart || "",
       cartDrawerGradientEnd: row?.cartDrawerGradientEnd || styleSettings.cartDrawerGradientEnd || "",
       offerButtonEnabled: row?.offerButtonEnabled !== false && row?.offerButtonEnabled !== 0,
+      progressBg: row?.progressBg || "",
     };
   } catch (error) {
     logger.warn("[proxy] Failed to load style cart icon URL", error);
@@ -818,6 +819,20 @@ export const loader = async ({ request }) => {
         }
       };
 
+  const safeStyleSettings = () =>
+    prisma.styleSettings
+      .findFirst({
+        where: { shop },
+        orderBy: { id: "desc" },
+      })
+      .catch(async (err) => {
+        if (String(err?.code) === "P2022" || /Unknown column|Unknown field|does not exist/i.test(String(err?.message))) {
+          await prisma.$executeRawUnsafe("ALTER TABLE `stylesettings` ADD COLUMN `progressBg` VARCHAR(32) NULL").catch(() => {});
+          return prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } }).catch(() => null);
+        }
+        throw err;
+      });
+
       const [
         shopRow,
         shippingRules,
@@ -835,7 +850,7 @@ export const loader = async ({ request }) => {
         safeFreeGiftRules(),
         prisma.bxgyRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
         prisma.cartGoalRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
-        prisma.styleSettings.findFirst({ where: { shop }, orderBy: { id: "desc" } }),
+    safeStyleSettings(),
         prisma.upsellSettings.findUnique({ where: { shop } }),
         safeCartBarSettings(),
       ]);
