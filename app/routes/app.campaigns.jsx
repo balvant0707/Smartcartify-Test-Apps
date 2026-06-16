@@ -646,7 +646,7 @@ export default function CampaignSelector() {
   const host = searchParams.get("host");
 
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
-  const [selectedId, setSelectedId] = useState("code-discount");
+  const [selectedId, setSelectedId] = useState("cart-goal");
   const [creatingRuleId, setCreatingRuleId] = useState(null);
 
   // Build URL for a rule editor page, appending host if present.

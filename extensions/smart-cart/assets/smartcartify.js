@@ -7169,10 +7169,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const offerIconSvg = (type) => {
     if (type === "shipping") {
-      return `<svg viewBox="0 0 24 24" fill="none"><path d="M3 7h11v9H3V7ZM14 11h3.5l2.5 3v2h-6v-5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" stroke="currentColor" stroke-width="2"/></svg>`;
+      return `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 5.25c0-.414.336-.75.75-.75h6.991a2.75 2.75 0 0 1 2.644 1.995l.427 1.494a.25.25 0 0 0 .18.173l1.682.421A1.75 1.75 0 0 1 18 10.281V11.5c0 .711-.424 1.323-1.032 1.597.021.131.032.266.032.403a2.5 2.5 0 1 1-4.988-.25H8.988A2.5 2.5 0 1 1 4.208 12.5H3.75a.75.75 0 0 1 0-1.5h2.5c.03 0 .059.002.088.005A2.5 2.5 0 0 1 8.285 11.75h4.43A2.493 2.493 0 0 1 16.283 11.748.25.25 0 0 0 16.5 11.5v-1.219a.25.25 0 0 0-.189-.243l-1.683-.42a1.75 1.75 0 0 1-1.258-1.217l-.427-1.494A1.25 1.25 0 0 0 11.74 6H4.75A.75.75 0 0 1 4 5.25ZM6.5 14.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/><path d="M3.25 8a.75.75 0 0 0 0 1.5h5a.75.75 0 0 0 0-1.5h-5Z"/></svg>`;
     }
-    if (type === "code" || type === "discount") {
-      return `<svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="m8 15 8-8M8.5 9.5h.01M15.5 14.5h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+    if (type === "code") {
+      return `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.5 4.5h-11a1 1 0 0 0-1 1v2.043a1.75 1.75 0 0 1 0 3.414V13.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2.543a1.75 1.75 0 0 1 0-3.414V5.5a1 1 0 0 0-1-1ZM4.5 3A2.5 2.5 0 0 0 2 5.5v2.75a.75.75 0 0 0 .75.75.25.25 0 0 1 0 .5.75.75 0 0 0-.75.75v3.25A2.5 2.5 0 0 0 4.5 16h11a2.5 2.5 0 0 0 2.5-2.5v-3.25a.75.75 0 0 0-.75-.75.25.25 0 0 1 0-.5.75.75 0 0 0 .75-.75V5.5A2.5 2.5 0 0 0 15.5 3h-11Z" clip-rule="evenodd"/><path d="M13.28 7.03a.75.75 0 1 0-1.06-1.06l-5.5 5.5a.75.75 0 1 0 1.06 1.06l5.5-5.5ZM8 7.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM13 12.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>`;
+    }
+    if (type === "discount") {
+      return `<svg viewBox="0 0 20 20" fill="currentColor"><path d="M7.5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM12.5 11a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/><path fill-rule="evenodd" d="M14.53 5.47a.75.75 0 0 1 0 1.06l-8 8a.75.75 0 0 1-1.06-1.06l8-8a.75.75 0 0 1 1.06 0ZM3 5.5A2.5 2.5 0 0 1 5.5 3h9A2.5 2.5 0 0 1 17 5.5v9a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 3 14.5v-9ZM5.5 4.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-9Z" clip-rule="evenodd"/></svg>`;
     }
     if (type === "bxgy" || type === "buyxgety") {
       return `<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h16M8 4v4M16 4v4M6 8v12h12V8" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 13h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
@@ -7183,8 +7186,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getOfferStepTitle = (step) => {
     const type = String(step?.type || "").toLowerCase();
     if (type === "shipping") return "Free Shipping";
-    if (type === "free") return "Free Gift";
-    if (type === "discount") return step?.progressTextBelow || step?.title || "Discount";
+    if (type === "free") {
+      const title = trimToNull(step?.title);
+      return !title || /^free gift$/i.test(title) ? "Free Gift Products" : title;
+    }
+    if (type === "discount") {
+      const raw = trimToNull(step?.progressTextBelow) || trimToNull(step?.title);
+      if (!raw) return "Order Discount";
+      return String(raw).replace(/\s*off\s*$/i, " Discount!");
+    }
     if (type === "bxgy" || type === "buyxgety") return step?.title || "Buy X Get Y Discount";
     return step?.title || "Offer";
   };
@@ -7193,14 +7203,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const normalized = String(type || "").toLowerCase();
     if (normalized === "code") return "Discount Code";
     if (normalized === "shipping") return trimToNull(rule?.campaignName) || "Free Shipping";
-    if (normalized === "free") return trimToNull(rule?.campaignName) || "Free Gift";
+    if (normalized === "free") {
+      const name = trimToNull(rule?.campaignName);
+      return !name || /^free gift$/i.test(name) ? "Free Gift Products" : name;
+    }
     if (normalized === "bxgy" || normalized === "buyxgety") {
       return trimToNull(rule?.campaignName) || "Buy X Get Y Discount";
     }
     if (normalized === "discount") {
       const tokens = getDiscountValueTokens(rule);
       const value = trimToNull(tokens?.value) || trimToNull(tokens?.valueWithOff);
-      if (value) return `${String(value).replace(/\s*off\b/gi, "").trim()} Discount`;
+      if (value) return `${String(value).replace(/\s*off\b/gi, "").trim()} Discount!`;
       return trimToNull(rule?.campaignName) || fallback || "Order Discount";
     }
     return trimToNull(rule?.campaignName) || fallback;
@@ -7286,7 +7299,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       subtotalRupees,
       useRemainingForGoal: normalized === "code" ? !codeEligible : !complete,
     });
-    return trimToNull(replaced) || fallback;
+    const finalText = normalized === "free"
+      ? String(replaced || "").replace(/\bfree gift\b/gi, "Free Gift Products")
+      : replaced;
+    return trimToNull(finalText) || fallback;
   };
 
   const getOfferProductThumbs = (type, rule) => {
@@ -7785,15 +7801,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       <div class="sc-offer-row">
         <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("discount")}</span>
         <span class="sc-offer-copy">
-          <p class="sc-offer-title">20% Discount</p>
+          <p class="sc-offer-title">20% Discount!</p>
           <p class="sc-offer-subtitle">Add INR 1,000 more to get a 20% discount on this order</p>
         </span>
       </div>
       <div class="sc-offer-row">
         <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("free")}</span>
         <span class="sc-offer-copy">
-          <p class="sc-offer-title">Free Gift</p>
-          <p class="sc-offer-subtitle">Add INR 1,050 more to get Free Gift with this order</p>
+          <p class="sc-offer-title">Free Gift Products</p>
+          <p class="sc-offer-subtitle">Add INR 1,050 more to get Free Gift Products with this order</p>
         </span>
         <button class="sc-offer-action" type="button">Show Gifts</button>
       </div>
