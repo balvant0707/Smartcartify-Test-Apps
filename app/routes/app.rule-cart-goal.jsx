@@ -1182,18 +1182,20 @@ function PreviewPanel({
   campaignName,
   onCampaignNameChange,
   goals,
+  shownGoals,
   trackBy,
   sliderValue,
   onSliderChange,
 }) {
   const activeGoals = Array.isArray(goals) ? goals : [];
-  const maxGoal = Math.max(...activeGoals.map((goal) => Number(goal.goal || 0)), 1);
-  const totalSteps = activeGoals.length;
+  const visibleGoals = activeGoals.slice(0, shownGoals || 3);
+  const maxGoal = Math.max(...visibleGoals.map((goal) => Number(goal.goal || 0)), 1);
+  const totalSteps = visibleGoals.length;
   const cartValue = (maxGoal * sliderValue) / 100;
-  const nextIncompleteGoal = activeGoals.find(
+  const nextIncompleteGoal = visibleGoals.find(
     (goal) => cartValue < Number(goal.goal || 0)
   );
-  const messageGoal = nextIncompleteGoal || activeGoals[activeGoals.length - 1];
+  const messageGoal = nextIncompleteGoal || visibleGoals[visibleGoals.length - 1];
   const isMessageGoalCompleted = Boolean(messageGoal) && !nextIncompleteGoal;
   const remaining = Math.max(0, Number(messageGoal?.goal || 0) - cartValue).toFixed(0);
   const goalToken = trackBy === "quantity" ? remaining : `${remaining} INR`;
@@ -1257,7 +1259,7 @@ function PreviewPanel({
                     style={{ width: `${Math.min(100, sliderValue)}%` }}
                   />
                 </div>
-                {activeGoals.map((goal, index) => {
+                {visibleGoals.map((goal, index) => {
                   const goalValue = Number(goal.goal || 0);
                   const stepPosition =
                     index === totalSteps - 1
@@ -1373,7 +1375,21 @@ function ContentSection({
 }
 
 function TextEditModal({ goal, index, onClose, onChange }) {
+  const [popoverField, setPopoverField] = useState(null);
+
   if (!goal) return null;
+
+  const variables = [
+    { label: "Goal value", content: "{{goal}}" },
+    ...(goal.type === "discount" ? [{ label: "Discount value", content: "{{discount}}" }] : []),
+  ];
+
+  const handleInsert = (fieldKey, variable) => {
+    const currentValue = goal.texts[fieldKey] || "";
+    const newValue = currentValue + (currentValue && !currentValue.endsWith(" ") ? " " : "") + variable;
+    onChange(index, fieldKey, newValue);
+    setPopoverField(null);
+  };
 
   return (
     <Modal
@@ -1391,6 +1407,28 @@ function TextEditModal({ goal, index, onClose, onChange }) {
                 value={goal.texts[field.key]}
                 onChange={(value) => onChange(index, field.key, value)}
                 autoComplete="off"
+                connectedRight={
+                  <Popover
+                    active={popoverField === field.key}
+                    activator={
+                      <Button
+                        onClick={() =>
+                          setPopoverField(popoverField === field.key ? null : field.key)
+                        }
+                      >
+                        {"{}"}
+                      </Button>
+                    }
+                    onClose={() => setPopoverField(null)}
+                  >
+                    <ActionList
+                      items={variables.map((v) => ({
+                        content: `Insert ${v.label}`,
+                        onAction: () => handleInsert(field.key, v.content),
+                      }))}
+                    />
+                  </Popover>
+                }
               />
             </div>
           ))}
@@ -1497,7 +1535,7 @@ function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
           </Card>
         </BlockStack>
 
-        <BlockStack gap="200">
+        <BlockStack gap="200" style={{ display: "none" }}>
           <Text variant="bodyMd" as="p" fontWeight="semibold">
             Showcase free gifts in cart below item list
           </Text>
@@ -1511,7 +1549,7 @@ function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
           />
         </BlockStack>
 
-        <BlockStack gap="200">
+        <BlockStack gap="200" style={{ display: "none" }}>
           <Text variant="bodyMd" as="p" fontWeight="semibold">
             How other discounts affect cart progress bar
           </Text>
@@ -1531,7 +1569,7 @@ function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
           />
         </BlockStack>
 
-        <BlockStack gap="200">
+        <BlockStack gap="200" style={{ display: "none" }}>
           <Text variant="bodyMd" as="p" fontWeight="semibold">
             Is reward selection mandatory?
           </Text>
@@ -2409,14 +2447,6 @@ export default function RuleCartGoal() {
           overflow: auto;
           padding-right: 8px;
         }
-        .cg-tokenField {
-          position: relative;
-        }
-        .cg-tokenField .Polaris-Button {
-          position: absolute;
-          right: 0;
-          top: 0;
-        }
         .cg-targetBox {
           display: grid;
           grid-template-columns: 48px minmax(0, 1fr) auto;
@@ -2600,6 +2630,7 @@ export default function RuleCartGoal() {
             campaignName={campaignName}
             onCampaignNameChange={setCampaignName}
             goals={sortedGoals}
+            shownGoals={shownGoals}
             trackBy={trackBy}
             sliderValue={sliderValue}
             onSliderChange={setSliderValue}
