@@ -554,6 +554,41 @@ const withAlpha = (hex, alpha) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+const hexToRgb = (hex) => {
+  const raw = String(hex || "").trim();
+  if (!HEX_COLOR_RE.test(raw)) return null;
+  const h = raw.slice(1);
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+};
+
+const relativeLuminance = (hex) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  const channel = (value) => {
+    const normalized = value / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b);
+};
+
+const contrastRatio = (a, b) => {
+  const left = relativeLuminance(a);
+  const right = relativeLuminance(b);
+  if (left === null || right === null) return 21;
+  const lighter = Math.max(left, right);
+  const darker = Math.min(left, right);
+  return (lighter + 0.05) / (darker + 0.05);
+};
+
+const readableColorOn = (background) =>
+  (relativeLuminance(background) ?? 0) > 0.45 ? "#000000" : "#ffffff";
+
 const PREVIEW_FALLBACK_STEPS = [
   { label: "Free Gift!!", rule: { _ruleType: "free", iconChoice: "gift", _defaultIcon: GiftCardIcon } },
   { label: "20% Off!", rule: { _ruleType: "discount", iconChoice: "tag", _defaultIcon: DiscountIcon } },
@@ -853,6 +888,8 @@ function CartDrawerPreview({
   const brc = borderColor || "#E1E5ED";
   const ic = iconColor || pc;
   const surface = uiBg || "#ffffff";
+  const progressSurface = uiBg || "#ffffff";
+  const completedIconColor = contrastRatio(ic, pc) >= 3 ? ic : readableColorOn(pc);
   const gradStart = drawerGradientStart || DEFAULT_STYLE.cartDrawerGradientStart;
   const gradEnd = drawerGradientEnd || DEFAULT_STYLE.cartDrawerGradientEnd;
 
@@ -1086,7 +1123,7 @@ function CartDrawerPreview({
   };
 
   const drawerBackgroundStyle = drawerBgMode === "gradient"
-    ? { background: `linear-gradient(135deg, ${gradStart}, ${gradEnd})` }
+    ? { background: `linear-gradient(180deg, ${gradStart}, ${gradEnd})` }
     : drawerBgMode === "image" && drawerImage
       ? {
         background: `linear-gradient(rgba(255,255,255,.90), rgba(255,255,255,.90)), url(${drawerImage})`,
@@ -1175,6 +1212,12 @@ function CartDrawerPreview({
         @media (prefers-reduced-motion: reduce) {
           .cp-announcementTrack { animation: none; }
         }
+        .cp-preview-discount-code .Polaris-TextField,
+        .cp-preview-discount-code .Polaris-TextField__Input,
+        .cp-preview-discount-code .Polaris-TextField__Backdrop {
+          border-radius: 0 !important;
+          --pc-shadow-bevel-border-radius: 0 !important;
+        }
       `}</style>
       <div
         style={{
@@ -1198,7 +1241,7 @@ function CartDrawerPreview({
           ...drawerBackgroundStyle,
         }}
       >
-        <div style={{ padding: "11px 16px 10px", flexShrink: 0, ...headerBackgroundStyle }}>
+        <div style={{ padding: "11px 16px 10px", flexShrink: 0 }}>
           <InlineStack align="space-between" blockAlign="center" wrap={false}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0, color: hc }}>
               {showCustomCartIcon ? (
@@ -1279,13 +1322,14 @@ function CartDrawerPreview({
           style={{
             padding:"5px",
             textAlign: "center",
-            background: surface,
+            background: progressSurface,
             color: ptc,
-            borderBottom: `.5px solid ${brc}`,
+            border: `1px solid ${brc}`,
             borderRadius: Math.max(r + 2, 10),
             flexShrink: 0,
             boxShadow: "0 1px 3px rgba(15,23,42,.08)",
             overflow: "hidden",
+            margin: 1,
           }}
         >
           <div style={{ position: "relative", minHeight: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1358,8 +1402,8 @@ function CartDrawerPreview({
                       borderRadius: "50%",
                       display: "grid",
                       placeItems: "center",
-                      background: done ? pc : surface,
-                      color: done ? blc : ic,
+                      background: done ? pc : progressSurface,
+                      color: done ? completedIconColor : ic,
                       border: `2px solid ${done ? pc : withAlpha(ptc, 0.72)}`,
                       boxShadow: "0 1px 4px rgba(15,23,42,.18)",
                     }}
@@ -1391,7 +1435,6 @@ function CartDrawerPreview({
             flex: 1,
             minHeight: 0,
             border: `1px solid ${brc}`,
-            background: surface,
             overflow: "auto",
             boxShadow: "0 1px 3px rgba(15,23,42,.08)",
           }}
@@ -1700,7 +1743,7 @@ function CartDrawerPreview({
         {activeDrawerTab === "cart" && discountCodeApply && (
           <div style={{ padding: "10px 10px 0", flexShrink: 0 }}>
             <InlineStack gap="200" wrap={false}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="cp-preview-discount-code" style={{ flex: 1, minWidth: 0 }}>
                 <TextField
                   label="Discount code"
                   labelHidden
@@ -1714,15 +1757,16 @@ function CartDrawerPreview({
                 type="button"
                 style={{
                   border: 0,
-                  borderRadius: Math.max(r, 6),
+                  borderRadius: Math.max(r, 2),
                   background: bc,
                   color: blc,
                   padding: "0 16px",
-                  minHeight: 36,
+                  minHeight: 40,
                   fontWeight: 900,
                   fontSize: Math.max(fs - 1, 11),
                   cursor: "pointer",
                   whiteSpace: "nowrap",
+                  width:"100px",
                 }}
               >
                 Apply
@@ -1737,8 +1781,7 @@ function CartDrawerPreview({
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             minHeight: 58,
-            borderTop: `1px solid ${brc}`,
-            background: surface,
+            border: `1px solid ${brc}`,
             boxShadow: stickyCheckout ? "0 -8px 18px rgba(15,23,42,.08)" : "none",
             flexShrink: 0,
             margin: discountCodeApply ? "0 10px 8px" : "8px 10px 8px",
@@ -1748,7 +1791,7 @@ function CartDrawerPreview({
         >
           <Box padding="200">
             <BlockStack gap="050">
-              <div style={{ color: `${tc}99`, fontSize: Math.max(fs - 2, 10), fontWeight: 700 }}>Total</div>
+              <div style={{ color: `${tc}99`, fontSize: Math.max(fs), fontWeight: 700 }}>Total</div>
               <div style={{ color: tc, fontSize: Math.max(fs + 2, 14), fontWeight: 900, lineHeight: "18px" }}>{totalPrice}</div>
             </BlockStack>
           </Box>
@@ -1926,7 +1969,7 @@ export default function CustomizePreview() {
     }, { method: "post", encType: "application/json" });
   };
 
-  const previewBg = drawerBgMode === "color" ? (drawerBg || bg || "#fff") : drawerBgMode === "gradient" ? `linear-gradient(180deg, ${drawerGradientStart}, ${drawerGradientEnd})` : "#fff";
+  const previewBg = drawerBgMode === "color" ? (drawerBg || bg || "#fff") : drawerBgMode === "gradient" ? `linear-gradient(90deg, ${drawerGradientStart}  0%, ${drawerGradientEnd} 100%))` : "#fff";
 
   return (
     <Page
@@ -2145,13 +2188,11 @@ export default function CustomizePreview() {
                     onChange={setCheckoutButtonText}
                     autoComplete="off"
                     placeholder="Checkout"
-                    helpText="Text shown on the checkout button inside the cart drawer."
                   />
                   <Checkbox
                     label="Show discount code input"
                     checked={discountCodeApply}
                     onChange={setDiscountCodeApply}
-                    helpText="Lets customers enter and apply a discount code from inside the cart drawer."
                   />
                 </BlockStack>
 
@@ -2189,7 +2230,6 @@ export default function CustomizePreview() {
                       label="Show Cart and Offers buttons"
                       checked={offerButtonEnabled}
                       onChange={setOfferButtonEnabled}
-                      helpText="Adds the bottom Cart / Offers tab buttons. Turn off to hide both buttons."
                     />
                   </div>
                 </BlockStack>
