@@ -4481,9 +4481,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   grid-template-columns:70px minmax(0, 1fr) auto;
   gap:14px;
   align-items:center;
-  padding:20px 16px;
+  padding:10px 10px;
   border-top:1px solid var(--sc-border);
-  min-height:92px;
 }
 .sc-offer-row:first-child{border-top:0;}
 .sc-offer-icon{
@@ -4610,6 +4609,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-weight:900;
   cursor:pointer;
   padding:8px 10px;
+  display:none;
 }
 .sc-offer-code-apply:disabled{
   cursor:default;
@@ -4653,7 +4653,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   justify-content:center;
   gap:7px;
   font-size:var(--sc-base-font-size);
-  font-weight:900;
+  font-weight7900;
+  box-shadow: 10px 10px 10px 10px #000000;
   cursor:pointer;
 }
 .sc-footer-tab.is-active{
@@ -7659,8 +7660,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           <div class="sc-static-progress-line"></div>
           <div class="sc-static-progress-fill"></div>
           <div class="sc-static-step"><span>▣</span>Free Shipping!</div>
-          <div class="sc-static-step"><span>▣</span>20% Off</div>
-          <div class="sc-static-step"><span>▣</span>Free Gift!</div>
+          <div class="sc-static-step"><span>▣</span>20% Discount</div>
+          <div class="sc-static-step"><span>▣</span>Free Product!</div>
         </div>
       `;
     }
