@@ -4607,6 +4607,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
   cursor:pointer;
   padding:8px 10px;
 }
+.sc-offer-code-apply:disabled{
+  cursor:default;
+  opacity:.72;
+}
 .sc-offer-action{
   border:2px solid var(--sc-checkout-bg);
   background:#fff;
@@ -5819,7 +5823,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       <div class="sc-footer-tabs" data-offer-tabs hidden>
         <button class="sc-footer-tab is-active" data-drawer-tab="cart" type="button">
           <span class="sc-footer-tab-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M6 6h15l-1.2 7H8L6 6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M6 6H3M9 19h.01M18 19h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+           <svg viewBox="0 0 20 20" class="Polaris-Icon__Svg" focusable="false" aria-hidden="true"><path fill-rule="evenodd" d="M2.5 3.75a.75.75 0 0 1 .75-.75h1.612a1.75 1.75 0 0 1 1.732 1.5h9.656a.75.75 0 0 1 .748.808l-.358 4.653a2.75 2.75 0 0 1-2.742 2.539h-6.351l.093.78a.25.25 0 0 0 .248.22h6.362a.75.75 0 0 1 0 1.5h-6.362a1.75 1.75 0 0 1-1.738-1.543l-1.04-8.737a.25.25 0 0 0-.248-.22h-1.612a.75.75 0 0 1-.75-.75Zm4.868 7.25h6.53a1.25 1.25 0 0 0 1.246-1.154l.296-3.846h-8.667l.595 5Z"></path><path d="M10 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path><path d="M15 17a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg>
           </span>
           <span>Cart</span>
         </button>
@@ -7187,29 +7191,51 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return text;
   };
 
+  const isCodeDiscountRuleApplied = (rule) => {
+    const code = getDiscountRuleCode(rule);
+    return Boolean(code && isDiscountAppliedInCart(code));
+  };
+
+  const getRuleThresholdState = (type, rule) => {
+    const progressMetric = getRuleProgressMetric(type, rule);
+    const goalValue = Number(progressMetric?.goal);
+    const currentValue = Number(progressMetric?.current);
+    const hasThreshold = Number.isFinite(goalValue) && goalValue > 0;
+    return {
+      hasThreshold,
+      complete:
+        hasThreshold &&
+        Number.isFinite(currentValue) &&
+        currentValue >= goalValue,
+    };
+  };
+
   const getOfferRuleSubtitle = (type, rule, fallback = "Reward available in this order") => {
     const normalized = String(type || "").toLowerCase();
     const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor();
-    const progressMetric = getRuleProgressMetric(normalized === "code" ? "discount" : normalized, rule);
-    const goalValue = Number(progressMetric?.goal);
-    const currentValue = Number(progressMetric?.current);
-    const complete =
-      Number.isFinite(goalValue) &&
-      goalValue > 0 &&
-      Number.isFinite(currentValue) &&
-      currentValue >= goalValue;
+    const textType = normalized === "code" ? "discount" : normalized;
+    const thresholdState = getRuleThresholdState(textType, rule);
+    const complete = normalized === "code"
+      ? isCodeDiscountRuleApplied(rule)
+      : thresholdState.complete;
+    const codeEligible =
+      normalized === "code" &&
+      (!thresholdState.hasThreshold || thresholdState.complete);
+    const codeNotAppliedPrompt =
+      "Apply code {{discount_code}} to get {{discount_value_with_off}}";
     const configured =
-      trimToNull(complete ? getProgressAfter(rule) : getProgressBefore(rule)) ||
+      normalized === "code" && !complete && codeEligible
+        ? codeNotAppliedPrompt
+        : trimToNull(complete ? getProgressAfter(rule) : getProgressBefore(rule)) ||
       getOfferUnlockText(complete ? rule?.afterOfferUnlockMessage : rule?.beforeOfferUnlockMessage) ||
       trimToNull(rule?.message) ||
       "";
-    const textType = normalized === "code" ? "discount" : normalized;
     const replaced = replaceProgressText({
       text: configured || fallback,
       type: textType,
       rule,
       subtotalRupees,
-      useRemainingForGoal: !complete,
+      useRemainingForGoal: normalized === "code" ? !codeEligible : !complete,
     });
     return trimToNull(replaced) || fallback;
   };
@@ -7284,13 +7310,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     (Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : []).forEach((rule, index) => {
       const code = getDiscountRuleCode(rule) || "";
       if (!code) return;
+      const applied = isCodeDiscountRuleApplied(rule);
       pushRow({
         key: `code:${code}:${getRuleKey(rule, "code") || index}`,
         type: "code",
         title: "Discount Code",
         subtitle: getOfferRuleSubtitle("code", rule, "Apply this discount code"),
         code,
-        action: "Apply Code",
+        action: applied ? "Applied" : "Apply Code",
+        applied,
         rule,
       });
     });
@@ -7422,7 +7450,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               </span>
               <span class="sc-offer-copied-text">Copied</span>
             </button>
-            <button class="sc-offer-code-apply" type="button" data-offer-code-apply="${safe(offer.code)}">${safe(offer.action || "Apply Code")}</button>
+            <button class="sc-offer-code-apply" type="button" data-offer-code-apply="${safe(offer.code)}"${offer.applied ? " disabled" : ""}>${safe(offer.action || "Apply Code")}</button>
           </span>`
         : offer.action
           ? `<button class="sc-offer-action" type="button" data-offer-action="${index}">${safe(offer.action)}</button>`
