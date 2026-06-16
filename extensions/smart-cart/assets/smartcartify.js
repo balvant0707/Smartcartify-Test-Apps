@@ -1,4 +1,4 @@
-﻿﻿(() => {
+﻿﻿﻿﻿﻿﻿(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -6688,15 +6688,54 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
     }
 
-    const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart")}`;
+    const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart.js")}`;
     if (discountButton) discountButton.disabled = true;
     setProgressLoading(true);
     try {
       await fetch(target, { credentials: "same-origin", redirect: "follow" });
+      
+      await fetch("/cart/update.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ 
+          attributes: { 
+            discount_code: code,
+            discountCode: code
+          } 
+        }),
+      });
+
       scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
       scStore.set("__SC_LAST_APPLIED_CODE__", code);
       await refreshFromNetwork();
       renderAllFromCache();
+
+      const isApplied = isDiscountAppliedInCart(code);
+      if (isApplied) {
+        if (discountMsg) discountMsg.style.color = "#16a34a";
+        setDiscountMessage(`Discount applied: ${code}`);
+
+        const appliedCodeRuleForMessage = findAppliedDiscountCodeRule();
+        const txt = appliedCodeRuleForMessage?.rule
+          ? replaceProgressText({
+              text: getProgressAfter(appliedCodeRuleForMessage.rule) || "",
+              type: "discount",
+              rule: appliedCodeRuleForMessage.rule,
+              subtotalRupees: (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0,
+              useRemainingForGoal: false,
+            })
+          : `Discount applied: ${code}`;
+          
+        firePaperEffect(2800);
+        showCenterCelebratePopup("Discount Applied ✅", txt || `Discount applied: ${code}`, 5000);
+        
+        const normalized = String(code).trim().toLowerCase();
+        markPopupShown("discount", normalized);
+        discountPopupShownForCode = normalized;
+      } else {
+        setDiscountMessage(`Discount code ${code} could not be applied.`);
+      }
     } catch (err) {
       console.error("[SmartCartify] discount apply failed:", err);
     } finally {
@@ -6717,6 +6756,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   if (discountButton) discountButton.addEventListener("click", applyDiscountCode);
   if (discountInput) {
     discountInput.addEventListener("input", () => {
+      if (discountMsg) discountMsg.style.color = "";
       setDiscountMessage("");
     });
     discountInput.addEventListener("keydown", (e) => {
@@ -8223,13 +8263,29 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       !!manualLower &&
       appliedCodes.some((c) => String(c).trim().toLowerCase() === manualLower);
 
-    const totalDiscountCentsRaw = Math.max(0, Number(CART?.total_discount || 0));
-    const totalDiscountCents =
-      appliedCodes.length === 0
-        ? totalDiscountCentsRaw
-        : hasManualAppliedCode
-          ? totalDiscountCentsRaw
-          : 0;
+    const completedAutoDiscountSteps = stepsForFooter.filter((step) => {
+      if (String(step?.type || "").toLowerCase() !== "discount") return false;
+      if (!isProgressStepDone(step, subtotalCents)) return false;
+      const ruleType = String(step?.rule?.type ?? step?.rule?.ruleType ?? "").trim().toLowerCase();
+      return ruleType !== "code";
+    });
+
+    const autoDiscountCents = completedAutoDiscountSteps.reduce((sum, step) => {
+      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
+      return Number.isFinite(discountCents) && discountCents > 0 ? sum + discountCents : sum;
+    }, 0);
+
+    const cartTotalDiscountRaw = Math.max(0, Number(CART?.total_discount || 0));
+    let totalDiscountCents = cartTotalDiscountRaw > 0 ? cartTotalDiscountRaw : autoDiscountCents;
+
+    const appliedCodeRuleForTotal = findAppliedDiscountCodeRule();
+    if (appliedCodeRuleForTotal?.rule) {
+      const codeDiscountCents = resolveCodeDiscountCents(appliedCodeRuleForTotal.rule, subtotalCents);
+      if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
+        totalDiscountCents += codeDiscountCents;
+      }
+    }
+
     const checkoutPayableCents = Math.max(0, subtotalCents - totalDiscountCents);
     const checkoutLabelEl = drawer.querySelector(".sc-checkout-label");
     if (checkoutLabelEl) {
@@ -10864,13 +10920,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       renderAllFromCache();
 
       if (String(settings?.ctaBehavior || "addToCart") === "buyNow") {
-        window.location.href = "/checkout";
+        const appliedCodes = getAppliedDiscountCodes();
+        const codeToApply = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY)) || (appliedCodes.length > 0 ? appliedCodes[0] : null);
+        window.location.href = codeToApply ? `/checkout?discount=${encodeURIComponent(codeToApply)}` : "/checkout";
         return;
       }
 
       const after = String(settings?.afterAddToCart || "openCartWidget");
       if (after === "goToCheckout") {
-        window.location.href = "/checkout";
+        const appliedCodes = getAppliedDiscountCodes();
+        const codeToApply = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY)) || (appliedCodes.length > 0 ? appliedCodes[0] : null);
+        window.location.href = codeToApply ? `/checkout?discount=${encodeURIComponent(codeToApply)}` : "/checkout";
         return;
       }
       if (after === "openCartWidget") {
@@ -11258,7 +11318,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   $("[data-checkout]")?.addEventListener("click", () => {
     recordCompletedRuleConversions();
-    window.location.href = "/checkout";
+    let checkoutUrl = "/checkout";
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const appliedCodes = getAppliedDiscountCodes();
+    const codeToApply = manualCode || (appliedCodes.length > 0 ? appliedCodes[0] : null);
+    
+    if (codeToApply) {
+      checkoutUrl += `?discount=${encodeURIComponent(codeToApply)}`;
+    }
+    window.location.href = checkoutUrl;
   });
 
   /* =========================================================
