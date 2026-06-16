@@ -3537,10 +3537,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-progress{
   background: var(--sc-progress-bg);
   color: var(--sc-progress-text);
-  padding:10px 14px 12px;
-  margin:0 10px 10px;
-  border:1px solid var(--sc-border);
-  border-radius:max(var(--sc-radius), 8px);
   position:relative;
   flex:0 0 auto;
   overflow:hidden;
@@ -3660,9 +3656,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   fill:currentColor;
 }
 .sc-dot-wrap.active .sc-dot-bubble{background:var(--sc-progress-bg);color:var(--sc-icon-color)}
-.sc-progress.sc-cart-goal-progress{
-  padding:10px 14px 12px;
-}
+
 .sc-progress.sc-cart-goal-progress .sc-label{
   margin-bottom:12px;
   font-weight:700;
@@ -8500,14 +8494,22 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
 
   const firstGiftSkuProductId = (value) => {
+    if (Array.isArray(value)) return normalizeResourceId(value[0]);
+    if (value && typeof value === "object") {
+      if (Array.isArray(value.products)) return normalizeResourceId(value.products[0]);
+      if (Array.isArray(value.productIds)) return normalizeResourceId(value.productIds[0]);
+      return normalizeResourceId(value);
+    }
     const raw = trimToNull(value);
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return trimToNull(parsed[0]);
-      if (Array.isArray(parsed?.products)) return trimToNull(parsed.products[0]);
+      if (Array.isArray(parsed)) return normalizeResourceId(parsed[0]);
+      if (Array.isArray(parsed?.products)) return normalizeResourceId(parsed.products[0]);
+      if (Array.isArray(parsed?.productIds)) return normalizeResourceId(parsed.productIds[0]);
+      return normalizeResourceId(parsed);
     } catch (_) { }
-    return raw;
+    return normalizeResourceId(raw);
   };
 
   const resolveRewardVariantForAdd = async (rule, variant) => {
@@ -8862,8 +8864,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const products = Array.isArray(rule?.bonusProducts)
       ? rule.bonusProducts
       : parseArrayish(rule?.bonusProducts);
-    const bonusIds = Array.isArray(rule?.bonusProductIds) ? rule.bonusProductIds : parseArrayish(rule?.bonusProductIds);
-    const rewardIds = Array.isArray(rule?.rewardProductIds) ? rule.rewardProductIds : parseArrayish(rule?.rewardProductIds);
+    const bonusIds = refsFromValue(rule?.bonusProductIds).map(normalizeResourceId).filter(Boolean);
+    const rewardIds = refsFromValue(rule?.rewardProductIds).map(normalizeResourceId).filter(Boolean);
     const giftSkuIds = refsFromValue(rule?.giftSku).map(normalizeResourceId).filter(Boolean);
     const ids = bonusIds.length > 0 ? bonusIds : rewardIds.length > 0 ? rewardIds : giftSkuIds;
 

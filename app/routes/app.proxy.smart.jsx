@@ -516,7 +516,10 @@ const mapCartGoalRuleForProxy = (rule = {}) => ({
 });
 
 const normalizeProductId = (value) => {
-  const raw = String(value || "").trim();
+  const source = value && typeof value === "object"
+    ? value.id ?? value.productId ?? value.product_id ?? value.originalId ?? value.gid
+    : value;
+  const raw = String(source || "").trim();
   if (!raw) return null;
   const m = raw.match(/\/(\d+)\s*$/);
   if (m) return m[1];
@@ -525,6 +528,52 @@ const normalizeProductId = (value) => {
 };
 
 const normalizeCollectionId = (value) => normalizeProductId(value);
+
+const parseResourceIdArray = (value) => {
+  if (!value) return [];
+  const normalizeList = (items) =>
+    (Array.isArray(items) ? items : [items])
+      .map(normalizeProductId)
+      .filter(Boolean);
+
+  if (Array.isArray(value)) return [...new Set(normalizeList(value))];
+  if (value && typeof value === "object") {
+    return [...new Set([
+      ...normalizeList(value.products),
+      ...normalizeList(value.productIds),
+      ...normalizeList(value),
+    ])];
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return [...new Set(normalizeList(parsed))];
+    if (parsed && typeof parsed === "object") {
+      return [...new Set([
+        ...normalizeList(parsed.products),
+        ...normalizeList(parsed.productIds),
+        ...normalizeList(parsed),
+      ])];
+    }
+  } catch {
+    return [...new Set(raw.split(",").map(normalizeProductId).filter(Boolean))];
+  }
+
+  return [];
+};
+
+const getBxgyRewardProductIds = (rule = {}) => {
+  const ids = [
+    ...parseResourceIdArray(rule.rewardProductIds),
+    ...parseResourceIdArray(rule.giftSku),
+    ...parseResourceIdArray(rule.bonusProductIds),
+    normalizeProductId(rule.bonusProductId),
+    normalizeProductId(rule.bonus),
+  ].filter(Boolean);
+  return [...new Set(ids)];
+};
 
 const mapAdminProducts = (products = []) =>
   products.map((p) => {
@@ -833,6 +882,36 @@ export const loader = async ({ request }) => {
         : [];
       const addToCartBarProduct = addToCartBarProducts[0] ?? null;
 
+      const bxgyRewardProductIds = [
+        ...new Set(
+          (Array.isArray(bxgyRules) ? bxgyRules : [])
+            .flatMap(getBxgyRewardProductIds)
+            .filter(Boolean)
+        ),
+      ];
+      const bxgyRewardProductsRaw = isAuthorized && bxgyRewardProductIds.length
+        ? await fetchProductsByIds(shop, shopAccessToken, bxgyRewardProductIds)
+        : [];
+      const bxgyRewardProductsMap = new Map(
+        bxgyRewardProductsRaw.map((product) => [String(product?.id || ""), product])
+      );
+      const bxgyRulesForProxy = (Array.isArray(bxgyRules) ? bxgyRules : []).map((rule) => {
+        const rewardIds = getBxgyRewardProductIds(rule);
+        const bonusProducts = rewardIds
+          .map((id) => bxgyRewardProductsMap.get(String(id)))
+          .filter(Boolean);
+
+        if (!bonusProducts.length) return rule;
+
+        return {
+          ...rule,
+          bonusProductId: rewardIds[0] || rule?.bonusProductId || null,
+          bonusProductIds: rewardIds,
+          bonusProducts,
+          rewardProducts: bonusProducts,
+        };
+      });
+
       const selectedCollectionIds = parseJsonArray(
         upsellSettings?.selectedCollectionIds
       );
@@ -880,7 +959,7 @@ export const loader = async ({ request }) => {
         _rawShippingRules: shippingRules,
         _rawDiscountRules: discountRules,
         _rawFreeGiftRules: freeGiftRules,
-        _rawBxgyRules: bxgyRules,
+        _rawBxgyRules: bxgyRulesForProxy,
         _rawCartGoalRules: cartGoalRules.map(mapCartGoalRuleForProxy),
         styleSettings: styleSettingsWithCartIcon ?? null,
         upsellSettings: upsellSettings ?? null,
