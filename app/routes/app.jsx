@@ -275,9 +275,9 @@ export default function App() {
         <ui-nav-menu>
           {/* <a href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</a> */}
           <a href={host ? `/app/campaigns?host=${encodeURIComponent(host)}` : "/app/campaigns"}>Create Campaign</a>
-          <a href={host ? `/app/customize-preview?host=${encodeURIComponent(host)}` : "/app/customize-preview"}>Customize & Preview</a>
-          <a href={host ? `/app/my-rules?host=${encodeURIComponent(host)}` : "/app/my-rules"}>My Rules</a>
+          <a href={host ? `/app/my-campaigns?host=${encodeURIComponent(host)}` : "/app/my-campaigns"}>My Campaigns</a>
           <a href={host ? `/app/cartbar?host=${encodeURIComponent(host)}` : "/app/cartbar"}>Add to Cart Bar</a>
+          <a href={host ? `/app/customize-preview?host=${encodeURIComponent(host)}` : "/app/customize-preview"}>Customize & Preview</a>
           <a href={analyticsHref}>Analytics</a>
           <a href={docsHref}>Documents</a>
         </ui-nav-menu>

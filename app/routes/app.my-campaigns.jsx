@@ -9,14 +9,14 @@ import {
   DeleteIcon, PlusIcon, DuplicateIcon, ChevronUpIcon, ChevronDownIcon,
   ProductIcon,
 } from "@shopify/polaris-icons";
-import { authenticate } from "../shopify.server";
-import prisma from "../db.server";
+import { authenticate } from "../shopify.server.js";
+import prisma from "../db.server.js";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
 import {
   clearCartGoalDiscountIdsFromGoals,
   deactivateCartGoalRuleDiscounts,
   reconcileCartGoalPriorityDiscounts,
-} from "../lib/cartGoalPriority.server";
+} from "../lib/cartGoalPriority.server.js";
 
 const HIDDEN_CAMPAIGN_TYPES = new Set(["shipping", "automatic-discount", "free-product"]);
 
@@ -677,9 +677,9 @@ export default function MyRules() {
 
   return (
     <Page
-      title="My Rules"
+      title="My Campaigns"
       primaryAction={{
-        content: "Create rule",
+        content: "Create Campaign",
         icon: PlusIcon,
         onAction: () => navigate(withHost("/app/campaigns")),
       }}
