@@ -1277,12 +1277,11 @@ function CartDrawerPreview({
 
         <div
           style={{
-            padding: "12px 14px 13px",
-            margin: "0 12px 12px",
+            padding:"5px",
             textAlign: "center",
             background: surface,
             color: ptc,
-            border: `2px solid ${brc}`,
+            borderBottom: `.5px solid ${brc}`,
             borderRadius: Math.max(r + 2, 10),
             flexShrink: 0,
             boxShadow: "0 1px 3px rgba(15,23,42,.08)",
@@ -1391,9 +1390,7 @@ function CartDrawerPreview({
           style={{
             flex: 1,
             minHeight: 0,
-            margin: "0 10px",
             border: `1px solid ${brc}`,
-            borderRadius: Math.max(r, 8),
             background: surface,
             overflow: "auto",
             boxShadow: "0 1px 3px rgba(15,23,42,.08)",
