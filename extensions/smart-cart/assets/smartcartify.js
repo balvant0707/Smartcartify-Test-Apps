@@ -5957,6 +5957,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         ruleKey: offer.ruleKey || offer.key,
         slot: offer.slot,
         title: offer.title,
+        goalMet: offer.goalMet !== false,
         force: true
       });
     }
@@ -7213,6 +7214,20 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     };
   };
 
+  const isBxgyOfferGoalMet = (type, rule) => {
+    const normalized = String(type || "").toLowerCase();
+    if (normalized !== "bxgy" && normalized !== "buyxgety") return true;
+
+    const status = getBuyXGetYStatuses().find((item) => {
+      const itemKey = getRuleKey(item.rule, "buyxgety") || getRuleKey(item.rule, "bxgy");
+      const ruleKey = getRuleKey(rule, "buyxgety") || getRuleKey(rule, "bxgy");
+      return item.rule === rule || (itemKey && ruleKey && String(itemKey) === String(ruleKey));
+    });
+    if (status) return Boolean(status.complete);
+
+    return Boolean(getRuleThresholdState(normalized, rule).complete);
+  };
+
   const getOfferRuleSubtitle = (type, rule, fallback = "Reward available in this order") => {
     const normalized = String(type || "").toLowerCase();
     const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor();
@@ -7346,6 +7361,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           title: getOfferRuleTitle("bxgy", rule, "Buy X Get Y Discount"),
           subtitle: getOfferRuleSubtitle("bxgy", rule, fallback),
           action: "Show Gifts",
+          goalMet: isBxgyOfferGoalMet("bxgy", rule),
           rule,
           thumbs: getOfferProductThumbs("bxgy", rule),
         });
@@ -7366,6 +7382,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ? trimToNull(step.progressTextAfter) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order")
           : trimToNull(step.progressTextBefore) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order"),
         action: type === "free" || type === "bxgy" || type === "buyxgety" ? "Show Gifts" : "",
+        goalMet: type === "bxgy" || type === "buyxgety" ? isBxgyOfferGoalMet(type, step.rule) : true,
         rule: step.rule,
         slot: step.slot,
         thumbs: getOfferProductThumbs(type, step.rule),
@@ -8768,16 +8785,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         ? rewardPopupCache.current.options
         : [];
       const selectedCount = selectedId ? 1 : 0;
+      const goalMet = rewardPopupCache.current.goalMet !== false;
       if (rewardPopupCache.headerSubEl) {
         rewardPopupCache.headerSubEl.innerHTML = `Choose any 1 free gifts <span class="sc-freegift-count">${selectedCount}/1</span>`;
       }
-      if (rewardPopupCache.addButton) rewardPopupCache.addButton.disabled = selectedCount < 1;
+      if (rewardPopupCache.addButton) rewardPopupCache.addButton.disabled = selectedCount < 1 || !goalMet;
       if (rewardPopupCache.messageEl) {
         const addLabel = rewardPopupCache.current.kind === "free" ? "Add Free Gifts" : "Add Item";
         rewardPopupCache.messageEl.classList.remove("is-error");
-        rewardPopupCache.messageEl.textContent = selectedCount
-          ? `Item selected. Click ${addLabel} to add it to your cart.`
-          : "Select a free gift to add it to your cart.";
+        rewardPopupCache.messageEl.textContent = !goalMet
+          ? "Meet the Buy X Get Y goal to add this item."
+          : selectedCount
+            ? `Item selected. Click ${addLabel} to add it to your cart.`
+            : "Select a free gift to add it to your cart.";
       }
       if (rewardPopupCache.listEl) {
         rewardPopupCache.listEl.querySelectorAll(".sc-freegift-option").forEach((row) => {
@@ -8808,6 +8828,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       addBtn.addEventListener("click", async () => {
         if (!rewardPopupCache?.current) return;
         const cur = rewardPopupCache.current;
+        if (cur.goalMet === false) {
+          if (rewardPopupCache.messageEl) {
+            rewardPopupCache.messageEl.classList.add("is-error");
+            rewardPopupCache.messageEl.textContent = "Meet the Buy X Get Y goal to add this item.";
+          }
+          return;
+        }
         addBtn.disabled = true;
         addBtn.classList.add("loading");
 
@@ -8864,7 +8891,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           // addRewardToCart already logged this — show user-facing message only
           showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
         } finally {
-          addBtn.disabled = false;
+          const active = rewardPopupCache?.current;
+          const requiresSelection =
+            active?.kind === "free" ||
+            (
+              (active?.kind === "bxgy" || active?.kind === "buyxgety") &&
+              Array.isArray(active?.options) &&
+              active.options.length > 0
+            );
+          addBtn.disabled =
+            active?.goalMet === false ||
+            (requiresSelection && !active?.selectedOption);
           addBtn.classList.remove("loading");
         }
       });
@@ -9121,7 +9158,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (state.messageEl) {
       state.messageEl.hidden = false;
       state.messageEl.classList.remove("is-error");
-      state.messageEl.textContent = "Select a free gift to add it to your cart.";
+      state.messageEl.textContent = state.current.goalMet === false
+        ? "Meet the Buy X Get Y goal to add this item."
+        : "Select a free gift to add it to your cart.";
     }
 
     if (!state.current.options.length) {
@@ -9228,7 +9267,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
   };
 
-  const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title, force = false }) => {
+  const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title, goalMet = true, force = false }) => {
     console.debug("[SmartCartify] openRewardPopupFor called:", { kind, ruleKey, slot, rule: rule ? { bonusProductIds: rule.bonusProductIds, bonusProductId: rule.bonusProductId, bonus: rule.bonus } : null });
     console.info("[SmartCartify] reward popup rule products:", {
       kind,
@@ -9259,6 +9298,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!variant && !isMultiOptionReward && !canResolveByProductId && !hasBxgyReferences) return false;
 
     const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
+    const addItemGoalMet = kind === "free" ? true : goalMet !== false;
 
     // already shown in this session storage (page refresh safe)
     if (guardKey && !force && !canShowPopupFor(kind, guardKey)) return false;
@@ -9274,12 +9314,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const currency = normalizeCurrencyCode();
 
     if (state.iconEl) state.iconEl.innerHTML = kind === "free" ? (ICONS.gift || "🎁") : "🔥";
-    if (state.headerTitleEl) state.headerTitleEl.textContent = kind === "free" ? "Free gifts Unlocked" : "Offer product unlocked";
+    if (state.headerTitleEl) state.headerTitleEl.textContent = kind === "free" ? "Free gifts Unlocked" : "Buy X Get Y Discount product unlocked";
     if (state.headerSubEl) {
       state.headerSubEl.innerHTML =
         kind === "free"
           ? `Choose any 1 free gifts <span class="sc-freegift-count">0/1</span>`
-          : "Click Add to add it in your cart";
+          : addItemGoalMet
+            ? "Click Add to add it in your cart"
+            : "Meet the Buy X Get Y goal to add this item";
     }
 
     const imageUrl = variant?.image || variant?.product?.image || "";
@@ -9332,7 +9374,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (state.addButton) state.addButton.textContent = kind === "free" ? "✓ Add Free Gifts" : `Add Item${qty > 1 ? ` (${qty})` : ""}`;
 
-    state.current = { kind, ruleKey, slot, rule, variant, qty, options: [], selectedOption: null, selectedOptionId: null };
+    state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, options: [], selectedOption: null, selectedOptionId: null };
     state.overlay.classList.add("open");
 
     drawer.__sc_reward_popup_for = `${kind}:${guardKey || ""}`;
@@ -9358,7 +9400,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (state.messageEl) {
         state.messageEl.hidden = false;
         state.messageEl.classList.remove("is-error");
-        state.messageEl.textContent = "Select a free gift to add it to your cart.";
+        state.messageEl.textContent = addItemGoalMet
+          ? "Select a free gift to add it to your cart."
+          : "Meet the Buy X Get Y goal to add this item.";
       }
       if (state.addButton) {
         state.addButton.style.removeProperty("display");
@@ -9396,12 +9440,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
       if (state.optionsEl) state.optionsEl.innerHTML = "";
       if (state.messageEl) {
-        state.messageEl.hidden = true;
+        state.messageEl.hidden = addItemGoalMet;
         state.messageEl.classList.remove("is-error");
-        state.messageEl.textContent = "";
+        state.messageEl.textContent = addItemGoalMet ? "" : "Meet the Buy X Get Y goal to add this item.";
       }
       state.addButton.style.removeProperty("display");
-      state.addButton.disabled = false;
+      state.addButton.disabled = !addItemGoalMet;
     }
 
     return true;
