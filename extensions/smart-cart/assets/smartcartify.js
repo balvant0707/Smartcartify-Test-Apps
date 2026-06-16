@@ -4024,10 +4024,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   margin-top:0;
 }
 .sc-reward-line-badge{
-  flex:1 1 auto;
-  min-width:0;
-  padding-top:1px;
-  text-align:left;
+    min-width: 0;
+    text-align: left;
+    color: var(--sc-badge-text);
+    background: rgb(17 24 39 / 82%);
+    width: fit-content;
+    padding: 1px 10px;
+    border-radius: 10px;
 }
 .sc-qty-stack{
   display:flex;
@@ -4246,6 +4249,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:block;
   font-size:inherit;
   line-height:1;
+  color: var(--sc-drawer-text-color);
 }
 .sc-remove-x:hover{opacity:.85}
 
@@ -8253,13 +8257,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const freeTagText = isReward
           ? isFreeGift
             ? "Free"
-            : "Offer"
+            : "buyxgety"
           : "Free";
         const rewardBadge = isReward
           ? `<span class="sc-free-tag sc-free-tag-under sc-reward-line-badge">${safe(freeTagText)}</span>`
           : "";
         const bxgyLineBadge = !isReward && isBuyXGetYQualifyingLine(it)
-          ? `<span class="sc-free-tag sc-free-tag-under sc-bxgy-line-badge">Buy X Get Y</span>`
+          ? `<span class="sc-free-tag sc-free-tag-under sc-bxgy-line-badge"></span>`
           : "";
 
         const productUrl = trimToNull(it.url) || null;
