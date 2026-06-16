@@ -6112,8 +6112,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     );
     const progressBg = pickBackground(
       style,
-      ["progressBg", "progressBackground", "bg"],
-      "transparent"
+      ["progressBg", "progressBackground", "bg","progress"]
     );
 
     const drawerWidth = normalizeLen(

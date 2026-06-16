@@ -1324,8 +1324,6 @@ function CartDrawerPreview({
             textAlign: "center",
             background: progressSurface,
             color: ptc,
-            border: `1px solid ${brc}`,
-            borderRadius: Math.max(r + 2, 10),
             flexShrink: 0,
             boxShadow: "0 1px 3px rgba(15,23,42,.08)",
             overflow: "hidden",
