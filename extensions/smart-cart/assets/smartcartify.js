@@ -4272,8 +4272,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-discount{display:none !important;gap:10px;align-items:center;margin-bottom: 5px;order:4;flex-wrap:wrap;padding: 0 15px;}
 .sc-discount:not([hidden]){display:flex !important;}
-.sc-refreshing .sc-discount,
-.sc-loading-items .sc-discount{display:none !important;}
 .sc-discount input{
   flex:1;height:44px;
   border: 1px solid var(--sc-input-border);
@@ -7194,7 +7192,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const getOfferRuleTitle = (type, rule, fallback = "Offer") => {
     const normalized = String(type || "").toLowerCase();
-    if (normalized === "code") return "Discount Code";
+    if (normalized === "code") {
+      return trimToNull(rule?.codeCampaignName) || trimToNull(rule?.campaignName) || "Discount Code";
+    }
     if (normalized === "shipping") return trimToNull(rule?.campaignName) || "Free Shipping";
     if (normalized === "free") {
       const name = trimToNull(rule?.campaignName);
@@ -7372,7 +7372,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       pushRow({
         key: `code:${code}:${getRuleKey(rule, "code") || index}`,
         type: "code",
-        title: "Discount Code",
+        title: getOfferRuleTitle("code", rule, "Discount Code"),
         subtitle: getOfferRuleSubtitle("code", rule, "Apply this discount code"),
         code,
         action: applied ? "Applied" : "Apply Code",
@@ -7486,7 +7486,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
     });
 
-    return rows;
+    return rows.sort((a, b) => {
+      const priorityDiff = Number(b?.rule?.priority || 0) - Number(a?.rule?.priority || 0);
+      if (priorityDiff) return priorityDiff;
+      const bUpdated = new Date(b?.rule?.updatedAt || b?.rule?.updated_at || 0).getTime() || 0;
+      const aUpdated = new Date(a?.rule?.updatedAt || a?.rule?.updated_at || 0).getTime() || 0;
+      if (bUpdated !== aUpdated) return bUpdated - aUpdated;
+      return Number(b?.rule?.id || 0) - Number(a?.rule?.id || 0);
+    });
   };
 
   const renderOffersPanel = (steps = []) => {
@@ -8022,6 +8029,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return null;
   };
 
+  const formatDiscountAmount = (cents, currency) => {
+    const formatted = formatMoney(cents, currency);
+    return `-${String(formatted || "").replace(/^\s+/, "")}`;
+  };
+
   const renderFooterMilestones = ({ steps, subtotalCents, currency }) => {
     const host = drawer.querySelector("[data-footer-milestones]");
     if (!host) return;
@@ -8097,12 +8109,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (!discountBadge) discountBadge = rowBadge;
         rows.push({
           key: `code:${getRuleKey(appliedCode.rule, "code")}`,
-          label: "Discount",
+          label: "Discount Code",
           tag: rowBadge,
           tagIcon: true,
           amount:
             Number.isFinite(codeDiscountCents) && codeDiscountCents > 0
-              ? `- ${formatMoney(codeDiscountCents, currency)}`
+              ? formatDiscountAmount(codeDiscountCents, currency)
               : "Applied",
         });
       }
@@ -8136,7 +8148,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
 
     const hasDiscountRow = uniqueRows.some(
-      (row) => String(row?.label || "").trim().toLowerCase() === "discount"
+      (row) =>
+        row?.tagIcon ||
+        String(row?.label || "").trim().toLowerCase().includes("discount")
     );
 
     const rowsHtml = uniqueRows

@@ -124,6 +124,7 @@ const DISCOUNT_RULE_SELECT = {
   triggerType: true,
   minQuantity: true,
   enabled: true,
+  updatedAt: true,
   iconChoice: true,
   shopifyDiscountCodeId: true,
   discountCode: true,

@@ -241,6 +241,7 @@ export const action = async ({ request }) => {
     translations,
     startsAt,
     endsAt,
+    priority,
   } = body;
 
   const normalizedCondition = Object.values(CONDITION_TYPES).includes(conditionType)
@@ -329,7 +330,7 @@ export const action = async ({ request }) => {
     afterOfferUnlockMessage: afterPayload,
     startsAt: startsAt ? new Date(startsAt) : null,
     endsAt: endsAt ? new Date(endsAt) : null,
-    priority: 0,
+    priority: parseInt(priority || "0", 10) || 0,
     customerTarget: "all",
     customerTags: null,
     templateKey: normalizedCondition,
@@ -782,6 +783,7 @@ export default function RuleBxgy() {
 
   const [status, setStatus] = useState(r?.status ?? (r?.enabled ? "active" : "draft"));
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? defaultCampaignName);
+  const [priority, setPriority] = useState(String(r?.priority ?? "0"));
   const [conditionType, setConditionType] = useState(initialCondition);
   const [buyProductIds, setBuyProductIds] = useState(storedBuyProductIds);
   const [buyCollectionIds, setBuyCollectionIds] = useState(storedBuyCollectionIds);
@@ -994,6 +996,7 @@ export default function RuleBxgy() {
         translations: JSON.stringify(translations),
         startsAt: combineDateTime(startDate, startTime),
         endsAt: hasEndDate ? combineDateTime(endDate, endTime) : null,
+        priority,
       },
       { method: "post", encType: "application/json" }
     );
@@ -1401,6 +1404,14 @@ export default function RuleBxgy() {
                       value={campaignName}
                       onChange={setCampaignName}
                       autoComplete="off"
+                    />
+                    <TextField
+                      label="Priority"
+                      type="number"
+                      value={priority}
+                      onChange={setPriority}
+                      autoComplete="off"
+                      helpText="Higher priority campaigns appear first in the cart drawer offers."
                     />
                   </BlockStack>
                 </div>

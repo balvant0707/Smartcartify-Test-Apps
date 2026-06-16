@@ -215,7 +215,6 @@ export const loader = async ({ request }) => {
         meta: discountMeta(r),
         cartStep: ANNOUNCEMENT_BAR_LABEL,
         priority: r.priority || 0,
-        singleton: true,
       })),
     ...bxgyRows.map((r) => ({
       id: r.id,
@@ -226,7 +225,6 @@ export const loader = async ({ request }) => {
       meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " Â· Storewide" : ""}`,
       cartStep: ANNOUNCEMENT_BAR_LABEL,
       priority: r.priority || 0,
-      singleton: true,
     })),
     ...cartGoalRows.map((r, index) => ({
       id: r.id,
@@ -346,14 +344,6 @@ async function duplicateRule(ruleType, id, shop) {
     throw new Error("Upsell Product is a single settings rule and cannot be duplicated.");
   }
 
-  if (ruleType === "code-discount") {
-    throw new Error("Code Discount campaigns are limited to one per store and cannot be duplicated.");
-  }
-
-  if (ruleType === "buy-x-get-y") {
-    throw new Error("Buy X Get Y campaigns are limited to one per store and cannot be duplicated.");
-  }
-
   const model = getRuleModel(ruleType);
   if (!model) throw new Error("Unknown rule type");
 
@@ -399,6 +389,7 @@ async function duplicateRule(ruleType, id, shop) {
 
   if (ruleType === "buy-x-get-y") {
     data.buyxgetyId = null;
+    data.status = "draft";
   }
 
   return model.create({ data });
