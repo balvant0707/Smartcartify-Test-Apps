@@ -1144,7 +1144,7 @@ function CartDrawerPreview({
   const headerCartIcon = CART_DEFAULT_ICON_MAP[normalizeDefaultCartIcon(cartDefaultIcon)] || CartIcon;
   const isBottomSheetPreview = mobileLayout === "bottom_sheet";
   const previewHeight = isBottomSheetPreview ? 620 : 680;
-  const previewRadius = Math.max(r, 8);
+  const previewRadius = Math.max(r, 12);
 
   const ProductImage = ({ src, alt, size = 54 }) => (
     <img
