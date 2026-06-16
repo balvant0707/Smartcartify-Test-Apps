@@ -43,6 +43,7 @@ const DEFAULT_STYLE = {
   textColor: "#000000",
   bg: "#ffffff",
   progress: "#000000",
+  progressBg: "#ffffff",
   buttonColor: "#000000",
   buttonLabelColor: "#ffffff",
   borderColor: "#E1E5ED",
@@ -128,7 +129,8 @@ const ensureStyleSettingsColumns = async (prisma) => {
         'cartDefaultIcon',
         'cartDrawerGradientStart',
         'cartDrawerGradientEnd',
-        'offerButtonEnabled'
+        'offerButtonEnabled',
+        'progressBg'
       )
   `;
   const existing = new Set((Array.isArray(rows) ? rows : []).map((row) => String(row.columnName)));
@@ -149,6 +151,7 @@ const ensureStyleSettingsColumns = async (prisma) => {
   await addColumn("cartDrawerGradientStart", "ALTER TABLE `stylesettings` ADD COLUMN `cartDrawerGradientStart` VARCHAR(32) NULL");
   await addColumn("cartDrawerGradientEnd", "ALTER TABLE `stylesettings` ADD COLUMN `cartDrawerGradientEnd` VARCHAR(32) NULL");
   await addColumn("offerButtonEnabled", "ALTER TABLE `stylesettings` ADD COLUMN `offerButtonEnabled` BOOLEAN NOT NULL DEFAULT true");
+  await addColumn("progressBg", "ALTER TABLE `stylesettings` ADD COLUMN `progressBg` VARCHAR(32) NULL");
 };
 
 const ensureCartIconColumn = async (prisma) => {
@@ -166,7 +169,7 @@ const loadCartIconUrl = async (prisma, styleRow) => {
   try {
     await ensureStyleSettingsColumns(prisma);
     const rows = await prisma.$queryRaw`
-      SELECT cartIconUrl, cartIconType, cartDefaultIcon, cartDrawerGradientStart, cartDrawerGradientEnd, offerButtonEnabled
+      SELECT cartIconUrl, cartIconType, cartDefaultIcon, cartDrawerGradientStart, cartDrawerGradientEnd, offerButtonEnabled, progressBg
       FROM stylesettings
       WHERE id = ${styleRow.id}
       LIMIT 1
@@ -180,6 +183,7 @@ const loadCartIconUrl = async (prisma, styleRow) => {
       cartDrawerGradientStart: row?.cartDrawerGradientStart || "",
       cartDrawerGradientEnd: row?.cartDrawerGradientEnd || "",
       offerButtonEnabled: row?.offerButtonEnabled !== false && row?.offerButtonEnabled !== 0,
+      progressBg: row?.progressBg || "",
     };
   } catch { return styleRow; }
 };
@@ -473,6 +477,7 @@ export const action = async ({ request }) => {
     textColor: parseText(d.textColor) || DEFAULT_STYLE.textColor,
     bg: parseText(d.bg) || DEFAULT_STYLE.bg,
     progress: parseText(d.progress) || DEFAULT_STYLE.progress,
+    progressBg: parseText(d.progressBg) || DEFAULT_STYLE.progressBg,
     buttonColor: parseText(d.buttonColor) || DEFAULT_STYLE.buttonColor,
     buttonLabelColor: parseText(d.buttonLabelColor) || DEFAULT_STYLE.buttonLabelColor,
     borderColor: parseText(d.borderColor) || DEFAULT_STYLE.borderColor,
@@ -861,7 +866,7 @@ function normalizePreviewImage(src, fallback = "/images/upsellproduct.png") {
 
 function CartDrawerPreview({
   bg, uiBg, textColor, progressTextColor, headerColor, buttonColor, buttonLabelColor,
-  progress, radius, base, headingScale, font, checkoutText,
+  progress, progressBg, radius, base, headingScale, font, checkoutText,
   announcementBg, announcementText, announcementBarText,
   shippingRules, discountRules, freeGiftRules, cartGoalRules, upsellSettings,
   upsellPreviewItems,
@@ -888,7 +893,7 @@ function CartDrawerPreview({
   const brc = borderColor || "#E1E5ED";
   const ic = iconColor || pc;
   const surface = uiBg || "#ffffff";
-  const progressSurface = uiBg || "#ffffff";
+  const progressSurface = progressBg || uiBg || "#ffffff";
   const completedIconColor = contrastRatio(ic, pc) >= 3 ? ic : readableColorOn(pc);
   const gradStart = drawerGradientStart || DEFAULT_STYLE.cartDrawerGradientStart;
   const gradEnd = drawerGradientEnd || DEFAULT_STYLE.cartDrawerGradientEnd;
@@ -1899,6 +1904,7 @@ export default function CustomizePreview() {
   const [textColor, setTextColor] = useState(s.textColor ?? DEFAULT_STYLE.textColor);
   const [bg, setBg] = useState(s.bg ?? DEFAULT_STYLE.bg);
   const [progress, setProgress] = useState(s.progress ?? DEFAULT_STYLE.progress);
+  const [progressBg, setProgressBg] = useState(s.progressBg ?? DEFAULT_STYLE.progressBg);
   const [buttonColor, setButtonColor] = useState(s.buttonColor ?? DEFAULT_STYLE.buttonColor);
   const [buttonLabelColor, setButtonLabelColor] = useState(s.buttonLabelColor ?? DEFAULT_STYLE.buttonLabelColor);
   const [borderColor, setBorderColor] = useState(s.borderColor ?? DEFAULT_STYLE.borderColor);
@@ -1952,7 +1958,7 @@ export default function CustomizePreview() {
   const handleSave = () => {
     submit({
       font, base, headingScale, radius,
-      textColor, bg, progress, buttonColor, buttonLabelColor, borderColor, iconColor,
+      textColor, bg, progress, progressBg, buttonColor, buttonLabelColor, borderColor, iconColor,
       announcementBarBackgroundColor: announcementBg, announcementBarTextColor: announcementText, announcementBarText: announcementBarMsg,
       checkoutButtonText, discountCodeApply,
       cartIconType, cartDefaultIcon, cartIconUrl,
@@ -2033,6 +2039,7 @@ export default function CustomizePreview() {
                   <ColorField label="Text color" value={textColor} onChange={setTextColor} />
                   <ColorField label="Background" value={bg} onChange={setBg} />
                   <ColorField label="Progress bar" value={progress} onChange={setProgress} />
+                  <ColorField label="Progress background" value={progressBg} onChange={setProgressBg} />
                   <ColorField label="Border color" value={borderColor} onChange={setBorderColor} />
                   <ColorField label="Icon color" value={iconColor} onChange={setIconColor} />
                 </div>
@@ -2252,6 +2259,7 @@ export default function CustomizePreview() {
                   buttonColor={buttonColor}
                   buttonLabelColor={buttonLabelColor}
                   progress={progress}
+                  progressBg={progressBg}
                   radius={radius}
                   base={base}
                   headingScale={headingScale}
