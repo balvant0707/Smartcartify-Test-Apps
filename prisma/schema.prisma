@@ -282,6 +282,7 @@ model StyleSettings {
   stickyCheckout                 Boolean  @default(true)
   mobileLayout                   String   @default("drawer") @db.VarChar(32)
   offerButtonEnabled             Boolean  @default(true)
+  progressBg                     String?  @db.VarChar(32)
 
   @@map("stylesettings")
 }
