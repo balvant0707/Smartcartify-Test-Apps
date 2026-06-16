@@ -926,9 +926,6 @@ function GoalCard({
                 <Text variant="bodyMd" as="p" fontWeight="semibold">
                   {goal.title}
                 </Text>
-                <Text variant="bodySm" as="p" tone="subdued">
-                  ID: {goal.id}
-                </Text>
               </BlockStack>
             </InlineStack>
             <InlineStack gap="200" blockAlign="center">

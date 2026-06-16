@@ -7175,12 +7175,32 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return trimToNull(rule?.campaignName) || fallback;
   };
 
+  const getOfferUnlockText = (raw) => {
+    const text = trimToNull(raw);
+    if (!text) return "";
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object") {
+        return trimToNull(parsed.text) || trimToNull(parsed.title) || "";
+      }
+    } catch { /* plain text */ }
+    return text;
+  };
+
   const getOfferRuleSubtitle = (type, rule, fallback = "Reward available in this order") => {
     const normalized = String(type || "").toLowerCase();
     const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor();
+    const progressMetric = getRuleProgressMetric(normalized === "code" ? "discount" : normalized, rule);
+    const goalValue = Number(progressMetric?.goal);
+    const currentValue = Number(progressMetric?.current);
+    const complete =
+      Number.isFinite(goalValue) &&
+      goalValue > 0 &&
+      Number.isFinite(currentValue) &&
+      currentValue >= goalValue;
     const configured =
-      trimToNull(getProgressBefore(rule)) ||
-      trimToNull(rule?.beforeOfferUnlockMessage) ||
+      trimToNull(complete ? getProgressAfter(rule) : getProgressBefore(rule)) ||
+      getOfferUnlockText(complete ? rule?.afterOfferUnlockMessage : rule?.beforeOfferUnlockMessage) ||
       trimToNull(rule?.message) ||
       "";
     const textType = normalized === "code" ? "discount" : normalized;
@@ -7189,7 +7209,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       type: textType,
       rule,
       subtotalRupees,
-      useRemainingForGoal: true,
+      useRemainingForGoal: !complete,
     });
     return trimToNull(replaced) || fallback;
   };
@@ -7311,7 +7331,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         ruleKey,
         type,
         title: getOfferStepTitle(step),
-        subtitle: trimToNull(step.progressTextBefore) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order"),
+        subtitle: isProgressStepDone(step, getCartOriginalSubtotalCents())
+          ? trimToNull(step.progressTextAfter) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order")
+          : trimToNull(step.progressTextBefore) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order"),
         action: type === "free" || type === "bxgy" || type === "buyxgety" ? "Show Gifts" : "",
         rule: step.rule,
         slot: step.slot,

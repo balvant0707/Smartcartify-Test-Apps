@@ -1,0 +1,1 @@
+ALTER TABLE `bxgyrule` MODIFY `giftSku` LONGTEXT NULL;

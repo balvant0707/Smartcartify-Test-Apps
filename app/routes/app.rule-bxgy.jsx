@@ -306,7 +306,7 @@ export const action = async ({ request }) => {
     scope,
     appliesTo: appliesToPayload,
     giftType: "specific",
-    giftSku: selectedRewards.length ? JSON.stringify(selectedRewards) : null,
+    giftSku: selectedRewards[0] ? String(selectedRewards[0]) : null,
     maxGifts: maxUsesEnabled ? String(maxGifts || "1") : null,
     conditionType: normalizedCondition,
     buyProductIds: JSON.stringify(selectedBuyProducts),

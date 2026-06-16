@@ -9,9 +9,11 @@ import {
   AppProvider as PolarisProvider,
   Page,
   Box,
+  Frame,
   InlineStack,
   Spinner,
   Text,
+  Toast,
 } from "@shopify/polaris";
 import en from "@shopify/polaris/locales/en.json";
 import { authenticate, apiVersion } from "../shopify.server";
@@ -87,25 +89,27 @@ s-section::part(content) {
   --pc-box-border-radius: 14px ;
 }
 
-.global-save-feedback {
+.global-save-overlay {
   position: fixed;
-  top: 18px;
-  right: 18px;
+  inset: 0;
   z-index: 10000;
-  max-width: min(360px, calc(100vw - 32px));
-  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(48, 48, 48, 0.28);
+  pointer-events: auto;
 }
 
-.global-save-feedback__panel {
+.global-save-overlay__panel {
   background: #ffffff;
   border: 1px solid #dcdfe4;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
-  padding: 12px 14px;
-  pointer-events: auto;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  padding: 18px 22px;
+  min-width: 260px;
 }
 `;
 
-const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH"]);
 
 function isMutationMethod(method) {
   return MUTATION_METHODS.has(String(method || "").toUpperCase());
@@ -115,7 +119,7 @@ function SaveConfigurationFeedback() {
   const navigation = useNavigation();
   const fetchers = useFetchers();
   const wasSavingRef = useRef(false);
-  const [savedVisible, setSavedVisible] = useState(false);
+  const [toastActive, setToastActive] = useState(false);
 
   const navigationSaving =
     navigation.state !== "idle" && isMutationMethod(navigation.formMethod);
@@ -127,33 +131,37 @@ function SaveConfigurationFeedback() {
   useEffect(() => {
     if (isSaving) {
       wasSavingRef.current = true;
-      setSavedVisible(false);
+      setToastActive(false);
       return undefined;
     }
 
     if (!wasSavingRef.current) return undefined;
 
     wasSavingRef.current = false;
-    setSavedVisible(true);
-    const timer = setTimeout(() => setSavedVisible(false), 2500);
-    return () => clearTimeout(timer);
+    setToastActive(true);
+    return undefined;
   }, [isSaving]);
 
-  if (!isSaving && !savedVisible) return null;
+  const toastMarkup = toastActive ? (
+    <Toast content="Configuration saved" onDismiss={() => setToastActive(false)} />
+  ) : null;
 
   return (
-    <div className="global-save-feedback" role="status" aria-live="polite">
-      <div className="global-save-feedback__panel">
-        <InlineStack gap="200" blockAlign="center" wrap={false}>
-          {isSaving ? (
-            <Spinner accessibilityLabel="Saving configuration" size="small" />
-          ) : null}
-          <Text as="span" variant="bodyMd" fontWeight="semibold">
-            {isSaving ? "Saving configuration..." : "Configuration saved"}
-          </Text>
-        </InlineStack>
-      </div>
-    </div>
+    <>
+      {isSaving ? (
+        <div className="global-save-overlay" role="status" aria-live="polite">
+          <div className="global-save-overlay__panel">
+            <InlineStack gap="300" blockAlign="center" align="center" wrap={false}>
+              <Spinner accessibilityLabel="Saving configuration" size="small" />
+              <Text as="span" variant="bodyMd" fontWeight="semibold">
+                Saving configuration...
+              </Text>
+            </InlineStack>
+          </div>
+        </div>
+      ) : null}
+      {toastMarkup}
+    </>
   );
 }
 
@@ -272,20 +280,22 @@ export default function App() {
     <BridgeProvider embedded apiKey={apiKey} host={host} forceRedirect>
       <PolarisProvider i18n={en}>
         <style>{GLOBAL_POLARIS_RADIUS_CSS}</style>
-        <ui-nav-menu>
-          {/* <a href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</a> */}
-          <a href={host ? `/app/campaigns?host=${encodeURIComponent(host)}` : "/app/campaigns"}>Create Campaign</a>
-          <a href={host ? `/app/my-campaigns?host=${encodeURIComponent(host)}` : "/app/my-campaigns"}>My Campaigns</a>
-          <a href={host ? `/app/cartbar?host=${encodeURIComponent(host)}` : "/app/cartbar"}>Add to Cart Bar</a>
-          <a href={host ? `/app/customize-preview?host=${encodeURIComponent(host)}` : "/app/customize-preview"}>Customize & Preview</a>
-          <a href={analyticsHref}>Analytics</a>
-          <a href={docsHref}>Documents</a>
-        </ui-nav-menu>
+        <Frame>
+          <ui-nav-menu>
+            {/* <a href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</a> */}
+            <a href={host ? `/app/campaigns?host=${encodeURIComponent(host)}` : "/app/campaigns"}>Create Campaign</a>
+            <a href={host ? `/app/my-campaigns?host=${encodeURIComponent(host)}` : "/app/my-campaigns"}>My Campaigns</a>
+            <a href={host ? `/app/cartbar?host=${encodeURIComponent(host)}` : "/app/cartbar"}>Add to Cart Bar</a>
+            <a href={host ? `/app/customize-preview?host=${encodeURIComponent(host)}` : "/app/customize-preview"}>Customize & Preview</a>
+            <a href={analyticsHref}>Analytics</a>
+            <a href={docsHref}>Documents</a>
+          </ui-nav-menu>
 
-        <SaveConfigurationFeedback />
+          <SaveConfigurationFeedback />
 
-        {/* Nested routes render here */}
-        <Outlet />
+          {/* Nested routes render here */}
+          <Outlet />
+        </Frame>
       </PolarisProvider>
     </BridgeProvider>
   );

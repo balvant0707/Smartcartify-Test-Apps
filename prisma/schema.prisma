@@ -180,7 +180,7 @@ model BxgyRule {
   scope                    String
   appliesTo                String?   @db.LongText
   giftType                 String
-  giftSku                  String?
+  giftSku                  String?   @db.LongText
   maxGifts                 String?
   allowStacking            Boolean   @default(false)
   enabled                  Boolean   @default(true)
