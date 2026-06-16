@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿(() => {
+﻿﻿(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -6,7 +6,7 @@
   window.__SMARTCARTIFY_CARTDRAWER_V27__ = true;
 
   const root = document.getElementById("smart-embed-root");
-  if (!root) return;
+  if (!root) return;// (C) BuyXGetY (bxgyrule)
 
   // ✅ Turn ON to see table-wise logs in console (set to false for production)
   const DEBUG_TABLES = false;
@@ -2759,8 +2759,6 @@
       const labels = [
         "Discount Code",
         "Discount Value",
-        "Buy X Get Y Discount",
-        "Buy X Get Y",
       ];
       labels.forEach((label) => {
         const re = new RegExp(escapeRegExp(label), "gi");
@@ -2990,53 +2988,52 @@
     }
 
     // (C) BuyXGetY (bxgyrule)
-    const buyStatuses = getBuyXGetYStatuses();
-    // (C) BuyXGetY (bxgyrule) — show before-message while pending, after-message once complete
-    buyStatuses.forEach((st) => {
-      const r = st?.rule;
-      if (!r) return;
-      const xQty = Number(st?.xQty ?? r?.xQty ?? r?.x_qty ?? r?.x ?? r?.buyQty ?? r?.buy_qty ?? r?.buy);
-      const yQty = Number(st?.yQty ?? r?.yQty ?? r?.y_qty ?? r?.y ?? r?.getQty ?? r?.get_qty ?? r?.get);
-      const eligibleQty = Number(st?.eligibleQty ?? 0);
-      const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - eligibleQty);
+    // const buyStatuses = getBuyXGetYStatuses();
+    // buyStatuses.forEach((st) => {
+    //   const r = st?.rule;
+    //   if (!r) return;
+    //   const xQty = Number(st?.xQty ?? r?.xQty ?? r?.x_qty ?? r?.x ?? r?.buyQty ?? r?.buy_qty ?? r?.buy);
+    //   const yQty = Number(st?.yQty ?? r?.yQty ?? r?.y_qty ?? r?.y ?? r?.getQty ?? r?.get_qty ?? r?.get);
+    //   const eligibleQty = Number(st?.eligibleQty ?? 0);
+    //   const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - eligibleQty);
 
-      const beforeRaw =
-        r?.beforeOfferUnlockMessage ??
-        r?.beforeMessage ??
-        r?.before_message ??
-        "";
-      const afterRaw =
-        r?.afterOfferUnlockMessage ?? r?.afterMessage ?? r?.after_message ?? "";
-      const fallbackBefore = "Buy X Get Y: Add {{x}} more to unlock the offer";
-      const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
+    //   const beforeRaw =
+    //     r?.beforeOfferUnlockMessage ??
+    //     r?.beforeMessage ??
+    //     r?.before_message ??
+    //     "";
+    //   const afterRaw =
+    //     r?.afterOfferUnlockMessage ?? r?.afterMessage ?? r?.after_message ?? "";
+    //   const fallbackBefore = "Buy X Get Y: Add {{x}} more to unlock the offer";
+    //   const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
 
-      const beforeMsg = replaceTokensRaw(beforeRaw || fallbackBefore, {
-        x: Number.isFinite(xQty) ? remainingX : "",
-        y: Number.isFinite(yQty) ? yQty : "",
-        goal: "",
-      });
-      const afterMsg = replaceTokensRaw(afterRaw || fallbackAfter, {
-        x: Number.isFinite(xQty) ? xQty : "",
-        y: Number.isFinite(yQty) ? yQty : "",
-        goal: "",
-      });
+    //   const beforeMsg = replaceTokensRaw(beforeRaw || fallbackBefore, {
+    //     x: Number.isFinite(xQty) ? remainingX : "",
+    //     y: Number.isFinite(yQty) ? yQty : "",
+    //     goal: "",
+    //   });
+    //   const afterMsg = replaceTokensRaw(afterRaw || fallbackAfter, {
+    //     x: Number.isFinite(xQty) ? xQty : "",
+    //     y: Number.isFinite(yQty) ? yQty : "",
+    //     goal: "",
+    //   });
 
-      const msgBase = replaceProgressTextRaw({
-        text: st.complete ? (afterMsg || fallbackAfter) : (beforeMsg || fallbackBefore),
-        type: "bxgy",
-        rule: r,
-        subtotalRupees,
-        useRemainingForGoal: false,
-      });
+    //   const msgBase = replaceProgressTextRaw({
+    //     text: st.complete ? (afterMsg || fallbackAfter) : (beforeMsg || fallbackBefore),
+    //     type: "bxgy",
+    //     rule: r,
+    //     subtotalRupees,
+    //     useRemainingForGoal: false,
+    //   });
 
-      const values = [xQty, yQty];
-      let msg = emphasizeValues(msgBase, values, (v) => wrapEmValue(v));
-      values.forEach((v) => {
-        msg = padToken(msg, v);
-      });
-      msg = emphasizeLabels(msg);
-      if (trimToNull(msg)) msgs.push(msg);
-    });
+    //   const values = [xQty, yQty];
+    //   let msg = emphasizeValues(msgBase, values, (v) => wrapEmValue(v));
+    //   values.forEach((v) => {
+    //     msg = padToken(msg, v);
+    //   });
+    //   msg = emphasizeLabels(msg);
+    //   if (trimToNull(msg)) msgs.push(msg);
+    // });
 
     // NOTE: Sections D (automatic discount) and E (free gift) are intentionally omitted.
     // Those rule types appear as progress bar steps, not in the announcement bar.
@@ -6140,7 +6137,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     );
     const progressBg = pickBackground(
       style,
-      ["progressBg", "progressBackground", "bg","progress"]
+      ["progressBg", "progressBackground", "bg", "progress"]
     );
 
     const drawerWidth = normalizeLen(
@@ -6638,106 +6635,59 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const applyDiscountCode = async (codeOverride = "") => {
-    const overrideCode = trimToNull(codeOverride);
+    const overrideCode =
+      typeof codeOverride === "string" || typeof codeOverride === "number"
+        ? trimToNull(codeOverride)
+        : null;
+
     if (!overrideCode && (!discountInput || !drawerDiscountPanel || drawerDiscountPanel.hidden)) return;
-    const code = overrideCode || trimToNull(discountInput.value);
-    if (!code) return;
+
+    const code = overrideCode || trimToNull(discountInput?.value);
+
+    if (!code) {
+      setDiscountMessage("Please enter a discount code.");
+      return;
+    }
 
     setDiscountMessage("");
 
-    const rule = findCodeDiscountRuleByCode(code);
-    const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount").toLowerCase();
-    const codeThresholdMessage = (fallback) => {
-      if (!rule) return fallback;
-      const subtotalRupees = (getCartSubtotalCents() / priceDivisor()) || 0;
-      const configured = trimToNull(getProgressBefore(rule));
-      return replaceProgressText({
-        text: configured || fallback,
-        type: "discount",
-        rule,
-        subtotalRupees,
-        useRemainingForGoal: true,
-      }) || fallback;
-    };
-    if (triggerType === "quantity") {
-      const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
-      if (Number.isFinite(minQuantity) && minQuantity > 0) {
-        const cartQty = getCartTotalQty();
-        if (cartQty < minQuantity) {
-          setDiscountMessage(
-            codeThresholdMessage(`Add {{goal}} more to use code {{discount_code}}`)
-          );
-          return;
-        }
-      }
-    }
-    const minPurchase = Number(rule?.minPurchase ?? rule?.min_purchase);
-    if (triggerType !== "quantity" && Number.isFinite(minPurchase) && minPurchase > 0) {
-      const subtotalCents = getCartSubtotalCents();
-      const subtotalRupees = subtotalCents / priceDivisor();
-      if (subtotalRupees < minPurchase) {
-        const minCents = Math.round(minPurchase * priceDivisor());
-        const remainingCents = Math.max(0, Math.round((minPurchase - subtotalRupees) * priceDivisor()));
-        const minText = formatMoney(minCents, normalizeCurrencyCode());
-        const remainingText = formatMoney(remainingCents, normalizeCurrencyCode());
-        setDiscountMessage(
-          codeThresholdMessage(`Add {{goal}} more to use code {{discount_code}}`) ||
-          `No. Minimum purchase is ${minText}. Add ${remainingText} more.`
-        );
-        return;
-      }
-    }
-
     const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart.js")}`;
+
     if (discountButton) discountButton.disabled = true;
     setProgressLoading(true);
+
     try {
       await fetch(target, { credentials: "same-origin", redirect: "follow" });
-      
+
       await fetch("/cart/update.js", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ 
-          attributes: { 
+        body: JSON.stringify({
+          attributes: {
             discount_code: code,
-            discountCode: code
-          } 
+            discountCode: code,
+          },
         }),
       });
 
       scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
       scStore.set("__SC_LAST_APPLIED_CODE__", code);
+
       await refreshFromNetwork();
       renderAllFromCache();
 
-      const isApplied = isDiscountAppliedInCart(code);
-      if (isApplied) {
+      if (isDiscountAppliedInCart(code)) {
         if (discountMsg) discountMsg.style.color = "#16a34a";
         setDiscountMessage(`Discount applied: ${code}`);
-
-        const appliedCodeRuleForMessage = findAppliedDiscountCodeRule();
-        const txt = appliedCodeRuleForMessage?.rule
-          ? replaceProgressText({
-              text: getProgressAfter(appliedCodeRuleForMessage.rule) || "",
-              type: "discount",
-              rule: appliedCodeRuleForMessage.rule,
-              subtotalRupees: (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0,
-              useRemainingForGoal: false,
-            })
-          : `Discount applied: ${code}`;
-          
         firePaperEffect(2800);
-        showCenterCelebratePopup("Discount Applied ✅", txt || `Discount applied: ${code}`, 5000);
-        
-        const normalized = String(code).trim().toLowerCase();
-        markPopupShown("discount", normalized);
-        discountPopupShownForCode = normalized;
+        showCenterCelebratePopup("Discount Applied ✅", `Discount applied: ${code}`, 5000);
       } else {
         setDiscountMessage(`Discount code ${code} could not be applied.`);
       }
     } catch (err) {
       console.error("[SmartCartify] discount apply failed:", err);
+      setDiscountMessage("Could not apply discount code. Please try again.");
     } finally {
       setProgressLoading(false);
       if (discountButton) discountButton.disabled = false;
@@ -6753,7 +6703,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     updateDiscountPanelVisibility();
   };
 
-  if (discountButton) discountButton.addEventListener("click", applyDiscountCode);
+  if (discountButton) discountButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    applyDiscountCode();
+  });
   if (discountInput) {
     discountInput.addEventListener("input", () => {
       if (discountMsg) discountMsg.style.color = "";
@@ -7329,9 +7282,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       normalized === "code" && !complete && codeEligible
         ? codeNotAppliedPrompt
         : trimToNull(complete ? getProgressAfter(rule) : getProgressBefore(rule)) ||
-      getOfferUnlockText(complete ? rule?.afterOfferUnlockMessage : rule?.beforeOfferUnlockMessage) ||
-      trimToNull(rule?.message) ||
-      "";
+        getOfferUnlockText(complete ? rule?.afterOfferUnlockMessage : rule?.beforeOfferUnlockMessage) ||
+        trimToNull(rule?.message) ||
+        "";
     const replaced = replaceProgressText({
       text: configured || fallback,
       type: textType,
@@ -7389,12 +7342,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return `
         <span class="sc-offer-thumbs" aria-hidden="true">
           ${thumbs.map((thumb) => {
-            const label = safe((thumb.title || "G").slice(0, 1).toUpperCase());
-            const image = trimToNull(thumb.image);
-            return `<span class="sc-offer-thumb">${image
-              ? `<img src="${safe(image)}" alt="">`
-              : `<span>${label}</span>`}</span>`;
-          }).join("")}
+        const label = safe((thumb.title || "G").slice(0, 1).toUpperCase());
+        const image = trimToNull(thumb.image);
+        return `<span class="sc-offer-thumb">${image
+          ? `<img src="${safe(image)}" alt="">`
+          : `<span>${label}</span>`}</span>`;
+      }).join("")}
         </span>
       `;
     }
@@ -7820,7 +7773,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             </span>
             <span class="sc-offer-copied-text">Copied</span>
           </button>
-          <button class="sc-offer-code-apply" type="button" data-offer-code-apply="smart123">Apply Code</button>
+          <button class="sc-offer-code-apply" type="button" data-offer-code-apply="">Apply Code</button>
         </span>
       </div>
       <div class="sc-offer-row">
@@ -11322,7 +11275,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
     const appliedCodes = getAppliedDiscountCodes();
     const codeToApply = manualCode || (appliedCodes.length > 0 ? appliedCodes[0] : null);
-    
+
     if (codeToApply) {
       checkoutUrl += `?discount=${encodeURIComponent(codeToApply)}`;
     }
