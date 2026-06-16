@@ -1308,11 +1308,11 @@ function ContentSection({
   goals,
   shownGoals,
   onShownGoalsChange,
-  onGoalTextChange,
+  onEditGoal,
   open,
   onOpenChange,
 }) {
-  const [openGoal, setOpenGoal] = useState(0);
+  const [openGoal, setOpenGoal] = useState(-1);
 
   return (
     <SectionCard
@@ -1355,22 +1355,13 @@ function ContentSection({
                 </Button>
               </div>
               {openGoal === index && (
-                <div className="cg-contentItemBodyExpanded">
-                  <div className="cg-modalFields">
-                    {GOAL_TEXT_FIELDS.map((field) => (
-                      <div className="cg-tokenField" key={field.key}>
-                        <TextField
-                          label={field.label}
-                          value={goal.texts?.[field.key] || ""}
-                          onChange={(value) => onGoalTextChange(index, field.key, value)}
-                          autoComplete="off"
-                        />
-                        <Button accessibilityLabel="Insert variable">
-                          {"{}"}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                <div className="cg-contentItemBody">
+                  <Text variant="bodyMd" as="p" fontWeight="semibold">
+                    Edit texts of goal {index + 1}
+                  </Text>
+                  <Button icon={EditIcon} onClick={() => onEditGoal(index)}>
+                    Edit
+                  </Button>
                 </div>
               )}
             </div>
@@ -1378,6 +1369,34 @@ function ContentSection({
         </Card>
       </BlockStack>
     </SectionCard>
+  );
+}
+
+function TextEditModal({ goal, index, onClose, onChange }) {
+  if (!goal) return null;
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Edit texts of Goal ${index + 1}`}
+      primaryAction={{ content: "Done", onAction: onClose }}
+    >
+      <Modal.Section>
+        <div className="cg-modalFields">
+          {GOAL_TEXT_FIELDS.map((field) => (
+            <div className="cg-tokenField" key={field.key}>
+              <TextField
+                label={field.label}
+                value={goal.texts[field.key]}
+                onChange={(value) => onChange(index, field.key, value)}
+                autoComplete="off"
+              />
+            </div>
+          ))}
+        </div>
+      </Modal.Section>
+    </Modal>
   );
 }
 
@@ -1667,6 +1686,7 @@ export default function RuleCartGoal() {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [sliderValue, setSliderValue] = useState(0);
   const [shownGoals, setShownGoals] = useState(rule?.shownGoals ?? 3);
+  const [editingTextIndex, setEditingTextIndex] = useState(null);
   const [openSection, setOpenSection] = useState("goals");
   const [showGoalValidation, setShowGoalValidation] = useState(false);
   const [productPickerGoalIndex, setProductPickerGoalIndex] = useState(null);
@@ -2380,10 +2400,6 @@ export default function RuleCartGoal() {
           justify-content: space-between;
           background: #f6f6f6;
           padding: 14px 22px;
-        }
-        .cg-contentItemBodyExpanded {
-          background: #f6f6f6;
-          padding: 14px 22px;
           border-top: 1px solid #e1e3e5;
         }
         .cg-modalFields {
@@ -2565,7 +2581,7 @@ export default function RuleCartGoal() {
               goals={goals}
               shownGoals={shownGoals}
               onShownGoalsChange={setShownGoals}
-              onGoalTextChange={patchGoalText}
+              onEditGoal={setEditingTextIndex}
               open={openSection === "content"}
               onOpenChange={(open) => setOpenSection(open ? "content" : null)}
             />
@@ -2591,6 +2607,12 @@ export default function RuleCartGoal() {
         </div>
       </Box>
 
+      <TextEditModal
+        goal={editingTextIndex === null ? null : goals[editingTextIndex]}
+        index={editingTextIndex || 0}
+        onClose={() => setEditingTextIndex(null)}
+        onChange={patchGoalText}
+      />
       <ProductPickerModal
         open={productPickerGoalIndex !== null}
         onClose={() => setProductPickerGoalIndex(null)}
