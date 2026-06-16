@@ -1966,6 +1966,116 @@
   /* =========================================================
    ✅ Buy X Get Y statuses
   ========================================================= */
+  const parseObjectish = (value) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    if (typeof value !== "string") return {};
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const refsFromValue = (value) => {
+    if (Array.isArray(value)) return value;
+    if (value == null || value === "") return [];
+    if (typeof value === "string") {
+      const parsed = parseArrayish(value);
+      if (parsed.length) return parsed;
+      return value.split(",").map((part) => part.trim()).filter(Boolean);
+    }
+    return [value];
+  };
+
+  const normalizeResourceId = (value) => {
+    const raw = trimToNull(
+      value?.id ||
+      value?.productId ||
+      value?.product_id ||
+      value?.collectionId ||
+      value?.collection_id ||
+      value?.legacyResourceId ||
+      value?.legacy_resource_id ||
+      value
+    );
+    return raw ? String(gidToId(raw) || raw) : null;
+  };
+
+  const getBxgyBuyRefs = (rule) => {
+    const appliesTo = parseObjectish(rule?.appliesTo || rule?.applyTo || {});
+    const products = [
+      ...refsFromValue(appliesTo?.products),
+      ...refsFromValue(appliesTo?.productIds),
+      ...refsFromValue(appliesTo?.appliesProductIds),
+      ...refsFromValue(appliesTo?.buyProductIds),
+      ...refsFromValue(rule?.appliesProductIds),
+      ...refsFromValue(rule?.buyProductIds),
+    ].map(normalizeResourceId).filter(Boolean);
+    const collections = [
+      ...refsFromValue(appliesTo?.collections),
+      ...refsFromValue(appliesTo?.collectionIds),
+      ...refsFromValue(appliesTo?.appliesCollectionIds),
+      ...refsFromValue(appliesTo?.buyCollectionIds),
+      ...refsFromValue(rule?.appliesCollectionIds),
+      ...refsFromValue(rule?.buyCollectionIds),
+    ].map(normalizeResourceId).filter(Boolean);
+
+    return {
+      products: [...new Set(products)],
+      collections: [...new Set(collections)],
+    };
+  };
+
+  const isRewardCartLine = (item) => {
+    const props = item?.properties || {};
+    return (
+      String(props?._sc_free_gift || "").trim().toLowerCase() === "true" ||
+      String(props?._sc_bxgy_gift || "").trim().toLowerCase() === "true"
+    );
+  };
+
+  const getCartLineCollectionIds = (item) => {
+    const props = item?.properties || {};
+    return [
+      ...refsFromValue(props?._sc_collection_id),
+      ...refsFromValue(props?._collection_id),
+      ...refsFromValue(props?.collection_id),
+      ...refsFromValue(props?._sc_collection_ids),
+      ...refsFromValue(props?.collection_ids),
+      ...refsFromValue(item?.collection_id),
+      ...refsFromValue(item?.collection_ids),
+      ...refsFromValue(item?.collections),
+    ].map(normalizeResourceId).filter(Boolean);
+  };
+
+  const getEligibleBuyXGetYItems = (rule, cartItems = null) => {
+    const items = (Array.isArray(cartItems) ? cartItems : Array.isArray(CART?.items) ? CART.items : [])
+      .filter((item) => !isRewardCartLine(item));
+    const scope = normalizeBxgyScope(rule?.scope || rule?.scopeName || "store");
+    const refs = getBxgyBuyRefs(rule);
+
+    if (scope === "product") {
+      const allowed = new Set(refs.products);
+      if (!allowed.size) return [];
+      return items.filter((item) => allowed.has(String(item?.product_id || "")));
+    }
+
+    if (scope === "collection") {
+      const allowed = new Set(refs.collections);
+      if (!allowed.size) return [];
+
+      const linesWithCollectionMeta = items.filter((item) => getCartLineCollectionIds(item).length);
+      if (!linesWithCollectionMeta.length) return items;
+
+      return items.filter((item) =>
+        getCartLineCollectionIds(item).some((id) => allowed.has(String(id)))
+      );
+    }
+
+    return items;
+  };
+
   const getBuyXGetYStatuses = () => {
     const items = Array.isArray(CART?.items) ? CART.items : [];
     const statuses = [];
@@ -1974,39 +2084,7 @@
       if (!isRuleEnabled(r)) continue;
 
       const scope = normalizeBxgyScope(r?.scope || r?.scopeName || "store");
-      const appliesTo = r?.appliesTo || r?.applyTo || {};
-      const applyProducts = Array.isArray(appliesTo?.products)
-        ? appliesTo.products
-        : [];
-      const applyCollections = Array.isArray(appliesTo?.collections)
-        ? appliesTo.collections
-        : [];
-
-      let eligibleItems = items;
-
-      if (scope === "product") {
-        const allowed = new Set(
-          applyProducts.map(gidToId).filter(Boolean).map(String)
-        );
-        eligibleItems = items.filter((it) =>
-          allowed.has(String(it?.product_id || ""))
-        );
-      } else if (scope === "collection") {
-        const allowedCols = new Set(
-          applyCollections.map(gidToId).filter(Boolean).map(String)
-        );
-        eligibleItems = items.filter((it) => {
-          const props = it?.properties || {};
-          const col =
-            props?._sc_collection_id ||
-            props?._collection_id ||
-            props?.collection_id;
-          const id = gidToId(col) || (col ? String(col) : null);
-          return id && allowedCols.has(String(id));
-        });
-      } else {
-        eligibleItems = items;
-      }
+      const eligibleItems = getEligibleBuyXGetYItems(r, items);
 
       const eligibleQty = eligibleItems.reduce(
         (sum, it) => sum + (Number(it?.quantity) || 0),
@@ -3956,6 +4034,19 @@ body.sc-cartify-open .shopify-section-group-header-group{
   min-width:0;
   padding-top:1px;
   text-align:left;
+}
+.sc-qty-stack{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:4px;
+  min-width:0;
+}
+.sc-bxgy-line-badge{
+  margin-left:0;
+  color:var(--sc-free-tag-color);
+  font-weight:800;
+  white-space:nowrap;
 }
 
 .sc-upsell{
@@ -7874,21 +7965,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
     });
 
-    const completedBxgySteps = (Array.isArray(steps) ? steps : []).filter((step) => {
-      const type = String(step?.type || "").toLowerCase();
-      if (type !== "bxgy" && type !== "buyxgety") return false;
-      return isProgressStepDone(step, subtotalCents);
-    });
-
-    completedBxgySteps.forEach((step) => {
-      rows.push({
-        key: `bxgy:${step?.rule?.id ?? step?.title ?? step?.slot}`,
-        label: "Buy X Get Y",
-        tag: getFooterMilestoneTag(step.type, step.rule),
-        amount: "Free",
-      });
-    });
-
     const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
     const manualLower = manualCode ? manualCode.toLowerCase() : null;
     const hasManualAppliedCode =
@@ -8086,6 +8162,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return;
     }
 
+    const completedBuyXGetYStatuses = getBuyXGetYStatuses().filter((status) =>
+      status?.complete && status?.rule
+    );
+    const isBuyXGetYQualifyingLine = (item) =>
+      completedBuyXGetYStatuses.some((status) =>
+        getEligibleBuyXGetYItems(status.rule, items).includes(item)
+      );
+
     itemsWrap.innerHTML = items
       .map((it, idx) => {
         const line = idx + 1;
@@ -8131,6 +8215,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const rewardBadge = isReward
           ? `<span class="sc-free-tag sc-free-tag-under sc-reward-line-badge">${safe(freeTagText)}</span>`
           : "";
+        const bxgyLineBadge = !isReward && isBuyXGetYQualifyingLine(it)
+          ? `<span class="sc-free-tag sc-free-tag-under sc-bxgy-line-badge">Buy X Get Y</span>`
+          : "";
 
         const productUrl = trimToNull(it.url) || null;
         const nameHtml = productUrl ? `<a href="${safe(productUrl)}">${safe(it.product_title)}</a>` : `${safe(it.product_title)}`;
@@ -8151,11 +8238,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               <div class="sc-mid-bottom">
                 ${isReward
             ? rewardBadge
-            : `<div class="sc-qty">
+            : `<div class="sc-qty-stack">
+                <div class="sc-qty">
                   <button type="button" data-qty="dec" aria-label="Decrease">-</button>
                   <input type="number" min="0" inputmode="numeric" value="${qty}" data-qty="input" />
                   <button type="button" data-qty="inc" aria-label="Increase">+</button>
-                </div>`}
+                </div>
+                ${bxgyLineBadge}
+              </div>`}
                 <div class="sc-pricebox">
                   ${hasCompare
             ? `<span class="sc-compare">${formatMoney(isReward ? rewardCompareCents : compareLine, currency)}</span>`
@@ -8610,7 +8700,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const updateFreeGiftSelection = (value) => {
       if (
         !rewardPopupCache?.current ||
-        (rewardPopupCache.current.kind !== "free" && rewardPopupCache.current.kind !== "bxgy")
+        (
+          rewardPopupCache.current.kind !== "free" &&
+          rewardPopupCache.current.kind !== "bxgy" &&
+          rewardPopupCache.current.kind !== "buyxgety"
+        )
       )
         return;
       const selectedId = trimToNull(value);
@@ -8624,9 +8718,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
       if (rewardPopupCache.addButton) rewardPopupCache.addButton.disabled = selectedCount < 1;
       if (rewardPopupCache.messageEl) {
+        const addLabel = rewardPopupCache.current.kind === "free" ? "Add Free Gifts" : "Add Item";
         rewardPopupCache.messageEl.classList.remove("is-error");
         rewardPopupCache.messageEl.textContent = selectedCount
-          ? "Item selected. Click Add Free Gifts to add it to your cart."
+          ? `Item selected. Click ${addLabel} to add it to your cart.`
           : "Select a free gift to add it to your cart.";
       }
       if (rewardPopupCache.listEl) {
@@ -8664,7 +8759,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         try {
           const isMultiOption =
             cur.kind === "free" ||
-            (cur.kind === "bxgy" && Array.isArray(cur.options) && cur.options.length > 0);
+            (
+              (cur.kind === "bxgy" || cur.kind === "buyxgety") &&
+              Array.isArray(cur.options) &&
+              cur.options.length > 0
+            );
           const selectedOption = isMultiOption ? cur.selectedOption : null;
 
           if (isMultiOption && !selectedOption) {
@@ -8765,7 +8864,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       : parseArrayish(rule?.bonusProducts);
     const bonusIds = Array.isArray(rule?.bonusProductIds) ? rule.bonusProductIds : parseArrayish(rule?.bonusProductIds);
     const rewardIds = Array.isArray(rule?.rewardProductIds) ? rule.rewardProductIds : parseArrayish(rule?.rewardProductIds);
-    const ids = bonusIds.length > 0 ? bonusIds : rewardIds;
+    const giftSkuIds = refsFromValue(rule?.giftSku).map(normalizeResourceId).filter(Boolean);
+    const ids = bonusIds.length > 0 ? bonusIds : rewardIds.length > 0 ? rewardIds : giftSkuIds;
 
     const stringFallbackIds =
       !ids.length && typeof rule?.bonusProductIds === "string" && trimToNull(rule.bonusProductIds)
@@ -8775,7 +8875,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const productIds = products
       .map((product) => trimToNull(product?.id || product?.productId))
       .filter(Boolean);
-    const allIds = [...ids, ...stringFallbackIds, ...productIds, fallback].map(trimToNull).filter(Boolean);
+    const allIds = [...ids, ...stringFallbackIds, ...productIds, fallback]
+      .map((id) => normalizeResourceId(id) || trimToNull(id))
+      .filter(Boolean);
     return [...new Set(allIds)];
   };
 
@@ -9001,27 +9103,20 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const getBxgyReferenceItems = (rule) => {
-    const rawAppliesTo = rule?.appliesTo || rule?.applyTo || {};
-    const appliesTo = typeof rawAppliesTo === "object"
-      ? rawAppliesTo
-      : (() => {
-        try {
-          return JSON.parse(rawAppliesTo || "{}");
-        } catch {
-          return {};
-        }
-      })();
+    const appliesTo = parseObjectish(rule?.appliesTo || rule?.applyTo || {});
     const productRefs = [
-      ...(Array.isArray(appliesTo?.products) ? appliesTo.products : []),
-      ...parseArrayish(rule?.appliesProductIds),
-      ...parseArrayish(rule?.buyProductIds),
-      ...parseArrayish(rule?.rewardProductIds),
-      ...parseArrayish(rule?.giftSku),
+      ...refsFromValue(appliesTo?.products),
+      ...refsFromValue(appliesTo?.productIds),
+      ...refsFromValue(rule?.appliesProductIds),
+      ...refsFromValue(rule?.buyProductIds),
+      ...refsFromValue(rule?.rewardProductIds),
+      ...refsFromValue(rule?.giftSku),
     ];
     const collectionRefs = [
-      ...(Array.isArray(appliesTo?.collections) ? appliesTo.collections : []),
-      ...parseArrayish(rule?.appliesCollectionIds),
-      ...parseArrayish(rule?.buyCollectionIds),
+      ...refsFromValue(appliesTo?.collections),
+      ...refsFromValue(appliesTo?.collectionIds),
+      ...refsFromValue(rule?.appliesCollectionIds),
+      ...refsFromValue(rule?.buyCollectionIds),
     ];
     const normalizeRef = (item, type, index) => {
       const rawId = trimToNull(item?.id || item?.productId || item?.collectionId || item);
@@ -9093,7 +9188,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     // For cart goal free products with multiple options, variant will be null
     // Allow the popup to open so options can be resolved asynchronously
     const hasBonusProductIds = getFreeGiftProductIds(rule).length > 0;
-    const isMultiOptionReward = (kind === "free" || kind === "bxgy") && hasBonusProductIds;
+    const isMultiOptionReward = (kind === "free" || kind === "bxgy" || kind === "buyxgety") && hasBonusProductIds;
     const bxgyReferenceItems = kind !== "free" ? getBxgyReferenceItems(rule) : [];
     const hasBxgyReferences = bxgyReferenceItems.length > 0;
 
@@ -9342,27 +9437,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const computeBuyXGetYCompleteForRule = (rule) => {
     const items = Array.isArray(CART?.items) ? CART.items : [];
-
     const scope = normalizeBxgyScope(rule?.scope || rule?.scopeName || "store");
-
-    const appliesTo = rule?.appliesTo || rule?.applyTo || {};
-    const applyProducts = Array.isArray(appliesTo?.products) ? appliesTo.products : [];
-    const applyCollections = Array.isArray(appliesTo?.collections) ? appliesTo.collections : [];
-
-    let eligibleItems = items;
-
-    if (scope === "product") {
-      const allowed = new Set(applyProducts.map(gidToId).filter(Boolean).map(String));
-      eligibleItems = items.filter((it) => allowed.has(String(it?.product_id || "")));
-    } else if (scope === "collection") {
-      const allowedCols = new Set(applyCollections.map(gidToId).filter(Boolean).map(String));
-      eligibleItems = items.filter((it) => {
-        const props = it?.properties || {};
-        const col = props?._sc_collection_id || props?._collection_id || props?.collection_id;
-        const id = gidToId(col) || (col ? String(col) : null);
-        return id && allowedCols.has(String(id));
-      });
-    }
+    const eligibleItems = getEligibleBuyXGetYItems(rule, items);
 
     const eligibleQty = eligibleItems.reduce((sum, it) => sum + (Number(it?.quantity) || 0), 0);
     const eligibleSubtotalRupees =
@@ -9837,13 +9913,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       if (firstCompleted && !wasBuyCompletedBefore) {
         drawer.__sc_buy_completed_before = true;
-        // Auto-add the Y reward product for all scopes and any xQty.
-        void autoAddRewardIfNeeded({
+        const popupShown = openRewardPopupFor({
           kind: "buyxgety",
           rule: firstCompleted.rule,
           ruleKey: firstCompleted.ruleKey,
+          title: trimToNull(firstCompleted.afterMsg) || trimToNull(firstCompleted.currentMsg) || "Buy X Get Y unlocked",
         });
-        if (firstCompleted?.ruleKey) markPopupShown("buyxgety", firstCompleted.ruleKey);
+        if (popupShown) {
+          firePaperEffect(2800);
+          rewardPopupShown = true;
+        }
       } else if (bxgyCompleteNow && !LAST_BXGY_DONE) {
         const popupShown = bxgyNow
           ? openRewardPopupFor({
@@ -9883,14 +9962,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         });
       }
 
-      // Persistent auto-add for all currently complete buyxgety rules.
-      // Handles cases where the drawer was closed when the threshold was reached,
-      // and ensures all completed rules (not just the first) get their reward added.
-      buyStatuses.forEach((st) => {
+      const buyStatusToPrompt = buyStatuses.find((st) => {
         if (!st.complete || !st.rule) return;
         if (cartHasRewardForKey("buyxgety", st.ruleKey)) return;
-        void autoAddRewardIfNeeded({ kind: "buyxgety", rule: st.rule, ruleKey: st.ruleKey });
+        return canShowPopupFor("buyxgety", st.ruleKey);
       });
+      if (buyStatusToPrompt) {
+        openRewardPopupFor({
+          kind: "buyxgety",
+          rule: buyStatusToPrompt.rule,
+          ruleKey: buyStatusToPrompt.ruleKey,
+          title: trimToNull(buyStatusToPrompt.afterMsg) || trimToNull(buyStatusToPrompt.currentMsg) || "Buy X Get Y unlocked",
+        });
+      }
     }
 
     const stepCompletedNow = !priming && doneCount > LAST_DONE;
