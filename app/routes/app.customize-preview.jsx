@@ -2037,7 +2037,6 @@ export default function CustomizePreview() {
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Progress bar & UI</Text>
                 <div className="cp-color-grid">
                   <ColorField label="Text color" value={textColor} onChange={setTextColor} />
-                  <ColorField label="Background" value={bg} onChange={setBg} />
                   <ColorField label="Progress bar" value={progress} onChange={setProgress} />
                   <ColorField label="Progress background" value={progressBg} onChange={setProgressBg} />
                   <ColorField label="Border color" value={borderColor} onChange={setBorderColor} />
