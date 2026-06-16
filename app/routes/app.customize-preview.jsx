@@ -1056,7 +1056,7 @@ function CartDrawerPreview({
         key: `bxgy-${rule.id || rule.campaignName || fallback}`,
         type: "bxgy",
         title: rule.campaignName || "Buy X Get Y Discount",
-        subtitle: rule.beforeOfferUnlockMessage || fallback,
+        subtitle: rule.beforeOfferUnlockMessage.text || fallback,
         icon: PackageFulfilledIcon,
         action: "Show Gifts",
       };
@@ -1658,7 +1658,7 @@ function CartDrawerPreview({
               margin: "12px 10px 0",
               border: `1px solid ${brc}`,
               borderRadius: Math.max(r, 8),
-              background: surface,
+             ...drawerBackgroundStyle,
               overflow: "auto",
               boxShadow: "0 1px 3px rgba(15,23,42,.08)",
             }}
