@@ -74,6 +74,17 @@ export const action = async ({ request }) => {
     customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
   };
 
+  const numericDiscountValue = Number(value || 0);
+  const numericMinPurchase = Number(minPurchase || 0);
+
+  if (valueType === "percent" && numericDiscountValue > 100) {
+    return { error: "Percentage discount cannot be more than 100%." };
+  }
+
+  if (triggerType === "amount" && (!Number.isFinite(numericMinPurchase) || numericMinPurchase <= 0)) {
+    return { error: "Minimum cart value is required." };
+  }
+
   try {
     let existingShopifyId = null;
     if (id) {
@@ -202,6 +213,7 @@ export default function RuleCodeDiscount() {
   const [priority, setPriority] = useState(String(r?.priority ?? "0"));
   const [customerTarget, setCustomerTarget] = useState(r?.customerTarget ?? "all");
   const [customerTags, setCustomerTags] = useState(r?.customerTags ?? "");
+  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
@@ -211,7 +223,30 @@ export default function RuleCodeDiscount() {
     }
   }, [actionData, host, navigate, navigation.state, recordId]);
 
+  const validateForm = () => {
+    const errors = {};
+    const numericDiscountValue = Number(value || 0);
+    const numericMinPurchase = Number(minPurchase || 0);
+
+    if (valueType === "percent" && numericDiscountValue > 100) {
+      errors.value = "Percentage discount cannot be more than 100%.";
+    }
+
+    if (triggerType === "amount" && (!Number.isFinite(numericMinPurchase) || numericMinPurchase <= 0)) {
+      errors.minPurchase = "Minimum cart value is required.";
+    }
+
+    return errors;
+  };
+
   const handleSave = () => {
+    const errors = validateForm();
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
     submit(
       {
         id: recordId,
@@ -272,9 +307,34 @@ export default function RuleCodeDiscount() {
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
       title={codeCampaignName || "Code Discount"}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
-      secondaryActions={[{ content: enabled ? "Disable" : "Enable", onAction: () => setEnabled(v => !v) }]}
+      secondaryActions={[
+        {
+          content: enabled ? "Draft" : "Active",
+          tone: enabled ? "caution" : "success",
+          onAction: () => setEnabled(v => !v),
+        },
+      ]}
     >
-      <style>{`.cd-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}@media(max-width:900px){.cd-layout{grid-template-columns:1fr}}`}</style>
+      <style>{`
+        .cd-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+        .cd-statusButton{width:100%;border:0;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+        .cd-statusButtonActive{background:#22c55e;color:#fff}
+        .cd-statusButtonDraft{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+        .Polaris-Page-Header__RightAlign .Polaris-Button:not(.Polaris-Button--variantPrimary),
+        .Polaris-Page-Header__RightAlign .Polaris-Button:not(.Polaris-Button--variantPrimary)::before,
+        .Polaris-Page-Header__RightAlign .Polaris-Button:not(.Polaris-Button--variantPrimary)::after{
+          background:${enabled ? "#fef3c7" : "#22c55e"} !important;
+          background-color:${enabled ? "#fef3c7" : "#22c55e"} !important;
+          border-color:${enabled ? "#fcd34d" : "#22c55e"} !important;
+          color:${enabled ? "#92400e" : "#ffffff"} !important;
+          box-shadow:none !important;
+        }
+        .Polaris-Page-Header__RightAlign .Polaris-Button:not(.Polaris-Button--variantPrimary) *{
+          color:${enabled ? "#92400e" : "#ffffff"} !important;
+          fill:${enabled ? "#92400e" : "#ffffff"} !important;
+        }
+        @media(max-width:900px){.cd-layout{grid-template-columns:1fr}}
+      `}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
           <Banner tone="critical" title="Save failed">{actionData.error}</Banner>
@@ -308,14 +368,20 @@ export default function RuleCodeDiscount() {
                       checked={valueType === "percent"}
                       id="cd-vt-percent"
                       name="cdValueType"
-                      onChange={() => setValueType("percent")}
+                      onChange={() => {
+                        setValueType("percent");
+                        setFormErrors((current) => ({ ...current, value: undefined }));
+                      }}
                     />
                     <RadioButton
                       label="Fixed amount off"
                       checked={valueType === "amount"}
                       id="cd-vt-amount"
                       name="cdValueType"
-                      onChange={() => setValueType("amount")}
+                      onChange={() => {
+                        setValueType("amount");
+                        setFormErrors((current) => ({ ...current, value: undefined }));
+                      }}
                     />
                   </InlineStack>
                 </BlockStack>
@@ -324,8 +390,12 @@ export default function RuleCodeDiscount() {
                   label={valueType === "percent" ? "Percentage off" : "Amount off"}
                   type="number"
                   value={value}
-                  onChange={setValue}
+                  onChange={(nextValue) => {
+                    setValue(nextValue);
+                    setFormErrors((current) => ({ ...current, value: undefined }));
+                  }}
                   autoComplete="off"
+                  error={formErrors.value}
                   suffix={valueType === "percent" ? "%" : undefined}
                   prefix={valueType === "amount" ? "$" : undefined}
                   placeholder={valueType === "percent" ? "e.g. 15" : "e.g. 20"}
@@ -341,14 +411,18 @@ export default function RuleCodeDiscount() {
                 <Box>
                   {triggerTabIdx === 0 ? (
                     <TextField
-                      label="Minimum cart value (optional)"
+                      label="Minimum cart value"
                       type="number"
                       value={minPurchase}
-                      onChange={setMinPurchase}
+                      onChange={(nextValue) => {
+                        setMinPurchase(nextValue);
+                        setFormErrors((current) => ({ ...current, minPurchase: undefined }));
+                      }}
                       autoComplete="off"
                       prefix="$"
                       placeholder="e.g. 50"
-                      helpText="Leave blank to always show the discount code in the cart."
+                      error={formErrors.minPurchase}
+                      helpText="Required. The discount code is shown after customers reach this cart value."
                     />
                   ) : (
                     <TextField
@@ -457,7 +531,7 @@ export default function RuleCodeDiscount() {
             {!enabled && (
               <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: "10px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
                 <span style={{ color: "#92400e" }}><Icon source={PauseCircleIcon} /></span>
-                <Text variant="bodyMd" fontWeight="semibold" as="p">This rule is disabled</Text>
+                <Text variant="bodyMd" fontWeight="semibold" as="p">This rule is in draft</Text>
               </div>
             )}
 
@@ -465,10 +539,17 @@ export default function RuleCodeDiscount() {
               <BlockStack gap="300">
                 <Select
                   label="Status"
-                  options={[{ label: "Active", value: "true" }, { label: "Inactive", value: "false" }]}
+                  options={[{ label: "Active", value: "true" }, { label: "Draft", value: "false" }]}
                   value={String(enabled)}
                   onChange={(v) => setEnabled(v === "true")}
                 />
+                <button
+                  type="button"
+                  className={enabled ? "cd-statusButton cd-statusButtonActive" : "cd-statusButton cd-statusButtonDraft"}
+                  onClick={() => setEnabled((current) => !current)}
+                >
+                  {enabled ? "Active" : "Draft"}
+                </button>
                 <TextField label="Rule name" value={codeCampaignName} onChange={setCodeCampaignName} autoComplete="off" />
               </BlockStack>
             </div>

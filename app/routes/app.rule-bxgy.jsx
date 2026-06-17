@@ -242,6 +242,8 @@ export const action = async ({ request }) => {
     startsAt,
     endsAt,
     priority,
+    customerTarget,
+    customerTags,
   } = body;
 
   const normalizedCondition = Object.values(CONDITION_TYPES).includes(conditionType)
@@ -331,8 +333,11 @@ export const action = async ({ request }) => {
     startsAt: startsAt ? new Date(startsAt) : null,
     endsAt: endsAt ? new Date(endsAt) : null,
     priority: parseInt(priority || "0", 10) || 0,
-    customerTarget: "all",
-    customerTags: null,
+    customerTarget: customerTarget || "all",
+    customerTags:
+      customerTarget === "tagged" || customerTarget === "without_tag"
+        ? String(customerTags || "")
+        : null,
     templateKey: normalizedCondition,
     translations: normalizedTranslations,
   };
@@ -656,6 +661,73 @@ function QuantityStepper({ value, onChange }) {
   );
 }
 
+function TargetingPrioritySection({
+  open,
+  onOpenChange,
+  customerTarget,
+  onCustomerTargetChange,
+  customerTags,
+  onCustomerTagsChange,
+  priority,
+  onPriorityChange,
+}) {
+  const showCustomerTags =
+    customerTarget === "tagged" || customerTarget === "without_tag";
+
+  return (
+    <SectionCard
+      id="targeting-priority"
+      icon={SettingsIcon}
+      title="Targeting & priority"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <BlockStack gap="400">
+        <Select
+          label="Customer target"
+          value={customerTarget || "all"}
+          onChange={(nextTarget) => {
+            onCustomerTargetChange(nextTarget);
+            if (nextTarget !== "tagged" && nextTarget !== "without_tag") {
+              onCustomerTagsChange("");
+            }
+          }}
+          options={[
+            { label: "All customers", value: "all" },
+            { label: "Customers with tag", value: "tagged" },
+            { label: "Customers without tag", value: "without_tag" },
+            { label: "Logged in customers only", value: "logged_in" },
+            { label: "Guest customers only", value: "guest" },
+          ]}
+          helpText="Choose which customers this rule applies to."
+        />
+
+        {showCustomerTags && (
+          <TextField
+            label="Customer tags"
+            value={customerTags || ""}
+            onChange={onCustomerTagsChange}
+            placeholder="vip, wholesale, member"
+            autoComplete="off"
+            helpText="Comma-separated list of customer tags to match."
+          />
+        )}
+
+        <div className="bxgy-targetingDivider" />
+
+        <TextField
+          label="Priority"
+          type="number"
+          value={priority}
+          onChange={onPriorityChange}
+          autoComplete="off"
+          helpText="Higher number = evaluated first when multiple rules are active."
+        />
+      </BlockStack>
+    </SectionCard>
+  );
+}
+
 export default function RuleBxgy() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -784,6 +856,8 @@ export default function RuleBxgy() {
   const [status, setStatus] = useState(r?.status ?? (r?.enabled ? "active" : "draft"));
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? defaultCampaignName);
   const [priority, setPriority] = useState(String(r?.priority ?? "0"));
+  const [customerTarget, setCustomerTarget] = useState(r?.customerTarget || "all");
+  const [customerTags, setCustomerTags] = useState(r?.customerTags || "");
   const [conditionType, setConditionType] = useState(initialCondition);
   const [buyProductIds, setBuyProductIds] = useState(storedBuyProductIds);
   const [buyCollectionIds, setBuyCollectionIds] = useState(storedBuyCollectionIds);
@@ -997,6 +1071,8 @@ export default function RuleBxgy() {
         startsAt: combineDateTime(startDate, startTime),
         endsAt: hasEndDate ? combineDateTime(endDate, endTime) : null,
         priority,
+        customerTarget,
+        customerTags,
       },
       { method: "post", encType: "application/json" }
     );
@@ -1018,6 +1094,7 @@ export default function RuleBxgy() {
       secondaryActions={[
         {
           content: status === "active" ? "Pause" : "Activate",
+          tone: status === "active" ? "caution" : "success",
           onAction: () => setStatus((value) => (value === "active" ? "paused" : "active")),
         },
       ]}
@@ -1042,9 +1119,15 @@ export default function RuleBxgy() {
         .bxgy-selectedThumb{width:24px;height:24px;border-radius:4px;object-fit:cover;border:1px solid #e1e3e5}
         .bxgy-stepper{width:max-content;display:grid;grid-template-columns:38px 56px 38px;gap:6px;align-items:center;padding:5px;background:#f1f1f1;border-radius:12px}
         .bxgy-stepper span{text-align:center;font-weight:700}
-        .bxgy-segmented{display:inline-flex;background:#f1f1f1;border-radius:12px;padding:4px}
+        .bxgy-segmented{display:inline-flex;gap:8px;background:#f1f1f1;border-radius:12px;padding:4px}
         .bxgy-segmented button{border:0;background:transparent;border-radius:8px;padding:8px 12px;cursor:pointer;color:#6d7175;font-weight:600}
-        .bxgy-segmented button[aria-pressed="true"]{background:#fff;color:#202223;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+        .bxgy-segmented button[aria-pressed="true"]{background:#22c55e;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+        .bxgy-statusToggle{width:max-content;max-width:100%}
+        .bxgy-statusToggle .Polaris-Button,.bxgy-statusToggle .Polaris-Button::before,.bxgy-statusToggle .Polaris-Button::after{background:#fef3c7 !important;background-color:#fef3c7 !important;border-color:#fcd34d !important;color:#92400e !important}
+        .bxgy-statusToggle .Polaris-Button *{color:#92400e !important;fill:#92400e !important}
+        .bxgy-statusToggleActive .Polaris-Button,.bxgy-statusToggleActive .Polaris-Button::before,.bxgy-statusToggleActive .Polaris-Button::after{background:#22c55e !important;background-color:#22c55e !important;border-color:#22c55e !important;color:#fff !important}
+        .bxgy-statusToggleActive .Polaris-Button *{color:#fff !important;fill:#fff !important}
+        .bxgy-targetingDivider{height:1px;background:#ebeef1;margin:2px 0}
         .bxgy-softPanel{padding:16px;background:#f7f7f7;border-radius:12px}
         .bxgy-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
         .bxgy-sidebarCard{background:#fff;border:1px solid #dfe3e8;border-radius:12px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
@@ -1308,6 +1391,17 @@ export default function RuleBxgy() {
               </BlockStack>
             </SectionCard>
 
+            <TargetingPrioritySection
+              open={openSection === "targeting-priority"}
+              onOpenChange={(open) => setSectionOpen("targeting-priority", open)}
+              customerTarget={customerTarget}
+              onCustomerTargetChange={setCustomerTarget}
+              customerTags={customerTags}
+              onCustomerTagsChange={setCustomerTags}
+              priority={priority}
+              onPriorityChange={setPriority}
+            />
+
             <SectionCard
               id="settings"
               icon={SettingsIcon}
@@ -1405,14 +1499,14 @@ export default function RuleBxgy() {
                       onChange={setCampaignName}
                       autoComplete="off"
                     />
-                    <TextField
-                      label="Priority"
-                      type="number"
-                      value={priority}
-                      onChange={setPriority}
-                      autoComplete="off"
-                      helpText="Higher priority campaigns appear first in the cart drawer offers."
-                    />
+                    <div className={status === "active" ? "bxgy-statusToggle bxgy-statusToggleActive" : "bxgy-statusToggle"}>
+                      <Button
+                        onClick={() => setStatus((value) => (value === "active" ? "paused" : "active"))}
+                      >
+                        {status === "active" ? "Active" : "Pause"}
+                      </Button>
+                    </div>
+
                   </BlockStack>
                 </div>
               </div>
