@@ -812,7 +812,6 @@ export default function MyRules() {
                               accessibilityLabel={`Move ${rule.name} up`}
                             />
                           </Tooltip>
-                          <Text as="span" variant="bodyMd" fontWeight="semibold">{rule.priority}</Text> {/* Display priority number */}
                           <Tooltip content="Move down">
                             <Button
                               variant="plain"
