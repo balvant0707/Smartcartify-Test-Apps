@@ -252,6 +252,59 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
   );
 }
 
+// ─── ColorInputField ─────────────────────────────────────────────────────────
+
+const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+
+const getSafeColor = (value, fallback = "#000000") => (
+  HEX_COLOR_PATTERN.test(String(value || "")) ? value : fallback
+);
+
+function ColorInputField({ label, value, onChange, fallback = "#000000" }) {
+  const safeColor = getSafeColor(value, fallback);
+  const isInvalid = value && !HEX_COLOR_PATTERN.test(value);
+
+  const handleTextChange = (nextValue) => {
+    const cleaned = nextValue.replace(/[^0-9A-Fa-f#]/g, "");
+    const withHash = cleaned.startsWith("#") ? cleaned : `#${cleaned}`;
+    onChange(withHash.slice(0, 7));
+  };
+
+  return (
+    <div>
+      <Text variant="bodySm" as="p" tone="subdued">{label}</Text>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginTop: "6px" }}>
+        <input
+          type="color"
+          value={safeColor}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={label}
+          style={{
+            width: "38px",
+            height: "38px",
+            border: "1px solid #e1e3e5",
+            borderRadius: "6px",
+            cursor: "pointer",
+            padding: "2px",
+            flexShrink: 0,
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <TextField
+            label={label}
+            labelHidden
+            value={value || fallback}
+            onChange={handleTextChange}
+            autoComplete="off"
+            maxLength={7}
+            error={isInvalid ? "Enter valid hex color" : undefined}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── SelectedItemsDisplay ─────────────────────────────────────────────────────
 
 function SelectedItemsDisplay({ ids, allItems, onRemove, emptyLabel }) {
@@ -400,12 +453,12 @@ export default function RuleUpsell() {
         buttonText,
         selectedProductIds,
         selectedCollectionIds,
-        buttonColor,
-        buttonTextColor,
-        backgroundColor,
-        textColor,
-        borderColor,
-        arrowColor,
+        buttonColor: getSafeColor(buttonColor, "#111827"),
+        buttonTextColor: getSafeColor(buttonTextColor, "#ffffff"),
+        backgroundColor: getSafeColor(backgroundColor, "#ffffff"),
+        textColor: getSafeColor(textColor, "#111827"),
+        borderColor: getSafeColor(borderColor, "#e1e3e5"),
+        arrowColor: getSafeColor(arrowColor, "#6b7280"),
       },
       { method: "post", encType: "application/json" }
     );
@@ -503,7 +556,7 @@ export default function RuleUpsell() {
         onAction: () => setEnabled(v => !v),
       }]}
     >
-      <style>{`.up-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:20px;align-items:start}@media(max-width:1100px){.up-layout{grid-template-columns:minmax(0,1fr) 380px}}@media(max-width:900px){.up-layout{grid-template-columns:1fr}}`}</style>
+      <style>{`.up-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:20px;align-items:start}.up-color-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:1100px){.up-layout{grid-template-columns:minmax(0,1fr) 380px}}@media(max-width:900px){.up-layout{grid-template-columns:1fr}.up-color-grid{grid-template-columns:1fr}}`}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
           <Banner tone="critical" title="Save failed">{actionData.error}</Banner>
@@ -704,27 +757,22 @@ export default function RuleUpsell() {
 
                 <BlockStack gap="300">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Colors</Text>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div className="up-color-grid">
                     {[
-                      { label: "Button background color", value: buttonColor, onChange: setButtonColor },
-                      { label: "Button text color", value: buttonTextColor, onChange: setButtonTextColor },
-                      { label: "Background color", value: backgroundColor, onChange: setBackgroundColor },
-                      { label: "Text color", value: textColor, onChange: setTextColor },
-                      { label: "Border color", value: borderColor, onChange: setBorderColor },
-                      { label: "Arrow / icon color", value: arrowColor, onChange: setArrowColor },
-                    ].map(({ label, value, onChange }) => (
-                      <div key={label}>
-                        <Text variant="bodySm" as="p" tone="subdued">{label}</Text>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
-                          <input
-                            type="color"
-                            value={value || "#000000"}
-                            onChange={(e) => onChange(e.target.value)}
-                            style={{ width: "36px", height: "36px", border: "1px solid #e1e3e5", borderRadius: "6px", cursor: "pointer", padding: "2px" }}
-                          />
-                          <Text variant="bodySm" as="p">{value || "#000000"}</Text>
-                        </div>
-                      </div>
+                      { label: "Button background color", value: buttonColor, onChange: setButtonColor, fallback: "#111827" },
+                      { label: "Button text color", value: buttonTextColor, onChange: setButtonTextColor, fallback: "#ffffff" },
+                      { label: "Background color", value: backgroundColor, onChange: setBackgroundColor, fallback: "#ffffff" },
+                      { label: "Text color", value: textColor, onChange: setTextColor, fallback: "#111827" },
+                      { label: "Border color", value: borderColor, onChange: setBorderColor, fallback: "#e1e3e5" },
+                      { label: "Arrow / icon color", value: arrowColor, onChange: setArrowColor, fallback: "#6b7280" },
+                    ].map(({ label, value, onChange, fallback }) => (
+                      <ColorInputField
+                        key={label}
+                        label={label}
+                        value={value}
+                        onChange={onChange}
+                        fallback={fallback}
+                      />
                     ))}
                   </div>
                 </BlockStack>

@@ -3373,7 +3373,7 @@
 }
 .sc-drawer{
   position:fixed;top:0;right:0;height:100%;
-  max-width:435px;
+  max-width:425px;
   width:100% !important;
   background: var(--sc-drawer-bg);
   background-size:cover;
@@ -4028,7 +4028,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   width:40px;
   height:25px;
   border:1px solid var(--sc-qty-btn-border);
-  border-radius:4px;
+  border-radius:2px;
   background:var(--sc-qty-btn-bg);
   cursor:pointer;
   font-size:20px;
