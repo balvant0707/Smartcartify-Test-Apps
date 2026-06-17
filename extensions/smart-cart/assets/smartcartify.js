@@ -1,4 +1,4 @@
-﻿﻿﻿﻿(() => {
+﻿﻿(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -6562,63 +6562,90 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
   };
 
-  const maybeRemoveInvalidDiscountCodes = async () => {
-    if (DISCOUNT_REMOVE_IN_FLIGHT) return;
-    const appliedRules = getAppliedDiscountRules();
-    if (!appliedRules.length) return;
-    const subtotalCents = getCartSubtotalCents();
-    const cartQty = getCartTotalQty();
+const maybeRemoveInvalidDiscountCodes = async () => {
+  if (DISCOUNT_REMOVE_IN_FLIGHT) return;
 
-    for (const { rule, code } of appliedRules) {
-      const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount").toLowerCase();
-      const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
-      const minQuantityFail =
-        triggerType === "quantity" &&
-        Number.isFinite(minQuantity) &&
-        minQuantity > 0 &&
-        cartQty < minQuantity;
-      const minPurchase = Number(rule?.minPurchase ?? rule?.min_purchase);
-      const minCents =
-        triggerType !== "quantity" && Number.isFinite(minPurchase) && minPurchase > 0
-          ? Math.round(minPurchase * 100)
-          : null;
-      const meta = getDiscountRuleMeta(rule, subtotalCents);
-      const discountCents = meta ? meta.capped : null;
-      const minPurchaseFail = minCents != null && subtotalCents < minCents;
-      const discountAmountFail =
-        meta && !meta.isPercent && Number.isFinite(meta.cents) && meta.cents > subtotalCents;
-      if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
+  const appliedRules = getAppliedDiscountRules();
 
-      if (
-        LAST_AUTO_REMOVED_CODE &&
-        String(LAST_AUTO_REMOVED_CODE).toLowerCase() === String(code).toLowerCase() &&
-        Date.now() - LAST_AUTO_REMOVED_AT < 5000
-      ) {
-        return;
-      }
+  const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+  const manualRule = manualCode ? findCodeDiscountRuleByCode(manualCode) : null;
 
-      const requiredCents = minPurchaseFail
-        ? minCents
-        : discountAmountFail
-          ? meta?.cents ?? null
-          : null;
-      // Auto-removal should not show a transient warning on open.
+  const rulesToCheck = appliedRules.length
+    ? appliedRules
+    : manualRule
+      ? [{ rule: manualRule, code: manualCode }]
+      : [];
 
-      DISCOUNT_REMOVE_IN_FLIGHT = true;
-      try {
-        await clearDiscountCode(code);
-        await refreshFromNetwork();
-        setDiscountMessage("");
-        LAST_AUTO_REMOVED_CODE = code;
-        LAST_AUTO_REMOVED_AT = Date.now();
-      } catch (err) {
-        console.error("[SmartCartify] auto remove discount failed:", err);
-      } finally {
-        DISCOUNT_REMOVE_IN_FLIGHT = false;
-      }
-      return;
+  if (!rulesToCheck.length) return;
+
+  const subtotalCents = getCartSubtotalCents();
+  const cartQty = getCartTotalQty();
+  const currency = normalizeCurrencyCode();
+
+  for (const { rule, code } of rulesToCheck) {
+    const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount")
+      .trim()
+      .toLowerCase();
+
+    const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
+    const minQuantityFail =
+      triggerType === "quantity" &&
+      Number.isFinite(minQuantity) &&
+      minQuantity > 0 &&
+      cartQty < minQuantity;
+
+    const minPurchase = Number(
+      rule?.minPurchase ??
+      rule?.min_purchase ??
+      rule?.minSubtotal ??
+      rule?.min_subtotal ??
+      rule?.minAmount ??
+      rule?.min_amount
+    );
+
+    const minCents =
+      triggerType !== "quantity" && Number.isFinite(minPurchase) && minPurchase > 0
+        ? Math.round(minPurchase * priceDivisor(currency))
+        : null;
+
+    const meta = getDiscountRuleMeta(rule, subtotalCents);
+
+    const minPurchaseFail = minCents != null && subtotalCents < minCents;
+
+    const discountAmountFail =
+      meta &&
+      !meta.isPercent &&
+      Number.isFinite(meta.cents) &&
+      meta.cents > subtotalCents;
+
+    if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
+
+    DISCOUNT_REMOVE_IN_FLIGHT = true;
+
+    try {
+      await clearDiscountCode(code);
+
+      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+      scStore.del("__SC_LAST_APPLIED_CODE__");
+
+      const discountInput = drawer.querySelector("[data-discount-input]");
+      if (discountInput) discountInput.value = "";
+
+      await refreshFromNetwork();
+      renderAllFromCache();
+
+      setDiscountMessage("");
+      LAST_AUTO_REMOVED_CODE = code;
+      LAST_AUTO_REMOVED_AT = Date.now();
+    } catch (err) {
+      console.error("[SmartCartify] auto remove discount failed:", err);
+    } finally {
+      DISCOUNT_REMOVE_IN_FLIGHT = false;
     }
-  };
+
+    return;
+  }
+};
 
   const updateDiscountPanelVisibility = (opts = {}) => {
     if (!drawerDiscountPanel) return;
@@ -6630,6 +6657,32 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     drawerDiscountPanel.hidden = !enabled;
     if (!enabled && discountInput) discountInput.value = "";
     if (!enabled) setDiscountMessage("");
+  };
+
+  const getCheckoutDiscountCode = () => {
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    if (manualCode) return manualCode;
+
+    const lastCode = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
+    if (lastCode) return lastCode;
+
+    const attrCode = trimToNull(CART?.attributes?.discount_code) || trimToNull(CART?.attributes?.discountCode);
+    if (attrCode) return attrCode;
+
+    const appliedCodes = getAppliedDiscountCodes();
+    return appliedCodes.length ? appliedCodes[0] : null;
+  };
+
+  const goToCheckoutWithDiscount = () => {
+    const code = getCheckoutDiscountCode();
+
+    if (code) {
+      window.location.href =
+        `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/checkout")}`;
+      return;
+    }
+
+    window.location.href = "/checkout";
   };
 
   const applyDiscountCode = async (codeOverride = "") => {
@@ -6675,11 +6728,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       await refreshFromNetwork();
       renderAllFromCache();
 
-      if (isDiscountAppliedInCart(code)) {
+      if (findCodeDiscountRuleByCode(code) || isDiscountAppliedInCart(code)) {
+        if (discountInput) discountInput.value = "";
+
         if (discountMsg) discountMsg.style.color = "#16a34a";
         setDiscountMessage(`Discount applied: ${code}`);
         firePaperEffect(2800);
-        showCenterCelebratePopup("Discount Applied ✅", `Discount applied: ${code}`, 5000);
+        showCenterCelebratePopup("Discount Applied ✅", `Discount applied: ${code}`, 3000);
       } else {
         setDiscountMessage(`Discount code ${code} could not be applied.`);
       }
@@ -8034,100 +8089,96 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return `-${String(formatted || "").replace(/^\s+/, "")}`;
   };
 
-const renderFooterMilestones = ({ steps, subtotalCents, currency }) => {
-  const host = drawer.querySelector("[data-footer-milestones]");
-  if (!host) return;
+  const renderFooterMilestones = ({ steps, subtotalCents, currency }) => {
+    const host = drawer.querySelector("[data-footer-milestones]");
+    if (!host) return;
 
-  const rows = [];
+    const rows = [];
 
-  // ✅ Shipping complete hoy tyare show
-  const completedShippingStep = (Array.isArray(steps) ? steps : []).find((step) => {
-    if (String(step?.type || "").toLowerCase() !== "shipping") return false;
-    return isProgressStepDone(step, subtotalCents);
-  });
-
-  if (completedShippingStep) {
-    rows.push({
-      key: `shipping:${completedShippingStep?.rule?.id ?? completedShippingStep?.slot}`,
-      label: "Shipping",
-      amount: "Free",
+    // ✅ Shipping complete hoy tyare show
+    const completedShippingStep = (Array.isArray(steps) ? steps : []).find((step) => {
+      if (String(step?.type || "").toLowerCase() !== "shipping") return false;
+      return isProgressStepDone(step, subtotalCents);
     });
-  }
 
-  // ✅ Order Discount: goal complete thay tyare show
-  const completedOrderDiscountSteps = (Array.isArray(steps) ? steps : []).filter((step) => {
-    if (String(step?.type || "").toLowerCase() !== "discount") return false;
-    if (!isProgressStepDone(step, subtotalCents)) return false;
-
-    const code = getDiscountRuleCode(step?.rule);
-    const ruleType = String(step?.rule?.type ?? step?.rule?.ruleType ?? "")
-      .trim()
-      .toLowerCase();
-
-    // Code discount alag handle karvanu che
-    return !code && ruleType !== "code";
-  });
-
-  completedOrderDiscountSteps.forEach((step) => {
-    const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
-
-    if (Number.isFinite(discountCents) && discountCents > 0) {
+    if (completedShippingStep) {
       rows.push({
-        key: `order:${step?.rule?.id ?? step?.title ?? step?.slot}`,
-        label: "Order Discount",
-        amount: formatDiscountAmount(discountCents, currency),
+        key: `shipping:${completedShippingStep?.rule?.id ?? completedShippingStep?.slot}`,
+        label: "Shipping",
+        amount: "Free",
       });
     }
-  });
 
-  // ✅ Code Discount: code actually applied hoy tyare j show
-  const appliedCode = findAppliedDiscountCodeRule();
+    // ✅ Order Discount: goal complete thay tyare show
+    const completedOrderDiscountSteps = (Array.isArray(steps) ? steps : []).filter((step) => {
+      if (String(step?.type || "").toLowerCase() !== "discount") return false;
+      if (!isProgressStepDone(step, subtotalCents)) return false;
 
-  if (appliedCode?.rule && isDiscountAppliedInCart(appliedCode.code)) {
-    const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
+      const ruleType = String(step?.rule?.type ?? step?.rule?.ruleType ?? "")
+        .trim()
+        .toLowerCase();
 
-    if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
-      rows.push({
-        key: `code:${appliedCode.code}`,
-        label: "Code Discount",
-        amount: formatDiscountAmount(codeDiscountCents, currency),
-      });
+      // ✅ only real code type rule skip
+      return ruleType !== "code";
+    });
+
+    completedOrderDiscountSteps.forEach((step) => {
+      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
+
+      if (Number.isFinite(discountCents) && discountCents > 0) {
+        rows.push({
+          key: `order:${step?.rule?.id ?? step?.title ?? step?.slot}`,
+          label: "Order Discount",
+          amount: formatDiscountAmount(discountCents, currency),
+        });
+      }
+    });
+
+    // ✅ Code Discount: code actually applied hoy tyare j show
+    const appliedCode = findAppliedDiscountCodeRule();
+
+    if (appliedCode?.rule && isDiscountAppliedInCart(appliedCode.code)) {
+      const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
+
+      if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
+        rows.push({
+          key: `code:${appliedCode.code}`,
+          label: "Code Discount",
+          amount: formatDiscountAmount(codeDiscountCents, currency),
+        });
+      }
     }
-  }
 
-  // ✅ Duplicate rows remove
-  const uniqueRows = [];
-  const seen = new Set();
+    const uniqueRows = [];
+    const seen = new Set();
 
-  rows.forEach((row) => {
-    const key = trimToNull(row?.key);
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    uniqueRows.push(row);
-  });
+    rows.forEach((row) => {
+      const key = trimToNull(row?.key);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      uniqueRows.push(row);
+    });
 
-  // ✅ Kai complete/apply na hoy to footer hide
-  if (!uniqueRows.length) {
-    host.hidden = true;
-    host.innerHTML = "";
-    return;
-  }
+    if (!uniqueRows.length) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
 
-  // ✅ Only label + amount render
-  const rowsHtml = uniqueRows
-    .map(
-      (row) => `
+    const rowsHtml = uniqueRows
+      .map(
+        (row) => `
         <div class="sc-foot-row">
           <p class="sc-foot-name">${safe(row.label || "")}</p>
           <span class="sc-foot-amt">${safe(row.amount || "")}</span>
         </div>
       `
-    )
-    .join("");
+      )
+      .join("");
 
-  host.hidden = false;
-  host.innerHTML = `<div class="sc-footer-summary">${rowsHtml}</div>`;
-};
+    host.hidden = false;
+    host.innerHTML = `<div class="sc-footer-summary">${rowsHtml}</div>`;
+  };
 
   function syncOpenButtonBadge(countRaw) {
     const count = Math.max(0, Number(countRaw) || 0);
@@ -11040,7 +11091,7 @@ const renderFooterMilestones = ({ steps, subtotalCents, currency }) => {
           PROXY = await fetchProxy(CART);
 
           await enforceRewardValidity();
-
+          await maybeRemoveInvalidDiscountCodes();
           renderAllFromCache();
         } catch (e) {
           console.error(e);
@@ -11241,15 +11292,23 @@ const renderFooterMilestones = ({ steps, subtotalCents, currency }) => {
 
   $("[data-checkout]")?.addEventListener("click", () => {
     recordCompletedRuleConversions();
-    let checkoutUrl = "/checkout";
+
     const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const lastCode = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
     const appliedCodes = getAppliedDiscountCodes();
-    const codeToApply = manualCode || (appliedCodes.length > 0 ? appliedCodes[0] : null);
+
+    const codeToApply =
+      manualCode ||
+      lastCode ||
+      (appliedCodes.length > 0 ? appliedCodes[0] : null);
 
     if (codeToApply) {
-      checkoutUrl += `?discount=${encodeURIComponent(codeToApply)}`;
+      window.location.href =
+        `/discount/${encodeURIComponent(codeToApply)}?redirect=${encodeURIComponent("/checkout")}`;
+      return;
     }
-    window.location.href = checkoutUrl;
+
+    window.location.href = "/checkout";
   });
 
   /* =========================================================
