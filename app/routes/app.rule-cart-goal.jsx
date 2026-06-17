@@ -692,18 +692,20 @@ function SegmentControl({ options, value, onChange, appearance = "default" }) {
   }
 
   return (
-    <ButtonGroup variant="segmented">
-      {options.map((option) => (
-        <Button
-          key={option.value}
-          pressed={value === option.value}
-          className={value === option.value ? "cg-activeButton" : undefined}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </ButtonGroup>
+    <div className="cg-segmentGroup">
+      <ButtonGroup variant="segmented">
+        {options.map((option) => (
+          <Button
+            key={option.value}
+            pressed={value === option.value}
+            className={value === option.value ? "cg-activeButton" : undefined}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </ButtonGroup>
+    </div>
   );
 }
 
@@ -1899,6 +1901,7 @@ export default function RuleCartGoal() {
           discountProgressMode: rule.discountProgressMode || "after",
           rewardSelectionMandatory: rule.rewardSelectionMandatory || "yes",
           customerTarget: rule.customerTarget || "all",
+          customerTags: rule.customerTags || "",
           targetingRules: Array.isArray(rule.targetingRules) ? rule.targetingRules : [],
         }
         : {}),
@@ -2072,6 +2075,8 @@ export default function RuleCartGoal() {
       secondaryActions={[
         {
           content: enabled ? "Pause" : "Activate",
+          accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
+          tone: enabled ? "caution" : "success",
           onAction: () => setEnabled((value) => !value),
         },
       ]}
@@ -2094,9 +2099,9 @@ export default function RuleCartGoal() {
         .Polaris-Button.cg-activeButton,
         .Polaris-Button.cg-activeButton::before,
         .Polaris-Button.cg-activeButton::after {
-          background: #000 !important;
-          background-color: #000 !important;
-          border-color: #000 !important;
+          background: #22c55e !important;
+          background-color: #22c55e !important;
+          border-color: #22c55e !important;
           color: #fff !important;
           box-shadow: none !important;
         }
@@ -2108,7 +2113,7 @@ export default function RuleCartGoal() {
         .cg-softSegment {
           display: inline-flex;
           align-items: center;
-          gap: 0;
+          gap: 8px;
           width: max-content;
           max-width: 100%;
           border-radius: 8px;
@@ -2131,9 +2136,47 @@ export default function RuleCartGoal() {
           transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
         }
         .cg-softSegmentButtonActive {
-          background: #fff;
-          color: #303030;
+          background: #22c55e;
+          color: #fff;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+        }
+        .cg-softSegmentButtonActive * {
+          color: #fff !important;
+          fill: #fff !important;
+        }
+        .cg-segmentGroup .Polaris-ButtonGroup {
+          gap: 8px !important;
+        }
+        .cg-segmentGroup .Polaris-ButtonGroup > * {
+          margin-inline-start: 0 !important;
+        }
+        button[aria-label="Pause campaign"],
+        button[aria-label="Pause campaign"]::before,
+        button[aria-label="Pause campaign"]::after {
+          background: #fef3c7 !important;
+          background-color: #fef3c7 !important;
+          border-color: #fcd34d !important;
+          color: #92400e !important;
+          box-shadow: none !important;
+        }
+        button[aria-label="Pause campaign"] *,
+        button[aria-label="Pause campaign"] span {
+          color: #92400e !important;
+          fill: #92400e !important;
+        }
+        button[aria-label="Activate campaign"],
+        button[aria-label="Activate campaign"]::before,
+        button[aria-label="Activate campaign"]::after {
+          background: #22c55e !important;
+          background-color: #22c55e !important;
+          border-color: #22c55e !important;
+          color: #fff !important;
+          box-shadow: none !important;
+        }
+        button[aria-label="Activate campaign"] *,
+        button[aria-label="Activate campaign"] span {
+          color: #fff !important;
+          fill: #fff !important;
         }
         .cg-softSegmentButton:focus-visible {
           outline: 2px solid #005bd3;
