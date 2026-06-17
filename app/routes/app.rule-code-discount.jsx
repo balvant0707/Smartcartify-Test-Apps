@@ -48,6 +48,7 @@ export const action = async ({ request }) => {
     progressTextBefore, progressTextAfter,
     startsAt, endsAt, priority,
     customerTarget, customerTags,
+    // priority is already destructured above
   } = body;
 
   const dbData = {
@@ -197,7 +198,7 @@ export default function RuleCodeDiscount() {
   const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
   const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
-  // Targeting & priority
+  // Targeting & priority (priority added)
   const [priority, setPriority] = useState(String(r?.priority ?? "0"));
   const [customerTarget, setCustomerTarget] = useState(r?.customerTarget ?? "all");
   const [customerTags, setCustomerTags] = useState(r?.customerTags ?? "");

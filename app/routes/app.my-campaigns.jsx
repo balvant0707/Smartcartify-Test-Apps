@@ -81,12 +81,12 @@ export const loader = async ({ request }) => {
   const [shippingRows, discountRows, freeRows, bxgyRows, cartGoalRows, upsellRow] = await Promise.all([
     prisma.shippingRule.findMany({
       where: { shop },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }], // Already includes priority
       select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, rateType: true, amount: true, minSubtotal: true, maxSubtotal: true, cartStepName: true, priority: true },
     }),
     prisma.discountRule.findMany({
       where: { shop },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }], // Already includes priority
       select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true, priority: true },
     }),
     prisma.freeGiftRule.findMany({
@@ -96,7 +96,7 @@ export const loader = async ({ request }) => {
     }),
     prisma.bxgyRule.findMany({
       where: { shop },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }], // Already includes priority
       select: { id: true, campaignName: true, enabled: true, updatedAt: true, xQty: true, yQty: true, scope: true, priority: true },
     }),
     prisma.cartGoalRule.findMany({
@@ -783,6 +783,7 @@ export default function MyRules() {
                           loading={deletingKey === `${rule.ruleType}-${rule.id}`}
                         />
                         {!rule.singleton && (
+                          // Duplicate button
                           <Tooltip content="Duplicate rule">
                             <Button
                               size="slim"
@@ -811,6 +812,7 @@ export default function MyRules() {
                               accessibilityLabel={`Move ${rule.name} up`}
                             />
                           </Tooltip>
+                          <Text as="span" variant="bodyMd" fontWeight="semibold">{rule.priority}</Text> {/* Display priority number */}
                           <Tooltip content="Move down">
                             <Button
                               variant="plain"
