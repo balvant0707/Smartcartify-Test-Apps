@@ -1119,16 +1119,16 @@ export default function RuleBxgy() {
         .bxgy-selectedThumb{width:24px;height:24px;border-radius:4px;object-fit:cover;border:1px solid #e1e3e5}
         .bxgy-stepper{width:max-content;display:grid;grid-template-columns:38px 56px 38px;gap:6px;align-items:center;padding:5px;background:#f1f1f1;border-radius:12px}
         .bxgy-stepper span{text-align:center;font-weight:700}
-        .bxgy-segmented{display:inline-flex;gap:8px;background:#f1f1f1;border-radius:12px;padding:4px}
+        .bxgy-segmented{display:inline-flex;gap:8px;background:#f1f1f1;border-radius:12px;padding:4px,width: fit-content;}
         .bxgy-segmented button{border:0;background:transparent;border-radius:8px;padding:8px 12px;cursor:pointer;color:#6d7175;font-weight:600}
-        .bxgy-segmented button[aria-pressed="true"]{background:#22c55e;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+        .bxgy-segmented button[aria-pressed="true"]{background:#000000;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
         .bxgy-statusToggle{width:max-content;max-width:100%}
         .bxgy-statusToggle .Polaris-Button,.bxgy-statusToggle .Polaris-Button::before,.bxgy-statusToggle .Polaris-Button::after{background:#fef3c7 !important;background-color:#fef3c7 !important;border-color:#fcd34d !important;color:#92400e !important}
         .bxgy-statusToggle .Polaris-Button *{color:#92400e !important;fill:#92400e !important}
         .bxgy-statusToggleActive .Polaris-Button,.bxgy-statusToggleActive .Polaris-Button::before,.bxgy-statusToggleActive .Polaris-Button::after{background:#22c55e !important;background-color:#22c55e !important;border-color:#22c55e !important;color:#fff !important}
         .bxgy-statusToggleActive .Polaris-Button *{color:#fff !important;fill:#fff !important}
         .bxgy-targetingDivider{height:1px;background:#ebeef1;margin:2px 0}
-        .bxgy-softPanel{padding:16px;background:#f7f7f7;border-radius:12px}
+        .bxgy-softPanel{padding:16px;border-radius:12px}
         .bxgy-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
         .bxgy-sidebarCard{background:#fff;border:1px solid #dfe3e8;border-radius:12px;overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.05)}
         .bxgy-sidebarBody{padding:18px}
@@ -1317,7 +1317,7 @@ export default function RuleBxgy() {
                   />
                 </BlockStack>
 
-                <BlockStack gap="200">
+                <BlockStack gap="200" style={{ display: "flex", flexDirection: "column"}}>
                   <Text variant="bodyMd" fontWeight="semibold" as="p">
                     Set a maximum number of uses per order
                   </Text>
