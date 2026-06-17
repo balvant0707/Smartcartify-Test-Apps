@@ -954,14 +954,14 @@
   };
 
   const renderGoalMessageHtml = (message) => {
-  const raw = String(message ?? "");
-  if (!raw) return "";
+    const raw = String(message ?? "");
+    if (!raw) return "";
 
-  return safe(raw).replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, inner) => {
-    const value = String(inner || "").trim();
-    return value ? `<strong class="sc-goal-bold">${value}</strong>` : "";
-  });
-};
+    return safe(raw).replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, inner) => {
+      const value = String(inner || "").trim();
+      return value ? `<strong class="sc-goal-bold">${value}</strong>` : "";
+    });
+  };
 
   const getProxyArray = (proxy, keys) => {
     for (const k of keys) {
@@ -3810,7 +3810,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   text-overflow:ellipsis;
   word-break:normal;
   white-space:nowrap;
-  font-weight:800;
 }
 
 .sc-legends{display:none !important;}
@@ -4037,7 +4036,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
   line-height:1;
   color:var(--sc-qty-btn-text);
 }
-.sc-qty button:hover{filter:brightness(0.96);}
+
+.sc-qty button:hover {
+    filter: brightness(1);
+    background: var(--sc-checkout-bg);
+    color: aliceblue;
+}
 .sc-qty button:active{transform:scale(0.98);}
 .sc-qty input{
   width:10px;
@@ -4085,9 +4089,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-compare{font-size:var(--sc-small-font-size);color:#9ca3af;text-decoration:line-through;font-weight:700;}
 .sc-price{
   font-size:var(--sc-base-font-size) !important;
-  font-size:clamp(20px, calc(var(--sc-base-font-size) * 1.85), 36px);
-  font-weight:700;
-  line-height:1.1;
   color:var(--sc-drawer-text-color);
 }
 .sc-price.sc-price-free{
@@ -4130,6 +4131,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-upsell{
   padding: 0px 12px;
   order:2;
+  background: var(--sc-upsell-bg);
 }
 .sc-upsell-card{
   padding: 6px 4px;
@@ -4138,17 +4140,16 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-size: 16px;
   font-weight: 700;
   text-align: center;
-  margin: 4px 0 8px;
   letter-spacing: 0.2px;
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
 }
-.sc-upsell-inner{
-  background: var(--sc-upsell-bg, #ffffff);
-  padding: 10px;
-  position: relative;
-  overflow: visible;
-  width: 96%;
-  margin: 0 auto;
+.sc-upsell-inner {
+    background: var(--sc-upsell-bg, #ffffff);
+    padding: 2px 10px;
+    position: relative;
+    overflow: visible;
+    width: 96%;
+    margin: 0 auto;
 }
 .sc-upsell-viewport{
   overflow: hidden;
