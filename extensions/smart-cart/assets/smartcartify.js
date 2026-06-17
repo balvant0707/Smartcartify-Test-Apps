@@ -2688,31 +2688,30 @@
     }
   };
 
-  const isDiscountAppliedInCart = (code) => {
-    const c = trimToNull(code);
-    if (!c || !CART) return false;
+const isDiscountAppliedInCart = (code) => {
+  const c = trimToNull(code);
+  if (!c || !CART) return false;
 
-    const needle = c.toLowerCase();
+  const needle = c.toLowerCase();
 
-    const discountCodes = Array.isArray(CART.discount_codes) ? CART.discount_codes : [];
-    const hasInDiscountCodes = discountCodes.some((d) => {
-      const dc = String(d?.code || d || "").trim().toLowerCase();
-      const amount = Number(d?.amount);
-      return dc === needle && (!Number.isFinite(amount) || amount > 0);
-    });
+  // ✅ Cart ma actual discount amount hovo compulsory
+  const totalDiscount = Number(CART?.total_discount || 0);
+  if (!Number.isFinite(totalDiscount) || totalDiscount <= 0) return false;
 
-    if (hasInDiscountCodes) return true;
+  const discountCodes = Array.isArray(CART.discount_codes) ? CART.discount_codes : [];
 
-    const cartLevelDiscounts = Array.isArray(CART.cart_level_discount_applications)
-      ? CART.cart_level_discount_applications
-      : [];
+  return discountCodes.some((d) => {
+    const dc = String(d?.code || d || "").trim().toLowerCase();
+    const amount = Number(d?.amount || 0);
+    const applicable = d?.applicable;
 
-    return cartLevelDiscounts.some((d) => {
-      const title = String(d?.title || d?.code || "").trim().toLowerCase();
-      const amount = Number(d?.total_allocated_amount ?? d?.amount);
-      return title === needle && (!Number.isFinite(amount) || amount > 0);
-    });
-  };
+    return (
+      dc === needle &&
+      amount > 0 &&
+      applicable !== false
+    );
+  });
+};
 
   const getAppliedDiscountCodes = () => {
     const out = [];
@@ -6785,20 +6784,20 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         }),
       });
 
+    await refreshFromNetwork();
+    renderAllFromCache();
+
+    if (rule && isDiscountAppliedInCart(code)) {
       scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
       scStore.set("__SC_LAST_APPLIED_CODE__", code);
-
-      await refreshFromNetwork();
-      renderAllFromCache();
-
-      if (rule && isDiscountAppliedInCart(code)) {
         if (discountInput) discountInput.value = "";
-
         if (discountMsg) discountMsg.style.color = "#16a34a";
         setDiscountMessage(`Discount applied: ${code}`);
         firePaperEffect(2800);
         showCenterCelebratePopup("Discount Applied ✅", `Discount applied: ${code}`, 3000);
       } else {
+        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+        scStore.del("__SC_LAST_APPLIED_CODE__");
         setDiscountMessage(`Discount code ${code} could not be applied.`);
       }
     } catch (err) {

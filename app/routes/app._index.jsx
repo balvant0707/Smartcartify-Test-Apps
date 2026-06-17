@@ -668,9 +668,9 @@ export default function Index() {
                         Create a campaign that offers gifts to customers based on their purchase milestones. For example, offer a free gift when a customer spends $100.
                       </Text>
                       <InlineStack>
-                        <Button url={withHost("/app/campaigns")} variant="primary">
+                        <Button url={withHost(`/app/campaigns?shop=${shop}`)} variant="primary" >
                           Create Campaigns
-                          </Button>
+                        </Button>
                       </InlineStack>
                     </BlockStack>
                   </Box>
