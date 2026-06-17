@@ -1535,7 +1535,7 @@ function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
           </Card>
         </BlockStack>
 
-        <BlockStack gap="200" style={{ display: "none" }}>
+        <BlockStack gap="200" >
           <Text variant="bodyMd" as="p" fontWeight="semibold">
             Showcase free gifts in cart below item list
           </Text>
@@ -1549,7 +1549,7 @@ function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
           />
         </BlockStack>
 
-        <BlockStack gap="200" style={{ display: "none" }}>
+        <BlockStack gap="200">
           <Text variant="bodyMd" as="p" fontWeight="semibold">
             How other discounts affect cart progress bar
           </Text>
@@ -1569,7 +1569,7 @@ function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
           />
         </BlockStack>
 
-        <BlockStack gap="200" style={{ display: "none" }}>
+        <BlockStack gap="200">
           <Text variant="bodyMd" as="p" fontWeight="semibold">
             Is reward selection mandatory?
           </Text>

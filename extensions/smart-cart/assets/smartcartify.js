@@ -433,6 +433,31 @@
     return fallback;
   };
 
+  const extractMessageText = (value) => {
+    const raw = trimToNull(value);
+    if (!raw) return "";
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return (
+          trimToNull(parsed.text) ||
+          trimToNull(parsed.message) ||
+          trimToNull(parsed.title) ||
+          raw
+        );
+      }
+    } catch { }
+    return raw;
+  };
+
+  const pickMessageTextAny = (obj, keys, fallback = "") => {
+    for (const k of keys) {
+      const text = extractMessageText(obj?.[k]);
+      if (text) return text;
+    }
+    return fallback;
+  };
+
   const isQuantityTriggerRule = (rule) =>
     String(rule?.triggerType ?? rule?.trigger_type ?? "amount").trim().toLowerCase() ===
     "quantity" ||
@@ -461,16 +486,20 @@
       "progress_text_before_quantity",
     ];
     const amountKeys = [
+      "beforeText",
+      "before_text",
+      "beforeMessage",
+      "before_message",
+      "beforeOfferUnlockMessage",
+      "before_offer_unlock_message",
       "progressTextBefore",
       "progress_text_before",
       "progressBefore",
       "progress_before",
       "beforeProgressText",
       "before_progress_text",
-      "beforeText",
-      "before_text",
     ];
-    return pickTextAny(rule, isQuantityTriggerRule(rule) ? [...quantityKeys, ...amountKeys] : amountKeys);
+    return pickMessageTextAny(rule, isQuantityTriggerRule(rule) ? [...quantityKeys, ...amountKeys] : amountKeys);
   };
 
   const getProgressAfter = (rule) => {
@@ -481,16 +510,20 @@
       "progress_text_after_quantity",
     ];
     const amountKeys = [
+      "afterText",
+      "after_text",
+      "afterMessage",
+      "after_message",
+      "afterOfferUnlockMessage",
+      "after_offer_unlock_message",
       "progressTextAfter",
       "progress_text_after",
       "progressAfter",
       "progress_after",
       "afterProgressText",
       "after_progress_text",
-      "afterText",
-      "after_text",
     ];
-    return pickTextAny(rule, isQuantityTriggerRule(rule) ? [...quantityKeys, ...amountKeys] : amountKeys);
+    return pickMessageTextAny(rule, isQuantityTriggerRule(rule) ? [...quantityKeys, ...amountKeys] : amountKeys);
   };
 
   const getProgressBelow = (rule) =>
@@ -2095,7 +2128,7 @@
           (sum, it) => sum + (Number(it?.final_line_price) || 0),
           0
         ) /
-          100) ||
+          priceDivisor(CART?.currency)) ||
         0;
 
       const minPurchase = Number(r?.minPurchase ?? r?.min_purchase);
@@ -2115,27 +2148,40 @@
       else if (hasX) complete = eligibleQty >= xQty;
       else complete = false;
 
-      const beforeRaw =
-        r?.beforeOfferUnlockMessage ??
-        r?.beforeMessage ??
-        r?.before_message ??
-        "";
-      const afterRaw =
-        r?.afterOfferUnlockMessage ?? r?.afterMessage ?? r?.after_message ?? "";
+      const beforeRaw = getProgressBefore(r);
+      const afterRaw = getProgressAfter(r);
 
       const remainingX = Math.max(
         0,
         (Number.isFinite(xQty) ? xQty : 0) - (eligibleQty || 0)
       );
 
-      const beforeMsg = replaceTokens(beforeRaw, {
+      const beforeSeed = replaceTokens(beforeRaw, {
         x: remainingX,
         y: Number.isFinite(yQty) ? yQty : "",
+        goal: "",
       });
 
-      const afterMsg = replaceTokens(afterRaw, {
+      const afterSeed = replaceTokens(afterRaw, {
         x: Number.isFinite(xQty) ? xQty : "",
         y: Number.isFinite(yQty) ? yQty : "",
+        goal: "",
+      });
+
+      const beforeMsg = replaceProgressText({
+        text: beforeSeed,
+        type: "buyxgety",
+        rule: r,
+        subtotalRupees: eligibleSubtotalRupees,
+        useRemainingForGoal: hasMin && !complete,
+      });
+
+      const afterMsg = replaceProgressText({
+        text: afterSeed,
+        type: "buyxgety",
+        rule: r,
+        subtotalRupees: eligibleSubtotalRupees,
+        useRemainingForGoal: false,
       });
 
       const currentMsg = complete ? afterMsg : beforeMsg;
@@ -2187,13 +2233,8 @@
       else if (hasX) complete = cartQty >= xQty;
       else complete = false;
 
-      const beforeRaw =
-        r?.beforeOfferUnlockMessage ??
-        r?.beforeMessage ??
-        r?.before_message ??
-        "";
-      const afterRaw =
-        r?.afterOfferUnlockMessage ?? r?.afterMessage ?? r?.after_message ?? "";
+      const beforeRaw = getProgressBefore(r);
+      const afterRaw = getProgressAfter(r);
 
       const remainingX = Math.max(
         0,
@@ -2957,13 +2998,8 @@
       const cartQty = getCartTotalQty();
       const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - (cartQty || 0));
 
-      const beforeRaw =
-        r?.beforeOfferUnlockMessage ??
-        r?.beforeMessage ??
-        r?.before_message ??
-        "";
-      const afterRaw =
-        r?.afterOfferUnlockMessage ?? r?.afterMessage ?? r?.after_message ?? "";
+      const beforeRaw = getProgressBefore(r);
+      const afterRaw = getProgressAfter(r);
       const fallbackBefore = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
       const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
 
@@ -2996,52 +3032,47 @@
     }
 
     // (C) BuyXGetY (bxgyrule)
-    // const buyStatuses = getBuyXGetYStatuses();
-    // buyStatuses.forEach((st) => {
-    //   const r = st?.rule;
-    //   if (!r) return;
-    //   const xQty = Number(st?.xQty ?? r?.xQty ?? r?.x_qty ?? r?.x ?? r?.buyQty ?? r?.buy_qty ?? r?.buy);
-    //   const yQty = Number(st?.yQty ?? r?.yQty ?? r?.y_qty ?? r?.y ?? r?.getQty ?? r?.get_qty ?? r?.get);
-    //   const eligibleQty = Number(st?.eligibleQty ?? 0);
-    //   const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - eligibleQty);
+    const buyStatuses = getBuyXGetYStatuses();
+    buyStatuses.forEach((st) => {
+      const r = st?.rule;
+      if (!r) return;
+      const xQty = Number(st?.xQty ?? r?.xQty ?? r?.x_qty ?? r?.x ?? r?.buyQty ?? r?.buy_qty ?? r?.buy);
+      const yQty = Number(st?.yQty ?? r?.yQty ?? r?.y_qty ?? r?.y ?? r?.getQty ?? r?.get_qty ?? r?.get);
+      const eligibleQty = Number(st?.eligibleQty ?? 0);
+      const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - eligibleQty);
 
-    //   const beforeRaw =
-    //     r?.beforeOfferUnlockMessage ??
-    //     r?.beforeMessage ??
-    //     r?.before_message ??
-    //     "";
-    //   const afterRaw =
-    //     r?.afterOfferUnlockMessage ?? r?.afterMessage ?? r?.after_message ?? "";
-    //   const fallbackBefore = "Buy X Get Y: Add {{x}} more to unlock the offer";
-    //   const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
+      const beforeRaw = getProgressBefore(r);
+      const afterRaw = getProgressAfter(r);
+      const fallbackBefore = "Buy X Get Y: Add {{x}} more to unlock the offer";
+      const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
 
-    //   const beforeMsg = replaceTokensRaw(beforeRaw || fallbackBefore, {
-    //     x: Number.isFinite(xQty) ? remainingX : "",
-    //     y: Number.isFinite(yQty) ? yQty : "",
-    //     goal: "",
-    //   });
-    //   const afterMsg = replaceTokensRaw(afterRaw || fallbackAfter, {
-    //     x: Number.isFinite(xQty) ? xQty : "",
-    //     y: Number.isFinite(yQty) ? yQty : "",
-    //     goal: "",
-    //   });
+      const beforeMsg = replaceTokensRaw(beforeRaw || fallbackBefore, {
+        x: Number.isFinite(xQty) ? remainingX : "",
+        y: Number.isFinite(yQty) ? yQty : "",
+        goal: "",
+      });
+      const afterMsg = replaceTokensRaw(afterRaw || fallbackAfter, {
+        x: Number.isFinite(xQty) ? xQty : "",
+        y: Number.isFinite(yQty) ? yQty : "",
+        goal: "",
+      });
 
-    //   const msgBase = replaceProgressTextRaw({
-    //     text: st.complete ? (afterMsg || fallbackAfter) : (beforeMsg || fallbackBefore),
-    //     type: "bxgy",
-    //     rule: r,
-    //     subtotalRupees,
-    //     useRemainingForGoal: false,
-    //   });
+      const msgBase = replaceProgressTextRaw({
+        text: st.complete ? (afterMsg || fallbackAfter) : (beforeMsg || fallbackBefore),
+        type: "buyxgety",
+        rule: r,
+        subtotalRupees: st.eligibleSubtotalRupees ?? subtotalRupees,
+        useRemainingForGoal: !st.complete,
+      });
 
-    //   const values = [xQty, yQty];
-    //   let msg = emphasizeValues(msgBase, values, (v) => wrapEmValue(v));
-    //   values.forEach((v) => {
-    //     msg = padToken(msg, v);
-    //   });
-    //   msg = emphasizeLabels(msg);
-    //   if (trimToNull(msg)) msgs.push(msg);
-    // });
+      const values = [xQty, yQty];
+      let msg = emphasizeValues(msgBase, values, (v) => wrapEmValue(v));
+      values.forEach((v) => {
+        msg = padToken(msg, v);
+      });
+      msg = emphasizeLabels(msg);
+      if (trimToNull(msg)) msgs.push(msg);
+    });
 
     // NOTE: Sections D (automatic discount) and E (free gift) are intentionally omitted.
     // Those rule types appear as progress bar steps, not in the announcement bar.
@@ -4519,7 +4550,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
     flex: 1;
     min-height: 0;
     overflow: auto;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, .08);
+     --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 48%), 0 1px 2px -1px rgb(0 0 0 / 42%) !important;
+    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
+    box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a !important;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-ring-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-shadow) !important;
 }
 .sc-drawer.sc-offers-active .content-cart-smartcartify,
 .sc-drawer.sc-offers-active .sc-footer{
@@ -7235,7 +7269,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const trackBy = String(campaign?.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
       const type = normalizeCartGoalRewardType(goal);
       const threshold = Number(goal?.goal);
-      const texts = goal?.texts || {};
+      const texts = parseObjectish(goal?.texts || {});
       const productIds = getCartGoalBonusProductIds(goal);
       const bonusProducts = getCartGoalBonusProducts(goal);
       const bonusProductId =
@@ -7258,6 +7292,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         progressTextBefore: trimToNull(texts.aboveBefore) || "",
         progressTextAfter: trimToNull(texts.aboveAfter) || "",
         progressTextBelow: trimToNull(texts.below) || "",
+        offerTitleBefore: trimToNull(texts.offerTitleBefore) || "",
+        offerTitleAfter: trimToNull(texts.offerTitleAfter) || "",
+        offerSubtitleBefore: trimToNull(texts.offerSubtitleBefore) || "",
+        offerSubtitleAfter: trimToNull(texts.offerSubtitleAfter) || "",
         shopifyDiscountId: goal?.shopifyDiscountId || null,
         bonusProductId,
         bonus: bonusProductId,
@@ -7423,7 +7461,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return !name || /^free gift$/i.test(name) ? "Free Gift Products" : name;
     }
     if (normalized === "bxgy" || normalized === "buyxgety") {
-      return trimToNull(rule?.campaignName) || "Buy X Get Y Discount";
+      const complete = isRewardOfferGoalMet(normalized, rule);
+      return getDynamicOfferTitle(
+        normalized,
+        rule,
+        complete,
+        trimToNull(rule?.campaignName) || "Buy X Get Y Discount"
+      );
     }
     if (normalized === "discount") {
       const tokens = getDiscountValueTokens(rule);
@@ -7434,16 +7478,47 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return trimToNull(rule?.campaignName) || fallback;
   };
 
-  const getOfferUnlockText = (raw) => {
+  const getOfferUnlockField = (raw, fields = []) => {
     const text = trimToNull(raw);
     if (!text) return "";
     try {
       const parsed = JSON.parse(text);
       if (parsed && typeof parsed === "object") {
-        return trimToNull(parsed.text) || trimToNull(parsed.title) || "";
+        for (const field of fields) {
+          const value = trimToNull(parsed?.[field]);
+          if (value) return value;
+        }
       }
     } catch { /* plain text */ }
     return text;
+  };
+
+  const getOfferUnlockText = (raw) =>
+    getOfferUnlockField(raw, ["text", "message", "subtitle", "title"]);
+
+  const getOfferUnlockTitle = (raw) =>
+    getOfferUnlockField(raw, ["title", "heading", "text", "message"]);
+
+  const getDynamicOfferTitle = (type, rule, complete, fallback = "Offer") => {
+    const normalized = String(type || "").toLowerCase();
+    const textType = normalized === "code" ? "discount" : normalized;
+    const rawTitle =
+      complete
+        ? pickMessageTextAny(rule, ["afterTitle", "after_title"], "") ||
+          getOfferUnlockTitle(rule?.afterOfferUnlockMessage)
+        : pickMessageTextAny(rule, ["beforeTitle", "before_title"], "") ||
+          getOfferUnlockTitle(rule?.beforeOfferUnlockMessage);
+    const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor();
+    const replaced = rawTitle
+      ? replaceProgressText({
+        text: rawTitle,
+        type: textType,
+        rule,
+        subtotalRupees,
+        useRemainingForGoal: !complete,
+      })
+      : "";
+    return trimToNull(replaced) || fallback;
   };
 
   const isCodeDiscountRuleApplied = (rule) => {
@@ -7634,15 +7709,43 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const type = String(step.type || "").toLowerCase();
       const ruleKey = getRuleKey(step.rule, type || "rule");
       const identityType = type === "buyxgety" ? "bxgy" : type;
+      const stepDone = isProgressStepDone(step, getCartOriginalSubtotalCents());
+      const offerTitleTemplate = trimToNull(
+        stepDone ? step.rule?.offerTitleAfter : step.rule?.offerTitleBefore
+      );
+      const offerSubtitleTemplate = trimToNull(
+        stepDone ? step.rule?.offerSubtitleAfter : step.rule?.offerSubtitleBefore
+      );
+      const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor(CART?.currency);
+      const dynamicOfferTitle = offerTitleTemplate
+        ? replaceProgressText({
+          text: offerTitleTemplate,
+          type,
+          rule: step.rule,
+          subtotalRupees,
+          useRemainingForGoal: !stepDone,
+        })
+        : "";
+      const dynamicOfferSubtitle = offerSubtitleTemplate
+        ? replaceProgressText({
+          text: offerSubtitleTemplate,
+          type,
+          rule: step.rule,
+          subtotalRupees,
+          useRemainingForGoal: !stepDone,
+        })
+        : "";
       pushRow({
         key: `step:${type}:${ruleKey || index}`,
         identity: `${identityType}:${ruleKey || index}`,
         ruleKey,
         type,
-        title: getOfferStepTitle(step),
-        subtitle: isProgressStepDone(step, getCartOriginalSubtotalCents())
-          ? trimToNull(step.progressTextAfter) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order")
-          : trimToNull(step.progressTextBefore) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order"),
+        title: trimToNull(dynamicOfferTitle) || getOfferStepTitle(step),
+        subtitle: trimToNull(dynamicOfferSubtitle) || (
+          stepDone
+            ? trimToNull(step.progressTextAfter) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order")
+            : trimToNull(step.progressTextBefore) || getOfferRuleSubtitle(type, step.rule, step.title || "Reward available in this order")
+        ),
         action: type === "free" || type === "bxgy" || type === "buyxgety" ? "Show Gifts" : "",
         goalMet: type === "free" || type === "bxgy" || type === "buyxgety" ? isRewardOfferGoalMet(type, step.rule) : true,
         rule: step.rule,
@@ -9552,8 +9655,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const qty = getRewardQtyFromRule(kind, rule);
     const currency = normalizeCurrencyCode();
 
+    const fallbackPopupTitle =
+      kind === "free" ? "Free gifts Unlocked" : "Buy X Get Y Discount product unlocked";
+    const popupRuleTitle =
+      trimToNull(title) ||
+      getDynamicOfferTitle(kind, rule, addItemGoalMet, trimToNull(rule?.campaignName) || fallbackPopupTitle);
+
     if (state.iconEl) state.iconEl.innerHTML = kind === "free" ? (ICONS.gift || "🎁") : "🔥";
-    if (state.headerTitleEl) state.headerTitleEl.textContent = kind === "free" ? "Free gifts Unlocked" : "Buy X Get Y Discount product unlocked";
+    if (state.headerTitleEl) state.headerTitleEl.textContent = popupRuleTitle;
     if (state.headerSubEl) {
       state.headerSubEl.innerHTML =
         kind === "free"
@@ -9605,7 +9714,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (state.subtitleEl) state.subtitleEl.textContent = `${formatMoney(0, currency)} (Free)`;
 
     const ruleName =
-      trimToNull(title) ||
+      popupRuleTitle ||
       trimToNull(rule?.cartStepName) ||
       trimToNull(rule?.campaignName) ||
       "Reward";
@@ -10255,7 +10364,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           kind: "buyxgety",
           rule: firstCompleted.rule,
           ruleKey: firstCompleted.ruleKey,
-          title: trimToNull(firstCompleted.afterMsg) || trimToNull(firstCompleted.currentMsg) || "Buy X Get Y unlocked",
+          title: getDynamicOfferTitle(
+            "buyxgety",
+            firstCompleted.rule,
+            true,
+            trimToNull(firstCompleted.afterMsg) || trimToNull(firstCompleted.currentMsg) || "Buy X Get Y unlocked"
+          ),
         });
         if (popupShown) {
           firePaperEffect(2800);
@@ -10267,7 +10381,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             kind: "bxgy",
             rule: bxgyNow.rule,
             ruleKey: bxgyNow.ruleKey,
-            title: trimToNull(bxgyNow.afterMsg) || trimToNull(bxgyNow.currentMsg) || "Offer unlocked",
+            title: getDynamicOfferTitle(
+              "bxgy",
+              bxgyNow.rule,
+              true,
+              trimToNull(bxgyNow.afterMsg) || trimToNull(bxgyNow.currentMsg) || "Offer unlocked"
+            ),
           })
           : false;
 
@@ -10310,7 +10429,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           kind: "buyxgety",
           rule: buyStatusToPrompt.rule,
           ruleKey: buyStatusToPrompt.ruleKey,
-          title: trimToNull(buyStatusToPrompt.afterMsg) || trimToNull(buyStatusToPrompt.currentMsg) || "Buy X Get Y unlocked",
+          title: getDynamicOfferTitle(
+            "buyxgety",
+            buyStatusToPrompt.rule,
+            true,
+            trimToNull(buyStatusToPrompt.afterMsg) || trimToNull(buyStatusToPrompt.currentMsg) || "Buy X Get Y unlocked"
+          ),
         });
       }
     }
