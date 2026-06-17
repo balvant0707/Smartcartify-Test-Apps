@@ -2121,7 +2121,7 @@ export default function RuleCartGoal() {
           padding: 4px;
         }
         .cg-softSegmentButton {
-          min-height: 38px;
+         min-height: 30px;
           border: 0;
           border-radius: 7px;
           background: transparent;
@@ -2131,12 +2131,12 @@ export default function RuleCartGoal() {
           font-size: 12px;
           font-weight: 650;
           line-height: 18px;
-          padding: 9px 14px;
+          padding: 5px 9px !important;
           white-space: nowrap;
           transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
         }
         .cg-softSegmentButtonActive {
-          background: #22c55e;
+          background: #000000;
           color: #fff;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
         }
@@ -2149,34 +2149,6 @@ export default function RuleCartGoal() {
         }
         .cg-segmentGroup .Polaris-ButtonGroup > * {
           margin-inline-start: 0 !important;
-        }
-        button[aria-label="Pause campaign"],
-        button[aria-label="Pause campaign"]::before,
-        button[aria-label="Pause campaign"]::after {
-          background: #fef3c7 !important;
-          background-color: #fef3c7 !important;
-          border-color: #fcd34d !important;
-          color: #92400e !important;
-          box-shadow: none !important;
-        }
-        button[aria-label="Pause campaign"] *,
-        button[aria-label="Pause campaign"] span {
-          color: #92400e !important;
-          fill: #92400e !important;
-        }
-        button[aria-label="Activate campaign"],
-        button[aria-label="Activate campaign"]::before,
-        button[aria-label="Activate campaign"]::after {
-          background: #22c55e !important;
-          background-color: #22c55e !important;
-          border-color: #22c55e !important;
-          color: #fff !important;
-          box-shadow: none !important;
-        }
-        button[aria-label="Activate campaign"] *,
-        button[aria-label="Activate campaign"] span {
-          color: #fff !important;
-          fill: #fff !important;
         }
         .cg-softSegmentButton:focus-visible {
           outline: 2px solid #005bd3;
