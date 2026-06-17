@@ -1,4 +1,4 @@
-﻿﻿(() => {
+﻿﻿﻿﻿(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -8039,12 +8039,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!host) return;
 
     const rows = [];
-    let discountBadge = "";
 
     const completedShippingStep = (Array.isArray(steps) ? steps : []).find((step) => {
       if (String(step?.type || "").toLowerCase() !== "shipping") return false;
       return isProgressStepDone(step, subtotalCents);
     });
+
     if (completedShippingStep) {
       rows.push({
         key: `shipping:${completedShippingStep?.rule?.id ?? completedShippingStep?.slot}`,
@@ -8054,123 +8054,41 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
     }
 
-    // Completed automatic (non-code) discount steps → badge rows
-    const completedAutoDiscountSteps = (Array.isArray(steps) ? steps : []).filter((step) => {
-      if (String(step?.type || "").toLowerCase() !== "discount") return false;
-      if (!isProgressStepDone(step, subtotalCents)) return false;
-      const ruleType = String(step?.rule?.type ?? step?.rule?.ruleType ?? "").trim().toLowerCase();
-      return ruleType !== "code";
-    });
-
-    const autoDiscountCents = completedAutoDiscountSteps.reduce((sum, step) => {
-      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
-      return Number.isFinite(discountCents) && discountCents > 0 ? sum + discountCents : sum;
-    }, 0);
-
-    completedAutoDiscountSteps.forEach((step) => {
-      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
-      const rowBadge = getFooterDiscountBadgeLabel(step?.rule);
-      if (!discountBadge) discountBadge = rowBadge;
-      rows.push({
-        key: `auto:${step?.rule?.id ?? step?.title ?? step?.slot}`,
-        label: "Discount",
-        tag: rowBadge,
-        tagIcon: true,
-        amount: Number.isFinite(discountCents) && discountCents > 0
-          ? `- ${formatMoney(discountCents, currency)}`
-          : "Applied",
-      });
-    });
-
-    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    const manualLower = manualCode ? manualCode.toLowerCase() : null;
-    const hasManualAppliedCode =
-      !!manualLower &&
-      getAppliedDiscountCodes().some(
-        (c) => String(c).trim().toLowerCase() === manualLower
-      );
-
     const appliedCode = findAppliedDiscountCodeRule();
-    if (appliedCode?.rule) {
-      const minPurchase = Number(
-        appliedCode.rule?.minPurchase ?? appliedCode.rule?.min_purchase
-      );
-      const minCents =
-        Number.isFinite(minPurchase) && minPurchase > 0
-          ? Math.round(minPurchase * 100)
-          : null;
-      const meta = getDiscountRuleMeta(appliedCode.rule, subtotalCents);
-      const minPurchaseFail = minCents != null && subtotalCents < minCents;
-      const discountAmountFail =
-        meta && !meta.isPercent && Number.isFinite(meta.cents) && meta.cents > subtotalCents;
-      if (!minPurchaseFail && !discountAmountFail) {
-        const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
+
+    // ✅ Code discount row ONLY when code is actually applied
+    if (appliedCode?.rule && isDiscountAppliedInCart(appliedCode.code)) {
+      const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
+
+      if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
         const rowBadge = getFooterDiscountBadgeLabel(appliedCode.rule);
-        if (!discountBadge) discountBadge = rowBadge;
+
         rows.push({
-          key: `code:${getRuleKey(appliedCode.rule, "code")}`,
+          key: `code:${appliedCode.code}`,
           label: "Discount Code",
-          tag: rowBadge,
+          tag: rowBadge || appliedCode.code,
           tagIcon: true,
-          amount:
-            Number.isFinite(codeDiscountCents) && codeDiscountCents > 0
-              ? formatDiscountAmount(codeDiscountCents, currency)
-              : "Applied",
+          amount: formatDiscountAmount(codeDiscountCents, currency),
         });
       }
     }
 
-    const uniqueRows = [];
-    const seen = new Set();
-    rows.forEach((row) => {
-      const key = trimToNull(row?.key);
-      if (!key || seen.has(key)) return;
-      seen.add(key);
-      uniqueRows.push(row);
-    });
-
-    // Use CART.total_discount (actual Shopify-applied amount) when available,
-    // fall back to estimated autoDiscountCents from completed steps
-    const cartTotalDiscount = Math.max(0, Number(CART?.total_discount || 0));
-    const totalDiscountCents = cartTotalDiscount > 0 ? cartTotalDiscount : autoDiscountCents;
-
-    if (!uniqueRows.length && totalDiscountCents <= 0) {
+    if (!rows.length) {
       host.hidden = true;
       host.innerHTML = "";
       return;
     }
 
-    if (!discountBadge && totalDiscountCents > 0) {
-      discountBadge = `-${formatMoney(totalDiscountCents, currency)}`;
-    }
-    if (discountBadge && !/^-/.test(discountBadge)) {
-      discountBadge = `-${discountBadge}`;
-    }
-
-    const hasDiscountRow = uniqueRows.some(
-      (row) =>
-        row?.tagIcon ||
-        String(row?.label || "").trim().toLowerCase().includes("discount")
-    );
-
-    const rowsHtml = uniqueRows
-      .map(
-        (row) => `
-          <div class="sc-foot-row">
-            <p class="sc-foot-name">${safe(row.label || "")}</p>
-            ${trimToNull(row.tag) ? `<span class="sc-foot-tag">${row.tagIcon ? renderMilestoneIcon(ICONS.tag) : ""}${safe(row.tag)}</span>` : ""}
-            <span class="sc-foot-amt">${safe(row.amount || "Unlocked")}</span>
-          </div>
-        `
-      )
-      .join("");
-
-    const badgeHtml = discountBadge && !hasDiscountRow
-      ? `<div class="sc-foot-badge">${renderMilestoneIcon(ICONS.tag)}<span>${safe(discountBadge)}</span></div>`
-      : "";
+    const rowsHtml = rows.map((row) => `
+      <div class="sc-foot-row">
+        <p class="sc-foot-name">${safe(row.label || "")}</p>
+        ${trimToNull(row.tag) ? `<span class="sc-foot-tag">${row.tagIcon ? renderMilestoneIcon(ICONS.tag) : ""}${safe(row.tag)}</span>` : ""}
+        <span class="sc-foot-amt">${safe(row.amount || "")}</span>
+      </div>
+    `).join("");
 
     host.hidden = false;
-    host.innerHTML = `<div class="sc-footer-summary">${badgeHtml}${rowsHtml}</div>`;
+    host.innerHTML = `<div class="sc-footer-summary">${rowsHtml}</div>`;
   };
 
   function syncOpenButtonBadge(countRaw) {
