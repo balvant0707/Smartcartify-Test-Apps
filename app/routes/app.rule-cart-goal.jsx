@@ -2071,28 +2071,16 @@ export default function RuleCartGoal() {
         onAction: handleBack,
       }}
       title={campaignName || "Cart Goal"}
-      primaryAction={{
-        content: "Save",
-        loading: isSaving,
-        onAction: handleSave,
-      }}
+      primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
+      secondaryActions={[
+        {
+          content: enabled ? "Pause" : "Activate",
+          accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
+          tone: enabled ? "caution" : "success",
+          onAction: () => setEnabled((value) => !value),
+        },
+      ]}
     >
-      <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
-        <button
-          onClick={() => setEnabled((value) => !value)}
-          style={{
-            backgroundColor: enabled ? "#EAB308" : "#16A34A",
-            color: "#FFFFFF",
-            border: "none",
-            borderRadius: "8px",
-            padding: "8px 16px",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          {enabled ? "Pause" : "Activate"}
-        </button>
-      </div>
       <style>{`
         .cg-layout {
           display: grid;
