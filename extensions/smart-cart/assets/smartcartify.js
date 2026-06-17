@@ -6562,90 +6562,90 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
   };
 
-const maybeRemoveInvalidDiscountCodes = async () => {
-  if (DISCOUNT_REMOVE_IN_FLIGHT) return;
+  const maybeRemoveInvalidDiscountCodes = async () => {
+    if (DISCOUNT_REMOVE_IN_FLIGHT) return;
 
-  const appliedRules = getAppliedDiscountRules();
+    const appliedRules = getAppliedDiscountRules();
 
-  const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-  const manualRule = manualCode ? findCodeDiscountRuleByCode(manualCode) : null;
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const manualRule = manualCode ? findCodeDiscountRuleByCode(manualCode) : null;
 
-  const rulesToCheck = appliedRules.length
-    ? appliedRules
-    : manualRule
-      ? [{ rule: manualRule, code: manualCode }]
-      : [];
+    const rulesToCheck = appliedRules.length
+      ? appliedRules
+      : manualRule
+        ? [{ rule: manualRule, code: manualCode }]
+        : [];
 
-  if (!rulesToCheck.length) return;
+    if (!rulesToCheck.length) return;
 
-  const subtotalCents = getCartSubtotalCents();
-  const cartQty = getCartTotalQty();
-  const currency = normalizeCurrencyCode();
+    const subtotalCents = getCartSubtotalCents();
+    const cartQty = getCartTotalQty();
+    const currency = normalizeCurrencyCode();
 
-  for (const { rule, code } of rulesToCheck) {
-    const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount")
-      .trim()
-      .toLowerCase();
+    for (const { rule, code } of rulesToCheck) {
+      const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount")
+        .trim()
+        .toLowerCase();
 
-    const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
-    const minQuantityFail =
-      triggerType === "quantity" &&
-      Number.isFinite(minQuantity) &&
-      minQuantity > 0 &&
-      cartQty < minQuantity;
+      const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
+      const minQuantityFail =
+        triggerType === "quantity" &&
+        Number.isFinite(minQuantity) &&
+        minQuantity > 0 &&
+        cartQty < minQuantity;
 
-    const minPurchase = Number(
-      rule?.minPurchase ??
-      rule?.min_purchase ??
-      rule?.minSubtotal ??
-      rule?.min_subtotal ??
-      rule?.minAmount ??
-      rule?.min_amount
-    );
+      const minPurchase = Number(
+        rule?.minPurchase ??
+        rule?.min_purchase ??
+        rule?.minSubtotal ??
+        rule?.min_subtotal ??
+        rule?.minAmount ??
+        rule?.min_amount
+      );
 
-    const minCents =
-      triggerType !== "quantity" && Number.isFinite(minPurchase) && minPurchase > 0
-        ? Math.round(minPurchase * priceDivisor(currency))
-        : null;
+      const minCents =
+        triggerType !== "quantity" && Number.isFinite(minPurchase) && minPurchase > 0
+          ? Math.round(minPurchase * priceDivisor(currency))
+          : null;
 
-    const meta = getDiscountRuleMeta(rule, subtotalCents);
+      const meta = getDiscountRuleMeta(rule, subtotalCents);
 
-    const minPurchaseFail = minCents != null && subtotalCents < minCents;
+      const minPurchaseFail = minCents != null && subtotalCents < minCents;
 
-    const discountAmountFail =
-      meta &&
-      !meta.isPercent &&
-      Number.isFinite(meta.cents) &&
-      meta.cents > subtotalCents;
+      const discountAmountFail =
+        meta &&
+        !meta.isPercent &&
+        Number.isFinite(meta.cents) &&
+        meta.cents > subtotalCents;
 
-    if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
+      if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
 
-    DISCOUNT_REMOVE_IN_FLIGHT = true;
+      DISCOUNT_REMOVE_IN_FLIGHT = true;
 
-    try {
-      await clearDiscountCode(code);
+      try {
+        await clearDiscountCode(code);
 
-      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
-      scStore.del("__SC_LAST_APPLIED_CODE__");
+        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+        scStore.del("__SC_LAST_APPLIED_CODE__");
 
-      const discountInput = drawer.querySelector("[data-discount-input]");
-      if (discountInput) discountInput.value = "";
+        const discountInput = drawer.querySelector("[data-discount-input]");
+        if (discountInput) discountInput.value = "";
 
-      await refreshFromNetwork();
-      renderAllFromCache();
+        await refreshFromNetwork();
+        renderAllFromCache();
 
-      setDiscountMessage("");
-      LAST_AUTO_REMOVED_CODE = code;
-      LAST_AUTO_REMOVED_AT = Date.now();
-    } catch (err) {
-      console.error("[SmartCartify] auto remove discount failed:", err);
-    } finally {
-      DISCOUNT_REMOVE_IN_FLIGHT = false;
+        setDiscountMessage("");
+        LAST_AUTO_REMOVED_CODE = code;
+        LAST_AUTO_REMOVED_AT = Date.now();
+      } catch (err) {
+        console.error("[SmartCartify] auto remove discount failed:", err);
+      } finally {
+        DISCOUNT_REMOVE_IN_FLIGHT = false;
+      }
+
+      return;
     }
-
-    return;
-  }
-};
+  };
 
   const updateDiscountPanelVisibility = (opts = {}) => {
     if (!drawerDiscountPanel) return;
@@ -6685,6 +6685,49 @@ const maybeRemoveInvalidDiscountCodes = async () => {
     window.location.href = "/checkout";
   };
 
+  const validateCodeDiscountRule = (rule, subtotalCents) => {
+    if (!rule) return { ok: false, message: "Discount code is not valid." };
+
+    const currency = normalizeCurrencyCode();
+    const subtotal = Math.max(0, Number(subtotalCents) || 0);
+
+    const minPurchase = Number(
+      rule?.minPurchase ??
+      rule?.min_purchase ??
+      rule?.minSubtotal ??
+      rule?.min_subtotal ??
+      rule?.minAmount ??
+      rule?.min_amount
+    );
+
+    if (Number.isFinite(minPurchase) && minPurchase > 0) {
+      const minCents = Math.round(minPurchase * priceDivisor(currency));
+
+      if (subtotal < minCents) {
+        return {
+          ok: false,
+          message: `Add ${formatMoney(minCents - subtotal, currency)} more to use this discount code.`,
+        };
+      }
+    }
+
+    const meta = getDiscountRuleMeta(rule, subtotal);
+
+    if (
+      meta &&
+      !meta.isPercent &&
+      Number.isFinite(meta.cents) &&
+      meta.cents > subtotal
+    ) {
+      return {
+        ok: false,
+        message: `Discount amount ${formatMoney(meta.cents, currency)} cannot be greater than cart subtotal ${formatMoney(subtotal, currency)}.`,
+      };
+    }
+
+    return { ok: true, message: "" };
+  };
+
   const applyDiscountCode = async (codeOverride = "") => {
     const overrideCode =
       typeof codeOverride === "string" || typeof codeOverride === "number"
@@ -6701,6 +6744,18 @@ const maybeRemoveInvalidDiscountCodes = async () => {
     }
 
     setDiscountMessage("");
+
+    const rule = findCodeDiscountRuleByCode(code);
+    const validation = validateCodeDiscountRule(rule, getCartSubtotalCents());
+
+    if (!validation.ok) {
+      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+      scStore.del("__SC_LAST_APPLIED_CODE__");
+
+      if (discountMsg) discountMsg.style.color = "#dc2626";
+      setDiscountMessage(validation.message);
+      return;
+    }
 
     const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart.js")}`;
 
@@ -6728,7 +6783,7 @@ const maybeRemoveInvalidDiscountCodes = async () => {
       await refreshFromNetwork();
       renderAllFromCache();
 
-      if (findCodeDiscountRuleByCode(code) || isDiscountAppliedInCart(code)) {
+      if (rule && isDiscountAppliedInCart(code)) {
         if (discountInput) discountInput.value = "";
 
         if (discountMsg) discountMsg.style.color = "#16a34a";
@@ -11290,8 +11345,10 @@ const maybeRemoveInvalidDiscountCodes = async () => {
     }
   });
 
-  $("[data-checkout]")?.addEventListener("click", () => {
+  $("[data-checkout]")?.addEventListener("click", async () => {
     recordCompletedRuleConversions();
+
+    await maybeRemoveInvalidDiscountCodes();
 
     const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
     const lastCode = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
