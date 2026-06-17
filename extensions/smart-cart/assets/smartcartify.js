@@ -953,6 +953,16 @@
     return stripCurrencySymbolIfCodePresent(normalized, CART?.currency);
   };
 
+  const renderGoalMessageHtml = (message) => {
+    const raw = String(message ?? "");
+    if (!raw) return "";
+
+    return safe(raw).replace(/\{([^{}]+)\}/g, (_match, inner) => {
+      const value = String(inner || "").trim();
+      return value ? `<strong class="sc-goal-bold">${value}</strong>` : "";
+    });
+  };
+
   const getProxyArray = (proxy, keys) => {
     for (const k of keys) {
       const v = proxy?.[k];
@@ -3363,7 +3373,7 @@
 }
 .sc-drawer{
   position:fixed;top:0;right:0;height:100%;
-  max-width:445px;
+  max-width:435px;
   width:100% !important;
   background: var(--sc-drawer-bg);
   background-size:cover;
@@ -3599,6 +3609,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translate(-50%); } }
 
 /* Progress */
+.sc-goal-bold {
+  font-weight: 700;
+}
 .sc-progress {
     background: var(--sc-progress-bg);
     color: var(--sc-progress-text);
@@ -3805,12 +3818,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 .sc-legends{display:none !important;}
 
-.sc-items{
---tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 48%), 0 1px 2px -1px rgb(0 0 0 / 42%) !important;
-    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
-    box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a !important;
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-ring-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-shadow) !important;
-}
 
 .sc-items{
   position:relative;
@@ -3829,9 +3836,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   overflow:auto;
   scrollbar-width:none; /* Firefox */
   -ms-overflow-style:none; /* IE/Edge legacy */
-  // border:1px solid var(--sc-border);
-  border: 1px solid var(--sc-border); */
-    border-radius: 5px;
 }
 .sc-items-list{
   display:flex;
@@ -7505,9 +7509,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const rawTitle =
       complete
         ? pickMessageTextAny(rule, ["afterTitle", "after_title"], "") ||
-          getOfferUnlockTitle(rule?.afterOfferUnlockMessage)
+        getOfferUnlockTitle(rule?.afterOfferUnlockMessage)
         : pickMessageTextAny(rule, ["beforeTitle", "before_title"], "") ||
-          getOfferUnlockTitle(rule?.beforeOfferUnlockMessage);
+        getOfferUnlockTitle(rule?.beforeOfferUnlockMessage);
     const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor();
     const replaced = rawTitle
       ? replaceProgressText({
@@ -10215,12 +10219,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const subtotal = getCartOriginalSubtotalCents();
     const isEmptyCart = isDrawerCartEmpty();
 
-    // ✅ ALWAYS refresh announcement regardless of steps
     refreshAnnouncementFromRules();
+
     if (isEmptyCart) {
       setAnnouncementMessages([]);
       setProgressVisible(false);
-      label.textContent = "";
+      label.innerHTML = "";
       fill.style.width = "0%";
       dotsWrap.innerHTML = "";
       legends.innerHTML = "";
@@ -10234,7 +10238,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const buyStatuses = getBuyXGetYStatuses();
     const anyBuyCompletedNow = buyStatuses.some((x) => x.complete);
 
-    // ✅ Clear shown/auto-added flags when eligibility is false (so next time it can show/add again)
     buyStatuses.forEach((st) => {
       if (!st?.ruleKey) return;
       if (!st.complete) {
@@ -10243,22 +10246,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         scStore.del(keyPermFailed("buyxgety", st.ruleKey));
       }
     });
+
     if (bxgyNow?.ruleKey && !bxgyCompleteNow) {
       clearPopupShown("bxgy", bxgyNow.ruleKey);
       scStore.del(keyAutoAdded("bxgy", bxgyNow.ruleKey));
       scStore.del(keyPermFailed("bxgy", bxgyNow.ruleKey));
     }
 
-    // ✅ If no steps configured, don't blank announcement anymore
     if (!stepsAll.length) {
       setProgressVisible(false);
-      label.textContent = "Milestones not configured yet.";
+      label.innerHTML = renderGoalMessageHtml("Milestones not configured yet.");
       fill.style.width = "0%";
       dotsWrap.innerHTML = "";
       legends.innerHTML = "";
       document.documentElement.style.removeProperty("--sc-stepcount");
 
-      // prime popup state so refresh/open doesn't fire
       const priming = !__SC_PRIMED_POPUPS__;
       if (priming) {
         LAST_DONE = 0;
@@ -10266,7 +10268,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         drawer.__sc_buy_completed_before = anyBuyCompletedNow;
         __SC_PRIMED_POPUPS__ = true;
       }
-
       return;
     }
 
@@ -10274,7 +10275,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (!configuredSteps.length) {
       setProgressVisible(false);
-      label.textContent = "Milestones not configured yet.";
+      label.innerHTML = renderGoalMessageHtml("Milestones not configured yet.");
       fill.style.width = "0%";
       dotsWrap.innerHTML = "";
       legends.innerHTML = "";
@@ -10286,11 +10287,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         drawer.__sc_buy_completed_before = anyBuyCompletedNow;
         __SC_PRIMED_POPUPS__ = true;
       }
-
       return;
     }
 
     setProgressVisible(true);
+
     const stepCount = stepsAll.length;
     const isCartGoalProgress = stepsAll.some((step) => step?.rule?.isCartGoal);
     progressWrap.classList.toggle("sc-cart-goal-progress", isCartGoalProgress);
@@ -10304,56 +10305,41 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     let labelText = "";
     if (nextPending) {
-      // Step pending: show its before message. Never bleed after-messages from completed steps.
-      labelText = trimToNull(nextPending.progressTextBefore) || trimToNull(nextPending.title) || "";
+      labelText =
+        trimToNull(nextPending.progressTextBefore) ||
+        trimToNull(nextPending.title) ||
+        "";
     } else if (doneCount > 0) {
-      // All steps done: show the last completed step's after message.
       const lastDone = doneSteps[doneCount - 1];
-      labelText = trimToNull(lastDone.progressTextAfter) || "🎉 Congrats! All rewards are unlocked!";
+      labelText =
+        trimToNull(lastDone.progressTextAfter) ||
+        "🎉 Congrats! All rewards are unlocked!";
     }
+
     if (!labelText) {
-      labelText = doneCount >= configuredSteps.length && !nextPending
-        ? "🎉 Congrats! All rewards are unlocked!"
-        : trimToNull(nextPending?.title) || "Add items to unlock rewards";
+      labelText =
+        doneCount >= configuredSteps.length && !nextPending
+          ? "🎉 Congrats! All rewards are unlocked!"
+          : trimToNull(nextPending?.title) || "Add items to unlock rewards";
     }
-    label.textContent = labelText;
+
+    label.innerHTML = renderGoalMessageHtml(labelText);
 
     const fillPct = computeMixedFillPercent(stepsAll, subtotal);
     fill.style.width = `${fillPct}%`;
 
     const isDrawerOpen = drawer.classList.contains("open");
 
-    // ✅ FIX-2: Prime state on first render (so refresh won't show popups)
     const priming = !__SC_PRIMED_POPUPS__;
     if (priming) {
       LAST_DONE = doneCount;
       LAST_BXGY_DONE = bxgyCompleteNow;
       drawer.__sc_buy_completed_before = anyBuyCompletedNow;
       __SC_PRIMED_POPUPS__ = true;
-
-      doneSteps
-        .filter((ss) => ss?.type === "free" && ss?.rule)
-        .forEach((ss) => {
-          const slot = trimToNull(ss?.slot);
-          const ruleKey = getRuleKey(ss?.rule, "free");
-          const guardKey = slot || ruleKey;
-          if (!guardKey) return;
-          if (!trimToNull(scStore.get(keyPendingFreeGift(guardKey)))) return;
-          if (cartHasRewardForKey("free", guardKey)) {
-            scStore.del(keyPendingFreeGift(guardKey));
-            markPopupShown("free", guardKey);
-            return;
-          }
-          void autoAddFirstFreeGiftOption({
-            rule: ss.rule,
-            ruleKey,
-            slot,
-          });
-        });
     }
 
-    // ? POPUPS only if NOT priming
     let rewardPopupShown = false;
+
     if (isDrawerOpen && !priming) {
       const firstCompleted = buyStatuses.find((x) => x.complete);
       const wasBuyCompletedBefore = !!drawer.__sc_buy_completed_before;
@@ -10368,16 +10354,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             "buyxgety",
             firstCompleted.rule,
             true,
-            trimToNull(firstCompleted.afterMsg) || trimToNull(firstCompleted.currentMsg) || "Buy X Get Y unlocked"
+            trimToNull(firstCompleted.afterMsg) ||
+            trimToNull(firstCompleted.currentMsg) ||
+            "Buy X Get Y unlocked"
           ),
         });
+
         if (popupShown) {
           firePaperEffect(2800);
           rewardPopupShown = true;
         }
       } else if (bxgyCompleteNow && !LAST_BXGY_DONE) {
-        const popupShown = bxgyNow
-          ? openRewardPopupFor({
+        if (bxgyNow) {
+          openRewardPopupFor({
             kind: "bxgy",
             rule: bxgyNow.rule,
             ruleKey: bxgyNow.ruleKey,
@@ -10385,10 +10374,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               "bxgy",
               bxgyNow.rule,
               true,
-              trimToNull(bxgyNow.afterMsg) || trimToNull(bxgyNow.currentMsg) || "Offer unlocked"
+              trimToNull(bxgyNow.afterMsg) ||
+              trimToNull(bxgyNow.currentMsg) ||
+              "Offer unlocked"
             ),
-          })
-          : false;
+          });
+        }
 
         firePaperEffect(2800);
         rewardPopupShown = true;
@@ -10397,121 +10388,27 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (!anyBuyCompletedNow) drawer.__sc_buy_completed_before = false;
     }
 
-    if (isDrawerOpen) {
-      const freeStepToPrompt = doneSteps.find((ss) => {
-        if (ss?.type !== "free") return false;
-        const slot = trimToNull(ss?.slot);
-        const ruleKey = getRuleKey(ss?.rule, "free");
-        const guardKey = slot || ruleKey;
-        if (!guardKey) return false;
-        if (cartHasRewardForKey("free", guardKey)) return false;
-        if (!canShowPopupFor("free", guardKey)) return false;
-        return true;
-      });
-
-      if (freeStepToPrompt?.rule) {
-        openRewardPopupFor({
-          kind: "free",
-          rule: freeStepToPrompt.rule,
-          ruleKey: getRuleKey(freeStepToPrompt.rule, "free"),
-          slot: trimToNull(freeStepToPrompt.slot),
-          title: trimToNull(freeStepToPrompt?.title) || "Free product unlocked",
-        });
-      }
-
-      const buyStatusToPrompt = buyStatuses.find((st) => {
-        if (!st.complete || !st.rule) return;
-        if (cartHasRewardForKey("buyxgety", st.ruleKey)) return;
-        return canShowPopupFor("buyxgety", st.ruleKey);
-      });
-      if (buyStatusToPrompt) {
-        openRewardPopupFor({
-          kind: "buyxgety",
-          rule: buyStatusToPrompt.rule,
-          ruleKey: buyStatusToPrompt.ruleKey,
-          title: getDynamicOfferTitle(
-            "buyxgety",
-            buyStatusToPrompt.rule,
-            true,
-            trimToNull(buyStatusToPrompt.afterMsg) || trimToNull(buyStatusToPrompt.currentMsg) || "Buy X Get Y unlocked"
-          ),
-        });
-      }
-    }
-
     const stepCompletedNow = !priming && doneCount > LAST_DONE;
     if (stepCompletedNow && !rewardPopupShown) {
-      const newlyUnlocked = doneSteps[doneCount - 1];
-      const celebrationText =
-        trimToNull(newlyUnlocked?.progressTextAfter) || newlyUnlocked?.title || "Reward Unlocked";
-
       firePaperEffect(2800);
-      let popupShown = false;
-      const stepSlot = trimToNull(newlyUnlocked?.slot);
-      const stepGuardKey =
-        (stepSlot ? `step:${stepSlot}` : null) ||
-        trimToNull(newlyUnlocked?.ruleKey) ||
-        trimToNull(newlyUnlocked?.cartStepName) ||
-        null;
-      const canShowStepPopup = !stepGuardKey || canShowPopupFor("step", stepGuardKey);
-
       if (!isDrawerOpen) openDrawer();
-
-      if (newlyUnlocked?.type === "free") {
-        // avoid repeat after refresh by shown flag
-        const slot = newlyUnlocked.slot;
-        if (DISABLE_FREE_REWARD_POPUP) {
-          const ruleKey = getRuleKey(newlyUnlocked?.rule, "free");
-          const guardKey = slot || ruleKey;
-          if (guardKey) markPopupShown("free", guardKey);
-          if (newlyUnlocked?.rule) {
-            void autoAddRewardIfNeeded({
-              kind: "free",
-              rule: newlyUnlocked.rule,
-              ruleKey,
-              slot: trimToNull(slot),
-            });
-          }
-          popupShown = true;
-        } else if (!slot || canShowPopupFor("free", slot)) {
-          popupShown = openRewardPopupFor({
-            kind: "free",
-            rule: newlyUnlocked.rule,
-            slot: newlyUnlocked.slot,
-            title: trimToNull(newlyUnlocked?.title) || "Free product unlocked",
-          });
-          if (popupShown) drawer.__sc_free_popup_for = newlyUnlocked.slot;
-        }
-      }
     }
-
 
     LAST_DONE = doneCount;
     LAST_BXGY_DONE = bxgyCompleteNow;
-
-    const stillHasFreeDone = doneSteps.some((ss) => ss.slot === drawer.__sc_free_popup_for);
-    if (!stillHasFreeDone) drawer.__sc_free_popup_for = null;
-
-    if (!bxgyCompleteNow && !anyBuyCompletedNow) {
-      drawer.__sc_reward_popup_for = null;
-    }
 
     dotsWrap.innerHTML = stepsAll
       .map((ss, i) => {
         const isLast = i === stepCount - 1;
         const leftPct = isLast ? 100 : ((i + 1) / stepCount) * 100;
-
         const isDone = isProgressStepDone(ss, subtotal);
         const isActive = !isDone && nextPending?.slot === ss.slot;
         const cls = isDone ? "done" : isActive ? "active" : "";
-        const icon = ss.icon;
-
         const belowText = trimToNull(ss.progressTextBelow) || trimToNull(ss.title);
 
         return `
-          <div class="sc-dot-wrap ${cls} ${isLast ? "last" : ""}"
-               style="left:${leftPct}%">
-            <div class="sc-dot-bubble">${renderMilestoneIcon(icon)}</div>
+          <div class="sc-dot-wrap ${cls} ${isLast ? "last" : ""}" style="left:${leftPct}%">
+            <div class="sc-dot-bubble">${renderMilestoneIcon(ss.icon)}</div>
             <div class="sc-dot-text">${safe(belowText)}</div>
           </div>
         `;
@@ -10524,12 +10421,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     legends.innerHTML = "";
 
-    // clear shown flag for free slots when not done
     stepsAll.forEach((st) => {
       const stepSlot = trimToNull(st?.slot);
       const stepGuardKey = stepSlot ? `step:${stepSlot}` : null;
       const isDone = isProgressStepDone(st, subtotal);
+
       if (!isDone && stepGuardKey) clearPopupShown("step", stepGuardKey);
+
       if (st.type === "free") {
         const slot = st.slot;
         if (!isDone && slot) {
