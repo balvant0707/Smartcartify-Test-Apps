@@ -205,6 +205,7 @@
   let discountPopupShownForCode = null;
   let DISCOUNT_PANEL_STYLE_ENABLED = false;
   let OFFER_TABS_ENABLED = true;
+  const FORCE_CART_OFFER_TABS = true;
   let ACTIVE_DRAWER_TAB = "cart";
   const STATIC_FRONTEND_CART_DESIGN = false;
   const STATIC_CART_DRAWER_DESIGN = false;
@@ -212,7 +213,8 @@
 
   let __SC_PRIMED_POPUPS__ = false;
   // Free product rewards use the selectable gift popup when a milestone completes.
-  const DISABLE_FREE_REWARD_POPUP = false;
+  const DISABLE_FREE_REWARD_POPUP = true;
+  const DISABLE_REWARD_SUCCESS_POPUPS = true;
 
   // Auto-add guard + per-key cooldown (prevents retry spam on 429/422)
   let __SC_AUTO_ADDING__ = false;
@@ -1076,6 +1078,12 @@
     }
   };
 
+  const normalizeSelectionId = (value) => {
+    const raw = trimToNull(value);
+    if (!raw) return null;
+    return gidToId(raw) || raw;
+  };
+
   const getUpsellSettings = () => {
     const raw = PROXY?.upsellSettings || {};
     return {
@@ -1083,7 +1091,8 @@
       showAsSlider: to01(raw.showAsSlider) === 1,
       autoplay: to01(raw.autoplay) === 1,
       recommendationMode: String(raw.recommendationMode || "auto").toLowerCase(),
-      sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "Recommended Products"),
+      selectionType: String(raw.selectionType || raw.selection_type || "").toLowerCase(),
+      sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "You'll love these"),
       buttonText: pickTextAny(raw, ["buttonText"], "add"),
       buttonColor: pickColor(raw, ["buttonColor", "button"], "#111111"),
       buttonTextColor: pickColor(raw, ["buttonTextColor", "buttonLabelColor", "button_text_color"], "#ffffff"),
@@ -1345,15 +1354,25 @@
     const desired = Array.isArray(settings?.selectedProductIds)
       ? settings.selectedProductIds
       : [];
-    const desiredIds = desired
-      .map((id) => gidToId(id) || (id ? String(id) : null))
-      .filter(Boolean);
+    const desiredIds = desired.map(normalizeSelectionId).filter(Boolean);
     if (!desiredIds.length) return list;
-    const map = new Map(list.map((p) => [String(p?.id || ""), p]));
+    const map = new Map();
+    list.forEach((p) => {
+      [
+        p?.id,
+        p?.productId,
+        p?.product_id,
+        p?.admin_graphql_api_id,
+        p?.legacyResourceId,
+      ].forEach((id) => {
+        const normalized = normalizeSelectionId(id);
+        if (normalized) map.set(String(normalized), p);
+      });
+    });
     const ordered = desiredIds
       .map((id) => map.get(String(id)))
       .filter(Boolean);
-    return ordered.length ? ordered : list;
+    return ordered;
   };
 
   const getOrderedSelectedCollections = (settings) => {
@@ -1364,70 +1383,79 @@
     const desired = Array.isArray(settings?.selectedCollectionIds)
       ? settings.selectedCollectionIds
       : [];
-    const desiredIds = desired
-      .map((id) => gidToId(id) || (id ? String(id) : null))
-      .filter(Boolean);
+    const desiredIds = desired.map(normalizeSelectionId).filter(Boolean);
     if (!desiredIds.length) return list;
-    const map = new Map(list.map((c) => [String(c?.id || ""), c]));
+    const map = new Map();
+    list.forEach((c) => {
+      [
+        c?.id,
+        c?.collectionId,
+        c?.collection_id,
+        c?.admin_graphql_api_id,
+        c?.legacyResourceId,
+      ].forEach((id) => {
+        const normalized = normalizeSelectionId(id);
+        if (normalized) map.set(String(normalized), c);
+      });
+    });
     const ordered = desiredIds
       .map((id) => map.get(String(id)))
       .filter(Boolean);
-    return ordered.length ? ordered : list;
+    return ordered;
   };
 
   const buildUpsellItems = (settings) => {
-    const items = Array.isArray(CART?.items) ? CART.items : [];
     const currency = normalizeCurrencyCode();
-
-    const mapFromCart = (it) => {
-      const qty = Math.max(1, Number(it?.quantity || 1));
-      const unitCents =
-        Number(it?.final_line_price || it?.price || 0) / qty || 0;
-      const options = getVariantOptionsFromItem(it);
-      const hasVariants =
-        !!options.length && !Boolean(it?.product_has_only_default_variant);
-      return {
-        title: safe(it?.product_title || "Product"),
-        price: formatMoney(unitCents, currency),
-        priceCents: Number.isFinite(unitCents) ? Math.max(0, Math.round(unitCents)) : null,
-        priceIsCents: true,
-        image: getUpsellImageFromItem(it),
-        size: hasVariants ? getPreferredVariantFromItem(it) : null,
-        variantId: it?.variant_id || it?.id || null,
-        hasVariants,
-      };
-    };
-
-    const cartItems = items.map(mapFromCart);
 
     if (settings.recommendationMode === "auto") {
       if (Array.isArray(UPSELL_DYNAMIC) && UPSELL_DYNAMIC.length) {
-        return UPSELL_DYNAMIC.slice(0, 5);
+        return UPSELL_DYNAMIC;
       }
-      return cartItems.length ? cartItems : [];
+      return [];
     }
 
-    if (settings.recommendationMode === "product") {
+    const wantsProducts =
+      settings.recommendationMode === "product" ||
+      (
+        settings.recommendationMode === "manual" &&
+        (
+          settings.selectionType === "products" ||
+          settings.selectionType === "product" ||
+          settings.selectedProductIds.length > 0
+        )
+      );
+    const wantsCollections =
+      settings.recommendationMode === "collection" ||
+      (
+        settings.recommendationMode === "manual" &&
+        !wantsProducts &&
+        (
+          settings.selectionType === "collections" ||
+          settings.selectionType === "collection" ||
+          settings.selectedCollectionIds.length > 0
+        )
+      );
+
+    if (wantsProducts) {
       const selectedProducts = getOrderedSelectedProducts(settings);
-      if (selectedProducts.length && settings.selectedProductIds.length) {
-        return buildUpsellItemsFromProxyProducts(selectedProducts, currency).slice(
-          0,
-          5
-        );
+      if (selectedProducts.length) {
+        return buildUpsellItemsFromProxyProducts(selectedProducts, currency);
       }
+      return [];
     }
 
-    if (settings.recommendationMode === "collection") {
+    if (wantsCollections) {
       const selectedCollections = getOrderedSelectedCollections(settings);
-      if (selectedCollections.length && settings.selectedCollectionIds.length) {
+      if (selectedCollections.length) {
         return buildUpsellItemsFromProxyCollections(
           selectedCollections,
           currency
-        ).slice(0, 5);
+        );
       }
+      return [];
     }
 
-    return cartItems.length ? cartItems : [];
+    return [];
   };
 
   const clearUpsellTimer = () => {
@@ -1545,7 +1573,8 @@
           seen.add(key);
           unique.push(p);
         });
-        UPSELL_DYNAMIC = unique.slice(0, 5);
+        UPSELL_DYNAMIC = unique;
+        requestAnimationFrame(() => renderUpsellSection());
       }
     } finally {
       UPSELL_LOADING = false;
@@ -1581,7 +1610,7 @@
 
     const total = items.length;
     if (UPSELL_INDEX >= total) UPSELL_INDEX = 0;
-    const visibleItems = settings.showAsSlider ? items : items.slice(0, 2);
+    const visibleItems = items;
     const upsellItemMap = new Map();
 
     const renderCard = (item, idx) => {
@@ -1675,7 +1704,7 @@
     };
 
     const arrows =
-      settings.showAsSlider && total > 0
+      settings.showAsSlider && total > 1
         ? `
           <button class="sc-upsell-arrow left" type="button" data-upsell-prev aria-label="Previous">
             <svg width="14" height="14" viewBox="0 0 256 256" xml:space="preserve">
@@ -3214,9 +3243,8 @@
       useRemainingForGoal: false,
     });
 
-    openDrawer();
-    firePaperEffect(2800);
-    showCenterCelebratePopup("Discount Applied ✅", txt || `Discount applied: ${applied.code}`, 5000);
+    if (discountMsg) discountMsg.style.color = "#16a34a";
+    setDiscountMessage(txt || `Discount applied: ${applied.code}`);
     return true;
   };
 
@@ -3244,7 +3272,7 @@
   --sc-border: rgba(229,231,235,1);
   --sc-muted: rgba(107,114,128,1);
 
-  --sc-drawer-width: min(480px,92vw);
+  --sc-drawer-width: min(540px,94vw);
   --sc-drawer-bg: #ffffff;
   --sc-drawer-text-color: #000000;
   --sc-drawer-header-color: #000000;
@@ -3337,7 +3365,7 @@
 }
 .sc-drawer{
   position:fixed;top:0;right:0;height:100%;
-  max-width:425px;
+  max-width:var(--sc-drawer-width);
   width:100% !important;
   background: var(--sc-drawer-bg);
   background-size:cover;
@@ -3351,6 +3379,11 @@
   flex-direction:column;
   font-size:var(--sc-base-font-size);
   color:var(--sc-drawer-text-color);
+  filter:none !important;
+  -webkit-filter:none !important;
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+  backface-visibility:hidden;
 }
 .sc-drawer.sc-position-left{
   right:auto;
@@ -3372,11 +3405,11 @@
   height:min(88vh, 720px);
   transform:translateY(110%);
 }
-.sc-drawer.sc-mobile-bottom-sheet.open{transform:translateY(0)}
-.sc-drawer.open{transform:translateX(0);pointer-events:auto !important}
-.sc-drawer.sc-position-left.open{transform:translateX(0)}
-.sc-drawer.sc-mobile-bottom-sheet.open{transform:translateY(0)}
-.sc-drawer *{box-sizing:border-box;pointer-events:auto !important;}
+.sc-drawer.sc-mobile-bottom-sheet.open{transform:none}
+.sc-drawer.open{transform:none;pointer-events:auto !important}
+.sc-drawer.sc-position-left.open{transform:none}
+.sc-drawer.sc-mobile-bottom-sheet.open{transform:none}
+.sc-drawer *{box-sizing:border-box;pointer-events:auto !important;text-shadow:none !important;}
   .sc-close svg {
     fill: var(--sc-close-icon-color) !important;
     color:var(--sc-close-icon-color);
@@ -3404,7 +3437,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  backdrop-filter: blur(6px);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
   border-bottom:1px solid var(--sc-border);
 }
 .sc-title-wrap{
@@ -3784,7 +3818,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   flex:1;
   overflow:hidden;
   padding:0;
-  backdrop-filter:blur(6px);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
   color:#000000;
   margin: 5px;
   padding: 0px;
@@ -3890,6 +3925,39 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-size:var(--sc-small-font-size);
   color:#111827;
   font-weight:600;
+}
+.sc-discount-loading-overlay{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.62);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  z-index:90;
+  pointer-events:auto;
+}
+.sc-drawer.sc-applying-discount .sc-discount-loading-overlay{
+  display:flex;
+}
+.sc-discount-loading-overlay[hidden]{
+  display:none !important;
+}
+.sc-discount-loading-card{
+  min-width:150px;
+  padding:18px 20px;
+  border-radius:12px;
+  background:#fff;
+  border:1px solid rgba(17,24,39,.08);
+  box-shadow:0 18px 45px rgba(15,23,42,.18);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  color:#111827;
+  font-weight:700;
+  font-size:var(--sc-small-font-size);
 }
 .sc-drawer.sc-empty-state .sc-items-footer,
 .sc-drawer.sc-empty-state .sc-footer{
@@ -4054,6 +4122,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-price{
   font-size:var(--sc-base-font-size) !important;
   color:var(--sc-drawer-text-color);
+  font-weight: 700;
 }
 .sc-price.sc-price-free{
   color:var(--sc-drawer-text-color);}
@@ -4093,26 +4162,26 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 
 .sc-upsell{
-  padding: 0px 12px;
+  padding:6px 12px 10px;
   order:2;
-  background: var(--sc-upsell-bg);
+  background:transparent;
 }
-.sc-upsell-card{
-  padding: 6px 4px;
-}
+.sc-upsell-card{padding:0;}
 .sc-upsell-title{
-  font-size: 16px;
-  font-weight: 700;
-  text-align: center;
-  letter-spacing: 0.2px;
-  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+  font-size:20px;
+  font-weight:500;
+  text-align:center;
+  letter-spacing:0;
+  color:var(--sc-upsell-text, var(--sc-drawer-text-color));
+  margin-bottom:12px;
+  line-height:1.2;
 }
 .sc-upsell-inner {
-    background: var(--sc-upsell-bg, #ffffff);
-    padding: 2px 10px;
+    background: transparent;
+    padding: 0 26px;
     position: relative;
     overflow: visible;
-    width: 96%;
+    width: 100%;
     margin: 0 auto;
 }
 .sc-upsell-viewport{
@@ -4127,31 +4196,39 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-upsell-item + .sc-upsell-item{
   margin-top: 12px;
 }
+.sc-upsell-item{
+  background:#eefbfc;
+  padding:14px 18px;
+  min-height:116px;
+  display:flex;
+  align-items:center;
+}
 .sc-upsell-slide{
   flex: 0 0 100%;
   min-width: 100%;
 }
 .sc-upsell-row{
   display: grid;
-  grid-template-columns: 72px 1fr auto;
-  gap: 14px;
+  grid-template-columns:76px minmax(0,1fr);
+  gap:22px;
   align-items: center;
+  width:100%;
 }
 .sc-upsell-info{
   display: grid;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 .sc-upsell-top{
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-  justify-content: space-between;
+  display:grid;
+  gap:2px;
+  align-items:start;
+  justify-content:stretch;
 }
 .sc-upsell-img{
-  width: 50px;
-  height: 50px;
-  background: #f1f5f9;
+  width:76px;
+  height:76px;
+  background:#ffffff;
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -4162,8 +4239,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   object-fit: cover;
 }
 .sc-upsell-name{
-  font-weight: 700;
-  font-size: var(--sc-base-font-size);
+  font-weight:800;
+  font-size:clamp(17px, calc(var(--sc-base-font-size) * 1.1), 20px);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4178,19 +4255,20 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display: none;
 }
 .sc-upsell-price{
-  font-weight: 700;
+  font-weight:500;
+  font-size:clamp(16px, calc(var(--sc-base-font-size) * 1.02), 19px);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   white-space: nowrap;
 }
 .sc-upsell-controls{
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns:minmax(126px,164px) minmax(120px,174px);
   align-items: center;
   margin-top: 6px;
   gap: 10px;
 }
 .sc-upsell-controls.no-variant{
-  grid-template-columns: auto;
+  grid-template-columns:minmax(120px,174px);
   justify-content: start;
 }
 .sc-upsell-select-wrap{
@@ -4198,13 +4276,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-upsell-select{
   width: 100%;
-  border: 1px solid var(--sc-border);
-  padding: 6px 28px 6px 10px;
-  font-size: var(--sc-small-font-size);
+  border:1px solid #d7dee8;
+  padding:0 34px 0 12px;
+  font-size:var(--sc-base-font-size);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   background: #ffffff;
-  min-height: 32px;
-  min-width: 120px;
+  min-height:44px;
+  min-width:0;
   appearance: none;
 }
 .sc-upsell-select:focus{
@@ -4214,31 +4292,32 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-upsell-select-arrow{
   position: absolute;
-  right: 8px;
+  right:12px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--sc-upsell-arrow, #111827);
   pointer-events: none;
-  font-size: 8px;
+  font-size:10px;
 }
 .sc-upsell-btn{
   background: var(--sc-upsell-button-bg, #111111) !important;
   background-color: var(--sc-upsell-button-bg, #111111) !important;
-  border: 1px solid var(--sc-border, #e2e8f0);
+  border:1px solid var(--sc-upsell-button-bg, #111111);
   color: var(--sc-upsell-button-text, #ffffff) !important;
-  padding: 6px 10px;
-  font-size: 12px;
-  min-height: 32px;
-  font-weight: 600;
+  padding:0 18px;
+  font-size:var(--sc-base-font-size);
+  min-height:44px;
+  width:100%;
+  font-weight:800;
   display: inline-flex;
   align-items: center;
+  justify-content:center;
   gap: 6px;
   white-space: nowrap;
+  cursor:pointer;
 }
 .sc-upsell-btn-icon{
-  font-size: 14px;
-  font-weight: 900;
-  line-height: 1;
+  display:none;
 }
 .sc-upsell-btn-oos{
   border:1px solid #9ca3af;
@@ -4252,9 +4331,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
+  width:32px;
+  height:44px;
+  border-radius:0;
   border: unset;
   display: grid;
   place-items: center;
@@ -4270,8 +4349,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-upsell-arrow:hover{
   transform: translateY(-50%) scale(1.04);
 }
-.sc-upsell-arrow.left{left: -28px;}
-.sc-upsell-arrow.right{right: -28px;}
+.sc-upsell-arrow.left{left:-8px;}
+.sc-upsell-arrow.right{right:-8px;}
+@media(max-width:420px){
+  .sc-upsell-inner{padding:0 18px;}
+  .sc-upsell-item{padding:12px 14px;min-height:106px;}
+  .sc-upsell-row{grid-template-columns:66px minmax(0,1fr);gap:14px;align-items:center;}
+  .sc-upsell-img{width:66px;height:66px;}
+  .sc-upsell-controls{grid-template-columns:1fr;gap:8px;margin-top:8px;}
+  .sc-upsell-controls.no-variant{grid-template-columns:1fr;}
+  .sc-upsell-title{font-size:18px;}
+}
 
 /* remove icon */
 .sc-remove-x {
@@ -4301,11 +4389,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 /* Footer */
 .sc-footer {
-    padding: 5px 10px 5px;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    backdrop-filter: blur(6px);
+    gap: 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter:none;
     color: var(--sc-drawer-text-color);
     background: var(--sc-footer-bg);
     position: sticky;
@@ -4315,8 +4404,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
     --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
     box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a !important;
     box-shadow: var(--tw-ring-offset-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-ring-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-shadow) !important;
-    margin: 5px;
-    border-radius: 5px;
+    margin: 0;
+    border-radius: 0;
+    overflow:hidden;
 }
 .sc-footer.sc-footer-static{
   position:relative;
@@ -4325,29 +4415,32 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-footer .sc-footer-milestones{
   margin:0 12px;
 }
-.sc-discount{display:none !important;gap:10px;align-items:center;margin-bottom: 5px;order:4;flex-wrap:wrap;padding: 0 15px;}
+.sc-discount{display:none !important;gap:12px;align-items:center;flex-wrap:wrap;padding: 6px 12px 9px;background:var(--sc-footer-bg);border-bottom:1px solid var(--sc-border);}
 .sc-discount:not([hidden]){display:flex !important;}
 .sc-discount input{
-  flex:1;height:44px;
+  flex:1;height:40px;
   border: 1px solid var(--sc-input-border);
-  background:transparent;
+  background:var(--sc-input-bg);
   padding:0 14px;font-size:var(--sc-base-font-size);
   color:var(--sc-input-text);
   box-shadow: unset !important;
-    outline: unset !important;
-    outline-offset: unset !important
+  outline: unset !important;
+  outline-offset: unset !important;
+  min-width:0;
 }
 .sc-discount input::placeholder{color:var(--sc-input-placeholder);}
 
 .sc-discount button{
-  min-width:110px;
-  height:44px;
-  border:1px solid var(--sc-apply-border);
-  background: var(--sc-apply-bg);
-  color: var(--sc-apply-text);
-  cursor:pointer;
-  // border-radius: var(--sc-btn-radius);
+      min-width: 100px;
+    height: 40px;
+    border: 1px solid var(--sc-apply-border);
+    background: var(--sc-apply-bg);
+    color: var(--sc-apply-text);
+    cursor: pointer;
+    font-size: var(--sc-base-font-size);
+    padding: 0 15px;
 }
+.sc-discount button:disabled{opacity:.7;cursor:wait;}
 .sc-discount-msg{
   width:100%;
   margin-top:4px;
@@ -4392,13 +4485,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 
 .sc-foot-name{
-  margin:0;
-  font-size:var(--sc-base-font-size);
-  font-weight:500;
-  color:rgba(80,66,55,.78);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+      margin: 0;
+    font-size: var(--sc-base-font-size);
+    font-weight: 700;
+    color: var(--sc-drawer-text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .sc-foot-tag{
   display:inline-flex;
@@ -4432,7 +4525,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     padding:8px;
   }
   .sc-footer{
-    padding:8px;
+    padding:0;
   }
   .sc-footer .sc-footer-milestones{
     margin:0 8px;
@@ -4447,7 +4540,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     justify-self:end;
   }
   .sc-discount{
-    padding:0 8px;
+    padding:6px 10px 9px;
   }
   .sc-item{
     grid-template-columns:40px minmax(0, 1fr);
@@ -4496,7 +4589,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   color:var(--sc-drawer-text-color);
 }
 
-.sc-footer-row{display:flex;gap:10px;align-items:stretch;}
+.sc-footer-row{display:grid;grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);gap:0;align-items:stretch;min-height:68px;}
 
 .sc-offers{
   position: absolute;
@@ -5124,26 +5217,28 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 
 .sc-subtotal-box{
-  flex:0 0 42%;
-  border:1px solid var(--sc-border);
-  border-radius:var(--sc-btn-radius);
-  padding:10px 12px;
+  min-width:0;
+  border:none;
+  border-radius:0;
+  background:var(--sc-subtotal-bg);
+  padding:12px 20px;
   display:flex;flex-direction:column;justify-content:center;
 }
 .sc-subtotal-box .sc-sub-label{
   font-size:var(--sc-small-font-size);
-  color:var(--sc-drawer-text-color);
+  color:var(--sc-subtotal-label);
   line-height:1.2;
 }
 .sc-subtotal-box .sc-sub-value{
   font-size:var(--sc-heading-font-size);
   font-weight:900;
-  color:var(--sc-drawer-text-color);
+  color:var(--sc-subtotal-text);
   line-height:1.2;
 }
 
 .sc-checkout{
-  flex:1;border:none;
+  width:100%;border:none;
+  border-radius:0;
   background:var(--sc-checkout-bg);
   color:var(--sc-checkout-text);
   font-size:var(--sc-heading-font-size);
@@ -5152,8 +5247,30 @@ body.sc-cartify-open .shopify-section-group-header-group{
   align-items:center;
   justify-content:center;
   position:relative;
-  min-height:40px;
-  font-weight:700;
+  min-height:68px;
+  font-weight:800;
+  overflow:hidden;
+  isolation:isolate;
+  transition:transform .18s ease, filter .18s ease;
+}
+.sc-checkout::before{
+  content:"";
+  position:absolute;
+  inset:-40% auto -40% -45%;
+  width:42%;
+  transform:skewX(-18deg);
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.34), transparent);
+  animation:scCheckoutShine 2.8s ease-in-out infinite;
+  z-index:0;
+}
+.sc-checkout:hover{filter:brightness(1.04);}
+.sc-checkout:active{transform:scale(.985);}
+.sc-checkout-label{position:relative;z-index:1;}
+@keyframes scCheckoutShine{
+  0%{left:-45%;opacity:0;}
+  18%{opacity:1;}
+  45%{left:115%;opacity:0;}
+  100%{left:115%;opacity:0;}
 }
 .sc-badge{
   position:absolute;right:10px;top:50%;transform:translateY(-50%);
@@ -5169,7 +5286,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-freegift-overlay{
   position:fixed;
   inset:0;
-  background:rgba(15,23,42,.65);
+  background:rgba(17,24,39,.62);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -5183,9 +5300,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
   visibility:visible;
 }
 .sc-freegift-card{
-  width:min(420px, 96vw);
-  max-height:min(700px, 92vh);
-  background:var(--sc-freegift-bg);
+  width:min(520px, 96vw);
+  max-height:min(700px, 94vh);
+  background:#ffffff;
   border-radius:12px;
   padding:0;
   border:1px solid var(--sc-freegift-border);
@@ -5214,40 +5331,40 @@ body.sc-cartify-open .shopify-section-group-header-group{
   flex-direction:column;
   align-items:center;
   gap:8px;
-  padding:0px 0px 5px;
+  padding:18px 16px 16px;
   border-bottom:1px solid rgba(15,23,42,.1);
 }
 .sc-freegift-icon {
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
-    background: var(--sc-drawer-bg);
+    background: #6d2bd9;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--sc-drawer-text-color);
+    color: #ffffff;
 }
 .sc-freegift-icon svg{width:22px;height:22px;fill:currentColor;}
 .sc-freegift-heading{display:grid;gap:8px;}
 .sc-freegift-title-text{
     margin: 0;
-    font-weight: 700;
-    font-size: var(--sc-heading-font-size);
+    font-weight: 800;
+    font-size: 20px;
     line-height: 1.2;
-    color: var(--sc-drawer-header-color);
+    color: #10206f;
 }
 .sc-freegift-subtext {
     margin: 0;
-    font-size: var(--sc-drawer-text-color);
-    color: var(--sc-freegift-subtext);
+    font-size: 17px;
+    color: #718091;
 }
 .sc-freegift-count{
   display:inline-flex;
   align-items:center;
   min-height:24px;
   border-radius:999px;
-  background:#eee;
-  color:#2f2017;
+  background:#eee7ff;
+  color:#10206f;
   font-weight:800;
   font-size:16px;
   padding:1px 8px;
@@ -5296,7 +5413,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-freegift-list{
   display:block;
-  max-height:400px;
+  max-height:520px;
   overflow-y:auto;
   text-align:left;
 }
@@ -5313,17 +5430,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
   border:0;
   border-bottom:1px solid rgba(15,23,42,.1);
   background:#fff;
-  color:#2f2017;
+  color:#10206f;
   cursor:pointer;
   display:grid;
   grid-template-columns:48px minmax(0,1fr) 38px;
   gap:12px;
   align-items:center;
-  min-height:88px;
-  padding:14px 20px;
+  min-height:87px;
+  padding:14px 22px;
   text-align:left;
 }
-.sc-freegift-option:hover{background:#fffaf3;}
+.sc-freegift-option:hover{background:#fbfaff;}
 .sc-freegift-thumb{
   width:44px;
   height:44px;
@@ -5347,8 +5464,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
   min-width:0;
 }
 .sc-freegift-option-title{
-  font-size:var(--sc-small-font-size);
-  color:var(--sc-drawer-text-color);
+  font-size:18px;
+  font-weight:800;
+  color:#10206f;
   line-height:1.2;
   white-space:nowrap;
   overflow:hidden;
@@ -5370,22 +5488,21 @@ body.sc-cartify-open .shopify-section-group-header-group{
   align-items:center;
   min-height:22px;
   border-radius:999px;
-  background:var(--sc-badge-bg);
-  color:var(--sc-badge-text);
-  font-weight:600;
-  font-size:var(--sc-small-font-size);
-  color:var(--sc-drawer-text-color);
+  background:#eee7ff;
+  font-weight:800;
+  font-size:15px;
+  color:#10206f;
   padding:0 8px;
 }
 .sc-freegift-check{
-    width: 20px;
-    height: 20px;
-    border: 2px solid #4a3428;
-    border-radius: 2px;
+    width: 28px;
+    height: 28px;
+    border: 2px solid #10206f;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #2f2017;
+    color: #ffffff;
     justify-self: end;
     font-size:14px;
     font-weight:900;
@@ -5393,8 +5510,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-freegift-check svg{width:18px;height:18px;fill:currentColor;}
 .sc-freegift-option.selected .sc-freegift-check{
-  border-color:#ffd18a;
-  background:#ffd18a;
+  border-color:#6d2bd9;
+  background:#6d2bd9;
 }
 .sc-freegift-option.selected .sc-freegift-check::before{
   content:"✓";
@@ -5407,6 +5524,47 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-size:var(--sc-small-font-size);
   text-align:center;
 }
+.sc-freegift-variant-panel{
+  display:grid;
+  gap:12px;
+  background:#eee8f6;
+  padding:22px;
+}
+.sc-freegift-variant-field{
+  display:grid;
+  gap:8px;
+}
+.sc-freegift-variant-field label{
+  font-size:13px;
+  line-height:1.1;
+  font-weight:900;
+  color:#10206f;
+}
+.sc-freegift-variant-select-wrap{
+  position:relative;
+}
+.sc-freegift-variant-select{
+  width:100%;
+  min-height:43px;
+  border:0;
+  border-radius:3px;
+  background:#ffffff;
+  color:#10206f;
+  font-size:17px;
+  padding:0 40px 0 14px;
+  appearance:none;
+  box-shadow:0 0 0 1px rgba(15,23,42,.04);
+}
+.sc-freegift-variant-select-wrap::after{
+  content:"⌄";
+  position:absolute;
+  right:13px;
+  top:50%;
+  transform:translateY(-58%);
+  color:#10206f;
+  font-size:24px;
+  pointer-events:none;
+}
 .sc-freegift-message.is-error{
   color:#b42318;
   font-weight:700;
@@ -5415,14 +5573,18 @@ body.sc-cartify-open .shopify-section-group-header-group{
     width: 100%;
     border: none;
     border-radius: 0;
-    min-height: 31px;
-    padding: 15px;
-    background: var(--sc-checkout-bg);
-    color: var(--sc-checkout-text);
+    min-height: 68px;
+    padding: 18px;
+    background: #6d2bd9;
+    color: #ffffff;
     font-weight: 900;
-    font-size: var(--sc-base-font-size);
+    font-size: 21px;
     cursor: pointer;
     transition: transform .2s ease, opacity .2s ease;
+    position:sticky;
+    bottom:0;
+    z-index:2;
+    box-shadow:0 -6px 14px rgba(109,43,217,.08);
 }
 .sc-freegift-add:disabled{
   background:#e7e7e7;
@@ -5859,25 +6021,35 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       </div>
       <div class="sc-items-footer">
         <div class="sc-upsell" hidden></div>
-        <div class="sc-discount" data-discount-panel hidden>
-          <input
-            type="text"
-            data-discount-input
-            placeholder="Enter discount code"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button type="button" data-discount-apply>Apply</button>
-          <div class="sc-discount-msg" data-discount-msg hidden></div>
-        </div>
       </div>
     </div>
 
     <div class="sc-offers" data-offers-panel hidden></div>
+    <div class="sc-discount-loading-overlay" data-discount-loading hidden aria-live="polite" aria-label="Applying discount code">
+      <div class="sc-discount-loading-card">
+        <div class="sc-items-spinner"></div>
+        <span>Applying discount...</span>
+      </div>
+    </div>
 
     <div class="sc-footer">
       <div class="sc-footer-milestones" data-footer-milestones hidden></div>
+      <div class="sc-discount" data-discount-panel hidden>
+        <input
+          type="text"
+          data-discount-input
+          placeholder="Apply Discount Code"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button type="button" data-discount-apply>Apply</button>
+        <div class="sc-discount-msg" data-discount-msg hidden></div>
+      </div>
       <div class="sc-footer-row">
+        <div class="sc-subtotal-box">
+          <span class="sc-sub-label">Total</span>
+          <strong class="sc-sub-value" data-subtotal>--</strong>
+        </div>
         <button class="sc-checkout" data-checkout type="button">
           <span class="sc-checkout-label">Checkout</span>
         </button>
@@ -5970,6 +6142,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const discountInput = drawer.querySelector("[data-discount-input]");
   const discountButton = drawer.querySelector("[data-discount-apply]");
   const discountMsg = drawer.querySelector("[data-discount-msg]");
+  const discountLoadingOverlay = drawer.querySelector("[data-discount-loading]");
   const offersPanel = drawer.querySelector("[data-offers-panel]");
   const offerTabs = drawer.querySelector("[data-offer-tabs]");
 
@@ -6116,9 +6289,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       applyBtnText: "#ffffff",
       applyBtnBorder: "rgba(17,24,39,.25)",
       subtotalBg: "#ffffff",
-      subtotalText: "#ffffff",
+      subtotalText: "#111827",
       subtotalLabel: "#000000",
-      discountCodeApply: 0,
+      discountCodeApply: 1,
     };
 
     const mode = String(
@@ -6473,7 +6646,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     DISCOUNT_PANEL_STYLE_ENABLED =
       to01(pick(style, ["discountCodeApply"], defaults.discountCodeApply)) === 1;
-    OFFER_TABS_ENABLED = style?.offerButtonEnabled !== false && style?.offerButtonEnabled !== 0;
+    OFFER_TABS_ENABLED = FORCE_CART_OFFER_TABS || (style?.offerButtonEnabled !== false && style?.offerButtonEnabled !== 0);
     if (!OFFER_TABS_ENABLED) ACTIVE_DRAWER_TAB = "cart";
     if (offerTabs) offerTabs.hidden = !OFFER_TABS_ENABLED;
   };
@@ -6488,6 +6661,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
     discountMsg.textContent = text;
     discountMsg.hidden = false;
+  };
+
+  const setDiscountApplyLoading = (isLoading) => {
+    const active = !!isLoading;
+    drawer.classList.toggle("sc-applying-discount", active);
+    if (discountLoadingOverlay) discountLoadingOverlay.hidden = !active;
+    if (discountButton) discountButton.disabled = active;
+    if (discountInput) discountInput.disabled = active;
   };
 
   const getCartRewardLineCents = () => {
@@ -6840,11 +7021,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           `Add ${formatMoney(remaining * priceDivisor())} more to use code ${code}.`
         );
 
-        if (discountButton) {
-          discountButton.disabled = false;
-        }
-
-        setProgressLoading(false);
+        setDiscountApplyLoading(false);
 
         return;
       }
@@ -6862,8 +7039,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart.js")}`;
 
-    if (discountButton) discountButton.disabled = true;
-    setProgressLoading(true);
+    setDiscountApplyLoading(true);
 
     try {
       await fetch(target, { credentials: "same-origin", redirect: "follow" });
@@ -6891,13 +7067,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
         if (discountMsg) discountMsg.style.color = "#16a34a";
         setDiscountMessage(`Discount applied: ${code}`);
-
-        firePaperEffect(2800);
-        showCenterCelebratePopup(
-          "Discount Applied ✅",
-          `Discount applied: ${code}`,
-          3000
-        );
       } else {
         scStore.del(MANUAL_DISCOUNT_CODE_KEY);
         scStore.del("__SC_LAST_APPLIED_CODE__");
@@ -6909,8 +7078,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       console.error("[SmartCartify] discount apply failed:", err);
       setDiscountMessage("Could not apply discount code. Please try again.");
     } finally {
-      setProgressLoading(false);
-      if (discountButton) discountButton.disabled = false;
+      setDiscountApplyLoading(false);
     }
   };
 
@@ -7882,7 +8050,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     drawer.classList.add("sc-static-design");
     const style = PROXY?.styleSettings || {};
     const upsell = PROXY?.upsellSettings || {};
-    OFFER_TABS_ENABLED = style?.offerButtonEnabled !== false && style?.offerButtonEnabled !== 0;
+    OFFER_TABS_ENABLED = FORCE_CART_OFFER_TABS || (style?.offerButtonEnabled !== false && style?.offerButtonEnabled !== 0);
     DISCOUNT_PANEL_STYLE_ENABLED = style?.discountCodeApply === true || style?.discountCodeApply === 1;
     const r = document.documentElement.style;
 
@@ -8482,7 +8650,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return sum + Math.max(0, lineAmount);
     }, 0);
     const subtotalCents = Math.max(0, baseSubtotalCents - rewardLineCents);
-    if (subtotalEl) subtotalEl.textContent = formatMoney(subtotalCents, currency);
     const appliedCodes = getAppliedDiscountCodes();
     const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
     const manualLower = manualCode ? manualCode.toLowerCase() : null;
@@ -8514,13 +8681,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
 
     const checkoutPayableCents = Math.max(0, subtotalCents - totalDiscountCents);
+    if (subtotalEl) subtotalEl.textContent = formatMoney(checkoutPayableCents, currency);
     const checkoutLabelEl = drawer.querySelector(".sc-checkout-label");
-    if (checkoutLabelEl) {
-      checkoutLabelEl.textContent = `${checkoutLabelBase} - ${formatMoney(
-        checkoutPayableCents,
-        currency
-      )}`;
-    }
+    if (checkoutLabelEl) checkoutLabelEl.textContent = checkoutLabelBase;
 
     const itemCount = Math.max(0, Number(CART?.item_count || 0));
     const countEl = $("[data-count]");
@@ -8893,6 +9056,115 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
   };
 
+  const rewardProductByIdCache = new Map();
+
+  const getRewardProductCacheKey = (rawProductId) => {
+    const numericId = normalizeProductNumericId(rawProductId);
+    return numericId ? `id:${numericId}` : `handle:${String(rawProductId || "").trim()}`;
+  };
+
+  const normalizeRewardProductVariant = (product, variant, productId) => {
+    if (!variant) return null;
+    const legacyId = trimToNull(variant?.id || variant?.legacyResourceId);
+    if (!legacyId) return null;
+    const productImage =
+      trimToNull(product?.image?.src) ||
+      (Array.isArray(product?.images) && trimToNull(product.images[0]?.src)) ||
+      "";
+    const imageUrl =
+      trimToNull(variant?.featured_image?.src) ||
+      trimToNull(variant?.image?.src) ||
+      productImage;
+    return {
+      ...variant,
+      id: `gid://shopify/ProductVariant/${legacyId}`,
+      legacyResourceId: String(legacyId),
+      productId: String(productId || product?.id || ""),
+      title: trimToNull(variant?.title) || "",
+      price: variant?.price,
+      compareAtPrice: variant?.compare_at_price,
+      image: imageUrl,
+      option1: variant?.option1,
+      option2: variant?.option2,
+      option3: variant?.option3,
+      product: {
+        title: trimToNull(product?.title) || "",
+        image: productImage || imageUrl,
+      },
+    };
+  };
+
+  const getRewardProductOptionDefs = (product, variants) => {
+    const productOptions = Array.isArray(product?.options) ? product.options : [];
+    return [0, 1, 2]
+      .map((idx) => {
+        const key = `option${idx + 1}`;
+        const opt = productOptions[idx];
+        const name = trimToNull(opt?.name || opt);
+        const valuesFromProduct = Array.isArray(opt?.values) ? opt.values : [];
+        const valuesFromVariants = (Array.isArray(variants) ? variants : [])
+          .map((variant) => trimToNull(variant?.[key]))
+          .filter(Boolean);
+        const values = Array.from(new Set([...valuesFromProduct, ...valuesFromVariants].map(trimToNull).filter(Boolean)));
+        const isDefaultOnly = values.length === 1 && /^default title$/i.test(values[0]);
+        if (!name || !values.length || isDefaultOnly) return null;
+        return { index: idx, key, name, values };
+      })
+      .filter(Boolean);
+  };
+
+  const resolveRewardProductForOptions = async (rawProductId) => {
+    const cacheKey = getRewardProductCacheKey(rawProductId);
+    if (rewardProductByIdCache.has(cacheKey)) return rewardProductByIdCache.get(cacheKey);
+
+    const numericId = normalizeProductNumericId(rawProductId);
+    const isHandleLookup = !numericId;
+    let product = null;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const url = isHandleLookup
+        ? `/products/${encodeURIComponent(rawProductId)}.js`
+        : `/products.json?ids=${encodeURIComponent(numericId)}&limit=1`;
+      const res = await fetch(url, {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) return null;
+      const payload = await res.json();
+      product = isHandleLookup
+        ? payload
+        : Array.isArray(payload?.products) ? payload.products[0] : null;
+    } catch (err) {
+      console.warn("[SmartCartify] reward product variants fetch failed:", err?.message || err);
+      return null;
+    }
+
+    if (!product) return null;
+
+    const productId = String(numericId || product?.id || rawProductId || "");
+    const variants = (Array.isArray(product?.variants) ? product.variants : [])
+      .map((variant) => normalizeRewardProductVariant(product, variant, productId))
+      .filter(Boolean);
+    const image =
+      trimToNull(product?.image?.src) ||
+      (Array.isArray(product?.images) && trimToNull(product.images[0]?.src)) ||
+      trimToNull(variants[0]?.image) ||
+      "";
+    const normalized = {
+      id: productId,
+      title: trimToNull(product?.title) || "Free gift",
+      image,
+      options: getRewardProductOptionDefs(product, variants),
+      variants,
+    };
+    rewardProductByIdCache.set(cacheKey, normalized);
+    return normalized;
+  };
+
 
   const firstGiftSkuProductId = (value) => {
     if (Array.isArray(value)) return normalizeResourceId(value[0]);
@@ -9143,6 +9415,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
       rewardPopupCache.current.selectedOption =
         options.find((option) => String(option.optionId) === String(selectedId)) || null;
+      if (rewardPopupCache.current.selectedOption) {
+        renderFreeGiftPopupOptions(rewardPopupCache, options, normalizeCurrencyCode());
+      }
     };
 
     overlayEl.addEventListener("click", (event) => {
@@ -9153,6 +9428,27 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (optionRow.classList.contains("sc-freegift-reference")) return;
       event.preventDefault();
       updateFreeGiftSelection(optionRow.getAttribute("data-option-id"));
+    });
+
+    overlayEl.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const select = target.closest("[data-gift-variant-select]");
+      if (!select || !rewardPopupCache?.current?.selectedOption) return;
+      const key = select.getAttribute("data-gift-variant-select");
+      if (!key) return;
+      const current = rewardPopupCache.current;
+      const options = Array.isArray(current.options) ? current.options : [];
+      const selectedId = current.selectedOptionId;
+      const updatedOptions = options.map((option) =>
+        String(option.optionId) === String(selectedId)
+          ? setRewardOptionSelection(option, key, select.value)
+          : option
+      );
+      current.options = updatedOptions;
+      current.selectedOption =
+        updatedOptions.find((option) => String(option.optionId) === String(selectedId)) || null;
+      renderFreeGiftPopupOptions(rewardPopupCache, updatedOptions, normalizeCurrencyCode());
     });
 
     if (addBtn) {
@@ -9201,18 +9497,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               if (cur.kind === "free") scStore.del(keyPendingFreeGift(addedGuardKey));
               markPopupShown(cur.kind, addedGuardKey);
             }
-            const addedProductTitle =
-              trimToNull(selectedOption?.title) ||
-              trimToNull(selectedOption?.variant?.product?.title) ||
-              trimToNull(selectedOption?.variant?.title) ||
-              "Free gift";
             closeRewardPopup();
-            firePaperEffect(2800);
-            showCenterCelebratePopup(
-              "Product added",
-              `${addedProductTitle} was added to your cart successfully.`,
-              4000
-            );
             renderAllFromCache();
           } else {
             // Silent failure (variant not resolved, already in cart, etc.) — no throw, just notify
@@ -9361,8 +9646,51 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return Number.isFinite(n) ? Math.round(n * priceDivisor()) : 0;
   };
 
-  const buildFreeGiftOption = ({ rule, productId, variant, index }) => {
-    if (!variant || !getVariantLegacyId(variant)) return null;
+  const getSelectedRewardVariant = (option) => {
+    const variants = Array.isArray(option?.variants) ? option.variants : [];
+    if (!variants.length) return option?.variant || null;
+    const selections = option?.selectedOptions || {};
+    const optionDefs = Array.isArray(option?.variantOptions) ? option.variantOptions : [];
+    const matched = variants.find((variant) =>
+      optionDefs.every((def) => {
+        const wanted = trimToNull(selections?.[def.key]);
+        return !wanted || String(variant?.[def.key] || "") === String(wanted);
+      })
+    );
+    return matched || variants.find((variant) => isVariantAvailable(variant)) || variants[0] || option?.variant || null;
+  };
+
+  const setRewardOptionSelection = (option, key, value) => {
+    if (!option) return option;
+    const next = {
+      ...option,
+      selectedOptions: {
+        ...(option.selectedOptions || {}),
+        [key]: value,
+      },
+    };
+    const selectedVariant = getSelectedRewardVariant(next);
+    return {
+      ...next,
+      variant: selectedVariant,
+      image: trimToNull(selectedVariant?.image) || trimToNull(next.image),
+      priceCents: centsFromDecimalPrice(selectedVariant?.price),
+    };
+  };
+
+  const buildFreeGiftOption = ({ rule, productId, variant, product, index }) => {
+    const variants = Array.isArray(product?.variants) && product.variants.length
+      ? product.variants
+      : variant
+        ? [variant]
+        : [];
+    const selectedVariant =
+      variants.find((item) => getVariantLegacyId(item) === getVariantLegacyId(variant)) ||
+      variants.find((item) => isVariantAvailable(item)) ||
+      variants[0] ||
+      variant ||
+      null;
+    if (!selectedVariant || !getVariantLegacyId(selectedVariant)) return null;
     const optionRule = {
       ...rule,
       bonusProductId: productId,
@@ -9370,26 +9698,29 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       bonusProductIds: [productId],
     };
     const productName =
-      trimToNull(variant?.product?.title) ||
-      trimToNull(variant?.productTitle) ||
-      trimToNull(variant?.title) ||
+      trimToNull(product?.title) ||
+      trimToNull(selectedVariant?.product?.title) ||
+      trimToNull(selectedVariant?.productTitle) ||
       trimToNull(rule?.bonusProductTitle) ||
       trimToNull(rule?.productTitle) ||
       "Free gift";
-    const variantName = trimToNull(variant?.title);
-    const title =
-      variantName && variantName.toLowerCase() !== "default title" && variantName !== productName
-        ? `${productName} - ${variantName}`
-        : productName;
+    const variantOptions = Array.isArray(product?.options) ? product.options : [];
+    const selectedOptions = {};
+    variantOptions.forEach((def) => {
+      selectedOptions[def.key] = trimToNull(selectedVariant?.[def.key]) || trimToNull(def.values?.[0]) || "";
+    });
 
     return {
-      optionId: `${getVariantLegacyId(variant)}:${index}`,
+      optionId: `${productId || getVariantLegacyId(selectedVariant)}:${index}`,
       rule: optionRule,
-      variant,
+      variant: selectedVariant,
+      variants,
+      variantOptions,
+      selectedOptions,
       qty: getRewardQtyFromRule("free", optionRule),
-      title,
-      image: trimToNull(variant?.image) || trimToNull(variant?.product?.image) || "",
-      priceCents: centsFromDecimalPrice(variant?.price),
+      title: productName,
+      image: trimToNull(product?.image) || trimToNull(selectedVariant?.image) || trimToNull(selectedVariant?.product?.image) || "",
+      priceCents: centsFromDecimalPrice(selectedVariant?.price),
     };
   };
 
@@ -9435,9 +9766,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         bonusProductIds: [productId],
       };
       const directVariant = getFreeGiftVariantFromRule(rule, productId, index);
-      const variant = directVariant || await resolveRewardVariantForAdd(optionRule, { productId });
+      const product = await resolveRewardProductForOptions(productId);
+      const variant = directVariant || product?.variants?.[0] || await resolveRewardVariantForAdd(optionRule, { productId });
       console.debug(`[SmartCartify] resolved option ${index}: variant=`, variant, "legacyId=", variant ? getVariantLegacyId(variant) : null);
-      const option = buildFreeGiftOption({ rule, productId, variant, index });
+      const option = buildFreeGiftOption({ rule, productId, variant, product, index });
       if (!option) {
         console.warn(`[SmartCartify] skipping option ${index}: variant resolution failed`);
         continue;
@@ -9484,14 +9816,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     state.listEl.hidden = false;
     state.listEl.style.removeProperty("display");
     state.current.options = Array.isArray(options) ? options : [];
-    state.current.selectedOption = null;
-    state.current.selectedOptionId = null;
+    const preservedSelectedId = trimToNull(state.current.selectedOptionId);
+    const defaultSelected = state.current.options.find((option) => String(option.optionId) === String(preservedSelectedId)) || state.current.options[0] || null;
+    state.current.selectedOption = defaultSelected;
+    state.current.selectedOptionId = defaultSelected?.optionId || null;
     if (state.messageEl) {
       state.messageEl.hidden = false;
       state.messageEl.classList.remove("is-error");
       state.messageEl.textContent = state.current.goalMet === false
         ? getRewardGoalPendingMessage(state.current.kind)
-        : "Select a free gift to add it to your cart.";
+        : "Choose a free gift and variant to add it to your cart.";
     }
 
     if (!state.current.options.length) {
@@ -9501,26 +9835,57 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return;
     }
 
-    optionsEl.innerHTML = state.current.options.map((option) => {
-      const priceHtml = option.priceCents > 0
-        ? `<span class="sc-freegift-price">${formatMoney(option.priceCents, currency)}</span>`
+    const renderVariantPanel = (option) => {
+      if (!option || !Array.isArray(option.variantOptions) || !option.variantOptions.length) return "";
+      return `
+        <div class="sc-freegift-variant-panel" data-freegift-variant-panel>
+          ${option.variantOptions.map((def) => {
+        const selected = trimToNull(option.selectedOptions?.[def.key]) || trimToNull(def.values?.[0]) || "";
+        return `
+              <div class="sc-freegift-variant-field">
+                <label>${safe(def.name)}</label>
+                <span class="sc-freegift-variant-select-wrap">
+                  <select class="sc-freegift-variant-select" data-gift-variant-select="${safe(def.key)}">
+                    ${def.values.map((value) => {
+          const valueText = trimToNull(value);
+          return `<option value="${safe(valueText)}" ${String(valueText) === String(selected) ? "selected" : ""}>${safe(valueText)}</option>`;
+        }).join("")}
+                  </select>
+                </span>
+              </div>
+            `;
+      }).join("")}
+        </div>
+      `;
+    };
+
+    const selectedId = state.current.selectedOptionId;
+    const rowsHtml = state.current.options.map((option) => {
+      const selected = String(option.optionId) === String(selectedId);
+      const activeVariant = selected ? getSelectedRewardVariant(option) : option.variant;
+      const priceCents = selected ? centsFromDecimalPrice(activeVariant?.price) : option.priceCents;
+      const priceHtml = priceCents > 0
+        ? `<span class="sc-freegift-price">${formatMoney(priceCents, currency)}</span>`
         : "";
-      const imageHtml = option.image
-        ? `<img src="${safe(option.image)}" alt="${safe(option.title)}" loading="lazy">`
+      const image = selected ? trimToNull(activeVariant?.image) || option.image : option.image;
+      const imageHtml = image
+        ? `<img src="${safe(image)}" alt="${safe(option.title)}" loading="lazy">`
         : `<span class="sc-freegift-thumb-empty">${safe((option.title || "G").slice(0, 1))}</span>`;
       return `
-        <button class="sc-freegift-option" type="button" data-option-id="${safe(option.optionId)}">
+        <button class="sc-freegift-option ${selected ? "selected" : ""}" type="button" data-option-id="${safe(option.optionId)}">
           <span class="sc-freegift-thumb">${imageHtml}</span>
           <span class="sc-freegift-option-main">
             <span class="sc-freegift-option-title">${safe(option.title)}</span>
             <span class="sc-freegift-option-price">${priceHtml}<span class="sc-freegift-free-pill">Free</span></span>
           </span>
-          <span class="sc-freegift-check" role="checkbox" aria-checked="false" aria-hidden="true"></span>
+          <span class="sc-freegift-check" role="checkbox" aria-checked="${selected ? "true" : "false"}" aria-hidden="true"></span>
         </button>
       `;
     }).join("");
 
-    if (state.addButton) state.addButton.disabled = true;
+    optionsEl.innerHTML = rowsHtml + renderVariantPanel(state.current.selectedOption);
+
+    if (state.addButton) state.addButton.disabled = state.current.goalMet === false || !state.current.selectedOption;
     console.info("[SmartCartify] free gift popup DOM rendered:", {
       count: state.current.options.length,
       html: optionsEl.innerHTML,
@@ -9600,6 +9965,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title, goalMet = true, force = false }) => {
     console.debug("[SmartCartify] openRewardPopupFor called:", { kind, ruleKey, slot, rule: rule ? { bonusProductIds: rule.bonusProductIds, bonusProductId: rule.bonusProductId, bonus: rule.bonus } : null });
+    if (
+      !force &&
+      DISABLE_REWARD_SUCCESS_POPUPS &&
+      ["free", "bxgy", "buyxgety"].includes(String(kind || "").toLowerCase())
+    ) {
+      return false;
+    }
     console.info("[SmartCartify] reward popup rule products:", {
       kind,
       ruleKey,
@@ -10351,7 +10723,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         }
       } else if (bxgyCompleteNow && !LAST_BXGY_DONE) {
         if (bxgyNow) {
-          openRewardPopupFor({
+          const popupShown = openRewardPopupFor({
             kind: "bxgy",
             rule: bxgyNow.rule,
             ruleKey: bxgyNow.ruleKey,
@@ -10364,10 +10736,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               "Offer unlocked"
             ),
           });
-        }
 
-        firePaperEffect(2800);
-        rewardPopupShown = true;
+          if (popupShown) {
+            firePaperEffect(2800);
+            rewardPopupShown = true;
+          }
+        }
       }
 
       if (!anyBuyCompletedNow) drawer.__sc_buy_completed_before = false;
@@ -11237,8 +11611,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           })
           : `Discount applied: ${pendingDiscountCode}`;
 
-        firePaperEffect(2800);
-        showCenterCelebratePopup("Discount Applied ✅", txt, 5000);
+        if (discountMsg) discountMsg.style.color = "#16a34a";
+        setDiscountMessage(txt);
       }
     } catch (e) {
       console.error("[SmartCartify] Preload failed:", e);
