@@ -3568,12 +3568,18 @@ body.sc-cartify-open .shopify-section-group-header-group{
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translate(-50%); } }
 
 /* Progress */
-.sc-progress{
-  background: var(--sc-progress-bg);
-  color: var(--sc-progress-text);
-  position:relative;
-  flex:0 0 auto;
-  overflow:hidden;
+.sc-progress {
+    background: var(--sc-progress-bg);
+    color: var(--sc-progress-text);
+    position: relative;
+    flex: 0 0 auto;
+    overflow: hidden;
+    --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 48%), 0 1px 2px -1px rgb(0 0 0 / 42%) !important;
+    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
+    box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a !important;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-ring-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-shadow) !important;
+    margin: 5px;
+    border-radius: 5px;
 }
 .sc-label{
   font-size:var(--sc-base-font-size) !important;
@@ -3769,6 +3775,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-legends{display:none !important;}
 
 .sc-items{
+--tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 48%), 0 1px 2px -1px rgb(0 0 0 / 42%) !important;
+    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
+    box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a !important;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-ring-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-shadow) !important;
+}
+
+.sc-items{
   position:relative;
   flex:1;
   overflow:hidden;
@@ -3785,7 +3798,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
   overflow:auto;
   scrollbar-width:none; /* Firefox */
   -ms-overflow-style:none; /* IE/Edge legacy */
-  border:1px solid var(--sc-border);
+  // border:1px solid var(--sc-border);
+  border: 1px solid var(--sc-border); */
+    border-radius: 5px;
 }
 .sc-items-list{
   display:flex;
@@ -4288,17 +4303,23 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-remove-x:hover{opacity:.85}
 
 /* Footer */
-.sc-footer{
-  padding:8px 12px 5px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  backdrop-filter:blur(6px);
-  color:var(--sc-drawer-text-color);
-  background: var(--sc-footer-bg);
-  position:sticky;
-  bottom:0;
-  z-index:8;
+.sc-footer {
+    padding: 5px 10px 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    backdrop-filter: blur(6px);
+    color: var(--sc-drawer-text-color);
+    background: var(--sc-footer-bg);
+    position: sticky;
+    bottom: 0;
+    z-index: 8;
+    --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 48%), 0 1px 2px -1px rgb(0 0 0 / 42%) !important;
+    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
+    box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a !important;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-ring-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-shadow) !important;
+    margin: 5px;
+    border-radius: 5px;
 }
 .sc-footer.sc-footer-static{
   position:relative;
@@ -4508,13 +4529,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
   box-shadow:0 2px 8px rgba(15,23,42,.10);
 }
 .sc-offers[hidden]{display:none !important;}
-.sc-offer-row{
-  display:grid;
-  grid-template-columns:70px minmax(0, 1fr) auto;
-  gap:14px;
-  align-items:center;
-  padding:10px 10px;
-  border-top:1px solid var(--sc-border);
+.sc-offer-row {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 10px 10px;
+    --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 48%), 0 1px 2px -1px rgb(0 0 0 / 42%) !important;
+    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
+    box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a !important;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-ring-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-shadow) !important;
+    margin: 5px;
 }
 .sc-offer-row:first-child{border-top:0;}
 .sc-offer-icon{
