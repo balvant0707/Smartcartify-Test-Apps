@@ -2688,40 +2688,48 @@
     }
   };
 
-const isDiscountAppliedInCart = (code) => {
-  const c = trimToNull(code);
-  if (!c || !CART) return false;
+  const getCartDiscountCodeEntry = (code) => {
+    const c = trimToNull(code);
+    if (!c || !CART) return null;
 
-  const needle = c.toLowerCase();
+    const needle = c.toLowerCase();
 
-  // ✅ Cart ma actual discount amount hovo compulsory
-  const totalDiscount = Number(CART?.total_discount || 0);
-  if (!Number.isFinite(totalDiscount) || totalDiscount <= 0) return false;
+    const totalDiscount = Number(CART?.total_discount || 0);
+    if (!Number.isFinite(totalDiscount) || totalDiscount <= 0) return null;
 
-  const discountCodes = Array.isArray(CART.discount_codes) ? CART.discount_codes : [];
+    const discountCodes = Array.isArray(CART.discount_codes) ? CART.discount_codes : [];
 
-  return discountCodes.some((d) => {
-    const dc = String(d?.code || d || "").trim().toLowerCase();
-    const amount = Number(d?.amount || 0);
-    const applicable = d?.applicable;
+    return discountCodes.find((d) => {
+      const dc = String(d?.code || d || "").trim().toLowerCase();
+      const amount = Number(d?.amount || 0);
+      const applicable = d?.applicable;
 
-    return (
-      dc === needle &&
-      amount > 0 &&
-      applicable !== false
-    );
-  });
-};
+      return (
+        dc === needle &&
+        amount > 0 &&
+        applicable !== false
+      );
+    }) || null;
+  };
+
+  const isDiscountAppliedInCart = (code) => {
+    return Boolean(getCartDiscountCodeEntry(code));
+  };
+
+  const getCartDiscountCodeAmountCents = (code) => {
+    const entry = getCartDiscountCodeEntry(code);
+    if (!entry) return null;
+    const amount = Number(entry?.amount || 0);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    return Math.max(0, Math.round(amount * priceDivisor(CART?.currency)));
+  };
 
   const getAppliedDiscountCodes = () => {
     const out = [];
-    const attrs = CART?.attributes || {};
-    const attrCode = trimToNull(attrs?.discount_code || attrs?.discountCode || "");
-    if (attrCode) out.push(attrCode);
     const cartCodes = Array.isArray(CART?.discount_codes) ? CART.discount_codes : [];
     cartCodes.forEach((d) => {
       const code = trimToNull(d?.code || d);
-      if (code) out.push(code);
+      if (code && isDiscountAppliedInCart(code)) out.push(code);
     });
     const seen = new Set();
     return out.filter((c) => {
@@ -2873,8 +2881,6 @@ const isDiscountAppliedInCart = (code) => {
 
     // (A) Code discount rules (before/after announcement text comes from the
     // preview-above fields, not the progress-below label).
-    const appliedCodes = getAppliedDiscountCodes();
-
     const codeRules = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
     codeRules.forEach((r) => {
       if (!isRuleEnabled(r)) return;
@@ -2882,10 +2888,7 @@ const isDiscountAppliedInCart = (code) => {
         r?.discountCode ?? r?.discount_code ?? r?.code ?? ""
       ).trim();
       if (!ruleCodeRaw) return;
-      const ruleCode = ruleCodeRaw.toLowerCase();
-      const ruleApplied = appliedCodes.some(
-        (c) => String(c).trim().toLowerCase() === ruleCode
-      );
+      const ruleApplied = isDiscountAppliedInCart(ruleCodeRaw);
 
       const isQtyTrigger = isQuantityTriggerRule(r);
       const minPurchase = Number(r?.minPurchase ?? r?.min_purchase);
@@ -3126,6 +3129,33 @@ const isDiscountAppliedInCart = (code) => {
 
   const getDiscountRuleCode = (rule) =>
     trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
+
+  const getDiscountRuleMinPurchase = (rule) => {
+    const n = Number(
+      rule?.minPurchase ??
+      rule?.min_purchase ??
+      rule?.minSubtotal ??
+      rule?.min_subtotal ??
+      rule?.minimumPurchase ??
+      rule?.minimum_purchase ??
+      rule?.minimumAmount ??
+      rule?.minimum_amount ??
+      0
+    );
+
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+
+  const getCartSubtotalRupees = () => {
+    return (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0;
+  };
+
+  const getDiscountRuleRemaining = (rule) => {
+    const min = getDiscountRuleMinPurchase(rule);
+    const subtotal = getCartSubtotalRupees();
+
+    return Math.max(0, min - subtotal);
+  };
 
   const findAppliedDiscountCodeRule = () => {
     const list = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
@@ -6668,13 +6698,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const getCheckoutDiscountCode = () => {
     const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    if (manualCode) return manualCode;
+    if (manualCode && isDiscountAppliedInCart(manualCode)) return manualCode;
 
     const lastCode = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
-    if (lastCode) return lastCode;
+    if (lastCode && isDiscountAppliedInCart(lastCode)) return lastCode;
 
     const attrCode = trimToNull(CART?.attributes?.discount_code) || trimToNull(CART?.attributes?.discountCode);
-    if (attrCode) return attrCode;
+    if (attrCode && isDiscountAppliedInCart(attrCode)) return attrCode;
 
     const appliedCodes = getAppliedDiscountCodes();
     return appliedCodes.length ? appliedCodes[0] : null;
@@ -6753,6 +6783,32 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     setDiscountMessage("");
 
     const rule = findCodeDiscountRuleByCode(code);
+
+    if (rule) {
+      const remaining = getDiscountRuleRemaining(rule);
+
+      if (remaining > 0) {
+
+        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+        scStore.del("__SC_LAST_APPLIED_CODE__");
+
+        if (discountMsg) {
+          discountMsg.style.color = "#dc2626";
+        }
+
+        setDiscountMessage(
+          `Add ${formatMoney(remaining * priceDivisor())} more to use code ${code}.`
+        );
+
+        if (discountButton) {
+          discountButton.disabled = false;
+        }
+
+        setProgressLoading(false);
+
+        return;
+      }
+    }
     const validation = validateCodeDiscountRule(rule, getCartSubtotalCents());
 
     if (!validation.ok) {
@@ -6784,20 +6840,29 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         }),
       });
 
-    await refreshFromNetwork();
-    renderAllFromCache();
+      await refreshFromNetwork();
+      renderAllFromCache();
 
-    if (rule && isDiscountAppliedInCart(code)) {
-      scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
-      scStore.set("__SC_LAST_APPLIED_CODE__", code);
+      if (rule && isDiscountAppliedInCart(code)) {
+        scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
+        scStore.set("__SC_LAST_APPLIED_CODE__", code);
+
         if (discountInput) discountInput.value = "";
+
         if (discountMsg) discountMsg.style.color = "#16a34a";
         setDiscountMessage(`Discount applied: ${code}`);
+
         firePaperEffect(2800);
-        showCenterCelebratePopup("Discount Applied ✅", `Discount applied: ${code}`, 3000);
+        showCenterCelebratePopup(
+          "Discount Applied ✅",
+          `Discount applied: ${code}`,
+          3000
+        );
       } else {
         scStore.del(MANUAL_DISCOUNT_CODE_KEY);
         scStore.del("__SC_LAST_APPLIED_CODE__");
+
+        if (discountMsg) discountMsg.style.color = "#dc2626";
         setDiscountMessage(`Discount code ${code} could not be applied.`);
       }
     } catch (err) {
@@ -8128,21 +8193,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const resolveCodeDiscountCents = (rule, subtotalCents) => {
+    const code = trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
+    const fromCart = getCartDiscountCodeAmountCents(code);
+    if (Number.isFinite(fromCart) && fromCart > 0) {
+      return Math.min(fromCart, Math.max(0, Number(subtotalCents) || 0));
+    }
+
     const fromRule = parseDiscountRuleCents(rule, subtotalCents);
     if (Number.isFinite(fromRule) && fromRule > 0) return fromRule;
 
-    const code = trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
-    const list = Array.isArray(CART?.discount_codes) ? CART.discount_codes : [];
-    const hit = list.find(
-      (d) =>
-        String(d?.code || d || "")
-          .trim()
-          .toLowerCase() === String(code || "").toLowerCase()
-    );
-    const n = Number(hit?.amount);
-    if (Number.isFinite(n) && n > 0) {
-      return Math.min(Math.round(n * 100), Math.max(0, Number(subtotalCents) || 0));
-    }
     return null;
   };
 
@@ -8312,10 +8371,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }, 0);
 
     const cartTotalDiscountRaw = Math.max(0, Number(CART?.total_discount || 0));
-    let totalDiscountCents = cartTotalDiscountRaw > 0 ? cartTotalDiscountRaw : autoDiscountCents;
+    let totalDiscountCents = autoDiscountCents + cartTotalDiscountRaw;
 
     const appliedCodeRuleForTotal = findAppliedDiscountCodeRule();
-    if (appliedCodeRuleForTotal?.rule) {
+    if (appliedCodeRuleForTotal?.rule && cartTotalDiscountRaw <= 0) {
       const codeDiscountCents = resolveCodeDiscountCents(appliedCodeRuleForTotal.rule, subtotalCents);
       if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
         totalDiscountCents += codeDiscountCents;
@@ -10956,16 +11015,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       renderAllFromCache();
 
       if (String(settings?.ctaBehavior || "addToCart") === "buyNow") {
-        const appliedCodes = getAppliedDiscountCodes();
-        const codeToApply = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY)) || (appliedCodes.length > 0 ? appliedCodes[0] : null);
+        const codeToApply = getCheckoutDiscountCode();
         window.location.href = codeToApply ? `/checkout?discount=${encodeURIComponent(codeToApply)}` : "/checkout";
         return;
       }
 
       const after = String(settings?.afterAddToCart || "openCartWidget");
       if (after === "goToCheckout") {
-        const appliedCodes = getAppliedDiscountCodes();
-        const codeToApply = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY)) || (appliedCodes.length > 0 ? appliedCodes[0] : null);
+        const codeToApply = getCheckoutDiscountCode();
         window.location.href = codeToApply ? `/checkout?discount=${encodeURIComponent(codeToApply)}` : "/checkout";
         return;
       }
@@ -11101,7 +11158,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         pendingDiscountCode = trimToNull(sessionStorage.getItem("__SC_LAST_APPLIED_CODE__"));
       } catch { }
 
-      if (pendingDiscountCode) {
+      if (pendingDiscountCode && isDiscountAppliedInCart(pendingDiscountCode)) {
         discountPopupShownForCode = String(pendingDiscountCode).toLowerCase();
       }
 
@@ -11112,7 +11169,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         try {
           sessionStorage.removeItem("__SC_LAST_APPLIED_CODE__");
         } catch { }
+      }
 
+      if (pendingDiscountCode && isDiscountAppliedInCart(pendingDiscountCode)) {
         openDrawer();
 
         const r = (CODE_DISCOUNT_RULES || []).find(
@@ -11357,14 +11416,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     await maybeRemoveInvalidDiscountCodes();
 
-    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    const lastCode = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
-    const appliedCodes = getAppliedDiscountCodes();
-
-    const codeToApply =
-      manualCode ||
-      lastCode ||
-      (appliedCodes.length > 0 ? appliedCodes[0] : null);
+    const codeToApply = getCheckoutDiscountCode();
 
     if (codeToApply) {
       window.location.href =
