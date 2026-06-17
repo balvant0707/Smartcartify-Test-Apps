@@ -954,14 +954,14 @@
   };
 
   const renderGoalMessageHtml = (message) => {
-    const raw = String(message ?? "");
-    if (!raw) return "";
+  const raw = String(message ?? "");
+  if (!raw) return "";
 
-    return safe(raw).replace(/\{([^{}]+)\}/g, (_match, inner) => {
-      const value = String(inner || "").trim();
-      return value ? `<strong class="sc-goal-bold">${value}</strong>` : "";
-    });
-  };
+  return safe(raw).replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, inner) => {
+    const value = String(inner || "").trim();
+    return value ? `<strong class="sc-goal-bold">${value}</strong>` : "";
+  });
+};
 
   const getProxyArray = (proxy, keys) => {
     for (const k of keys) {
@@ -3618,12 +3618,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     position: relative;
     flex: 0 0 auto;
     overflow: hidden;
-    --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 48%), 0 1px 2px -1px rgb(0 0 0 / 42%) !important;
-    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
-    box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a !important;
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-ring-shadow, 0 0 rgba(0, 0, 0, 0)), var(--tw-shadow) !important;
-    margin: 5px;
-    border-radius: 5px;
+    top:4px;
 }
 .sc-label{
   font-size:var(--sc-base-font-size) !important;
@@ -3647,7 +3642,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 @keyframes scLine{0%{left:-40%}100%{left:110%}}
 @keyframes scSpin{to{transform:rotate(360deg)}}
 
-.sc-milestone{width:min(100%, var(--sc-milestone-width));margin:0 auto}
+.sc-milestone{width:min(100%, var(--sc-milestone-width));margin:0 auto;padding: 0 10px;}
 .sc-track{position:relative;height:72px;}
 .sc-track::before{
     content: "";
@@ -3675,7 +3670,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 .sc-dot-wrap{
   position:absolute;
-  top:2px;
+  top:0px;
   transform:translateX(-50%);
   display:flex;
   flex-direction:column;
@@ -3742,15 +3737,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-dot-wrap.active .sc-dot-bubble{background:var(--sc-progress-bg);color:var(--sc-icon-color)}
 
 .sc-progress.sc-cart-goal-progress .sc-label{
-  margin-bottom:12px;
-  font-weight:700;
+  margin-bottom:0px;
+  font-weight:500;
   color:var(--sc-progress-text);
 }
 .sc-progress.sc-cart-goal-progress .sc-milestone{
   width:min(100%, var(--sc-milestone-width));
+  border-bottom: 1px solid #d9d7d9;
 }
 .sc-progress.sc-cart-goal-progress .sc-track{
-  height:72px;
+  height:62px;
+  width:100%;
 }
 .sc-progress.sc-cart-goal-progress .sc-track::before{
   top:18px;
@@ -3789,7 +3786,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   color:var(--sc-icon-color);
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-text{
-  margin-top:6px;
+  margin-top:2px;
   width:96px;
   max-width:96px;
   min-width:0;
@@ -4029,7 +4026,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   background:transparent;
 }
 .sc-qty button{
-  width:25px;
+  width:40px;
   height:25px;
   border:1px solid var(--sc-qty-btn-border);
   border-radius:4px;
@@ -4043,7 +4040,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-qty button:hover{filter:brightness(0.96);}
 .sc-qty button:active{transform:scale(0.98);}
 .sc-qty input{
-  width:26px;
+  width:10px;
   height:26px;
   border:none;
   background:transparent;
