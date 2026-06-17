@@ -242,6 +242,7 @@ model CartGoalRule {
   discountProgressMode     String   @default("after") @db.VarChar(32)
   rewardSelectionMandatory String   @default("yes") @db.VarChar(32)
   customerTarget           String   @default("all") @db.VarChar(32)
+  customerTags             String?  @db.LongText
   targetingRules           String?  @db.LongText
   priority                 Int      @default(0)
   analyticsImpressions     Int      @default(0)
