@@ -3147,7 +3147,7 @@
   };
 
   const getCartSubtotalRupees = () => {
-    return (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0;
+    return (getCartSubtotalCents() / priceDivisor(CART?.currency)) || 0;
   };
 
   const getDiscountRuleRemaining = (rule) => {
@@ -6465,14 +6465,29 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     discountMsg.hidden = false;
   };
 
+  const getCartRewardLineCents = () => {
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    return items.reduce((sum, it) => {
+      const props = it?.properties || {};
+      const isFreeGift =
+        String(props?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
+      const isBxgyGift =
+        String(props?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
+      if (!isFreeGift && !isBxgyGift) return sum;
+      return sum + Math.max(0, Number(it?.final_line_price) || 0);
+    }, 0);
+  };
+
   const getCartSubtotalCents = () => {
     const raw = Number(CART?.items_subtotal_price);
-    if (Number.isFinite(raw)) return Math.max(0, raw);
     const items = Array.isArray(CART?.items) ? CART.items : [];
-    return items.reduce(
-      (sum, it) => sum + Math.max(0, Number(it?.final_line_price) || 0),
-      0
-    );
+    const baseSubtotal = Number.isFinite(raw)
+      ? Math.max(0, raw)
+      : items.reduce(
+        (sum, it) => sum + Math.max(0, Number(it?.final_line_price) || 0),
+        0
+      );
+    return Math.max(0, baseSubtotal - getCartRewardLineCents());
   };
 
   // Uses original_line_price so Shopify automatic quantity discounts don't

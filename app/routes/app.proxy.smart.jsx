@@ -359,6 +359,11 @@ const buildProxyPayload = (shop, shopData, request, extras = {}) => {
     scheduleNow,
     ruleContext
   ).filter((rule) => String(rule?.type || "").toLowerCase() === "code");
+  const activeBxgyRules = filterActiveScheduledRules(
+    shopData._rawBxgyRules,
+    scheduleNow,
+    ruleContext
+  );
   const activeCartGoalRules = filterActiveScheduledRules(
     shopData._rawCartGoalRules,
     scheduleNow,
@@ -371,9 +376,9 @@ const buildProxyPayload = (shop, shopData, request, extras = {}) => {
     authorized: Boolean(shopData.authorized),
     metadata: shopData.metadata,
     shippingRules: [],
-    discountRules: activeCodeDiscountRules,
+    discountRules: activeCodeDiscountRules.slice(0, 1),
     freeGiftRules: [],
-    bxgyRules: filterActiveScheduledRules(shopData._rawBxgyRules, scheduleNow, ruleContext),
+    bxgyRules: activeBxgyRules.slice(0, 1),
     cartGoalRules: activeCartGoalRules.slice(0, 1),
     styleSettings: shopData.styleSettings,
     upsellSettings: shopData.upsellSettings,
