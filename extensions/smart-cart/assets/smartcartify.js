@@ -2690,22 +2690,28 @@
 
   const isDiscountAppliedInCart = (code) => {
     const c = trimToNull(code);
-    if (!c) return false;
+    if (!c || !CART) return false;
 
-    const attrs = CART?.attributes || {};
-    const inAttr =
-      Object.values(attrs).some(
-        (v) => String(v || "").toLowerCase() === c.toLowerCase()
-      ) ||
-      String(attrs?.discount_code || "").toLowerCase() === c.toLowerCase() ||
-      String(attrs?.discountCode || "").toLowerCase() === c.toLowerCase();
+    const needle = c.toLowerCase();
 
-    const cartCodes = Array.isArray(CART?.discount_codes) ? CART.discount_codes : [];
-    const inCartCodes = cartCodes.some(
-      (d) => String(d?.code || d || "").toLowerCase() === c.toLowerCase()
-    );
+    const discountCodes = Array.isArray(CART.discount_codes) ? CART.discount_codes : [];
+    const hasInDiscountCodes = discountCodes.some((d) => {
+      const dc = String(d?.code || d || "").trim().toLowerCase();
+      const amount = Number(d?.amount);
+      return dc === needle && (!Number.isFinite(amount) || amount > 0);
+    });
 
-    return inAttr || inCartCodes;
+    if (hasInDiscountCodes) return true;
+
+    const cartLevelDiscounts = Array.isArray(CART.cart_level_discount_applications)
+      ? CART.cart_level_discount_applications
+      : [];
+
+    return cartLevelDiscounts.some((d) => {
+      const title = String(d?.title || d?.code || "").trim().toLowerCase();
+      const amount = Number(d?.total_allocated_amount ?? d?.amount);
+      return title === needle && (!Number.isFinite(amount) || amount > 0);
+    });
   };
 
   const getAppliedDiscountCodes = () => {
@@ -3123,17 +3129,19 @@
     trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
 
   const findAppliedDiscountCodeRule = () => {
-    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    if (!manualCode) return null;
-    const manualLower = manualCode.toLowerCase();
     const list = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
+
     for (const rule of list) {
       if (!isRuleEnabled(rule)) continue;
+
       const code = getDiscountRuleCode(rule);
       if (!code) continue;
-      if (String(code).trim().toLowerCase() !== manualLower) continue;
-      if (isDiscountAppliedInCart(code)) return { rule, code };
+
+      if (isDiscountAppliedInCart(code)) {
+        return { rule, code };
+      }
     }
+
     return null;
   };
 
