@@ -8034,62 +8034,100 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return `-${String(formatted || "").replace(/^\s+/, "")}`;
   };
 
-  const renderFooterMilestones = ({ steps, subtotalCents, currency }) => {
-    const host = drawer.querySelector("[data-footer-milestones]");
-    if (!host) return;
+const renderFooterMilestones = ({ steps, subtotalCents, currency }) => {
+  const host = drawer.querySelector("[data-footer-milestones]");
+  if (!host) return;
 
-    const rows = [];
+  const rows = [];
 
-    const completedShippingStep = (Array.isArray(steps) ? steps : []).find((step) => {
-      if (String(step?.type || "").toLowerCase() !== "shipping") return false;
-      return isProgressStepDone(step, subtotalCents);
+  // ✅ Shipping complete hoy tyare show
+  const completedShippingStep = (Array.isArray(steps) ? steps : []).find((step) => {
+    if (String(step?.type || "").toLowerCase() !== "shipping") return false;
+    return isProgressStepDone(step, subtotalCents);
+  });
+
+  if (completedShippingStep) {
+    rows.push({
+      key: `shipping:${completedShippingStep?.rule?.id ?? completedShippingStep?.slot}`,
+      label: "Shipping",
+      amount: "Free",
     });
+  }
 
-    if (completedShippingStep) {
+  // ✅ Order Discount: goal complete thay tyare show
+  const completedOrderDiscountSteps = (Array.isArray(steps) ? steps : []).filter((step) => {
+    if (String(step?.type || "").toLowerCase() !== "discount") return false;
+    if (!isProgressStepDone(step, subtotalCents)) return false;
+
+    const code = getDiscountRuleCode(step?.rule);
+    const ruleType = String(step?.rule?.type ?? step?.rule?.ruleType ?? "")
+      .trim()
+      .toLowerCase();
+
+    // Code discount alag handle karvanu che
+    return !code && ruleType !== "code";
+  });
+
+  completedOrderDiscountSteps.forEach((step) => {
+    const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
+
+    if (Number.isFinite(discountCents) && discountCents > 0) {
       rows.push({
-        key: `shipping:${completedShippingStep?.rule?.id ?? completedShippingStep?.slot}`,
-        label: "Shipping",
-        tag: "",
-        amount: "Free",
+        key: `order:${step?.rule?.id ?? step?.title ?? step?.slot}`,
+        label: "Order Discount",
+        amount: formatDiscountAmount(discountCents, currency),
       });
     }
+  });
 
-    const appliedCode = findAppliedDiscountCodeRule();
+  // ✅ Code Discount: code actually applied hoy tyare j show
+  const appliedCode = findAppliedDiscountCodeRule();
 
-    // ✅ Code discount row ONLY when code is actually applied
-    if (appliedCode?.rule && isDiscountAppliedInCart(appliedCode.code)) {
-      const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
+  if (appliedCode?.rule && isDiscountAppliedInCart(appliedCode.code)) {
+    const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
 
-      if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
-        const rowBadge = getFooterDiscountBadgeLabel(appliedCode.rule);
-
-        rows.push({
-          key: `code:${appliedCode.code}`,
-          label: "Discount Code",
-          tag: rowBadge || appliedCode.code,
-          tagIcon: true,
-          amount: formatDiscountAmount(codeDiscountCents, currency),
-        });
-      }
+    if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
+      rows.push({
+        key: `code:${appliedCode.code}`,
+        label: "Code Discount",
+        amount: formatDiscountAmount(codeDiscountCents, currency),
+      });
     }
+  }
 
-    if (!rows.length) {
-      host.hidden = true;
-      host.innerHTML = "";
-      return;
-    }
+  // ✅ Duplicate rows remove
+  const uniqueRows = [];
+  const seen = new Set();
 
-    const rowsHtml = rows.map((row) => `
-      <div class="sc-foot-row">
-        <p class="sc-foot-name">${safe(row.label || "")}</p>
-        ${trimToNull(row.tag) ? `<span class="sc-foot-tag">${row.tagIcon ? renderMilestoneIcon(ICONS.tag) : ""}${safe(row.tag)}</span>` : ""}
-        <span class="sc-foot-amt">${safe(row.amount || "")}</span>
-      </div>
-    `).join("");
+  rows.forEach((row) => {
+    const key = trimToNull(row?.key);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    uniqueRows.push(row);
+  });
 
-    host.hidden = false;
-    host.innerHTML = `<div class="sc-footer-summary">${rowsHtml}</div>`;
-  };
+  // ✅ Kai complete/apply na hoy to footer hide
+  if (!uniqueRows.length) {
+    host.hidden = true;
+    host.innerHTML = "";
+    return;
+  }
+
+  // ✅ Only label + amount render
+  const rowsHtml = uniqueRows
+    .map(
+      (row) => `
+        <div class="sc-foot-row">
+          <p class="sc-foot-name">${safe(row.label || "")}</p>
+          <span class="sc-foot-amt">${safe(row.amount || "")}</span>
+        </div>
+      `
+    )
+    .join("");
+
+  host.hidden = false;
+  host.innerHTML = `<div class="sc-footer-summary">${rowsHtml}</div>`;
+};
 
   function syncOpenButtonBadge(countRaw) {
     const count = Math.max(0, Number(countRaw) || 0);
