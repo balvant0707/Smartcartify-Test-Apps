@@ -2071,16 +2071,28 @@ export default function RuleCartGoal() {
         onAction: handleBack,
       }}
       title={campaignName || "Cart Goal"}
-      primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
-      secondaryActions={[
-        {
-          content: enabled ? "Pause" : "Activate",
-          accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
-          tone: enabled ? "caution" : "success",
-          onAction: () => setEnabled((value) => !value),
-        },
-      ]}
+      primaryAction={{
+        content: "Save",
+        loading: isSaving,
+        onAction: handleSave,
+      }}
     >
+      <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+        <button
+          onClick={() => setEnabled((value) => !value)}
+          style={{
+            backgroundColor: enabled ? "#EAB308" : "#16A34A",
+            color: "#FFFFFF",
+            border: "none",
+            borderRadius: "8px",
+            padding: "8px 16px",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          {enabled ? "Pause" : "Activate"}
+        </button>
+      </div>
       <style>{`
         .cg-layout {
           display: grid;
@@ -2093,18 +2105,7 @@ export default function RuleCartGoal() {
         .Polaris-Button::after {
           border-radius: 12px !important;
         }
-        .Polaris-Button[aria-pressed="true"],
-        .Polaris-Button[aria-pressed="true"]::before,
-        .Polaris-Button[aria-pressed="true"]::after,
-        .Polaris-Button.cg-activeButton,
-        .Polaris-Button.cg-activeButton::before,
-        .Polaris-Button.cg-activeButton::after {
-          background: #22c55e !important;
-          background-color: #22c55e !important;
-          border-color: #22c55e !important;
-          color: #fff !important;
-          box-shadow: none !important;
-        }
+        
         .Polaris-Button[aria-pressed="true"] *,
         .Polaris-Button.cg-activeButton * {
           color: #fff !important;
