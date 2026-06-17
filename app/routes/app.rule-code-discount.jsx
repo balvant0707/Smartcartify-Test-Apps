@@ -320,19 +320,7 @@ export default function RuleCodeDiscount() {
         .cd-statusButton{width:100%;border:0;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
         .cd-statusButtonActive{background:#22c55e;color:#fff}
         .cd-statusButtonDraft{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
-        .Polaris-Page-Header__RightAlign .Polaris-Button:not(.Polaris-Button--variantPrimary),
-        .Polaris-Page-Header__RightAlign .Polaris-Button:not(.Polaris-Button--variantPrimary)::before,
-        .Polaris-Page-Header__RightAlign .Polaris-Button:not(.Polaris-Button--variantPrimary)::after{
-          background:${enabled ? "#fef3c7" : "#22c55e"} !important;
-          background-color:${enabled ? "#fef3c7" : "#22c55e"} !important;
-          border-color:${enabled ? "#fcd34d" : "#22c55e"} !important;
-          color:${enabled ? "#92400e" : "#ffffff"} !important;
-          box-shadow:none !important;
-        }
-        .Polaris-Page-Header__RightAlign .Polaris-Button:not(.Polaris-Button--variantPrimary) *{
-          color:${enabled ? "#92400e" : "#ffffff"} !important;
-          fill:${enabled ? "#92400e" : "#ffffff"} !important;
-        }
+
         @media(max-width:900px){.cd-layout{grid-template-columns:1fr}}
       `}</style>
       {actionData?.error && (
@@ -543,13 +531,6 @@ export default function RuleCodeDiscount() {
                   value={String(enabled)}
                   onChange={(v) => setEnabled(v === "true")}
                 />
-                <button
-                  type="button"
-                  className={enabled ? "cd-statusButton cd-statusButtonActive" : "cd-statusButton cd-statusButtonDraft"}
-                  onClick={() => setEnabled((current) => !current)}
-                >
-                  {enabled ? "Active" : "Draft"}
-                </button>
                 <TextField label="Rule name" value={codeCampaignName} onChange={setCodeCampaignName} autoComplete="off" />
               </BlockStack>
             </div>

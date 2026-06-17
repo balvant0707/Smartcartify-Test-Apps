@@ -1499,14 +1499,6 @@ export default function RuleBxgy() {
                       onChange={setCampaignName}
                       autoComplete="off"
                     />
-                    <div className={status === "active" ? "bxgy-statusToggle bxgy-statusToggleActive" : "bxgy-statusToggle"}>
-                      <Button
-                        onClick={() => setStatus((value) => (value === "active" ? "paused" : "active"))}
-                      >
-                        {status === "active" ? "Active" : "Pause"}
-                      </Button>
-                    </div>
-
                   </BlockStack>
                 </div>
               </div>
