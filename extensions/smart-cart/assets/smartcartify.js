@@ -870,13 +870,20 @@
     return amountToCurrencyMinorUnits(goalRupees);
   };
 
-  const replaceTokens = (text, map) => {
+  const replaceTokens = (text, map, options = {}) => {
+    const { boldTokens = false, tokenWrap = null } = options || {};
     let out = safe(text);
     if (!out) return "";
     Object.keys(map || {}).forEach((k) => {
       const val = map[k] == null ? "" : String(map[k]);
       const re = new RegExp(`{{\\s*${k}\\s*}}`, "gi");
-      out = out.replace(re, val);
+      out = out.replace(re, () => {
+        if (!val) return "";
+        if (typeof tokenWrap === "function") return tokenWrap(val, k);
+        return boldTokens
+          ? `<strong class="sc-goal-bold">${val}</strong>`
+          : val;
+      });
     });
     return out;
   };
@@ -900,6 +907,9 @@
     rule,
     subtotalRupees,
     useRemainingForGoal,
+    boldTokens = false,
+    tokenWrap = null,
+    tokenOverrides = {},
   }) => {
     const progressMetric = getRuleProgressMetric(type, rule);
     const isQuantity = progressMetric.metric === "quantity";
@@ -936,7 +946,7 @@
     const xQty = safe(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy ?? "");
     const yQty = safe(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get ?? "");
 
-    const replaced = replaceTokens(text, {
+    const tokenMap = {
       goal: goalToken,
       amount: goalToken,
       remaining: remainingText,
@@ -947,7 +957,14 @@
       discount_code: discountCode,
       x: xQty,
       y: yQty,
-    });
+      ...(tokenOverrides || {}),
+    };
+
+    const replaced = replaceTokens(
+      text,
+      tokenMap,
+      { boldTokens, tokenWrap }
+    );
     const normalized =
       type === "discount" ? normalizeDiscountProgressText(replaced) : replaced;
     return stripCurrencySymbolIfCodePresent(normalized, CART?.currency);
@@ -956,6 +973,7 @@
   const renderGoalMessageHtml = (message) => {
     const raw = String(message ?? "");
     if (!raw) return "";
+    if (raw.includes('<strong class="sc-goal-bold">')) return raw;
 
     return safe(raw).replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, inner) => {
       const value = String(inner || "").trim();
@@ -2798,14 +2816,6 @@
     const subtotalRupees = (getCartOriginalSubtotalCents() / priceDivisor(CART?.currency)) || 0;
     const msgs = [];
 
-    const escapeRegExp = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    const wrapEmLabel = (v) => {
-      const t = trimToNull(v);
-      if (!t) return "";
-      return `${ANNOUNCE_EM_LABEL_START}${t}${ANNOUNCE_EM_END}`;
-    };
-
     const wrapEmValue = (v) => {
       const t = trimToNull(v);
       if (!t) return "";
@@ -2818,43 +2828,6 @@
       return `${ANNOUNCE_EM_CODE_START}${t}${ANNOUNCE_EM_END}`;
     };
 
-    const emphasizeLabels = (text) => {
-      let out = String(text ?? "");
-      const labels = [
-        "Discount Code",
-        "Discount Value",
-      ];
-      labels.forEach((label) => {
-        const re = new RegExp(escapeRegExp(label), "gi");
-        out = out.replace(re, wrapEmLabel(label));
-      });
-      return out;
-    };
-
-    const emphasizeValues = (text, values = [], wrap) => {
-      let out = String(text ?? "");
-      values.forEach((v) => {
-        const t = trimToNull(v);
-        if (!t) return;
-        const re = new RegExp(escapeRegExp(t), "gi");
-        out = out.replace(re, (match) => {
-          const wrapped = wrap ? wrap(match) : match;
-          return ` ${wrapped} `;
-        });
-      });
-      out = out.replace(/\s{2,}/g, " ").trim();
-      return out;
-    };
-
-    const padToken = (text, token) => {
-      const t = trimToNull(token);
-      if (!t) return text;
-      const re = new RegExp(escapeRegExp(t), "gi");
-      let out = String(text ?? "");
-      out = out.replace(re, (match) => ` ${match} `);
-      return out.replace(/\s{2,}/g, " ").trim();
-    };
-
     const normalizeOffText = (text) => {
       let out = String(text ?? "");
       out = out.replace(/\boff\s*off\b/gi, (m) => m.slice(0, 3));
@@ -2862,13 +2835,23 @@
       return out;
     };
 
-    const replaceTokensRaw = (text, map) => {
+    const wrapAnnouncementToken = (value, key) => {
+      const tokenKey = String(key || "").toLowerCase();
+      if (tokenKey === "discount_code") return wrapEmCode(value);
+      return wrapEmValue(value);
+    };
+
+    const replaceTokensRaw = (text, map, options = {}) => {
+      const { tokenWrap = null } = options || {};
       let out = String(text ?? "");
       if (!out) return "";
       Object.keys(map || {}).forEach((k) => {
         const val = map[k] == null ? "" : String(map[k]);
         const re = new RegExp(`{{\\s*${k}\\s*}}`, "gi");
-        out = out.replace(re, val);
+        out = out.replace(re, () => {
+          if (!val) return "";
+          return typeof tokenWrap === "function" ? tokenWrap(val, k) : val;
+        });
       });
       return out;
     };
@@ -2879,6 +2862,8 @@
       rule,
       subtotalRupees,
       useRemainingForGoal,
+      tokenWrap = null,
+      tokenOverrides = {},
     }) => {
       const progressMetric = getRuleProgressMetric(type, rule);
       const isQuantity = progressMetric.metric === "quantity";
@@ -2915,7 +2900,7 @@
       const xQty = String(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy ?? "");
       const yQty = String(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get ?? "");
 
-      const replaced = replaceTokensRaw(text, {
+      const tokenMap = {
         goal: goalToken,
         amount: goalToken,
         remaining: remainingText,
@@ -2926,7 +2911,14 @@
         discount_code: discountCode,
         x: xQty,
         y: yQty,
-      });
+        ...(tokenOverrides || {}),
+      };
+
+      const replaced = replaceTokensRaw(
+        text,
+        tokenMap,
+        { tokenWrap }
+      );
       return type === "discount" ? normalizeDiscountProgressText(replaced) : replaced;
     };
 
@@ -2967,32 +2959,11 @@
         rule: r,
         subtotalRupees,
         useRemainingForGoal: !useAfter,
+        tokenWrap: wrapAnnouncementToken,
       });
       let msgBase = normalizeOffText(msgBaseRaw);
 
-      const discountValRaw = String(
-        r?.value ?? r?.discountValue ?? r?.discount_value ?? ""
-      ).trim();
-      const discountValWithOff =
-        discountValRaw && /off\b/i.test(discountValRaw)
-          ? discountValRaw
-          : discountValRaw
-            ? `${discountValRaw} OFF`
-            : "";
-      const discountValueForEm = discountValWithOff || discountValRaw;
-      const discountCode = ruleCodeRaw;
-
-      msgBase = msgBase.replace(/\s{2,}/g, " ").trim();
-
-      let msg = emphasizeValues(
-        msgBase,
-        [discountCode],
-        (v) => wrapEmCode(v)
-      );
-      msg = emphasizeValues(msg, [discountValueForEm], (v) => wrapEmValue(v));
-      msg = padToken(msg, discountCode);
-      msg = padToken(msg, discountValueForEm);
-      msg = emphasizeLabels(msg);
+      const msg = msgBase.replace(/\s{2,}/g, " ").trim();
       if (trimToNull(msg)) msgs.push(msg);
     });
 
@@ -3013,31 +2984,19 @@
       const fallbackBefore = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
       const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
 
-      const beforeMsg = replaceTokensRaw(beforeRaw || fallbackBefore, {
-        x: hasX ? remainingX : Number.isFinite(xQty) ? xQty : "",
-        y: Number.isFinite(yQty) ? yQty : "",
-        goal: "",
-      });
-      const afterMsg = replaceTokensRaw(afterRaw || fallbackAfter, {
-        x: Number.isFinite(xQty) ? xQty : "",
-        y: Number.isFinite(yQty) ? yQty : "",
-        goal: "",
-      });
-
       const msgBase = replaceProgressTextRaw({
-        text: bx.complete ? (afterMsg || fallbackAfter) : (beforeMsg || fallbackBefore),
+        text: bx.complete ? (afterRaw || fallbackAfter) : (beforeRaw || fallbackBefore),
         type: "bxgy",
         rule: r,
         subtotalRupees,
         useRemainingForGoal: false,
+        tokenWrap: wrapAnnouncementToken,
+        tokenOverrides: bx.complete ? {} : {
+          x: hasX ? remainingX : Number.isFinite(xQty) ? xQty : "",
+        },
       });
 
-      const values = [xQty, yQty];
-      let msg = emphasizeValues(msgBase, values, (v) => wrapEmValue(v));
-      values.forEach((v) => {
-        msg = padToken(msg, v);
-      });
-      msg = emphasizeLabels(msg);
+      const msg = String(msgBase || "").replace(/\s{2,}/g, " ").trim();
       if (trimToNull(msg)) msgs.push(msg);
     }
 
@@ -3056,31 +3015,19 @@
       const fallbackBefore = "Buy X Get Y: Add {{x}} more to unlock the offer";
       const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
 
-      const beforeMsg = replaceTokensRaw(beforeRaw || fallbackBefore, {
-        x: Number.isFinite(xQty) ? remainingX : "",
-        y: Number.isFinite(yQty) ? yQty : "",
-        goal: "",
-      });
-      const afterMsg = replaceTokensRaw(afterRaw || fallbackAfter, {
-        x: Number.isFinite(xQty) ? xQty : "",
-        y: Number.isFinite(yQty) ? yQty : "",
-        goal: "",
-      });
-
       const msgBase = replaceProgressTextRaw({
-        text: st.complete ? (afterMsg || fallbackAfter) : (beforeMsg || fallbackBefore),
+        text: st.complete ? (afterRaw || fallbackAfter) : (beforeRaw || fallbackBefore),
         type: "buyxgety",
         rule: r,
         subtotalRupees: st.eligibleSubtotalRupees ?? subtotalRupees,
         useRemainingForGoal: !st.complete,
+        tokenWrap: wrapAnnouncementToken,
+        tokenOverrides: st.complete ? {} : {
+          x: Number.isFinite(xQty) ? remainingX : "",
+        },
       });
 
-      const values = [xQty, yQty];
-      let msg = emphasizeValues(msgBase, values, (v) => wrapEmValue(v));
-      values.forEach((v) => {
-        msg = padToken(msg, v);
-      });
-      msg = emphasizeLabels(msg);
+      const msg = String(msgBase || "").replace(/\s{2,}/g, " ").trim();
       if (trimToNull(msg)) msgs.push(msg);
     });
 
@@ -3119,9 +3066,17 @@
             ? valRaw
             : `${valRaw} OFF`
           : "";
-        const fallback = code
-          ? `Discount Code ${code}${valWithOff ? ` • ${valWithOff}` : ""}`
+        const fallbackTemplate = code
+          ? `Discount Code {{discount_code}}${valWithOff ? " • {{discount_value_with_off}}" : ""}`
           : "Discount Code available";
+        const fallback = replaceProgressTextRaw({
+          text: fallbackTemplate,
+          type: "discount",
+          rule: firstCodeRule,
+          subtotalRupees,
+          useRemainingForGoal: false,
+          tokenWrap: wrapAnnouncementToken,
+        });
         unique.push(fallback);
       } else {
         const firstBuyRule =
@@ -3146,7 +3101,16 @@
             firstBuyRule?.get ??
             ""
           );
-          const fallback = x && y ? `Buy X Get Y Discount: Buy ${x} get ${y}` : "Buy X Get Y Discount";
+          const fallback = x && y
+            ? replaceProgressTextRaw({
+              text: "Buy X Get Y Discount: Buy {{x}} get {{y}}",
+              type: "buyxgety",
+              rule: firstBuyRule,
+              subtotalRupees,
+              useRemainingForGoal: false,
+              tokenWrap: wrapAnnouncementToken,
+            })
+            : "Buy X Get Y Discount";
           unique.push(fallback);
         }
       }
@@ -7182,6 +7146,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         rule,
         subtotalRupees,
         useRemainingForGoal: true,
+        boldTokens: true,
       });
       const resolvedAfter = replaceProgressText({
         text: afterRaw,
@@ -7189,6 +7154,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         rule,
         subtotalRupees,
         useRemainingForGoal: false,
+        boldTokens: true,
       });
 
       // Generate value-aware fallback messages when merchant has not configured them
@@ -7197,29 +7163,31 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ? formatQuantityGoal(progressMetric.goal)
           : formatMoney(amountToCurrencyMinorUnits(progressMetric.goal), CART?.currency)
         : "";
-      const defaultBeforeText = (() => {
+      const defaultBeforeTemplate = (() => {
         if (!goalAmt) return title;
         const rt = String(rule?.rewardType ?? rule?.reward_type ?? "").trim().toLowerCase();
         if (type === "shipping") {
           if (rt === "reduce" && (rule?.amount ?? rule?.rateAmount)) {
             const shipAmt = formatMoney(amountToCurrencyMinorUnits(rule.amount ?? rule.rateAmount), CART?.currency);
-            return `Spend ${goalAmt} more to get ${shipAmt} shipping`;
+            return `Spend {{goal}} more to get ${shipAmt} shipping`;
           }
-          return `Spend ${goalAmt} more for free shipping`;
+          return `Spend {{goal}} more for free shipping`;
         }
         if (type === "discount") {
           const tokens = getDiscountValueTokens(rule);
           const discLabel = tokens?.valueWithOff || "a discount";
-          return `Spend ${goalAmt} more to get ${discLabel}`;
+          return tokens?.valueWithOff
+            ? "Spend {{goal}} more to get {{discount_value_with_off}}"
+            : `Spend {{goal}} more to get ${discLabel}`;
         }
-        if (type === "free") return `Spend ${goalAmt} more for a free gift`;
+        if (type === "free") return `Spend {{goal}} more for a free gift`;
         if (type === "bxgy" || type === "buyxgety") {
           const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
-          return `Add ${goalAmt} to get ${Number.isFinite(y) && y > 0 ? y : ""} free item${y === 1 ? "" : "s"}`.replace(/\s{2,}/g, " ").trim();
+          return `Add {{goal}} to get ${Number.isFinite(y) && y > 0 ? "{{y}}" : ""} free item${y === 1 ? "" : "s"}`.replace(/\s{2,}/g, " ").trim();
         }
-        return `Spend ${goalAmt} more to unlock your reward`;
+        return `Spend {{goal}} more to unlock your reward`;
       })();
-      const defaultAfterText = (() => {
+      const defaultAfterTemplate = (() => {
         const rt = String(rule?.rewardType ?? rule?.reward_type ?? "").trim().toLowerCase();
         if (type === "shipping") {
           if (rt === "reduce" && (rule?.amount ?? rule?.rateAmount)) {
@@ -7231,18 +7199,37 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (type === "discount") {
           const tokens = getDiscountValueTokens(rule);
           const discLabel = tokens?.valueWithOff || "Discount";
-          return `${discLabel} unlocked! 🎉`;
+          return tokens?.valueWithOff
+            ? "{{discount_value_with_off}} unlocked! 🎉"
+            : `${discLabel} unlocked! 🎉`;
         }
         if (type === "free") return "Free gift unlocked! 🎉";
         if (type === "bxgy" || type === "buyxgety") {
           const x = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy);
           const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
           return Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0
-            ? `Buy ${x} Get ${y} Free unlocked! 🎉`
+            ? "Buy {{x}} Get {{y}} Free unlocked! 🎉"
             : "Buy X Get Y unlocked! 🎉";
         }
         return "Reward unlocked! 🎉";
       })();
+
+      const defaultBeforeText = replaceProgressText({
+        text: defaultBeforeTemplate,
+        type,
+        rule,
+        subtotalRupees,
+        useRemainingForGoal: true,
+        boldTokens: true,
+      }) || defaultBeforeTemplate;
+      const defaultAfterText = replaceProgressText({
+        text: defaultAfterTemplate,
+        type,
+        rule,
+        subtotalRupees,
+        useRemainingForGoal: false,
+        boldTokens: true,
+      }) || defaultAfterTemplate;
 
       return {
         slot,
