@@ -256,6 +256,7 @@ function defaultSettings() {
     discountProgressMode: "after",
     rewardSelectionMandatory: "yes",
     customerTarget: "all",
+    customerTags: "",
     targetingRules: [],
   };
 }
@@ -499,6 +500,8 @@ export const loader = async ({ request }) => {
       ? {
         ...row,
         goals: safeJsonParse(row.goals, defaultGoals()).map(normalizeGoal),
+        customerTarget: row.customerTarget || "all",
+        customerTags: row.customerTags || "",
         targetingRules: safeJsonParse(row.targetingRules, []),
       }
       : null,
@@ -579,6 +582,10 @@ export const action = async ({ request }) => {
     discountProgressMode: body.discountProgressMode === "before" ? "before" : "after",
     rewardSelectionMandatory: body.rewardSelectionMandatory === "no" ? "no" : "yes",
     customerTarget: body.customerTarget || "all",
+    customerTags:
+      body.customerTarget === "tagged" || body.customerTarget === "without_tag"
+        ? String(body.customerTags || "")
+        : "",
     targetingRules: JSON.stringify(targetingRules),
   };
 
@@ -1438,6 +1445,76 @@ function TextEditModal({ goal, index, onClose, onChange }) {
   );
 }
 
+function TargetingPrioritySection({
+  open,
+  onOpenChange,
+  settings,
+  onSettingsChange,
+  priority,
+  onPriorityChange,
+}) {
+  const patchSettings = (patch) => onSettingsChange({ ...settings, ...patch });
+  const customerTargetOptions = [
+    { label: "All customers", value: "all" },
+    { label: "Customers with tag", value: "tagged" },
+    { label: "Customers without tag", value: "without_tag" },
+    { label: "Logged in customers only", value: "logged_in" },
+    { label: "Guest customers only", value: "guest" },
+  ];
+  const showCustomerTags =
+    settings.customerTarget === "tagged" ||
+    settings.customerTarget === "without_tag";
+
+  return (
+    <SectionCard
+      icon={SettingsIcon}
+      title="Targeting & priority"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <BlockStack gap="400">
+        <Select
+          label="Customer target"
+          value={settings.customerTarget || "all"}
+          onChange={(customerTarget) =>
+            patchSettings({
+              customerTarget,
+              customerTags:
+                customerTarget === "tagged" || customerTarget === "without_tag"
+                  ? settings.customerTags || ""
+                  : "",
+            })
+          }
+          options={customerTargetOptions}
+          helpText="Choose which customers this rule applies to."
+        />
+
+        {showCustomerTags && (
+          <TextField
+            label="Customer tags"
+            value={settings.customerTags || ""}
+            onChange={(customerTags) => patchSettings({ customerTags })}
+            placeholder="vip, wholesale, member"
+            autoComplete="off"
+            helpText="Comma-separated list of customer tags to match."
+          />
+        )}
+
+        <Divider />
+
+        <TextField
+          label="Priority"
+          type="number"
+          value={priority}
+          onChange={onPriorityChange}
+          autoComplete="off"
+          helpText="Higher number = evaluated first when multiple rules are active."
+        />
+      </BlockStack>
+    </SectionCard>
+  );
+}
+
 function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
   const [targetMenuOpen, setTargetMenuOpen] = useState(false);
   const targetingRules = Array.isArray(settings.targetingRules)
@@ -1717,6 +1794,7 @@ export default function RuleCartGoal() {
         discountProgressMode: rule.discountProgressMode || "after",
         rewardSelectionMandatory: rule.rewardSelectionMandatory || "yes",
         customerTarget: rule.customerTarget || "all",
+        customerTags: rule.customerTags || "",
         targetingRules: Array.isArray(rule.targetingRules) ? rule.targetingRules : [],
       }
       : {}),
@@ -2614,6 +2692,15 @@ export default function RuleCartGoal() {
               onEditGoal={setEditingTextIndex}
               open={openSection === "content"}
               onOpenChange={(open) => setOpenSection(open ? "content" : null)}
+            />
+
+            <TargetingPrioritySection
+              open={openSection === "targeting"}
+              onOpenChange={(open) => setOpenSection(open ? "targeting" : null)}
+              settings={settings}
+              onSettingsChange={setSettings}
+              priority={priority}
+              onPriorityChange={setPriority}
             />
 
             <SettingsSection
