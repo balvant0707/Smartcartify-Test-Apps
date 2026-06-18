@@ -46,9 +46,8 @@ export const action = async ({ request }) => {
     id, codeCampaignName, enabled, discountCode, valueType, value,
     triggerType, minPurchase, minQuantity,
     progressTextBefore, progressTextAfter,
-    startsAt, endsAt, priority,
+    startsAt, endsAt,
     customerTarget, customerTags,
-    // priority is already destructured above
   } = body;
 
   const dbData = {
@@ -68,7 +67,7 @@ export const action = async ({ request }) => {
     progressTextBelow: null,
     startsAt: startsAt ? new Date(startsAt) : null,
     endsAt: endsAt ? new Date(endsAt) : null,
-    priority: parseInt(priority || "0") || 0,
+    priority: 0,
     rewardType: valueType === "amount" ? "amount" : "percent",
     customerTarget: customerTarget || "all",
     customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? (customerTags || null) : null,
@@ -209,8 +208,7 @@ export default function RuleCodeDiscount() {
   const [endDate, setEndDate] = useState(r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "");
   const [endTime, setEndTime] = useState(r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59");
 
-  // Targeting & priority (priority added)
-  const [priority, setPriority] = useState(String(r?.priority ?? "0"));
+  // Targeting
   const [customerTarget, setCustomerTarget] = useState(r?.customerTarget ?? "all");
   const [customerTags, setCustomerTags] = useState(r?.customerTags ?? "");
   const [formErrors, setFormErrors] = useState({});
@@ -260,7 +258,6 @@ export default function RuleCodeDiscount() {
         minQuantity: triggerType === "quantity" ? minQuantity : null,
         progressTextBefore,
         progressTextAfter,
-        priority,
         startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
         endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
         customerTarget,
@@ -450,8 +447,8 @@ export default function RuleCodeDiscount() {
               </BlockStack>
             </SectionCard>
 
-            {/* Targeting & priority */}
-            <SectionCard icon={PersonFilledIcon} title="Targeting & priority" defaultOpen={false}>
+            {/* Targeting */}
+            <SectionCard icon={PersonFilledIcon} title="Targeting" defaultOpen={false}>
               <BlockStack gap="400">
                 <Select
                   label="Customer target"
@@ -476,15 +473,6 @@ export default function RuleCodeDiscount() {
                     helpText="Comma-separated list of customer tags to match."
                   />
                 )}
-                <Divider />
-                <TextField
-                  label="Priority"
-                  type="number"
-                  value={priority}
-                  onChange={setPriority}
-                  autoComplete="off"
-                  helpText="Higher number = evaluated first when multiple rules are active."
-                />
               </BlockStack>
             </SectionCard>
 

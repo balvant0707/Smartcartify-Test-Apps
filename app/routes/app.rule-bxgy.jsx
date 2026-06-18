@@ -241,7 +241,6 @@ export const action = async ({ request }) => {
     translations,
     startsAt,
     endsAt,
-    priority,
     customerTarget,
     customerTags,
   } = body;
@@ -332,7 +331,7 @@ export const action = async ({ request }) => {
     afterOfferUnlockMessage: afterPayload,
     startsAt: startsAt ? new Date(startsAt) : null,
     endsAt: endsAt ? new Date(endsAt) : null,
-    priority: parseInt(priority || "0", 10) || 0,
+    priority: 0,
     customerTarget: customerTarget || "all",
     customerTags:
       customerTarget === "tagged" || customerTarget === "without_tag"
@@ -661,24 +660,22 @@ function QuantityStepper({ value, onChange }) {
   );
 }
 
-function TargetingPrioritySection({
+function TargetingSection({
   open,
   onOpenChange,
   customerTarget,
   onCustomerTargetChange,
   customerTags,
   onCustomerTagsChange,
-  priority,
-  onPriorityChange,
 }) {
   const showCustomerTags =
     customerTarget === "tagged" || customerTarget === "without_tag";
 
   return (
     <SectionCard
-      id="targeting-priority"
+      id="targeting"
       icon={SettingsIcon}
-      title="Targeting & priority"
+      title="Targeting"
       open={open}
       onOpenChange={onOpenChange}
     >
@@ -712,17 +709,6 @@ function TargetingPrioritySection({
             helpText="Comma-separated list of customer tags to match."
           />
         )}
-
-        <div className="bxgy-targetingDivider" />
-
-        <TextField
-          label="Priority"
-          type="number"
-          value={priority}
-          onChange={onPriorityChange}
-          autoComplete="off"
-          helpText="Higher number = evaluated first when multiple rules are active."
-        />
       </BlockStack>
     </SectionCard>
   );
@@ -855,7 +841,6 @@ export default function RuleBxgy() {
 
   const [status, setStatus] = useState(r?.status ?? (r?.enabled ? "active" : "draft"));
   const [campaignName, setCampaignName] = useState(r?.campaignName ?? defaultCampaignName);
-  const [priority, setPriority] = useState(String(r?.priority ?? "0"));
   const [customerTarget, setCustomerTarget] = useState(r?.customerTarget || "all");
   const [customerTags, setCustomerTags] = useState(r?.customerTags || "");
   const [conditionType, setConditionType] = useState(initialCondition);
@@ -1070,7 +1055,6 @@ export default function RuleBxgy() {
         translations: JSON.stringify(translations),
         startsAt: combineDateTime(startDate, startTime),
         endsAt: hasEndDate ? combineDateTime(endDate, endTime) : null,
-        priority,
         customerTarget,
         customerTags,
       },
@@ -1391,15 +1375,13 @@ export default function RuleBxgy() {
               </BlockStack>
             </SectionCard>
 
-            <TargetingPrioritySection
-              open={openSection === "targeting-priority"}
-              onOpenChange={(open) => setSectionOpen("targeting-priority", open)}
+            <TargetingSection
+              open={openSection === "targeting"}
+              onOpenChange={(open) => setSectionOpen("targeting", open)}
               customerTarget={customerTarget}
               onCustomerTargetChange={setCustomerTarget}
               customerTags={customerTags}
               onCustomerTagsChange={setCustomerTags}
-              priority={priority}
-              onPriorityChange={setPriority}
             />
 
             <SectionCard

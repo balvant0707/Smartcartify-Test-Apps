@@ -6,7 +6,7 @@ import {
 } from "@shopify/polaris";
 import {
   DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon,
-  DeleteIcon, PlusIcon, DuplicateIcon, ChevronUpIcon, ChevronDownIcon,
+  DeleteIcon, PlusIcon, DuplicateIcon,
   ProductIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server.js";
@@ -81,28 +81,28 @@ export const loader = async ({ request }) => {
   const [shippingRows, discountRows, freeRows, bxgyRows, cartGoalRows, upsellRow] = await Promise.all([
     prisma.shippingRule.findMany({
       where: { shop },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }], // Already includes priority
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, rateType: true, amount: true, minSubtotal: true, maxSubtotal: true, cartStepName: true, priority: true },
+      orderBy: [{ updatedAt: "desc" }],
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, rewardType: true, rateType: true, amount: true, minSubtotal: true, maxSubtotal: true, cartStepName: true },
     }),
     prisma.discountRule.findMany({
       where: { shop },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }], // Already includes priority
-      select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true, priority: true },
+      orderBy: [{ updatedAt: "desc" }],
+      select: { id: true, type: true, campaignName: true, codeCampaignName: true, enabled: true, updatedAt: true, valueType: true, value: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true },
     }),
     prisma.freeGiftRule.findMany({
       where: { shop },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true, priority: true },
+      orderBy: [{ updatedAt: "desc" }],
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, triggerType: true, minPurchase: true, minQuantity: true, cartStepName: true },
     }),
     prisma.bxgyRule.findMany({
       where: { shop },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }], // Already includes priority
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, xQty: true, yQty: true, scope: true, priority: true },
+      orderBy: [{ updatedAt: "desc" }],
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, xQty: true, yQty: true, scope: true },
     }),
     prisma.cartGoalRule.findMany({
       where: { shop },
-      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, trackBy: true, shownGoals: true, priority: true },
+      orderBy: [{ updatedAt: "desc" }],
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, trackBy: true, shownGoals: true },
     }),
     prisma.upsellSettings.findUnique({
       where: { shop },
@@ -180,7 +180,6 @@ export const loader = async ({ request }) => {
       updatedAt: r.updatedAt,
       meta: shippingMeta(r),
       cartStep: formatCartStep(r.cartStepName),
-      priority: r.priority || 0,
     })),
     ...discountRows
       .filter((r) => String(r.type || "").toLowerCase() !== "code")
@@ -192,7 +191,6 @@ export const loader = async ({ request }) => {
         updatedAt: r.updatedAt,
         meta: discountMeta(r),
         cartStep: formatCartStep(r.cartStepName),
-        priority: r.priority || 0,
       })),
     ...freeRows.map((r) => ({
       id: r.id,
@@ -202,7 +200,6 @@ export const loader = async ({ request }) => {
       updatedAt: r.updatedAt,
       meta: freeGiftMeta(r),
       cartStep: formatCartStep(r.cartStepName),
-      priority: r.priority || 0,
     })),
     ...discountRows
       .filter((r) => String(r.type || "").toLowerCase() === "code")
@@ -214,7 +211,6 @@ export const loader = async ({ request }) => {
         updatedAt: r.updatedAt,
         meta: discountMeta(r),
         cartStep: ANNOUNCEMENT_BAR_LABEL,
-        priority: r.priority || 0,
       })),
     ...bxgyRows.map((r) => ({
       id: r.id,
@@ -224,7 +220,6 @@ export const loader = async ({ request }) => {
       updatedAt: r.updatedAt,
       meta: `Buy ${r.xQty || "?"} get ${r.yQty || "?"} free${r.scope === "store" ? " Â· Storewide" : ""}`,
       cartStep: ANNOUNCEMENT_BAR_LABEL,
-      priority: r.priority || 0,
     })),
     ...cartGoalRows.map((r, index) => ({
       id: r.id,
@@ -234,7 +229,6 @@ export const loader = async ({ request }) => {
       updatedAt: r.updatedAt,
       meta: `${r.shownGoals || 3} goal${r.shownGoals === 1 ? "" : "s"} shown Â· ${r.trackBy === "quantity" ? "Quantity" : "Cart value"}`,
       cartStep: "Cart Drawer",
-      priority: r.priority || 0,
     })),
     ...(upsellRow ? [{
       id: upsellRow.id,
@@ -244,13 +238,11 @@ export const loader = async ({ request }) => {
       updatedAt: upsellRow.updatedAt,
       meta: upsellMeta(upsellRow),
       cartStep: "Cart Drawer",
-      priority: 0,
       singleton: true,
     }] : []),
   ]
     .filter((rule) => !HIDDEN_CAMPAIGN_TYPES.has(rule.ruleType))
     .sort((a, b) =>
-      (Number(b.priority || 0) - Number(a.priority || 0)) ||
       (new Date(b.updatedAt) - new Date(a.updatedAt)) ||
       (Number(b.id || 0) - Number(a.id || 0))
     );
@@ -355,7 +347,7 @@ async function duplicateRule(ruleType, id, shop) {
   delete data.createdAt;
   delete data.updatedAt;
   data.enabled = false;
-  data.priority = Number(source.priority || 0) - 1;
+  if ("priority" in data) data.priority = 0;
 
   if (ruleType === "cart-goal") {
     data.campaignName = await nextCartGoalCampaignName(shop);
@@ -393,17 +385,6 @@ async function duplicateRule(ruleType, id, shop) {
   }
 
   return model.create({ data });
-}
-
-async function setRulePriority(ruleType, id, shop, priority) {
-  if (ruleType === "upsell-product") return;
-
-  const model = getRuleModel(ruleType);
-  if (!model) throw new Error("Unknown rule type");
-  await model.updateMany({
-    where: { id, shop },
-    data: { priority },
-  });
 }
 
 export const action = async ({ request }) => {
@@ -492,32 +473,6 @@ export const action = async ({ request }) => {
     return Response.json({ success: true, message: "Rule duplicated as disabled." });
   }
 
-  if (body._action === "move") {
-    const rows = Array.isArray(body.rows) ? body.rows : [];
-    const id = parseInt(body.id, 10);
-    const currentIndex = rows.findIndex((row) =>
-      parseInt(row?.id, 10) === id && row?.ruleType === body.ruleType
-    );
-    const targetIndex = body.direction === "up" ? currentIndex - 1 : currentIndex + 1;
-
-    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= rows.length) {
-      return Response.json({ error: "Cannot move rule in that direction" }, { status: 400 });
-    }
-
-    const reordered = [...rows];
-    const [current] = reordered.splice(currentIndex, 1);
-    reordered.splice(targetIndex, 0, current);
-
-    await Promise.all(reordered.map((row, index) =>
-      setRulePriority(row.ruleType, parseInt(row.id, 10), shop, (reordered.length - index) * 10)
-    ));
-    if (reordered.some((row) => row.ruleType === "cart-goal")) {
-      await reconcileCartGoalPriorityDiscounts(admin, shop);
-    }
-    invalidateShopCache(shop);
-    return Response.json({ success: true, message: "Rule priority updated." });
-  }
-
   return Response.json({ error: "Unknown action" }, { status: 400 });
 };
 
@@ -555,7 +510,6 @@ const TABLE_HEADINGS = [
   { title: "Campaign details", id: "campaign-details" },
   { title: "Status", id: "status" },
   { title: "Actions", id: "actions", alignment: "center" },
-  { title: "Priority", id: "priority", alignment: "center" },
 ];
 
 function RuleCampaignMark({ meta, name }) {
@@ -626,7 +580,6 @@ export default function MyRules() {
   const filtered = activeType === "all"
     ? rules
     : rules.filter((r) => r.ruleType === activeType);
-  const movableFiltered = filtered.filter((row) => !row.singleton);
 
   const handleEdit = (rule) => {
     const base = RULE_ROUTES[rule.ruleType];
@@ -650,21 +603,6 @@ export default function MyRules() {
     setBusyKey(key);
     fetcher.submit(
       { _action: "duplicate", id: rule.id, ruleType: rule.ruleType },
-      { method: "post", encType: "application/json" }
-    );
-  };
-
-  const handleMove = (rule, direction) => {
-    const key = `move-${direction}-${rule.ruleType}-${rule.id}`;
-    setBusyKey(key);
-    fetcher.submit(
-      {
-        _action: "move",
-        id: rule.id,
-        ruleType: rule.ruleType,
-        direction,
-        rows: movableFiltered.map((row) => ({ id: row.id, ruleType: row.ruleType })),
-      },
       { method: "post", encType: "application/json" }
     );
   };
@@ -729,11 +667,6 @@ export default function MyRules() {
             >
               {filtered.map((rule, i) => {
                 const meta = RULE_META[rule.ruleType] || {};
-                const movableIndex = rule.singleton
-                  ? -1
-                  : movableFiltered.findIndex((row) =>
-                    row.id === rule.id && row.ruleType === rule.ruleType
-                  );
                 return (
                   <IndexTable.Row
                     key={`${rule.ruleType}-${rule.id}`}
@@ -795,35 +728,6 @@ export default function MyRules() {
                           </Tooltip>
                         )}
                       </InlineStack>
-                    </IndexTable.Cell>
-
-                    <IndexTable.Cell>
-                      {rule.singleton ? (
-                        <Text as="span" tone="subdued">Fixed</Text>
-                      ) : (
-                        <InlineStack gap="100" align="center" wrap={false}>
-                          <Tooltip content="Move up">
-                            <Button
-                              variant="plain"
-                              icon={ChevronUpIcon}
-                              disabled={movableIndex <= 0}
-                              onClick={() => handleMove(rule, "up")}
-                              loading={busyKey === `move-up-${rule.ruleType}-${rule.id}`}
-                              accessibilityLabel={`Move ${rule.name} up`}
-                            />
-                          </Tooltip>
-                          <Tooltip content="Move down">
-                            <Button
-                              variant="plain"
-                              icon={ChevronDownIcon}
-                              disabled={movableIndex < 0 || movableIndex === movableFiltered.length - 1}
-                              onClick={() => handleMove(rule, "down")}
-                              loading={busyKey === `move-down-${rule.ruleType}-${rule.id}`}
-                              accessibilityLabel={`Move ${rule.name} down`}
-                            />
-                          </Tooltip>
-                        </InlineStack>
-                      )}
                     </IndexTable.Cell>
 
                   </IndexTable.Row>
