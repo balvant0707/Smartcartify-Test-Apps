@@ -8,8 +8,8 @@
   const root = document.getElementById("smart-embed-root");
   if (!root) return;// (C) BuyXGetY (bxgyrule)
 
-  // ✅ Turn ON to see table-wise logs in console (set to false for production)
-  const DEBUG_TABLES = false;
+  // ✅ Requested DB table logs only
+  const DEBUG_TABLES = true;
 
   // ✅ App proxy path (prefer embed data, fallback to /apps/smart)
   let proxyPath = root.dataset.proxyPath || "/apps/smart";
@@ -1059,11 +1059,6 @@
         };
       })
       .filter(Boolean);
-    console.info("[SmartCartify] cart goal bonusProducts for popup:", {
-      goalId: goal?.id || null,
-      goalTitle: goal?.title || goal?.menuLabel || null,
-      products: normalizedProducts,
-    });
     return normalizedProducts;
   };
 
@@ -1856,11 +1851,19 @@
 
   const logProxyTables = (proxy) => {
     if (!DEBUG_TABLES) return;
+    const discountRules = getProxyArray(proxy, ["discountRules", "discountRule", "discountrule"]);
+    const codeDiscountRows = (Array.isArray(discountRules) ? discountRules : []).filter((rule) => {
+      const type = String(rule?.type || rule?.discountType || rule?.ruleType || "").toLowerCase();
+      return (
+        type === "code" ||
+        type === "codediscount" ||
+        !!trimToNull(rule?.discountCode || rule?.discount_code || rule?.code)
+      );
+    });
     const tables = {
-      shipping: getProxyArray(proxy, ["shippingRules", "shippingRule", "shippingrule"]),
-      discount: getProxyArray(proxy, ["discountRules", "discountRule", "discountrule"]),
-      freeGift: getProxyArray(proxy, ["freeGiftRules", "freeGiftRule", "freegiftrule"]),
-      bxgy: getProxyArray(proxy, [
+      cartgoals: getProxyArray(proxy, ["cartGoals", "cartGoal", "cartgoal", "cartgoals"]),
+      codediscount: codeDiscountRows,
+      buyxgety: getProxyArray(proxy, [
         "buyxgetyRules",
         "buyxgetyRule",
         "buyxgetyrule",
@@ -1868,27 +1871,25 @@
         "bxgyrule",
         "bxgyRules",
         "bxgyRule",
+        "buyxgeyRules",
+        "buyxgeyRule",
+        "buyxgeyrule",
+      ]),
+      stylesettings: proxy?.styleSettings ? [proxy.styleSettings] : [],
+      upsellproduct: getProxyArray(proxy, [
+        "upsellSelectedProducts",
+        "upsellProducts",
+        "upsellProduct",
+        "upsellproduct",
       ]),
     };
 
-    console.groupCollapsed("[SC] Proxy Tables");
+    console.groupCollapsed("[SC] Database Tables");
     Object.entries(tables).forEach(([label, rows]) => {
       console.groupCollapsed(label);
       console.table(Array.isArray(rows) ? rows : []);
       console.groupEnd();
     });
-
-    if (proxy?.styleSettings) {
-      console.groupCollapsed("styleSettings");
-      console.table([proxy.styleSettings]);
-      console.groupEnd();
-    }
-
-    if (proxy?.upsellSettings) {
-      console.groupCollapsed("upsellSettings");
-      console.table([proxy.upsellSettings]);
-      console.groupEnd();
-    }
 
     console.groupEnd();
   };
@@ -2779,11 +2780,6 @@
       });
     }
 
-    if (DEBUG_TABLES) {
-      console.groupCollapsed("[SC] Announcement Messages");
-      console.table(ANNOUNCE_MESSAGES.map((m, i) => ({ i: i + 1, message: m })));
-      console.groupEnd();
-    }
   };
 
   const getCartDiscountCodeEntry = (code) => {
@@ -3365,7 +3361,7 @@
 }
 .sc-drawer{
   position:fixed;top:0;right:0;height:100%;
-  max-width:var(--sc-drawer-width);
+  max-width:425px;
   width:100% !important;
   background: var(--sc-drawer-bg);
   background-size:cover;
@@ -3893,10 +3889,11 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 .sc-items-list::-webkit-scrollbar{width:0;height:0;display:none;} /* Chrome/Safari */
 .sc-items-footer{
-  // display:flex;
+  display:flex;
   flex-direction:column;
-  gap:10px;
+  gap:6px;
   margin-top:auto;
+  flex:0 0 auto;
 }
 .sc-items-footer:empty{display:none !important;}
 .sc-items-loading{
@@ -4007,7 +4004,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   min-width:0;
   display:flex;
   flex-direction:column;
-  gap:8px;
+  gap:2px;
   padding-right:0px;
 }
 .sc-name{
@@ -4162,23 +4159,23 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 
 .sc-upsell{
-  padding:6px 12px 10px;
   order:2;
   background:transparent;
+  flex:0 0 auto;
 }
 .sc-upsell-card{padding:0;}
-.sc-upsell-title{
-  font-size:20px;
-  font-weight:500;
-  text-align:center;
-  letter-spacing:0;
-  color:var(--sc-upsell-text, var(--sc-drawer-text-color));
-  margin-bottom:12px;
-  line-height:1.2;
+.sc-upsell-title {
+    font-size: calc(var(--sc-base-font-size) * 1.08);
+    font-weight: 600;
+    text-align: center;
+    letter-spacing: 0;
+    color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+    margin-bottom: 2px;
+    line-height: 1.2;
 }
 .sc-upsell-inner {
     background: transparent;
-    padding: 0 26px;
+    padding: 0 22px;
     position: relative;
     overflow: visible;
     width: 100%;
@@ -4194,14 +4191,14 @@ body.sc-cartify-open .shopify-section-group-header-group{
   gap: 0;
 }
 .sc-upsell-item + .sc-upsell-item{
-  margin-top: 12px;
+  margin-top: 6px;
 }
 .sc-upsell-item{
-  background:#eefbfc;
-  padding:14px 18px;
-  min-height:116px;
-  display:flex;
-  align-items:center;
+  background: var(--sc-upsell-bg);
+    padding: 4px 8px;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
 }
 .sc-upsell-slide{
   flex: 0 0 100%;
@@ -4209,25 +4206,25 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-upsell-row{
   display: grid;
-  grid-template-columns:76px minmax(0,1fr);
-  gap:22px;
+  grid-template-columns:52px minmax(0,1fr);
+  gap:8px;
   align-items: center;
   width:100%;
 }
 .sc-upsell-info{
   display: grid;
-  gap: 6px;
   min-width: 0;
+  gap:3px;
 }
 .sc-upsell-top{
   display:grid;
-  gap:2px;
+  gap:0;
   align-items:start;
   justify-content:stretch;
 }
 .sc-upsell-img{
-  width:76px;
-  height:76px;
+  width:50px;
+  height:50px;
   background:#ffffff;
   overflow: hidden;
   display: grid;
@@ -4240,11 +4237,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-upsell-name{
   font-weight:800;
-  font-size:clamp(17px, calc(var(--sc-base-font-size) * 1.1), 20px);
+  font-size:calc(var(--sc-base-font-size) * 1.02);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height:1.15;
 }
 .sc-upsell-sub{
   font-size: 12px;
@@ -4256,19 +4254,19 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-upsell-price{
   font-weight:500;
-  font-size:clamp(16px, calc(var(--sc-base-font-size) * 1.02), 19px);
+  font-size:calc(var(--sc-base-font-size) * .96);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   white-space: nowrap;
+  line-height:1.15;
 }
 .sc-upsell-controls{
   display: grid;
-  grid-template-columns:minmax(126px,164px) minmax(120px,174px);
+  grid-template-columns:minmax(112px,150px) minmax(96px,140px);
   align-items: center;
-  margin-top: 6px;
-  gap: 10px;
+  gap: 6px;
 }
 .sc-upsell-controls.no-variant{
-  grid-template-columns:minmax(120px,174px);
+  grid-template-columns:minmax(100px,100px);
   justify-content: start;
 }
 .sc-upsell-select-wrap{
@@ -4277,11 +4275,11 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-upsell-select{
   width: 100%;
   border:1px solid #d7dee8;
-  padding:0 34px 0 12px;
-  font-size:var(--sc-base-font-size);
+  padding:0 28px 0 10px;
+  font-size:calc(var(--sc-base-font-size) * .92);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   background: #ffffff;
-  min-height:44px;
+  min-height:28px;
   min-width:0;
   appearance: none;
 }
@@ -4304,11 +4302,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
   background-color: var(--sc-upsell-button-bg, #111111) !important;
   border:1px solid var(--sc-upsell-button-bg, #111111);
   color: var(--sc-upsell-button-text, #ffffff) !important;
-  padding:0 18px;
-  font-size:var(--sc-base-font-size);
-  min-height:44px;
+  padding:0 8px;
+  font-size:calc(var(--sc-base-font-size) * .92);
+  min-height:28px;
   width:100%;
-  font-weight:800;
   display: inline-flex;
   align-items: center;
   justify-content:center;
@@ -4353,12 +4350,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-upsell-arrow.right{right:-8px;}
 @media(max-width:420px){
   .sc-upsell-inner{padding:0 18px;}
-  .sc-upsell-item{padding:12px 14px;min-height:106px;}
-  .sc-upsell-row{grid-template-columns:66px minmax(0,1fr);gap:14px;align-items:center;}
-  .sc-upsell-img{width:66px;height:66px;}
-  .sc-upsell-controls{grid-template-columns:1fr;gap:8px;margin-top:8px;}
+  .sc-upsell-item{padding:6px 8px;min-height:58px;}
+  .sc-upsell-row{grid-template-columns:50px minmax(0,1fr);gap:8px;align-items:center;}
+  .sc-upsell-img{width:50px;height:50px;}
+  .sc-upsell-controls{grid-template-columns:1fr;gap:6px;}
   .sc-upsell-controls.no-variant{grid-template-columns:1fr;}
-  .sc-upsell-title{font-size:18px;}
+  .sc-upsell-title{font-size:16px;margin-bottom:2px;}
 }
 
 /* remove icon */
@@ -4400,6 +4397,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
     position: sticky;
     bottom: 0;
     z-index: 8;
+    flex:0 0 auto;
+    min-height:auto;
     --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 48%), 0 1px 2px -1px rgb(0 0 0 / 42%) !important;
     --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color) !important;
     box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px #0000001a, 0 1px 2px -1px #0000001a !important;
@@ -4589,7 +4588,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   color:var(--sc-drawer-text-color);
 }
 
-.sc-footer-row{display:grid;grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);gap:0;align-items:stretch;min-height:68px;}
+.sc-footer-row{
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+  gap:0;
+  align-items:stretch;
+  min-height:56px;
+}
 
 .sc-offers{
   position: absolute;
@@ -4785,15 +4790,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-footer-tabs{
   display:grid;
   grid-template-columns:1fr 1fr;
-  border:1px solid var(--sc-border);
-  border-radius:var(--sc-radius);
+  border:0;
+  border-top:1px solid var(--sc-border);
+  border-radius:0;
   overflow:hidden;
   background:#fff;
-  box-shadow:0 -4px 14px rgba(15,23,42,.06);
+  box-shadow:none;
+  min-height:42px;
 }
 .sc-footer-tabs[hidden]{display:none !important;}
 .sc-footer-tab{
-  min-height:40px;
+  min-height:42px;
   border:0;
   border-bottom:3px solid transparent;
   background:#fff;
@@ -4803,8 +4810,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   justify-content:center;
   gap:7px;
   font-size:var(--sc-base-font-size);
-  font-weight7900;
-  box-shadow: 10px 10px 10px 10px #000000;
+  font-weight:700;
+  box-shadow:none;
   cursor:pointer;
 }
 .sc-footer-tab.is-active{
@@ -5117,8 +5124,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:none !important;
 }
 .sc-static-design .sc-footer{
-  padding:0 18px 14px;
-  gap:12px;
+  padding:0 10px 8px;
+  gap:8px;
   background:var(--sc-static-shell-bg, #f4f4f4) !important;
   box-shadow:none;
 }
@@ -5126,6 +5133,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:0;
+  min-height:56px;
   overflow:hidden;
   border-radius:0 0 var(--sc-static-radius, 10px) var(--sc-static-radius, 10px);
   background:var(--sc-static-card-bg, #ffffff);
@@ -5134,7 +5142,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-static-design .sc-subtotal-box{
   border:0;
   border-radius:0;
-  padding:16px 18px;
+  padding:8px 12px;
   background:var(--sc-static-card-bg, #ffffff);
 }
 .sc-static-design .sc-sub-label{
@@ -5144,12 +5152,12 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-static-design .sc-sub-value{
   color:var(--sc-static-text, #102864) !important;
-  font-size:calc(var(--sc-base-font-size, 16px) + 6px) !important;
-  line-height:26px;
+  font-size:calc(var(--sc-base-font-size, 16px) + 2px) !important;
+  line-height:1.15;
   font-weight:900;
 }
 .sc-static-design .sc-checkout{
-  min-height:74px;
+  min-height:56px;
   background:var(--sc-static-button-bg, #a93dea) !important;
   color:var(--sc-static-button-text, #ffffff) !important;
   font-size:calc(var(--sc-base-font-size, 16px) + 4px) !important;
@@ -5221,19 +5229,22 @@ body.sc-cartify-open .shopify-section-group-header-group{
   border:none;
   border-radius:0;
   background:var(--sc-subtotal-bg);
-  padding:12px 20px;
-  display:flex;flex-direction:column;justify-content:center;
+  padding:8px 14px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:56px;
 }
 .sc-subtotal-box .sc-sub-label{
   font-size:var(--sc-small-font-size);
   color:var(--sc-subtotal-label);
-  line-height:1.2;
+  line-height:1.15;
 }
 .sc-subtotal-box .sc-sub-value{
-  font-size:var(--sc-heading-font-size);
+  font-size:calc(var(--sc-base-font-size) * 1.18);
   font-weight:900;
   color:var(--sc-subtotal-text);
-  line-height:1.2;
+  line-height:1.15;
 }
 
 .sc-checkout{
@@ -5241,13 +5252,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   border-radius:0;
   background:var(--sc-checkout-bg);
   color:var(--sc-checkout-text);
-  font-size:var(--sc-heading-font-size);
+  font-size:calc(var(--sc-base-font-size) * 1.12);
   cursor:pointer;
   display:flex;
   align-items:center;
   justify-content:center;
   position:relative;
-  min-height:68px;
+  min-height:56px;
   font-weight:800;
   overflow:hidden;
   isolation:isolate;
@@ -6375,7 +6386,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const drawerWidth = normalizeLen(
       pick(style, ["cartDrawerWidth", "drawerWidth", "width"], null),
-      "min(470px,92vw)"
+      "min(425px,92vw)"
     );
     const milestoneWidth = pick(
       style,
@@ -7505,21 +7516,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       .map((step, index) => ({ ...step, slot: `step${index + 1}` }));
 
     if (cartGoalSteps.length) {
-      if (DEBUG_TABLES) {
-        console.groupCollapsed("[SC] Cart Goal Progress Steps");
-        console.table(
-          cartGoalSteps.map((step) => ({
-            slot: step.slot,
-            type: step.type,
-            campaignName: step.rule?.campaignName ?? "",
-            goal:
-              step.progressMetric === "quantity"
-                ? step.unlockQuantity
-                : step.unlockCents,
-          }))
-        );
-        console.groupEnd();
-      }
       return cartGoalSteps;
     }
 
@@ -7556,22 +7552,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
 
     const steps = STEP_SLOTS.map((s) => assignment[s]).filter(Boolean);
-
-    if (DEBUG_TABLES) {
-      console.groupCollapsed("[SC] Progress Steps");
-      console.table(
-        steps.map((step) => ({
-          slot: step.slot,
-          type: step.type,
-          ruleType: step.rule?.type ?? step.rule?.ruleType ?? "",
-          campaignName: step.rule?.campaignName ?? "",
-          cartStepName: step.rule?.cartStepName ?? "",
-          goal: step.progressMetric === "quantity" ? step.unlockQuantity : step.unlockCents,
-        }))
-      );
-      console.groupEnd();
-    }
-
     return steps;
   };
 
@@ -9735,30 +9715,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         index,
       }))
       .filter(Boolean);
-    console.info("[SmartCartify] free gift popup immediate products:", options);
     return options;
   };
 
   const resolveFreeGiftOptions = async (rule) => {
     const productIds = getFreeGiftProductIds(rule);
     const rawOptions = productIds.length ? productIds : [trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus)].filter(Boolean);
-    console.debug("[SmartCartify] resolveFreeGiftOptions: productIds=", productIds, "rawOptions=", rawOptions);
-    console.info("[SmartCartify] free gift popup product source:", {
-      ruleId: rule?.id || null,
-      ruleTitle: rule?.title || rule?.campaignName || null,
-      bonusProductIds: productIds,
-      bonusProducts: Array.isArray(rule?.bonusProducts) ? rule.bonusProducts : parseArrayish(rule?.bonusProducts),
-    });
     const options = [];
 
     for (let index = 0; index < rawOptions.length; index += 1) {
       const productId = rawOptions[index];
-      console.debug(`[SmartCartify] resolving option ${index}: productId=`, productId);
-      console.info("[SmartCartify] free gift popup product candidate:", {
-        index,
-        productId,
-        product: getFreeGiftProductMeta(rule, productId, index),
-      });
       const optionRule = {
         ...rule,
         bonusProductId: productId,
@@ -9768,7 +9734,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const directVariant = getFreeGiftVariantFromRule(rule, productId, index);
       const product = await resolveRewardProductForOptions(productId);
       const variant = directVariant || product?.variants?.[0] || await resolveRewardVariantForAdd(optionRule, { productId });
-      console.debug(`[SmartCartify] resolved option ${index}: variant=`, variant, "legacyId=", variant ? getVariantLegacyId(variant) : null);
       const option = buildFreeGiftOption({ rule, productId, variant, product, index });
       if (!option) {
         console.warn(`[SmartCartify] skipping option ${index}: variant resolution failed`);
@@ -9777,8 +9742,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       options.push(option);
     }
 
-    console.debug("[SmartCartify] resolveFreeGiftOptions complete: resolved", options.length, "options");
-    console.info("[SmartCartify] free gift popup render options:", options);
     return options;
   };
 
@@ -9886,10 +9849,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     optionsEl.innerHTML = rowsHtml + renderVariantPanel(state.current.selectedOption);
 
     if (state.addButton) state.addButton.disabled = state.current.goalMet === false || !state.current.selectedOption;
-    console.info("[SmartCartify] free gift popup DOM rendered:", {
-      count: state.current.options.length,
-      html: optionsEl.innerHTML,
-    });
   };
 
   const getBxgyReferenceItems = (rule) => {
@@ -9964,7 +9923,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title, goalMet = true, force = false }) => {
-    console.debug("[SmartCartify] openRewardPopupFor called:", { kind, ruleKey, slot, rule: rule ? { bonusProductIds: rule.bonusProductIds, bonusProductId: rule.bonusProductId, bonus: rule.bonus } : null });
     if (
       !force &&
       DISABLE_REWARD_SUCCESS_POPUPS &&
@@ -9972,14 +9930,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     ) {
       return false;
     }
-    console.info("[SmartCartify] reward popup rule products:", {
-      kind,
-      ruleKey,
-      slot,
-      bonusProductId: rule?.bonusProductId || rule?.bonus || null,
-      bonusProductIds: getFreeGiftProductIds(rule),
-      bonusProducts: Array.isArray(rule?.bonusProducts) ? rule.bonusProducts : parseArrayish(rule?.bonusProducts),
-    });
     const variant = getRewardVariantFromRule(kind, rule);
 
     // For cart goal free products with multiple options, variant will be null
