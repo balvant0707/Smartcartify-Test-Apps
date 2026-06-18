@@ -8,6 +8,7 @@ import {
   DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon,
   DeleteIcon, PlusIcon, DuplicateIcon, ChevronUpIcon, ChevronDownIcon,
   ProductIcon,
+  TextAlignCenterIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server.js";
 import prisma from "../db.server.js";
@@ -545,7 +546,7 @@ const TABLE_HEADINGS = [
   { title: "Actions", id: "actions", alignment: "center" },
 ];
 
-const CART_GOAL_ORDER_HEADING = { title: "Cart Goal order", id: "cart-goal-order", alignment: "center" };
+const CART_GOAL_ORDER_HEADING = { title: "Priority", id: "cart-goal-order", alignment: "center" };
 
 function RuleCampaignMark({ meta, name }) {
   if (meta.image) {
@@ -813,7 +814,7 @@ export default function MyRules() {
                             </Tooltip>
                           </InlineStack>
                         ) : (
-                          <Text as="span" tone="subdued">—</Text>
+                          <Text as="span" tone="subdued" style={{ TextAlign: "center" }}>Fixed</Text>
                         )}
                       </IndexTable.Cell>
                     )}

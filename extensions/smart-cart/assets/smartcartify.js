@@ -9134,6 +9134,22 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return null;
   };
 
+  const productIdMatchesRequest = (product, requestedNumericId) => {
+    if (!requestedNumericId) return true;
+    const productId = trimToNull(product?.id);
+    const legacyId = trimToNull(product?.legacyResourceId || product?.legacy_resource_id);
+    const adminId = gidToId(product?.admin_graphql_api_id);
+    return [productId, legacyId, adminId]
+      .map((id) => String(id || "").trim())
+      .some((id) => id && id === String(requestedNumericId));
+  };
+
+  const pickRequestedProductFromPayload = (payload, requestedNumericId) => {
+    const products = Array.isArray(payload?.products) ? payload.products : [];
+    if (!requestedNumericId) return products[0] || null;
+    return products.find((product) => productIdMatchesRequest(product, requestedNumericId)) || null;
+  };
+
   const normalizeVariantGid = (rawId) => {
     const raw = trimToNull(rawId);
     if (!raw) return null;
@@ -9172,9 +9188,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             return null;
           }
           const payload = await res.json();
-          product = Array.isArray(payload?.products) ? payload.products[0] : null;
+          product = pickRequestedProductFromPayload(payload, numericId);
           if (!product) {
-            console.warn(`[SmartCartify] product not found for ID ${numericId}`);
+            console.warn(`[SmartCartify] requested reward product not found or mismatched for ID ${numericId}`);
+            rewardVariantByProductCache.set(cacheKey, null);
+            return null;
           }
         } catch (fetchErr) {
           if (fetchErr.name === "AbortError") {
@@ -9210,6 +9228,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           }
         }
       }
+      if (!isHandleLookup && !productIdMatchesRequest(product, numericId)) {
+        console.warn(`[SmartCartify] ignored mismatched reward product for ID ${numericId}`);
+        rewardVariantByProductCache.set(cacheKey, null);
+        return null;
+      }
+
       const variants = Array.isArray(product?.variants) ? product.variants : [];
       const firstVariant = variants[0] || null;
       const legacyId = trimToNull(firstVariant?.id);
@@ -9330,13 +9354,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const payload = await res.json();
       product = isHandleLookup
         ? payload
-        : Array.isArray(payload?.products) ? payload.products[0] : null;
+        : pickRequestedProductFromPayload(payload, numericId);
     } catch (err) {
       console.warn("[SmartCartify] reward product variants fetch failed:", err?.message || err);
       return null;
     }
 
     if (!product) return null;
+    if (!isHandleLookup && !productIdMatchesRequest(product, numericId)) {
+      console.warn(`[SmartCartify] ignored mismatched reward product option data for ID ${numericId}`);
+      rewardProductByIdCache.set(cacheKey, null);
+      return null;
+    }
 
     const productId = String(numericId || product?.id || rawProductId || "");
     const variants = (Array.isArray(product?.variants) ? product.variants : [])
@@ -10352,10 +10381,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           const activeState = rewardPopupCache || state;
           if (!activeState.current) return;
           if (drawer.__sc_reward_popup_for !== currentPopupKey) return;
+          if (!Array.isArray(options) || !options.length) {
+            const existingOptions = Array.isArray(activeState.current.options)
+              ? activeState.current.options
+              : [];
+            if (existingOptions.length) return;
+          }
           renderFreeGiftPopupOptions(activeState, options, currency);
         })
         .catch((err) => {
           console.error("[SmartCartify] free gift options failed:", err);
+          const existingOptions = Array.isArray(state.current?.options) ? state.current.options : [];
+          if (existingOptions.length) return;
           if (state.optionsEl) {
             state.optionsEl.innerHTML = `<div class="sc-freegift-loading">Could not load free gifts.</div>`;
           } else if (state.listEl) {
