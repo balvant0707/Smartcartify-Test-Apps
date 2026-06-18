@@ -3192,22 +3192,7 @@
     const totalDiscount = Number(CART?.total_discount || 0);
     if (hasCartCode && Number.isFinite(totalDiscount) && totalDiscount > 0) return true;
 
-    const attrCode =
-      trimToNull(CART?.attributes?.discount_code) ||
-      trimToNull(CART?.attributes?.discountCode);
-    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    const lastCode = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
-    const persistedCode = [attrCode, manualCode, lastCode].some(
-      (value) => value && String(value).trim().toLowerCase() === needle
-    );
-    const ruleExists = (Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : []).some((rule) => {
-      const ruleCode = String(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "")
-        .trim()
-        .toLowerCase();
-      return ruleCode && ruleCode === needle && isRuleEnabled(rule);
-    });
-
-    return Boolean(persistedCode && ruleExists);
+    return false;
   };
 
   const getCartDiscountCodeAmountCents = (code) => {
@@ -5160,6 +5145,7 @@ background: var(--sc-upsell-bg);
   font-size:var(--sc-small-font-size);
   color:#b91c1c;
   text-align:center;
+  display:none;
 }
 .sc-discount-msg[hidden]{display:none !important;}
 
@@ -7497,16 +7483,32 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (offerTabs) offerTabs.hidden = !OFFER_TABS_ENABLED;
   };
 
-  const setDiscountMessage = (msg) => {
+  let DISCOUNT_MESSAGE_TIMER = null;
+
+  const setDiscountMessage = (msg, ttl = 3000) => {
     if (!discountMsg) return;
+    if (DISCOUNT_MESSAGE_TIMER) {
+      clearTimeout(DISCOUNT_MESSAGE_TIMER);
+      DISCOUNT_MESSAGE_TIMER = null;
+    }
+
     const text = trimToNull(msg);
     if (!text) {
       discountMsg.textContent = "";
       discountMsg.hidden = true;
       return;
     }
+
     discountMsg.textContent = text;
     discountMsg.hidden = false;
+
+    if (Number(ttl) > 0) {
+      DISCOUNT_MESSAGE_TIMER = setTimeout(() => {
+        discountMsg.textContent = "";
+        discountMsg.hidden = true;
+        DISCOUNT_MESSAGE_TIMER = null;
+      }, Number(ttl));
+    }
   };
 
   const setDiscountApplyLoading = (isLoading) => {
@@ -8011,11 +8013,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart.js")}`;
 
     try {
-      const discountResponse = await fetch(target, { credentials: "same-origin", redirect: "follow" });
-      const discountEndpointOk =
-        !discountResponse ||
-        discountResponse.ok ||
-        discountResponse.type === "opaqueredirect";
+      await fetch(target, { credentials: "same-origin", redirect: "follow" });
 
       await fetch("/cart/update.js", {
         method: "POST",
@@ -8032,7 +8030,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       await refreshFromNetwork();
       renderAllFromCache();
 
-      if (rule && (isDiscountAppliedInCart(code) || discountEndpointOk)) {
+      if (rule && isDiscountAppliedInCart(code)) {
         scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
         scStore.set("__SC_LAST_APPLIED_CODE__", code);
 
@@ -8049,6 +8047,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
     } catch (err) {
       console.error("[SmartCartify] discount apply failed:", err);
+      if (discountMsg) discountMsg.style.color = "#dc2626";
       setDiscountMessage("Could not apply discount code. Please try again.");
     } finally {
       setDiscountApplyLoading(false);
@@ -12705,7 +12704,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       renderStaticFrontendCart();
       return;
     }
-    setDiscountMessage("");
     applyStyleSettings(PROXY?.styleSettings);
     renderCart();
     renderUpsellSection();
