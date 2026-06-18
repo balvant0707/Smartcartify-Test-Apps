@@ -334,6 +334,127 @@
     return 0;
   };
 
+  const listFromUnknown = (value) => {
+    if (value == null || value === "") return [];
+    if (Array.isArray(value)) return value.flatMap((item) => listFromUnknown(item));
+    if (typeof value === "object") {
+      const direct =
+        value.value ??
+        value.name ??
+        value.tag ??
+        value.title ??
+        value.id ??
+        value.label ??
+        null;
+      if (direct != null) return listFromUnknown(direct);
+      return Object.values(value).flatMap((item) => listFromUnknown(item));
+    }
+
+    const raw = String(value).trim();
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed !== raw) return listFromUnknown(parsed);
+    } catch { }
+
+    return raw
+      .split(/[,\n|;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const normalizeCustomerTag = (tag) =>
+    String(tag ?? "")
+      .trim()
+      .toLowerCase();
+
+  const storefrontCustomerTags = new Set(
+    listFromUnknown(customerTags).map(normalizeCustomerTag).filter(Boolean)
+  );
+
+  const getRuleCustomerTags = (rule) =>
+    listFromUnknown(
+      rule?.customerTags ??
+      rule?.customer_tags ??
+      rule?.targetCustomerTags ??
+      rule?.target_customer_tags ??
+      rule?.includeCustomerTags ??
+      rule?.include_customer_tags ??
+      rule?.tags ??
+      rule?.customerTag ??
+      ""
+    ).map(normalizeCustomerTag).filter(Boolean);
+
+  const getRuleExcludedCustomerTags = (rule) =>
+    listFromUnknown(
+      rule?.excludeCustomerTags ??
+      rule?.exclude_customer_tags ??
+      rule?.excludedCustomerTags ??
+      rule?.excluded_customer_tags ??
+      ""
+    ).map(normalizeCustomerTag).filter(Boolean);
+
+  const ruleMatchesCustomerTarget = (rule) => {
+    if (!rule) return false;
+
+    const excludedTags = getRuleExcludedCustomerTags(rule);
+    if (excludedTags.length && excludedTags.some((tag) => storefrontCustomerTags.has(tag))) {
+      return false;
+    }
+
+    const ruleTags = getRuleCustomerTags(rule);
+    const hasMatchingTag = !ruleTags.length || ruleTags.some((tag) => storefrontCustomerTags.has(tag));
+    const rawTarget =
+      rule?.customerTarget ??
+      rule?.customer_target ??
+      rule?.targetCustomers ??
+      rule?.target_customers ??
+      rule?.targetAudience ??
+      rule?.customerEligibility ??
+      rule?.customer_eligibility ??
+      rule?.customerType ??
+      "";
+    const target = String(rawTarget || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s-]+/g, "");
+
+    if (!target || ["all", "allcustomers", "everyone", "any", "anyone"].includes(target)) {
+      return hasMatchingTag;
+    }
+
+    if (["guest", "guests", "loggedout", "notloggedin", "anonymous"].includes(target)) {
+      return !customerLoggedIn;
+    }
+
+    if (["loggedin", "login", "customers", "customer", "registered"].includes(target)) {
+      return customerLoggedIn && hasMatchingTag;
+    }
+
+    if (
+      target.includes("tag") ||
+      target.includes("segment") ||
+      target.includes("specific") ||
+      target.includes("selected")
+    ) {
+      return customerLoggedIn && ruleTags.length > 0 && hasMatchingTag;
+    }
+
+    return hasMatchingTag;
+  };
+
+  const getRulePriority = (rule) => {
+    const value =
+      rule?.priority ??
+      rule?.rulePriority ??
+      rule?.rule_priority ??
+      rule?.sortOrder ??
+      rule?.sort_order ??
+      0;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   const isValidCssColor = (val) => {
     const v = trimToNull(val);
     if (!v) return false;
@@ -647,19 +768,21 @@
     const hasAny = candidates.some(
       (x) => x !== undefined && x !== null && String(x).trim() !== ""
     );
-    if (!hasAny) return true;
+    if (!hasAny) return ruleMatchesCustomerTarget(rule);
 
     if (typeof rule.status === "string") {
       const st = rule.status.trim().toLowerCase();
-      if (["active", "enabled", "on", "published", "true", "1"].includes(st))
-        return true;
-      if (["inactive", "disabled", "off", "draft", "false", "0"].includes(st))
+      if (["active", "enabled", "on", "published", "true", "1"].includes(st)) {
+        return ruleMatchesCustomerTarget(rule);
+      }
+      if (["inactive", "disabled", "off", "draft", "false", "0"].includes(st)) {
         return false;
+      }
     }
 
     for (const c of candidates) {
       if (c === undefined || c === null) continue;
-      if (to01(c) === 1) return true;
+      if (to01(c) === 1) return ruleMatchesCustomerTarget(rule);
     }
     return false;
   };
@@ -1861,6 +1984,11 @@
       );
     });
     const tables = {
+      CartGoalRule: getProxyArray(proxy, [
+        "cartGoalRules",
+        "cartGoalRule",
+        "cartgoalrule",
+      ]),
       cartgoals: getProxyArray(proxy, ["cartGoals", "cartGoal", "cartgoal", "cartgoals"]),
       codediscount: codeDiscountRows,
       buyxgety: getProxyArray(proxy, [
@@ -1936,7 +2064,7 @@
     ]);
     return (Array.isArray(cartGoalList) ? cartGoalList : [])
       .filter((campaign) => isRuleEnabled(campaign))
-      .sort((a, b) => Number(b?.priority || 0) - Number(a?.priority || 0))[0] || null;
+      .sort((a, b) => getRulePriority(b) - getRulePriority(a))[0] || null;
   };
 
   const buildCartGoalFreeProductRules = (campaign) => {
@@ -1960,6 +2088,9 @@
           id: `cartgoal:${campaign?.id ?? "campaign"}:${goal?.id ?? index + 1}`,
           campaignId: campaign?.id,
           campaignName: trimToNull(campaign?.campaignName) || "Cart Goal",
+          customerTarget: campaign?.customerTarget ?? campaign?.customer_target ?? goal?.customerTarget ?? goal?.customer_target,
+          customerTags: campaign?.customerTags ?? campaign?.customer_tags ?? goal?.customerTags ?? goal?.customer_tags,
+          priority: getRulePriority(campaign),
           enabled: true,
           type: "gift",
           ruleType: "free",
@@ -3333,6 +3464,12 @@
   --sc-freegift-subtext: var(--sc-drawer-text-color);
   --sc-freegift-btn-bg: var(--sc-progress);
   --sc-freegift-btn-text: #ffffff;
+  --sc-freegift-font-size: var(--sc-base-font-size);
+  --sc-freegift-title-color: var(--sc-freegift-text);
+  --sc-freegift-option-title-color: var(--sc-freegift-text);
+  --sc-freegift-accent: var(--sc-progress);
+  --sc-freegift-pill-bg: rgba(238,231,255,1);
+  --sc-freegift-pill-text: var(--sc-freegift-text);
   --sc-celebrate-backdrop: rgba(17,24,39,.25);
   --sc-celebrate-bg: #ffffff;
   --sc-celebrate-border: rgba(0,0,0,.08);
@@ -3982,7 +4119,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   position:relative;
   display:grid;
   grid-template-columns:90px minmax(0, 1fr);
-  align-items:flex-start;
+  align-items:center;
   gap:10px;
   padding:5px;
   border:1px solid var(--sc-item-border);
@@ -3996,7 +4133,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   height:50px;
   overflow:hidden;
   background:var(--sc-image-bg);
-  border-radius:4px;
   flex:0 0 auto;
 }
 .sc-img img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
@@ -4206,8 +4342,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-upsell-row{
   display: grid;
-  grid-template-columns:52px minmax(0,1fr);
-  gap:8px;
+  grid-template-columns:50px minmax(0,1fr);
+  gap:10px;
   align-items: center;
   width:100%;
 }
@@ -4257,7 +4393,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-size:calc(var(--sc-base-font-size) * .96);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   white-space: nowrap;
-  line-height:1.15;
 }
 .sc-upsell-controls{
   display: grid;
@@ -5236,12 +5371,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   min-height:56px;
 }
 .sc-subtotal-box .sc-sub-label{
-  font-size:var(--sc-small-font-size);
-  color:var(--sc-subtotal-label);
-  line-height:1.15;
+  font-size: var(--sc-base-font-size);
+  color: var(--sc-subtotal-label);
+  line-height: 1.15;
+  font-weight: 600;
 }
 .sc-subtotal-box .sc-sub-value{
-  font-size:calc(var(--sc-base-font-size) * 1.18);
+  font-size:calc(var(--sc-base-font-size) * 1.7);
   font-weight:900;
   color:var(--sc-subtotal-text);
   line-height:1.15;
@@ -5274,7 +5410,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   animation:scCheckoutShine 2.8s ease-in-out infinite;
   z-index:0;
 }
-.sc-checkout:hover{filter:brightness(1.04);}
+.sc-checkout:hover{filter:brightness(1.04);transform:scaleX(1.5);transform-origin:right center;}
 .sc-checkout:active{transform:scale(.985);}
 .sc-checkout-label{position:relative;z-index:1;}
 @keyframes scCheckoutShine{
@@ -5304,7 +5440,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   opacity:0;
   visibility:hidden;
   transition:opacity .2s ease, visibility .2s ease;
-  z-index:2147483050;
+  z-index:2147483647 !important;
 }
 .sc-freegift-overlay.open{
   opacity:1;
@@ -5313,13 +5449,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-freegift-card{
   width:min(520px, 96vw);
   max-height:min(700px, 94vh);
-  background:#ffffff;
+  background:var(--sc-freegift-bg);
   border-radius:12px;
   padding:0;
   border:1px solid var(--sc-freegift-border);
   box-shadow:var(--sc-freegift-shadow);
   position:relative;
-  font-size:var(--sc-base-font-size);
+  font-size:var(--sc-freegift-font-size);
   color:var(--sc-freegift-text);
   text-align:center;
   overflow:hidden;
@@ -5349,7 +5485,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
     width: 42px;
     height: 42px;
     border-radius: 50%;
-    background: #6d2bd9;
+    background: var(--sc-freegift-accent);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5360,22 +5496,22 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-freegift-title-text{
     margin: 0;
     font-weight: 800;
-    font-size: 20px;
+    font-size: calc(var(--sc-freegift-font-size) * 1.25);
     line-height: 1.2;
-    color: #10206f;
+    color: var(--sc-freegift-title-color);
 }
 .sc-freegift-subtext {
     margin: 0;
-    font-size: 17px;
-    color: #718091;
+    font-size: calc(var(--sc-freegift-font-size) * 1.06);
+    color: var(--sc-freegift-subtext);
 }
 .sc-freegift-count{
   display:inline-flex;
   align-items:center;
   min-height:24px;
   border-radius:999px;
-  background:#eee7ff;
-  color:#10206f;
+  background:var(--sc-freegift-pill-bg);
+  color:var(--sc-freegift-pill-text);
   font-weight:800;
   font-size:16px;
   padding:1px 8px;
@@ -5441,7 +5577,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   border:0;
   border-bottom:1px solid rgba(15,23,42,.1);
   background:#fff;
-  color:#10206f;
+  color:var(--sc-freegift-option-title-color);
   cursor:pointer;
   display:grid;
   grid-template-columns:48px minmax(0,1fr) 38px;
@@ -5477,7 +5613,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-freegift-option-title{
   font-size:18px;
   font-weight:800;
-  color:#10206f;
+  color:var(--sc-freegift-option-title-color);
   line-height:1.2;
   white-space:nowrap;
   overflow:hidden;
@@ -5499,16 +5635,16 @@ body.sc-cartify-open .shopify-section-group-header-group{
   align-items:center;
   min-height:22px;
   border-radius:999px;
-  background:#eee7ff;
+  background:var(--sc-freegift-pill-bg);
   font-weight:800;
   font-size:15px;
-  color:#10206f;
+  color:var(--sc-freegift-pill-text);
   padding:0 8px;
 }
 .sc-freegift-check{
     width: 28px;
     height: 28px;
-    border: 2px solid #10206f;
+    border: 2px solid var(--sc-freegift-option-title-color);
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -5521,8 +5657,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-freegift-check svg{width:18px;height:18px;fill:currentColor;}
 .sc-freegift-option.selected .sc-freegift-check{
-  border-color:#6d2bd9;
-  background:#6d2bd9;
+  border-color:var(--sc-freegift-accent);
+  background:var(--sc-freegift-accent);
 }
 .sc-freegift-option.selected .sc-freegift-check::before{
   content:"✓";
@@ -5549,7 +5685,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-size:13px;
   line-height:1.1;
   font-weight:900;
-  color:#10206f;
+  color:var(--sc-freegift-option-title-color);
 }
 .sc-freegift-variant-select-wrap{
   position:relative;
@@ -5560,8 +5696,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   border:0;
   border-radius:3px;
   background:#ffffff;
-  color:#10206f;
-  font-size:17px;
+  color:var(--sc-freegift-option-title-color);
+  font-size:calc(var(--sc-freegift-font-size) * 1.06);
   padding:0 40px 0 14px;
   appearance:none;
   box-shadow:0 0 0 1px rgba(15,23,42,.04);
@@ -5572,7 +5708,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   right:13px;
   top:50%;
   transform:translateY(-58%);
-  color:#10206f;
+  color:var(--sc-freegift-option-title-color);
   font-size:24px;
   pointer-events:none;
 }
@@ -5586,10 +5722,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
     border-radius: 0;
     min-height: 68px;
     padding: 18px;
-    background: #6d2bd9;
-    color: #ffffff;
+    background: var(--sc-freegift-btn-bg);
+    color: var(--sc-freegift-btn-text);
     font-weight: 900;
-    font-size: 21px;
+    font-size: calc(var(--sc-freegift-font-size) * 1.3);
     cursor: pointer;
     transition: transform .2s ease, opacity .2s ease;
     position:sticky;
@@ -6519,6 +6655,49 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       pick(style, ["celebrateTextSize", "popupTextSize", "congratsTextSize"], null),
       "var(--sc-small-font-size)"
     );
+    const rewardPopupFontSize = normalizeLen(
+      pick(
+        style,
+        ["rewardPopupFontSize", "freeGiftPopupFontSize", "freeGiftFontSize", "popupFontSize"],
+        null
+      ),
+      "var(--sc-base-font-size)"
+    );
+    const rewardPopupTextColor = pickColor(
+      style,
+      ["rewardPopupTextColor", "freeGiftPopupTextColor", "freeGiftTextColor", "popupTextColor"],
+      drawerTextColor
+    );
+    const rewardPopupSubTextColor = pickColor(
+      style,
+      ["rewardPopupSubTextColor", "freeGiftPopupSubTextColor", "freeGiftSubTextColor", "popupSubTextColor"],
+      mutedColor
+    );
+    const rewardPopupTitleColor = pickColor(
+      style,
+      ["rewardPopupTitleColor", "freeGiftPopupTitleColor", "freeGiftTitleColor", "popupTitleColor"],
+      rewardPopupTextColor
+    );
+    const rewardPopupAccentColor = pickColor(
+      style,
+      ["rewardPopupAccentColor", "freeGiftPopupAccentColor", "freeGiftAccentColor", "popupAccentColor", "buttonColor"],
+      progressFill
+    );
+    const rewardPopupButtonText = pickColor(
+      style,
+      ["rewardPopupButtonTextColor", "freeGiftPopupButtonTextColor", "freeGiftButtonTextColor", "buttonLabelColor"],
+      checkoutText
+    );
+    const rewardPopupPillBg = pickBackground(
+      style,
+      ["rewardPopupPillBg", "freeGiftPopupPillBg", "freeGiftPillBg"],
+      "rgba(238,231,255,1)"
+    );
+    const rewardPopupPillText = pickColor(
+      style,
+      ["rewardPopupPillTextColor", "freeGiftPopupPillTextColor", "freeGiftPillTextColor"],
+      rewardPopupTitleColor
+    );
 
     if (!isValidCssColor(topTextColor)) topTextColor = defaults.topText;
     if (!isValidCssColor(headerColor)) headerColor = defaults.headerText;
@@ -6581,10 +6760,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-subtotal-label", subtotalLabel);
 
     // reward popup colors
-    r.setProperty("--sc-freegift-text", drawerTextColor);
-    r.setProperty("--sc-freegift-subtext", mutedColor);
-    r.setProperty("--sc-freegift-btn-bg", progressFill);
-    r.setProperty("--sc-freegift-btn-text", topTextColor);
+    r.setProperty("--sc-freegift-font-size", rewardPopupFontSize);
+    r.setProperty("--sc-freegift-text", rewardPopupTextColor);
+    r.setProperty("--sc-freegift-subtext", rewardPopupSubTextColor);
+    r.setProperty("--sc-freegift-title-color", rewardPopupTitleColor);
+    r.setProperty("--sc-freegift-option-title-color", rewardPopupTitleColor);
+    r.setProperty("--sc-freegift-accent", rewardPopupAccentColor);
+    r.setProperty("--sc-freegift-btn-bg", rewardPopupAccentColor);
+    r.setProperty("--sc-freegift-btn-text", rewardPopupButtonText);
+    r.setProperty("--sc-freegift-pill-bg", String(rewardPopupPillBg));
+    r.setProperty("--sc-freegift-pill-text", rewardPopupPillText);
     r.setProperty("--sc-celebrate-backdrop", String(celebrateBackdrop));
     r.setProperty("--sc-celebrate-bg", String(celebrateBg));
     r.setProperty("--sc-celebrate-border", celebrateBorder);
@@ -7450,6 +7635,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         id: `cartgoal:${campaign?.id ?? "campaign"}:${goal?.id ?? index + 1}`,
         campaignId: campaign?.id,
         campaignName: trimToNull(campaign?.campaignName) || "Cart Goal",
+        customerTarget: campaign?.customerTarget ?? campaign?.customer_target ?? goal?.customerTarget ?? goal?.customer_target,
+        customerTags: campaign?.customerTags ?? campaign?.customer_tags ?? goal?.customerTags ?? goal?.customer_tags,
+        priority: getRulePriority(campaign),
         enabled: true,
         isCartGoal: true,
         type: type === "free" ? "gift" : type,
@@ -7493,7 +7681,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const selectedCartGoalCampaign = (Array.isArray(cartGoalList) ? cartGoalList : [])
       .filter((campaign) => isRuleEnabled(campaign))
-      .sort((a, b) => Number(b?.priority || 0) - Number(a?.priority || 0))[0];
+      .sort((a, b) => getRulePriority(b) - getRulePriority(a))[0];
 
     const cartGoalCandidates = selectedCartGoalCampaign
       ? [selectedCartGoalCampaign]
@@ -7949,7 +8137,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
 
     return rows.sort((a, b) => {
-      const priorityDiff = Number(b?.rule?.priority || 0) - Number(a?.rule?.priority || 0);
+      const priorityDiff = getRulePriority(b?.rule) - getRulePriority(a?.rule);
       if (priorityDiff) return priorityDiff;
       const bUpdated = new Date(b?.rule?.updatedAt || b?.rule?.updated_at || 0).getTime() || 0;
       const aUpdated = new Date(a?.rule?.updatedAt || a?.rule?.updated_at || 0).getTime() || 0;
@@ -9325,7 +9513,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       </div>
     `;
 
-    drawer.appendChild(overlayEl);
+    (document.body || document.documentElement).appendChild(overlayEl);
 
     const closeBtn = overlayEl.querySelector(".sc-freegift-close");
     const addBtn = overlayEl.querySelector(".sc-freegift-add");
@@ -9546,33 +9734,54 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     scStore.del(keyShown(kind, guardKey));
   };
 
-  const getFreeGiftProductIds = (rule) => {
+  const getFreeGiftProductIds = (rule, kind = "free") => {
     const products = Array.isArray(rule?.bonusProducts)
       ? rule.bonusProducts
       : parseArrayish(rule?.bonusProducts);
+    const normalizedKind = String(kind || "free").toLowerCase();
+    const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
     const bonusIds = refsFromValue(rule?.bonusProductIds).map(normalizeResourceId).filter(Boolean);
     const rewardIds = refsFromValue(rule?.rewardProductIds).map(normalizeResourceId).filter(Boolean);
+    const getProductIds = refsFromValue(rule?.getProductIds || rule?.yProductIds).map(normalizeResourceId).filter(Boolean);
     const giftSkuIds = refsFromValue(rule?.giftSku).map(normalizeResourceId).filter(Boolean);
-    const ids = bonusIds.length > 0 ? bonusIds : rewardIds.length > 0 ? rewardIds : giftSkuIds;
+    const ids = isBxgyReward
+      ? (rewardIds.length > 0 ? rewardIds : getProductIds.length > 0 ? getProductIds : giftSkuIds)
+      : (bonusIds.length > 0 ? bonusIds : rewardIds.length > 0 ? rewardIds : giftSkuIds);
 
     const stringFallbackIds =
       !ids.length && typeof rule?.bonusProductIds === "string" && trimToNull(rule.bonusProductIds)
         ? [rule.bonusProductIds]
         : [];
-    const fallback = trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus);
+    const fallback = isBxgyReward
+      ? (
+        trimToNull(rule?.rewardProductId) ||
+        trimToNull(rule?.getProductId) ||
+        trimToNull(rule?.yProductId) ||
+        trimToNull(rule?.bonusProductId) ||
+        trimToNull(rule?.bonus)
+      )
+      : (trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus));
     const productIds = products
       .map((product) => trimToNull(product?.id || product?.productId))
       .filter(Boolean);
     const allIds = [...ids, ...stringFallbackIds, ...productIds, fallback]
       .map((id) => normalizeResourceId(id) || trimToNull(id))
       .filter(Boolean);
-    return [...new Set(allIds)];
+    const seen = new Set();
+    return allIds.filter((id) => {
+      const key = String(normalizeProductNumericId(id) || gidToId(id) || id).trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   };
 
   const getFreeGiftProductMeta = (rule, productId, index) => {
-    const products = Array.isArray(rule?.bonusProducts)
-      ? rule.bonusProducts
-      : parseArrayish(rule?.bonusProducts);
+    const products = [
+      ...parseArrayish(rule?.bonusProducts),
+      ...parseArrayish(rule?.rewardProducts),
+      ...parseArrayish(rule?.products),
+    ];
     const byId = products.find((product) => {
       const id = trimToNull(product?.id || product?.productId);
       return id && productId && String(id) === String(productId);
@@ -9580,7 +9789,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return byId || products[index] || null;
   };
 
-  const getFreeGiftVariantFromRule = (rule, productId, index) => {
+  const getFreeGiftVariantFromRule = (rule, productId, index, kind = "free") => {
     const productMeta = getFreeGiftProductMeta(rule, productId, index);
     const hasProductMetaVariant = !!(
       trimToNull(productMeta?.variantId) ||
@@ -9599,7 +9808,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const firstProductId =
       trimToNull(rule?.bonusProductId) ||
       trimToNull(rule?.bonus) ||
-      getFreeGiftProductIds(rule)[0] ||
+      getFreeGiftProductIds(rule, kind)[0] ||
       null;
     if (!hasProductMetaVariant && index > 0 && firstProductId && productId && String(productId) !== String(firstProductId)) {
       return null;
@@ -9658,7 +9867,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     };
   };
 
-  const buildFreeGiftOption = ({ rule, productId, variant, product, index }) => {
+  const buildFreeGiftOption = ({ rule, productId, variant, product, index, kind = "free" }) => {
     const variants = Array.isArray(product?.variants) && product.variants.length
       ? product.variants
       : variant
@@ -9697,29 +9906,30 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       variants,
       variantOptions,
       selectedOptions,
-      qty: getRewardQtyFromRule("free", optionRule),
+      qty: getRewardQtyFromRule(kind, optionRule),
       title: productName,
       image: trimToNull(product?.image) || trimToNull(selectedVariant?.image) || trimToNull(selectedVariant?.product?.image) || "",
       priceCents: centsFromDecimalPrice(selectedVariant?.price),
     };
   };
 
-  const getImmediateFreeGiftOptions = (rule) => {
-    const productIds = getFreeGiftProductIds(rule);
+  const getImmediateFreeGiftOptions = (rule, kind = "free") => {
+    const productIds = getFreeGiftProductIds(rule, kind);
     const rawOptions = productIds.length ? productIds : [trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus)].filter(Boolean);
     const options = rawOptions
       .map((productId, index) => buildFreeGiftOption({
         rule,
         productId,
-        variant: getFreeGiftVariantFromRule(rule, productId, index),
+        variant: getFreeGiftVariantFromRule(rule, productId, index, kind),
         index,
+        kind,
       }))
       .filter(Boolean);
     return options;
   };
 
-  const resolveFreeGiftOptions = async (rule) => {
-    const productIds = getFreeGiftProductIds(rule);
+  const resolveFreeGiftOptions = async (rule, kind = "free") => {
+    const productIds = getFreeGiftProductIds(rule, kind);
     const rawOptions = productIds.length ? productIds : [trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus)].filter(Boolean);
     const options = [];
 
@@ -9731,10 +9941,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         bonus: productId,
         bonusProductIds: [productId],
       };
-      const directVariant = getFreeGiftVariantFromRule(rule, productId, index);
+      const directVariant = getFreeGiftVariantFromRule(rule, productId, index, kind);
       const product = await resolveRewardProductForOptions(productId);
       const variant = directVariant || product?.variants?.[0] || await resolveRewardVariantForAdd(optionRule, { productId });
-      const option = buildFreeGiftOption({ rule, productId, variant, product, index });
+      const option = buildFreeGiftOption({ rule, productId, variant, product, index, kind });
       if (!option) {
         console.warn(`[SmartCartify] skipping option ${index}: variant resolution failed`);
         continue;
@@ -9934,10 +10144,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     // For cart goal free products with multiple options, variant will be null
     // Allow the popup to open so options can be resolved asynchronously
-    const hasBonusProductIds = getFreeGiftProductIds(rule).length > 0;
+    const hasBonusProductIds = getFreeGiftProductIds(rule, kind).length > 0;
     const isMultiOptionReward = (kind === "free" || kind === "bxgy" || kind === "buyxgety") && hasBonusProductIds;
-    const bxgyReferenceItems = kind !== "free" ? getBxgyReferenceItems(rule) : [];
-    const hasBxgyReferences = bxgyReferenceItems.length > 0;
+    const hasBxgyReferences = false;
 
     if (!variant && !isMultiOptionReward && !hasBxgyReferences) return false;
 
@@ -10044,7 +10253,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!variant && !isMultiOptionReward && hasBxgyReferences) {
       if (state.contentEl) state.contentEl.hidden = true;
       if (state.headerSubEl) state.headerSubEl.textContent = "Products or collections included in this offer";
-      renderBxgyReferenceItems(state, bxgyReferenceItems);
+      renderBxgyReferenceItems(state, []);
     } else if (isMultiOptionReward) {
       if (guardKey) scStore.set(keyPendingFreeGift(guardKey), "1");
       if (state.contentEl) state.contentEl.hidden = true;
@@ -10068,14 +10277,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         state.addButton.disabled = true;
       }
 
-      const immediateOptions = getImmediateFreeGiftOptions(rule);
+      const immediateOptions = getImmediateFreeGiftOptions(rule, kind);
       if (immediateOptions.length) {
         renderFreeGiftPopupOptions(state, immediateOptions, currency);
       }
 
       const currentPopupKey = `${kind}:${guardKey || ""}`;
 
-      void resolveFreeGiftOptions(rule)
+      void resolveFreeGiftOptions(rule, kind)
         .then((options) => {
           const activeState = rewardPopupCache || state;
           if (!activeState.current) return;
