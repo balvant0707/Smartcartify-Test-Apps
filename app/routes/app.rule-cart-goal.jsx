@@ -1820,6 +1820,10 @@ export default function RuleCartGoal() {
     subtitle: product.price ? `${product.price}` : undefined,
     image: product.image,
     variantId: product.variantId,
+    variantPrice: product.variantPrice ?? product.price ?? null,
+    options: Array.isArray(product.options) ? product.options : [],
+    variants: Array.isArray(product.variants) ? product.variants : [],
+    price: product.price ?? product.variantPrice ?? null,
   }));
   const productPickerLoading = productFetcher.state === "loading";
 
@@ -1994,6 +1998,10 @@ export default function RuleCartGoal() {
         title: product.title,
         image: product.image,
         variantId: product.variantId,
+        variantPrice: product.variantPrice ?? product.price ?? null,
+        price: product.price ?? product.variantPrice ?? null,
+        options: Array.isArray(product.options) ? product.options : [],
+        variants: Array.isArray(product.variants) ? product.variants : [],
       }));
     patchGoal(productPickerGoalIndex, {
       bonusProductIds: selectedIds,

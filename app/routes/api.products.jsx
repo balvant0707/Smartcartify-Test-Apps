@@ -24,8 +24,54 @@ const clampLimit = (value, fallback) => {
   return Math.min(parsed, 250);
 };
 
+const gidToId = (value) => {
+  const match = String(value || "").match(/\/(\d+)\s*$/);
+  return match ? match[1] : null;
+};
+
+const buildOptionDefs = (variants = []) => {
+  const byName = new Map();
+  variants.forEach((variant) => {
+    const selectedOptions = Array.isArray(variant?.selectedOptions)
+      ? variant.selectedOptions
+      : [];
+    selectedOptions.forEach((option, index) => {
+      const name = String(option?.name || `Option ${index + 1}`).trim();
+      const value = String(option?.value || "").trim();
+      if (!name || !value || /^default title$/i.test(value)) return;
+      if (!byName.has(name)) byName.set(name, []);
+      const values = byName.get(name);
+      if (!values.includes(value)) values.push(value);
+    });
+  });
+  return Array.from(byName.entries()).map(([name, values], index) => ({
+    key: `option${index + 1}`,
+    name,
+    values,
+  }));
+};
+
+const mapVariant = (v) => {
+  const selectedOptions = Array.isArray(v?.selectedOptions) ? v.selectedOptions : [];
+  const out = {
+    id: v?.id ?? null,
+    legacyResourceId: gidToId(v?.id),
+    price: v?.price ?? null,
+    compare_at_price: v?.compareAtPrice ?? null,
+    title: v?.title ?? null,
+    image: v?.image?.url ?? null,
+    selectedOptions,
+    variantOptions: selectedOptions,
+  };
+  selectedOptions.slice(0, 3).forEach((option, index) => {
+    out[`option${index + 1}`] = option?.value ?? null;
+  });
+  return out;
+};
+
 const mapProduct = (p, originalId = null) => {
-  const v = edge(p?.variants)[0];
+  const variants = edge(p?.variants);
+  const v = variants[0];
   const img = edge(p?.images)[0];
   return {
     id: p.id,
@@ -37,6 +83,9 @@ const mapProduct = (p, originalId = null) => {
     variantId: v?.id ?? null,
     variantTitle: v?.title ?? null,
     variantOptions: v?.selectedOptions ?? [],
+    variantPrice: v?.price ?? null,
+    options: buildOptionDefs(variants),
+    variants: variants.map(mapVariant),
     image: img?.url ?? null,
   };
 };
@@ -85,7 +134,7 @@ export async function loader({ request }) {
                 id
                 title
                 handle
-                variants(first: 1) { edges { node { id price title selectedOptions { name value } } } }
+                variants(first: 100) { edges { node { id price compareAtPrice title selectedOptions { name value } image { url altText } } } }
                 images(first: 1) { edges { node { url altText } } }
               }
               ... on Collection {
@@ -98,7 +147,7 @@ export async function loader({ request }) {
                       id
                       title
                       handle
-                      variants(first: 1) { edges { node { id price title selectedOptions { name value } } } }
+                      variants(first: 100) { edges { node { id price compareAtPrice title selectedOptions { name value } image { url altText } } } }
                       images(first: 1) { edges { node { url altText } } }
                     }
                   }
@@ -157,7 +206,7 @@ export async function loader({ request }) {
                   id
                   title
                   handle
-                  variants(first: 1) { edges { node { id price } } }
+                  variants(first: 100) { edges { node { id price compareAtPrice title selectedOptions { name value } image { url altText } } } }
                   images(first: 1)   { edges { node { url altText } } }
                 }
               }
@@ -175,7 +224,7 @@ export async function loader({ request }) {
                         id
                         title
                         handle
-                        variants(first: 1) { edges { node { id price title selectedOptions { name value } } } }
+                        variants(first: 100) { edges { node { id price compareAtPrice title selectedOptions { name value } image { url altText } } } }
                         images(first: 1)   { edges { node { url altText } } }
                       }
                     }
@@ -194,7 +243,7 @@ export async function loader({ request }) {
                   id
                   title
                   handle
-                  variants(first: 1) { edges { node { id price } } }
+                  variants(first: 100) { edges { node { id price compareAtPrice title selectedOptions { name value } image { url altText } } } }
                   images(first: 1)   { edges { node { url altText } } }
                 }
               }

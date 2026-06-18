@@ -582,12 +582,62 @@ const getBxgyRewardProductIds = (rule = {}) => {
   return [...new Set(ids)];
 };
 
+const getCartGoalRewardProductIds = (rule = {}) => {
+  const goals = parseCartGoalArray(rule.goals);
+  const ids = goals.flatMap((goal) => [
+    ...parseResourceIdArray(goal?.bonusProductIds),
+    ...parseResourceIdArray(goal?.bonusProducts),
+    normalizeProductId(goal?.bonusProductId),
+    normalizeProductId(goal?.bonus),
+  ]);
+  return [...new Set(ids.filter(Boolean))];
+};
+
+const mergeCartGoalRewardProducts = (rule = {}, productMap = new Map()) => {
+  const goals = parseCartGoalArray(rule.goals);
+  const enrichedGoals = goals.map((goal) => {
+    if (String(goal?.type || "").toLowerCase() !== "gift") return goal;
+
+    const rewardIds = [
+      ...parseResourceIdArray(goal?.bonusProductIds),
+      ...parseResourceIdArray(goal?.bonusProducts),
+      normalizeProductId(goal?.bonusProductId),
+      normalizeProductId(goal?.bonus),
+    ].filter(Boolean);
+    const uniqueRewardIds = [...new Set(rewardIds)];
+    const existingProducts = Array.isArray(goal?.bonusProducts) ? goal.bonusProducts : [];
+    const existingProductMap = new Map(
+      existingProducts
+        .map((product) => [String(normalizeProductId(product) || product?.id || ""), product])
+        .filter(([id]) => id)
+    );
+    const bonusProducts = uniqueRewardIds
+      .map((id) => productMap.get(String(id)) || existingProductMap.get(String(id)))
+      .filter(Boolean);
+
+    if (!uniqueRewardIds.length && !bonusProducts.length) return goal;
+
+    const firstProduct = bonusProducts[0] || {};
+    return {
+      ...goal,
+      bonusProductIds: uniqueRewardIds.length ? uniqueRewardIds : bonusProducts.map((product) => product?.id).filter(Boolean),
+      bonusProducts,
+      bonusProductId: uniqueRewardIds[0] || goal?.bonusProductId || firstProduct?.id || "",
+      bonusProductTitle: firstProduct?.title || goal?.bonusProductTitle || "",
+      bonusProductVariantId: firstProduct?.variantId || goal?.bonusProductVariantId || "",
+    };
+  });
+
+  return mapCartGoalRuleForProxy({ ...rule, goals: enrichedGoals });
+};
+
 const mapAdminProducts = (products = []) =>
   products.map((p) => {
     const image = p?.image?.src || (p?.images?.[0]?.src ?? null);
     const firstVariant = Array.isArray(p?.variants) ? p.variants[0] : null;
     const options = Array.isArray(p?.options)
       ? p.options.map((opt) => ({
+        key: typeof opt?.position === "number" ? `option${opt.position}` : undefined,
         name: opt?.name ?? "",
         values: Array.isArray(opt?.values) ? opt.values : [],
       }))
@@ -933,6 +983,22 @@ export const loader = async ({ request }) => {
         };
       });
 
+      const cartGoalRewardProductIds = [
+        ...new Set(
+          (Array.isArray(cartGoalRules) ? cartGoalRules : [])
+            .flatMap(getCartGoalRewardProductIds)
+            .filter(Boolean)
+        ),
+      ];
+      const cartGoalRewardProductsRaw = isAuthorized && cartGoalRewardProductIds.length
+        ? await fetchProductsByIds(shop, shopAccessToken, cartGoalRewardProductIds)
+        : [];
+      const cartGoalRewardProductsMap = new Map(
+        cartGoalRewardProductsRaw.map((product) => [String(product?.id || ""), product])
+      );
+      const cartGoalRulesForProxy = (Array.isArray(cartGoalRules) ? cartGoalRules : [])
+        .map((rule) => mergeCartGoalRewardProducts(rule, cartGoalRewardProductsMap));
+
       const selectedCollectionIds = parseJsonArray(
         upsellSettings?.selectedCollectionIds
       );
@@ -981,7 +1047,7 @@ export const loader = async ({ request }) => {
         _rawDiscountRules: discountRules,
         _rawFreeGiftRules: freeGiftRules,
         _rawBxgyRules: bxgyRulesForProxy,
-        _rawCartGoalRules: cartGoalRules.map(mapCartGoalRuleForProxy),
+        _rawCartGoalRules: cartGoalRulesForProxy,
         styleSettings: styleSettingsWithCartIcon ?? null,
         upsellSettings: upsellSettings ?? null,
         addToCartBarSettings: {

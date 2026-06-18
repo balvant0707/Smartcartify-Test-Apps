@@ -1,4 +1,4 @@
-﻿﻿(() => {
+(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -6028,9 +6028,8 @@ display: flex;
 }
 .sc-freegift-option:hover{background:#fbfaff;}
 .sc-freegift-thumb{
-  width:44px;
-  height:44px;
-  border-radius:7px;
+  width:50px;
+  height:40px;
   overflow:hidden;
   background:#f3f3f3;
   display:flex;
@@ -9746,8 +9745,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!variant) return null;
     const legacy = trimToNull(variant.legacyResourceId);
     if (legacy) return legacy;
-    const gid = trimToNull(variant.id);
+    const gid = trimToNull(variant.id) || trimToNull(variant.admin_graphql_api_id);
     if (!gid) return null;
+    if (/^\d+$/.test(gid)) return gid;
     const match = gid.match(/\/(\d+)$/);
     return match ? match[1] : null;
   };
@@ -10479,7 +10479,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     ];
     const byId = products.find((product) => {
       const id = trimToNull(product?.id || product?.productId || product?.product_id);
-      return id && productId && String(id) === String(productId);
+      const normalizedId = normalizeProductNumericId(id) || gidToId(id) || id;
+      const normalizedProductId = normalizeProductNumericId(productId) || gidToId(productId) || productId;
+      return id && productId && String(normalizedId) === String(normalizedProductId);
     });
     return byId || products[index] || null;
   };
@@ -10611,7 +10613,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       trimToNull(rule?.bonusProductTitle) ||
       trimToNull(rule?.productTitle) ||
       "Free gift";
-    const variantOptions = Array.isArray(product?.options) ? product.options : [];
+    const variantOptions = (Array.isArray(product?.options) ? product.options : [])
+      .map((def, optionIndex) => {
+        const key = trimToNull(def?.key) || `option${optionIndex + 1}`;
+        const values = Array.isArray(def?.values) ? def.values.map(trimToNull).filter(Boolean) : [];
+        const name = trimToNull(def?.name) || `Option ${optionIndex + 1}`;
+        if (!key || !values.length) return null;
+        return { ...def, key, name, values };
+      })
+      .filter(Boolean);
     const selectedOptions = {};
     variantOptions.forEach((def) => {
       selectedOptions[def.key] = trimToNull(selectedVariant?.[def.key]) || trimToNull(def.values?.[0]) || "";
@@ -10708,7 +10718,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     state.listEl.style.removeProperty("display");
     state.current.options = Array.isArray(options) ? options : [];
     const preservedSelectedId = trimToNull(state.current.selectedOptionId);
-    const defaultSelected = state.current.options.find((option) => String(option.optionId) === String(preservedSelectedId)) || state.current.options[0] || null;
+    const defaultSelected = preservedSelectedId
+      ? state.current.options.find((option) => String(option.optionId) === String(preservedSelectedId)) || null
+      : null;
     state.current.selectedOption = defaultSelected;
     state.current.selectedOptionId = defaultSelected?.optionId || null;
     if (state.messageEl) {
@@ -10716,7 +10728,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       state.messageEl.classList.remove("is-error");
       state.messageEl.textContent = state.current.goalMet === false
         ? getRewardGoalPendingMessage(state.current.kind)
-        : "Choose a free gift and variant to add it to your cart.";
+        : "Select a free gift to add it to your cart.";
     }
 
     if (!state.current.options.length) {
