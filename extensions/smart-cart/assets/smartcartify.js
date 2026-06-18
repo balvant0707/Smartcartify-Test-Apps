@@ -7899,7 +7899,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const validateCodeDiscountRule = (rule, subtotalCents) => {
-    if (!rule) return { ok: false, message: "Discount code is not valid." };
+    // If the code is not available in the app proxy rule list, still allow
+    // Shopify to validate it. Blocking here made valid Shopify discount codes
+    // show "could not be applied" before Shopify got a chance to apply them.
+    if (!rule) return { ok: true, message: "" };
 
     const currency = normalizeCurrencyCode();
     const subtotal = Math.max(0, Number(subtotalCents) || 0);
@@ -8030,7 +8033,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       await refreshFromNetwork();
       renderAllFromCache();
 
-      if (rule && isDiscountAppliedInCart(code)) {
+      if (isDiscountAppliedInCart(code)) {
         scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
         scStore.set("__SC_LAST_APPLIED_CODE__", code);
 
@@ -9558,6 +9561,26 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
     }
 
+    // Also show Shopify-applied discount codes that are valid in cart.js even
+    // when the app proxy does not return a matching local discount rule.
+    getAppliedDiscountCodes().forEach((code) => {
+      if (
+        appliedCode?.code &&
+        String(appliedCode.code).trim().toLowerCase() === String(code).trim().toLowerCase()
+      ) {
+        return;
+      }
+
+      const amount = getCartDiscountCodeAmountCents(code);
+      if (Number.isFinite(amount) && amount > 0) {
+        rows.push({
+          key: `code:${code}`,
+          label: "Code Discount",
+          amount: formatDiscountAmount(Math.min(amount, subtotalCents), currency),
+        });
+      }
+    });
+
     const uniqueRows = [];
     const seen = new Set();
 
@@ -9657,17 +9680,42 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return Number.isFinite(discountCents) && discountCents > 0 ? sum + discountCents : sum;
     }, 0);
 
-    const cartTotalDiscountRaw = Math.max(0, Number(CART?.total_discount || 0));
-    let totalDiscountCents = autoDiscountCents + cartTotalDiscountRaw;
+    let codeDiscountCentsForTotal = 0;
 
     const appliedCodeRuleForTotal = findAppliedDiscountCodeRule();
-    if (appliedCodeRuleForTotal?.rule && cartTotalDiscountRaw <= 0) {
+    if (appliedCodeRuleForTotal?.rule) {
       const codeDiscountCents = resolveCodeDiscountCents(appliedCodeRuleForTotal.rule, subtotalCents);
       if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
-        totalDiscountCents += codeDiscountCents;
+        codeDiscountCentsForTotal += codeDiscountCents;
       }
     }
 
+    // If Shopify accepted a discount code that is not present in the app rule
+    // list, still include the applied code amount in the drawer total.
+    appliedCodes.forEach((code) => {
+      if (
+        appliedCodeRuleForTotal?.code &&
+        String(appliedCodeRuleForTotal.code).trim().toLowerCase() ===
+        String(code).trim().toLowerCase()
+      ) {
+        return;
+      }
+
+      const amount = getCartDiscountCodeAmountCents(code);
+      if (Number.isFinite(amount) && amount > 0) {
+        codeDiscountCentsForTotal += Math.min(amount, subtotalCents);
+      }
+    });
+
+    // Do not add CART.total_discount on top of app-calculated discounts.
+    // Shopify total_discount may include hidden/free-gift adjustments, which
+    // caused the drawer Total to become too low (for example ₹1500 - ₹300
+    // showing ₹700). The drawer total should match the visible paid cart
+    // subtotal minus the visible eligible order/code discounts.
+    const totalDiscountCents = Math.min(
+      subtotalCents,
+      Math.max(0, autoDiscountCents + codeDiscountCentsForTotal)
+    );
     const checkoutPayableCents = Math.max(0, subtotalCents - totalDiscountCents);
     if (subtotalEl) subtotalEl.textContent = formatMoney(checkoutPayableCents, currency);
     const checkoutLabelEl = drawer.querySelector(".sc-checkout-label");
