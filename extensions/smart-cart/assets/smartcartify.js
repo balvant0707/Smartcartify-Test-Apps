@@ -10043,32 +10043,89 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const normalizeRewardProductVariant = (product, variant, productId) => {
     if (!variant) return null;
-    const legacyId = trimToNull(variant?.id || variant?.legacyResourceId);
+    const rawVariantId = trimToNull(
+      variant?.id ||
+      variant?.variantId ||
+      variant?.admin_graphql_api_id ||
+      variant?.adminGraphqlApiId ||
+      variant?.legacyResourceId ||
+      variant?.legacy_resource_id
+    );
+    const legacyId = gidToId(rawVariantId) || rawVariantId;
     if (!legacyId) return null;
     const productImage =
       trimToNull(product?.image?.src) ||
+      trimToNull(product?.image?.url) ||
+      (typeof product?.image === "string" ? trimToNull(product.image) : null) ||
+      trimToNull(product?.featuredImage?.url) ||
       (Array.isArray(product?.images) && trimToNull(product.images[0]?.src)) ||
       "";
     const imageUrl =
       trimToNull(variant?.featured_image?.src) ||
       trimToNull(variant?.image?.src) ||
+      trimToNull(variant?.image?.url) ||
+      (typeof variant?.image === "string" ? trimToNull(variant.image) : null) ||
       productImage;
+    const rawOptions = Array.isArray(variant?.variantOptions) ? variant.variantOptions : [];
     return {
       ...variant,
       id: `gid://shopify/ProductVariant/${legacyId}`,
       legacyResourceId: String(legacyId),
       productId: String(productId || product?.id || ""),
       title: trimToNull(variant?.title) || "",
-      price: variant?.price,
-      compareAtPrice: variant?.compare_at_price,
+      price: variant?.price ?? variant?.variantPrice ?? null,
+      compareAtPrice: variant?.compare_at_price ?? variant?.compareAtPrice ?? null,
       image: imageUrl,
-      option1: variant?.option1,
-      option2: variant?.option2,
-      option3: variant?.option3,
+      option1: variant?.option1 ?? rawOptions?.[0]?.value,
+      option2: variant?.option2 ?? rawOptions?.[1]?.value,
+      option3: variant?.option3 ?? rawOptions?.[2]?.value,
       product: {
         title: trimToNull(product?.title) || "",
         image: productImage || imageUrl,
       },
+    };
+  };
+
+  const normalizeStoredRewardProduct = (product, requestedProductId = null) => {
+    if (!product || typeof product !== "object") return null;
+    const productId =
+      normalizeProductNumericId(product?.id) ||
+      normalizeProductNumericId(product?.productId) ||
+      normalizeProductNumericId(product?.product_id) ||
+      normalizeProductNumericId(requestedProductId) ||
+      gidToId(product?.id) ||
+      gidToId(product?.productId) ||
+      gidToId(product?.product_id) ||
+      trimToNull(product?.id || product?.productId || product?.product_id || requestedProductId);
+    if (!productId) return null;
+    const variants = (Array.isArray(product?.variants) ? product.variants : [])
+      .map((variant) => normalizeRewardProductVariant(product, variant, productId))
+      .filter(Boolean);
+    const fallbackVariant = !variants.length && (product?.variantId || product?.variant_id)
+      ? normalizeRewardProductVariant(product, {
+        id: product.variantId || product.variant_id,
+        title: product.variantTitle || product.variant_title,
+        price: product.variantPrice ?? product.price,
+        variantOptions: product.variantOptions,
+        image: product.image,
+      }, productId)
+      : null;
+    const normalizedVariants = fallbackVariant ? [fallbackVariant] : variants;
+    const image =
+      trimToNull(product?.image?.src) ||
+      trimToNull(product?.image?.url) ||
+      (typeof product?.image === "string" ? trimToNull(product.image) : null) ||
+      trimToNull(product?.featuredImage?.url) ||
+      (typeof product?.featuredImage === "string" ? trimToNull(product.featuredImage) : null) ||
+      trimToNull(normalizedVariants[0]?.image) ||
+      "";
+    return {
+      ...product,
+      id: String(productId),
+      title: trimToNull(product?.title) || trimToNull(product?.name) || "Free gift",
+      image,
+      options: getRewardProductOptionDefs(product, normalizedVariants),
+      variants: normalizedVariants,
     };
   };
 
@@ -10784,6 +10841,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         rule,
         productId,
         variant: getFreeGiftVariantFromRule(rule, productId, index, kind),
+        product: normalizeStoredRewardProduct(getFreeGiftProductMeta(rule, productId, index), productId),
         index,
         kind,
       }))
@@ -10805,7 +10863,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         bonusProductIds: [productId],
       };
       const directVariant = getFreeGiftVariantFromRule(rule, productId, index, kind);
-      const product = await resolveRewardProductForOptions(productId);
+      const product =
+        normalizeStoredRewardProduct(getFreeGiftProductMeta(rule, productId, index), productId) ||
+        await resolveRewardProductForOptions(productId);
       const variant = directVariant || product?.variants?.[0] || await resolveRewardVariantForAdd(optionRule, { productId });
       const option = buildFreeGiftOption({ rule, productId, variant, product, index, kind });
       if (!option) {
@@ -10855,7 +10915,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const preservedSelectedId = trimToNull(state.current.selectedOptionId);
     const defaultSelected = preservedSelectedId
       ? state.current.options.find((option) => String(option.optionId) === String(preservedSelectedId)) || null
-      : null;
+      : state.current.options[0] || null;
     state.current.selectedOption = defaultSelected;
     state.current.selectedOptionId = defaultSelected?.optionId || null;
     const selectedCount = state.current.selectedOption ? 1 : 0;

@@ -574,6 +574,8 @@ const parseResourceIdArray = (value) => {
 const getBxgyRewardProductIds = (rule = {}) => {
   const ids = [
     ...parseResourceIdArray(rule.rewardProductIds),
+    ...parseResourceIdArray(rule.rewardProducts),
+    ...parseResourceIdArray(rule.reward_products),
     ...parseResourceIdArray(rule.giftSku),
     ...parseResourceIdArray(rule.bonusProductIds),
     normalizeProductId(rule.bonusProductId),
@@ -968,8 +970,18 @@ export const loader = async ({ request }) => {
       );
       const bxgyRulesForProxy = (Array.isArray(bxgyRules) ? bxgyRules : []).map((rule) => {
         const rewardIds = getBxgyRewardProductIds(rule);
+        const existingProducts = [
+          ...(Array.isArray(rule?.rewardProducts) ? rule.rewardProducts : []),
+          ...(Array.isArray(rule?.reward_products) ? rule.reward_products : []),
+          ...(Array.isArray(rule?.bonusProducts) ? rule.bonusProducts : []),
+        ];
+        const existingProductMap = new Map(
+          existingProducts
+            .map((product) => [String(normalizeProductId(product) || product?.id || ""), product])
+            .filter(([id]) => id)
+        );
         const bonusProducts = rewardIds
-          .map((id) => bxgyRewardProductsMap.get(String(id)))
+          .map((id) => bxgyRewardProductsMap.get(String(id)) || existingProductMap.get(String(id)))
           .filter(Boolean);
 
         if (!bonusProducts.length) return rule;
