@@ -1760,6 +1760,15 @@
 
     const slides = [];
     rules.forEach((rule, ruleIndex) => {
+      const goalTitle =
+        trimToNull(rule?.cartGoalTitle) ||
+        trimToNull(rule?.goalTitle) ||
+        trimToNull(rule?.title) ||
+        trimToNull(rule?.name) ||
+        trimToNull(rule?.label) ||
+        trimToNull(rule?.stepTitle) ||
+        trimToNull(rule?.stepName) ||
+        `Cart Goal ${ruleIndex + 1}`;
       const products = [
         ...parseArrayish(rule?.bonusProducts),
         ...parseArrayish(rule?.bonus_products),
@@ -1801,10 +1810,8 @@
           title,
           image,
           message,
-          campaignTitle:
-            trimToNull(rule?.campaignName) ||
-            trimToNull(campaign?.campaignName) ||
-            "Free Product Rewards",
+          goalTitle,
+          campaignTitle: goalTitle,
           index: slides.length,
           identity: `${ruleKey || slot}:${productIndex}`,
         });
@@ -1834,12 +1841,13 @@
     const hasMultiple = slides.length > 1;
     const activeIndex = CART_GOAL_BONUS_INDEX;
     const headerText =
+      trimToNull(slides[activeIndex]?.goalTitle) ||
       trimToNull(slides[activeIndex]?.campaignTitle) ||
       "Free Product Rewards";
 
     wrap.hidden = false;
     wrap.innerHTML = `
-      <div class="sc-cartgoal-bonus-card">
+      <div class="sc-cartgoal-bonus-card ${hasMultiple ? "has-arrows" : "is-single"}">
         <div class="sc-cartgoal-bonus-head">
           <p class="sc-cartgoal-bonus-title">${safe(headerText)}</p>
         </div>
@@ -1866,9 +1874,6 @@
                       <p class="sc-cartgoal-bonus-product">${safe(slide.title)}</p>
                       <p class="sc-cartgoal-bonus-msg">${safe(slide.message)}</p>
                     </div>
-                    <button class="sc-cartgoal-bonus-arrow${slide.goalMet ? "" : " is-locked"}" type="button" data-cartgoal-bonus-open="${index}" aria-label="Open ${safe(slide.title)} free gift">
-                      ›
-                    </button>
                   </div>
                 </div>
               `;
@@ -2261,6 +2266,15 @@
         const type = normalizeCartGoalRewardType(goal);
         if (type !== "free") return null;
         const threshold = Number(goal?.goal);
+        const goalDisplayTitle =
+          trimToNull(goal?.cartGoalTitle) ||
+          trimToNull(goal?.goalTitle) ||
+          trimToNull(goal?.title) ||
+          trimToNull(goal?.name) ||
+          trimToNull(goal?.label) ||
+          trimToNull(goal?.stepTitle) ||
+          trimToNull(goal?.stepName) ||
+          `Cart Goal ${index + 1}`;
         const productIds = getCartGoalBonusProductIds(goal);
         const bonusProducts = getCartGoalBonusProducts(goal);
         const bonusProductId =
@@ -2280,6 +2294,8 @@
           type: "gift",
           ruleType: "free",
           rewardType: "free",
+          cartGoalTitle: goalDisplayTitle,
+          goalTitle: goalDisplayTitle,
           cartStepName: `step${index + 1}`,
           triggerType: trackBy === "quantity" ? "quantity" : "amount",
           shopifyDiscountId: goal?.shopifyDiscountId || null,
@@ -4332,9 +4348,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   border-bottom:0;
 }
 .sc-img{
-  width:56px;
-  height:56px;
-  border-radius:6px;
+  width:60px;
+  height:50px;
   overflow:hidden;
   background:var(--sc-image-bg);
   flex:0 0 auto;
@@ -4530,9 +4545,9 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-cartgoal-bonus-title{
   margin:0;
   color:var(--sc-drawer-text-color);
-  font-size:calc(var(--sc-base-font-size) * .98);
+  font-size:calc(var(--sc-base-font-size) * 1.02);
   line-height:1.2;
-  font-weight:800;
+  font-weight:900;
   text-align:center;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -4540,7 +4555,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-cartgoal-bonus-nav-btn{
   position:absolute;
-  top:50%;
+  top:54px;
   transform:translateY(-50%);
   width:28px;
   height:36px;
@@ -4555,10 +4570,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
   padding:0;
 }
 .sc-cartgoal-bonus-nav-btn.left{
-  left:0;
+  left:2px;
 }
 .sc-cartgoal-bonus-nav-btn.right{
-  right:0;
+  right:2px;
 }
 .sc-cartgoal-bonus-nav-btn svg{
   width:20px;
@@ -4588,6 +4603,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
   overflow:hidden;
   width:100%;
 }
+.sc-cartgoal-bonus-card.has-arrows .sc-cartgoal-bonus-viewport{
+  width:calc(100% - 52px);
+  margin:0 auto;
+}
 .sc-cartgoal-bonus-track{
   display:flex;
   transition:transform .25s ease;
@@ -4599,7 +4618,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-cartgoal-bonus-item{
   display:grid;
-  grid-template-columns:64px minmax(0,1fr) 28px;
+  grid-template-columns:64px minmax(0,1fr);
   gap:12px;
   align-items:center;
   width:100%;
@@ -4611,9 +4630,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   padding:2px 0;
 }
 .sc-cartgoal-bonus-img{
-  width:56px;
-  height:56px;
-  border-radius:6px;
+  width:60px;
+  height:50px;
   background:var(--sc-image-bg);
   overflow:hidden;
   display:flex;
@@ -4742,9 +4760,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   justify-content:stretch;
 }
 .sc-upsell-img{
-  width:56px;
-  height:56px;
-  border-radius:6px;
+  width:60px;
+  height:50px;
   background:#ffffff;
   overflow: hidden;
   display: grid;
@@ -5807,7 +5824,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   animation:scCheckoutShine 2.8s ease-in-out infinite;
   z-index:0;
 }
-.sc-checkout:hover{filter:brightness(1.04);transform:scaleX(1.5);transform-origin:right center;}
+.sc-checkout:hover{filter:brightness(1.04);transform:scaleX(1.4);transform-origin:right center;}
 .sc-checkout:active{transform:scale(.985);}
 .sc-checkout-label{position:relative;z-index:1;}
 @keyframes scCheckoutShine{
@@ -7553,23 +7570,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const minPurchaseFail = minCents != null && subtotalCents < minCents;
 
-	      const discountAmountFail =
-	        meta &&
-	        !meta.isPercent &&
-	        Number.isFinite(meta.cents) &&
-	        meta.cents > subtotalCents;
+        const discountAmountFail =
+          meta &&
+          !meta.isPercent &&
+          Number.isFinite(meta.cents) &&
+          meta.cents > subtotalCents;
 
-	      if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
+        if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
 
-	      const validationMessage = minQuantityFail
-	        ? `Discount code ${code} was removed. Add ${Math.ceil(minQuantity - cartQty)} more item(s) to use this discount code.`
-	        : minPurchaseFail
-	          ? `Discount code ${code} was removed. Add ${formatMoney(minCents - subtotalCents, currency)} more to use this discount code.`
-	          : `Discount code ${code} was removed because the discount amount is greater than the cart subtotal.`;
+        const validationMessage = minQuantityFail
+          ? `Discount code ${code} was removed. Add ${Math.ceil(minQuantity - cartQty)} more item(s) to use this discount code.`
+          : minPurchaseFail
+            ? `Discount code ${code} was removed. Add ${formatMoney(minCents - subtotalCents, currency)} more to use this discount code.`
+            : `Discount code ${code} was removed because the discount amount is greater than the cart subtotal.`;
 
-	      DISCOUNT_REMOVE_IN_FLIGHT = true;
+        DISCOUNT_REMOVE_IN_FLIGHT = true;
 
-	      try {
+        try {
         await clearDiscountCode(code);
 
         scStore.del(MANUAL_DISCOUNT_CODE_KEY);
@@ -7581,10 +7598,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         await refreshFromNetwork();
         renderAllFromCache();
 
-	        if (discountMsg) discountMsg.style.color = "#dc2626";
-	        setDiscountMessage(validationMessage);
-	        LAST_AUTO_REMOVED_CODE = code;
-	        LAST_AUTO_REMOVED_AT = Date.now();
+          if (discountMsg) discountMsg.style.color = "#dc2626";
+          setDiscountMessage(validationMessage);
+          LAST_AUTO_REMOVED_CODE = code;
+          LAST_AUTO_REMOVED_AT = Date.now();
       } catch (err) {
         console.error("[SmartCartify] auto remove discount failed:", err);
       } finally {
@@ -8205,6 +8222,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const type = normalizeCartGoalRewardType(goal);
       const threshold = Number(goal?.goal);
       const texts = parseObjectish(goal?.texts || {});
+      const goalDisplayTitle =
+        trimToNull(goal?.cartGoalTitle) ||
+        trimToNull(goal?.goalTitle) ||
+        trimToNull(goal?.title) ||
+        trimToNull(goal?.name) ||
+        trimToNull(goal?.label) ||
+        trimToNull(goal?.stepTitle) ||
+        trimToNull(goal?.stepName) ||
+        `Cart Goal ${index + 1}`;
       const productIds = getCartGoalBonusProductIds(goal);
       const bonusProducts = getCartGoalBonusProducts(goal);
       const bonusProductId =
@@ -8225,6 +8251,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         type: type === "free" ? "gift" : type,
         ruleType: type,
         rewardType: type,
+        cartGoalTitle: goalDisplayTitle,
+        goalTitle: goalDisplayTitle,
         cartStepName: `step${index + 1}`,
         triggerType: trackBy === "quantity" ? "quantity" : "amount",
         progressTextBefore: trimToNull(texts.aboveBefore) || "",

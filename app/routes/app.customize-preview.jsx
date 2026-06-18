@@ -7,7 +7,7 @@ import {
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, Banner, DropZone, Card, Badge,
+  Icon, Banner, DropZone, Card,
 } from "@shopify/polaris";
 import {
   ThemeIcon, MinimizeIcon, MaximizeIcon,
@@ -524,7 +524,7 @@ export const action = async ({ request }) => {
 function SectionCard({ icon, title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <Card padding="0">
+    <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: open ? "1px solid #e1e3e5" : "none" }}>
         <InlineStack gap="200" blockAlign="center">
           <Icon source={icon} />
@@ -540,7 +540,7 @@ function SectionCard({ icon, title, children, defaultOpen = false }) {
           <Button variant="plain" icon={MinimizeIcon} onClick={() => setOpen(false)}>Collapse</Button>
         </div>
       </Collapsible>
-    </Card>
+    </div>
   );
 }
 
@@ -644,14 +644,6 @@ function resolveStepText(text, amount, discountOpts = {}) {
   if (discountOpts.y !== undefined) result = result.replace(/\{\{y\}\}/gi, String(discountOpts.y));
   result = result.replace(/\{\{[^}]+\}\}/g, "").trim();
   return result || null;
-}
-
-function coercePreviewText(value, fallback = "") {
-  if (typeof value === "string") return value.trim() || fallback;
-  if (value && typeof value === "object") {
-    return String(value.text || value.message || value.value || fallback || "").trim();
-  }
-  return fallback;
 }
 
 function formatDiscountValueWithOff(valueType, value) {
@@ -910,6 +902,13 @@ function CartDrawerPreview({
     ? upsellPreviewItems.filter(Boolean)
     : [];
 
+  const mainProduct = {
+    title: "Sample Product",
+    tag: "Small",
+    price: "300 INR",
+    image: "/images/upsellproduct.png",
+  };
+
   const fallbackUpsellProducts = [
     {
       id: "preview-upsell-1",
@@ -926,25 +925,7 @@ function CartDrawerPreview({
       image: "/images/upsellproduct.png",
     },
   ];
-  const previewCartProduct = previewProducts[0] || fallbackUpsellProducts[0] || {
-    title: "Sample Product",
-    tag: "Small",
-    price: "300 INR",
-    image: "/images/upsellproduct.png",
-  };
-  const mainProduct = {
-    title: previewCartProduct.title || "Sample Product",
-    tag: previewCartProduct.tag || "Cart item",
-    price: previewCartProduct.price || "300 INR",
-    image: previewCartProduct.image || "/images/upsellproduct.png",
-  };
-  const upsellProducts = (
-    previewProducts.length > 1
-      ? previewProducts.slice(1)
-      : previewProducts.length
-        ? previewProducts
-        : fallbackUpsellProducts
-  ).slice(0, 8);
+  const upsellProducts = (previewProducts.length ? previewProducts : fallbackUpsellProducts).slice(0, 8);
   const [activeUpsellIndex, setActiveUpsellIndex] = useState(0);
   const [activeDrawerTab, setActiveDrawerTab] = useState("cart");
   const activeUpsellProduct = upsellProducts[activeUpsellIndex] || upsellProducts[0] || fallbackUpsellProducts[0];
@@ -1075,7 +1056,7 @@ function CartDrawerPreview({
         key: `bxgy-${rule.id || rule.campaignName || fallback}`,
         type: "bxgy",
         title: rule.campaignName || "Buy X Get Y Discount",
-        subtitle: coercePreviewText(rule.beforeOfferUnlockMessage, fallback),
+        subtitle: rule.beforeOfferUnlockMessage.text || fallback,
         icon: PackageFulfilledIcon,
         action: "Show Gifts",
       };
@@ -1164,23 +1145,6 @@ function CartDrawerPreview({
   const isBottomSheetPreview = mobileLayout === "bottom_sheet";
   const previewHeight = isBottomSheetPreview ? 620 : 680;
   const previewRadius = Math.max(r, 12);
-  const previewCssVars = {
-    "--cp-font-family": fontFamily || "inherit",
-    "--cp-font-size": `${fs}px`,
-    "--cp-heading-size": `${headingFs}px`,
-    "--cp-radius": `${previewRadius}px`,
-    "--cp-card-radius": `${Math.max(r, 10)}px`,
-    "--cp-text": tc,
-    "--cp-muted": `${tc}99`,
-    "--cp-heading": hc,
-    "--cp-surface": surface,
-    "--cp-progress-surface": progressSurface,
-    "--cp-progress": pc,
-    "--cp-button": bc,
-    "--cp-button-text": blc,
-    "--cp-border": brc,
-    "--cp-icon": ic,
-  };
 
   const ProductImage = ({ src, alt, size = 54 }) => (
     <img
@@ -1224,58 +1188,6 @@ function CartDrawerPreview({
   return (
     <Card padding="0">
       <style>{`
-        .cp-previewStage {
-          padding: 18px;
-          border-radius: 14px;
-          background:
-            radial-gradient(circle at top left, rgba(160, 51, 232, .14), transparent 34%),
-            linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
-          border: 1px solid rgba(148, 163, 184, .24);
-        }
-        .cp-previewDeviceBar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-        .cp-previewDeviceDots {
-          display: inline-flex;
-          gap: 5px;
-          align-items: center;
-        }
-        .cp-previewDeviceDots span {
-          width: 8px;
-          height: 8px;
-          border-radius: 999px;
-          display: block;
-          background: #cbd5e1;
-        }
-        .cp-previewDrawer {
-          isolation: isolate;
-          position: relative;
-        }
-        .cp-previewDrawer * {
-          box-sizing: border-box;
-        }
-        .cp-previewDrawer button {
-          font-family: var(--cp-font-family);
-          transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
-        }
-        .cp-previewDrawer button:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 14px rgba(15, 23, 42, .10);
-        }
-        .cp-previewSection {
-          background: color-mix(in srgb, var(--cp-surface) 92%, white 8%);
-          border-color: var(--cp-border);
-        }
-        .cp-previewProductRow {
-          background: rgba(255, 255, 255, .72);
-          border-radius: var(--cp-card-radius);
-          border: 1px solid var(--cp-border);
-          box-shadow: 0 8px 18px rgba(15, 23, 42, .05);
-        }
         @keyframes cpAnnouncementMarquee {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
@@ -1312,43 +1224,28 @@ function CartDrawerPreview({
           --pc-shadow-bevel-border-radius: 0 !important;
         }
       `}</style>
-      <div className="cp-previewStage" style={previewCssVars}>
-        <div className="cp-previewDeviceBar">
-          <div className="cp-previewDeviceDots" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-          <InlineStack gap="100" blockAlign="center" wrap={false}>
-            <Badge tone="info">{drawerPosition === "left" ? "Left drawer" : "Right drawer"}</Badge>
-            <Badge tone={isBottomSheetPreview ? "attention" : "success"}>
-              {isBottomSheetPreview ? "Bottom sheet" : "Drawer"}
-            </Badge>
-          </InlineStack>
-        </div>
-        <div
-          className="cp-previewDrawer"
-          style={{
-            height: previewHeight,
-            minHeight: previewHeight,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            borderRadius: isBottomSheetPreview
-              ? `${previewRadius}px ${previewRadius}px 0 0`
-              : previewRadius,
-            border: `1px solid ${brc}`,
-            color: tc,
-            fontSize: fs,
-            fontFamily,
-            boxShadow: drawerPosition === "left"
-              ? "8px 0 22px rgba(15,23,42,.10)"
-              : "-8px 0 22px rgba(15,23,42,.10)",
-            opacity: drawerAutoOpen ? 1 : 0.88,
-            marginTop: isBottomSheetPreview ? 48 : 0,
-            ...drawerBackgroundStyle,
-          }}
-        >
+      <div
+        style={{
+          height: previewHeight,
+          minHeight: previewHeight,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          borderRadius: isBottomSheetPreview
+            ? `${previewRadius}px ${previewRadius}px 0 0`
+            : previewRadius,
+          border: `1px solid ${brc}`,
+          color: tc,
+          fontSize: fs,
+          fontFamily,
+          boxShadow: drawerPosition === "left"
+            ? "8px 0 22px rgba(15,23,42,.10)"
+            : "-8px 0 22px rgba(15,23,42,.10)",
+          opacity: drawerAutoOpen ? 1 : 0.88,
+          marginTop: isBottomSheetPreview ? 48 : 0,
+          ...drawerBackgroundStyle,
+        }}
+      >
         <div style={{ padding: "11px 16px 10px", flexShrink: 0 }}>
           <InlineStack align="space-between" blockAlign="center" wrap={false}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0, color: hc }}>
@@ -1427,7 +1324,6 @@ function CartDrawerPreview({
         </div>
 
         <div
-          className="cp-previewSection"
           style={{
             padding:"5px",
             textAlign: "center",
@@ -1538,7 +1434,6 @@ function CartDrawerPreview({
         </div>
 
         <div
-          className="cp-previewSection"
           style={{
             flex: 1,
             minHeight: 0,
@@ -1548,7 +1443,6 @@ function CartDrawerPreview({
           }}
         >
           <Box padding="400">
-            <div className="cp-previewProductRow" style={{ padding: 12 }}>
             <InlineStack gap="300" blockAlign="start" wrap={false}>
               <ProductImage src={mainProduct.image} alt={mainProduct.title} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1574,7 +1468,6 @@ function CartDrawerPreview({
                 </InlineStack>
               </div>
             </InlineStack>
-            </div>
           </Box>
 
           {showUpsell && (
@@ -1973,7 +1866,6 @@ function CartDrawerPreview({
             })}
           </div>
         )}
-        </div>
       </div>
     </Card>
   );
@@ -2003,7 +1895,7 @@ export default function CustomizePreview() {
   const isSaving = navigation.state === "submitting";
 
   // Typography & Sizes
-  const [font, setFont] = useState(s.font ?? DEFAULT_STYLE.font);
+  const font = s.font ?? DEFAULT_STYLE.font;
   const [base, setBase] = useState(s.base ?? DEFAULT_STYLE.base);
   const [headingScale, setHeadingScale] = useState(s.headingScale ?? DEFAULT_STYLE.headingScale);
   const [radius, setRadius] = useState(s.radius ?? DEFAULT_STYLE.radius);
@@ -2081,11 +1973,7 @@ export default function CustomizePreview() {
     }, { method: "post", encType: "application/json" });
   };
 
-  const previewBg = drawerBgMode === "color"
-    ? (drawerBg || bg || "#fff")
-    : drawerBgMode === "gradient"
-      ? `linear-gradient(90deg, ${drawerGradientStart} 0%, ${drawerGradientEnd} 100%)`
-      : "#fff";
+  const previewBg = drawerBgMode === "color" ? (drawerBg || bg || "#fff") : drawerBgMode === "gradient" ? `linear-gradient(90deg, ${drawerGradientStart}  0%, ${drawerGradientEnd} 100%))` : "#fff";
 
   return (
     <Page
@@ -2116,14 +2004,6 @@ export default function CustomizePreview() {
             <SectionCard icon={ThemeIcon} title="Typography & Sizes">
               <BlockStack gap="400">
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
-                  <TextField
-                    label="Font family"
-                    value={font}
-                    onChange={setFont}
-                    autoComplete="off"
-                    placeholder="inherit, Inter, Poppins, Arial"
-                    helpText="Uses your theme font when left blank."
-                  />
                   <TextField
                     label="Base size (px)"
                     value={base}
@@ -2156,7 +2036,6 @@ export default function CustomizePreview() {
               <BlockStack gap="400">
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Progress bar & UI</Text>
                 <div className="cp-color-grid">
-                  <ColorField label="UI surface background" value={bg} onChange={setBg} />
                   <ColorField label="Text color" value={textColor} onChange={setTextColor} />
                   <ColorField label="Progress bar" value={progress} onChange={setProgress} />
                   <ColorField label="Progress background" value={progressBg} onChange={setProgressBg} />
@@ -2369,14 +2248,6 @@ export default function CustomizePreview() {
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="center">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Live Preview</Text>
-                </InlineStack>
-                <InlineStack gap="100" wrap>
-                  <Badge>{cartGoalRules.length} cart goals</Badge>
-                  <Badge>{shippingRules.length} shipping</Badge>
-                  <Badge>{discountRules.length + codeDiscountRules.length} discounts</Badge>
-                  <Badge>{freeGiftRules.length} free gifts</Badge>
-                  <Badge>{bxgyRules.length} BxGY</Badge>
-                  <Badge>{upsellPreviewItems.length} upsells</Badge>
                 </InlineStack>
                 <CartDrawerPreview
                   bg={previewBg}
