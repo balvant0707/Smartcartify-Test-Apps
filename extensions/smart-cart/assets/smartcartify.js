@@ -173,6 +173,7 @@
   };
 
   let UPSELL_INDEX = 0;
+  let CART_GOAL_BONUS_INDEX = 0;
   let UPSELL_TIMER = null;
   let UPSELL_DYNAMIC = null;
   let UPSELL_LOADING = false;
@@ -453,6 +454,15 @@
       0;
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
+  };
+
+  const compareRulesByCustomerPriority = (a, b) => {
+    const priorityDiff = getRulePriority(b) - getRulePriority(a);
+    if (priorityDiff) return priorityDiff;
+    const bUpdated = new Date(b?.updatedAt || b?.updated_at || 0).getTime() || 0;
+    const aUpdated = new Date(a?.updatedAt || a?.updated_at || 0).getTime() || 0;
+    if (bUpdated !== aUpdated) return bUpdated - aUpdated;
+    return Number(b?.id || b?.ruleId || 0) - Number(a?.id || a?.ruleId || 0);
   };
 
   const isValidCssColor = (val) => {
@@ -1699,6 +1709,151 @@
     }
   };
 
+  const getCartGoalBonusAfterMessage = (rule) => {
+    const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor(CART?.currency);
+    const raw =
+      trimToNull(getProgressAfter(rule)) ||
+      trimToNull(rule?.afterMessage) ||
+      trimToNull(rule?.after_message) ||
+      trimToNull(rule?.afterOfferUnlockMessage) ||
+      "Free product unlocked";
+    return replaceProgressText({
+      text: raw,
+      type: "free",
+      rule,
+      subtotalRupees,
+      useRemainingForGoal: false,
+    });
+  };
+
+  const getCartGoalBonusSlides = () => {
+    const campaign = getSelectedCartGoalCampaign();
+    if (!campaign) return [];
+
+    const rules = buildCartGoalFreeProductRules(campaign)
+      .filter((rule) => isRuleEnabled(rule))
+      .sort(compareRulesByCustomerPriority);
+
+    const slides = [];
+    rules.forEach((rule, ruleIndex) => {
+      const products = [
+        ...parseArrayish(rule?.bonusProducts),
+        ...parseArrayish(rule?.bonus_products),
+      ];
+      const fallbackProducts = products.length
+        ? []
+        : getFreeGiftProductIds(rule, "free").map((id) => ({
+          id,
+          title: `Product ${String(gidToId(id) || id).split("/").pop()}`,
+          image: "",
+        }));
+      const displayProducts = products.length ? products : fallbackProducts;
+      const goalMet = isRewardOfferGoalMet("free", rule);
+      const message = getCartGoalBonusAfterMessage(rule);
+      const ruleKey = getRuleKey(rule, "cartgoal");
+      const slot = rule?.cartStepName || `step${ruleIndex + 1}`;
+
+      displayProducts.forEach((product, productIndex) => {
+        const title =
+          trimToNull(product?.title) ||
+          trimToNull(product?.name) ||
+          trimToNull(product?.productTitle) ||
+          trimToNull(product?.product_title) ||
+          trimToNull(rule?.bonusProductTitle) ||
+          "Free gift";
+        const image =
+          trimToNull(product?.image) ||
+          trimToNull(product?.featuredImage?.url) ||
+          trimToNull(product?.featuredImage) ||
+          trimToNull(product?.productImage) ||
+          trimToNull(rule?.bonusProductImage) ||
+          "";
+        slides.push({
+          rule,
+          ruleKey,
+          slot,
+          goalMet,
+          title,
+          image,
+          message,
+          index: slides.length,
+          identity: `${ruleKey || slot}:${productIndex}`,
+        });
+      });
+    });
+
+    return slides;
+  };
+
+  const renderCartGoalBonusSlider = () => {
+    const wrap = drawer.querySelector(".sc-cartgoal-bonus");
+    if (!wrap) return;
+
+    const slides = getCartGoalBonusSlides();
+    drawer.__sc_cartGoalBonusSlides = slides;
+
+    if (!slides.length) {
+      CART_GOAL_BONUS_INDEX = 0;
+      wrap.hidden = true;
+      wrap.innerHTML = "";
+      return;
+    }
+
+    if (CART_GOAL_BONUS_INDEX >= slides.length) CART_GOAL_BONUS_INDEX = 0;
+    if (CART_GOAL_BONUS_INDEX < 0) CART_GOAL_BONUS_INDEX = slides.length - 1;
+
+    const hasMultiple = slides.length > 1;
+    const activeIndex = CART_GOAL_BONUS_INDEX;
+    const campaign = getSelectedCartGoalCampaign();
+    const heading =
+      trimToNull(campaign?.campaignName) ||
+      "Free Product Goals";
+
+    wrap.hidden = false;
+    wrap.innerHTML = `
+      <div class="sc-cartgoal-bonus-card">
+        <div class="sc-cartgoal-bonus-head">
+          <p class="sc-cartgoal-bonus-title">${safe(heading)}</p>
+          ${hasMultiple ? `
+            <div class="sc-cartgoal-bonus-nav" aria-label="Cart goal free products">
+              <button class="sc-cartgoal-bonus-arrow" type="button" data-cartgoal-bonus-nav="prev" aria-label="Previous free product">‹</button>
+              <button class="sc-cartgoal-bonus-arrow" type="button" data-cartgoal-bonus-nav="next" aria-label="Next free product">›</button>
+            </div>
+          ` : ""}
+        </div>
+        <div class="sc-cartgoal-bonus-viewport">
+          <div class="sc-cartgoal-bonus-track" style="transform:translateX(-${activeIndex * 100}%);">
+            ${slides.map((slide, index) => {
+              const label = safe((slide.title || "G").slice(0, 1).toUpperCase());
+              const imageHtml = slide.image
+                ? `<img src="${safe(slide.image)}" alt="${safe(slide.title)}" loading="lazy">`
+                : `<span>${label}</span>`;
+              return `
+                <div class="sc-cartgoal-bonus-slide">
+                  <div class="sc-cartgoal-bonus-item">
+                    <div class="sc-cartgoal-bonus-img">${imageHtml}</div>
+                    <div class="sc-cartgoal-bonus-info">
+                      <p class="sc-cartgoal-bonus-product">${safe(slide.title)}</p>
+                      <p class="sc-cartgoal-bonus-msg">${safe(slide.message)}</p>
+                    </div>
+                    <button class="sc-cartgoal-bonus-btn${slide.goalMet ? "" : " is-locked"}" type="button" data-cartgoal-bonus-open="${index}">
+                      ${slide.goalMet ? "Choose Gift" : "View Gift"}
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+        ${hasMultiple ? `
+          <div class="sc-cartgoal-bonus-dots" aria-hidden="true">
+            ${slides.map((_, index) => `<span class="sc-cartgoal-bonus-dot${index === activeIndex ? " is-active" : ""}"></span>`).join("")}
+          </div>
+        ` : ""}
+      </div>
+    `;
+  };
+
   const renderUpsellSection = () => {
     const wrap = drawer.querySelector(".sc-upsell");
     if (!wrap) return;
@@ -2064,7 +2219,7 @@
     ]);
     return (Array.isArray(cartGoalList) ? cartGoalList : [])
       .filter((campaign) => isRuleEnabled(campaign))
-      .sort((a, b) => getRulePriority(b) - getRulePriority(a))[0] || null;
+      .sort(compareRulesByCustomerPriority)[0] || null;
   };
 
   const buildCartGoalFreeProductRules = (campaign) => {
@@ -3510,6 +3665,7 @@
   pointer-events:none !important;
   display:flex !important;
   flex-direction:column;
+  font-family:var(--sc-font);
   font-size:var(--sc-base-font-size);
   color:var(--sc-drawer-text-color);
   filter:none !important;
@@ -3517,6 +3673,12 @@
   text-rendering:optimizeLegibility;
   -webkit-font-smoothing:antialiased;
   backface-visibility:hidden;
+}
+.sc-drawer button,
+.sc-drawer input,
+.sc-drawer select,
+.sc-drawer textarea{
+  font-family:var(--sc-font);
 }
 .sc-drawer.sc-position-left{
   right:auto;
@@ -4292,6 +4454,149 @@ body.sc-cartify-open .shopify-section-group-header-group{
   color:var(--sc-free-tag-color);
   font-weight:800;
   white-space:nowrap;
+}
+
+.sc-cartgoal-bonus{
+  display:block;
+  margin:0 0 10px;
+}
+.sc-cartgoal-bonus[hidden]{
+  display:none !important;
+}
+.sc-cartgoal-bonus-card{
+  background:var(--sc-upsell-bg, var(--sc-drawer-bg));
+  border:1px solid var(--sc-border);
+  border-radius:14px;
+  padding:10px;
+  color:var(--sc-drawer-text-color);
+  overflow:hidden;
+}
+.sc-cartgoal-bonus-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+.sc-cartgoal-bonus-title{
+  margin:0;
+  font-size:calc(var(--sc-base-font-size) * 1.02);
+  font-weight:800;
+  line-height:1.2;
+  color:var(--sc-drawer-text-color);
+}
+.sc-cartgoal-bonus-nav{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.sc-cartgoal-bonus-arrow{
+  width:28px;
+  height:28px;
+  border-radius:999px;
+  border:1px solid var(--sc-border);
+  background:var(--sc-input-bg, #fff);
+  color:var(--sc-drawer-text-color);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  font-size:17px;
+  line-height:1;
+}
+.sc-cartgoal-bonus-viewport{
+  overflow:hidden;
+  width:100%;
+}
+.sc-cartgoal-bonus-track{
+  display:flex;
+  transition:transform .25s ease;
+  will-change:transform;
+}
+.sc-cartgoal-bonus-slide{
+  min-width:100%;
+  flex:0 0 100%;
+}
+.sc-cartgoal-bonus-item{
+  display:grid;
+  grid-template-columns:58px minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+}
+.sc-cartgoal-bonus-img{
+  width:58px;
+  height:58px;
+  border-radius:12px;
+  background:var(--sc-image-bg);
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--sc-muted);
+  font-size:20px;
+  font-weight:800;
+}
+.sc-cartgoal-bonus-img img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.sc-cartgoal-bonus-info{
+  min-width:0;
+}
+.sc-cartgoal-bonus-product{
+  margin:0;
+  font-size:calc(var(--sc-base-font-size) * .98);
+  font-weight:800;
+  color:var(--sc-drawer-text-color);
+  line-height:1.25;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sc-cartgoal-bonus-msg{
+  margin:3px 0 0;
+  font-size:var(--sc-small-font-size);
+  line-height:1.35;
+  color:var(--sc-muted);
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.sc-cartgoal-bonus-btn{
+  border:0;
+  border-radius:999px;
+  background:var(--sc-checkout-bg);
+  color:var(--sc-checkout-text);
+  padding:9px 12px;
+  font-size:var(--sc-small-font-size);
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.sc-cartgoal-bonus-btn.is-locked{
+  opacity:.72;
+}
+.sc-cartgoal-bonus-dots{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  margin-top:8px;
+}
+.sc-cartgoal-bonus-dot{
+  width:6px;
+  height:6px;
+  border-radius:999px;
+  border:0;
+  padding:0;
+  background:color-mix(in srgb, var(--sc-drawer-text-color) 25%, transparent);
+}
+.sc-cartgoal-bonus-dot.is-active{
+  width:16px;
+  background:var(--sc-progress);
 }
 
 .sc-upsell{
@@ -6141,21 +6446,20 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     <div class="content-cart-smartcartify">
     <div class="sc-announce" data-sc-announce hidden></div>
 
-    <div class="sc-progress">
-      <p class="sc-label">Loading…</p>
-
-      <div class="sc-milestone">
-        <div class="sc-track">
-          <div class="sc-fill"></div>
-          <div class="sc-dots"></div>
-        </div>
-      </div>
-
-      <div class="sc-legends"></div>
-      <div class="sc-progress-loading" aria-hidden="true"></div>
-    </div>
-
     <div class="sc-items">
+      <div class="sc-progress">
+        <p class="sc-label">Loading…</p>
+
+        <div class="sc-milestone">
+          <div class="sc-track">
+            <div class="sc-fill"></div>
+            <div class="sc-dots"></div>
+          </div>
+        </div>
+
+        <div class="sc-legends"></div>
+        <div class="sc-progress-loading" aria-hidden="true"></div>
+      </div>
       <div class="sc-cart-msg" data-sc-cart-msg hidden>
         <p class="sc-cart-msg-text" data-sc-cart-msg-text></p>
         <button class="sc-cart-msg-close" type="button" data-sc-cart-msg-close aria-label="Close">&times;</button>
@@ -6167,6 +6471,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         <div class="sc-items-spinner"></div>
       </div>
       <div class="sc-items-footer">
+        <div class="sc-cartgoal-bonus" hidden></div>
         <div class="sc-upsell" hidden></div>
       </div>
     </div>
@@ -6344,6 +6649,36 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
       return;
     }
+    const cartGoalBonusNav = el.closest("[data-cartgoal-bonus-nav]");
+    if (cartGoalBonusNav) {
+      e.preventDefault();
+      const slides = Array.isArray(drawer.__sc_cartGoalBonusSlides) ? drawer.__sc_cartGoalBonusSlides : [];
+      if (slides.length > 1) {
+        CART_GOAL_BONUS_INDEX += cartGoalBonusNav.getAttribute("data-cartgoal-bonus-nav") === "prev" ? -1 : 1;
+        if (CART_GOAL_BONUS_INDEX < 0) CART_GOAL_BONUS_INDEX = slides.length - 1;
+        if (CART_GOAL_BONUS_INDEX >= slides.length) CART_GOAL_BONUS_INDEX = 0;
+        renderCartGoalBonusSlider();
+      }
+      return;
+    }
+    const cartGoalBonusOpen = el.closest("[data-cartgoal-bonus-open]");
+    if (cartGoalBonusOpen) {
+      e.preventDefault();
+      const index = Number(cartGoalBonusOpen.getAttribute("data-cartgoal-bonus-open"));
+      const slides = Array.isArray(drawer.__sc_cartGoalBonusSlides) ? drawer.__sc_cartGoalBonusSlides : [];
+      const slide = Number.isFinite(index) ? slides[index] : null;
+      if (!slide?.rule) return;
+      openRewardPopupFor({
+        kind: "free",
+        rule: slide.rule,
+        ruleKey: slide.ruleKey || slide.identity,
+        slot: slide.slot,
+        title: slide.message || slide.title,
+        goalMet: slide.goalMet !== false,
+        force: true
+      });
+      return;
+    }
     const offerAction = el.closest("[data-offer-action]");
     if (offerAction) {
       e.preventDefault();
@@ -6421,6 +6756,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-heading-font-size", `${headingFontSize}px`);
     r.setProperty("--sc-button-font-size", `${buttonFontSize}px`);
     r.setProperty("--sc-small-font-size", `${smallFontSize}px`);
+    const drawerFontFamily = trimToNull(
+      style?.fontFamily ??
+      style?.font_family ??
+      style?.themeFontFamily ??
+      style?.theme_font_family ??
+      style?.font ??
+      ""
+    );
+    if (drawerFontFamily) r.setProperty("--sc-font", drawerFontFamily);
 
     const defaults = {
       baseBg: "#ffffff",
@@ -7308,7 +7652,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const applyStyleSettings = (s) => {
     const r = document.documentElement.style;
-    if (s?.font) r.setProperty("--sc-font", s.font);
+    const fontFamily = trimToNull(
+      s?.fontFamily ??
+      s?.font_family ??
+      s?.themeFontFamily ??
+      s?.theme_font_family ??
+      s?.font ??
+      ""
+    );
+    if (fontFamily) r.setProperty("--sc-font", fontFamily);
     if (s?.milestoneWidth) r.setProperty("--sc-milestone-width", String(s.milestoneWidth));
 
     applyCartDrawerStyleSettings(s || {});
@@ -7346,6 +7698,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       upsell.hidden = true;
       upsell.innerHTML = "";
     }
+    const cartGoalBonus = drawer.querySelector(".sc-cartgoal-bonus");
+    if (cartGoalBonus) {
+      cartGoalBonus.hidden = true;
+      cartGoalBonus.innerHTML = "";
+    }
+    drawer.__sc_cartGoalBonusSlides = [];
     if (offersPanel) {
       offersPanel.hidden = true;
       offersPanel.innerHTML = "";
@@ -7439,6 +7797,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         BUYXGETY_RULES.push(r);
       }
     });
+
+    CODE_DISCOUNT_RULES.sort(compareRulesByCustomerPriority);
+    BXGY_RULES.sort(compareRulesByCustomerPriority);
+    BUYXGETY_RULES.sort(compareRulesByCustomerPriority);
 
     const getRuleKey = (type, rule) =>
       `${type}:${rule?.id ?? rule?.shopifyRateId ?? rule?.campaignName ?? JSON.stringify(rule)}`;
@@ -7709,7 +8071,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const selectedCartGoalCampaign = (Array.isArray(cartGoalList) ? cartGoalList : [])
       .filter((campaign) => isRuleEnabled(campaign))
-      .sort((a, b) => getRulePriority(b) - getRulePriority(a))[0];
+      .sort(compareRulesByCustomerPriority)[0];
 
     const cartGoalCandidates = selectedCartGoalCampaign
       ? [selectedCartGoalCampaign]
@@ -8289,7 +8651,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const upsellButtonText = pickColor(upsell, ["buttonTextColor"], buttonText);
     const upsellMuted = pickColor(upsell, ["arrowColor"], muted);
 
-    r.setProperty("--sc-font", style?.font || "Inter, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif");
+    r.setProperty(
+      "--sc-font",
+      trimToNull(
+        style?.fontFamily ??
+        style?.font_family ??
+        style?.themeFontFamily ??
+        style?.theme_font_family ??
+        style?.font ??
+        ""
+      ) || "Inter, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+    );
     r.setProperty("--sc-base-font-size", `${baseFontSize}px`);
     r.setProperty("--sc-heading-scale", `${headingScaleValue}`);
     r.setProperty("--sc-heading-font-size", `${Math.max(14, Math.round(baseFontSize * headingScaleValue))}px`);
@@ -8909,6 +9281,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         </svg>
         <div class="sc-empty-text">No items in the cart</div>
       </div>`;
+      renderCartGoalBonusSlider();
       syncItemsLoading(drawer.classList.contains("sc-refreshing"));
       return;
     }
@@ -9016,6 +9389,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       .join("");
 
     syncItemsLoading(drawer.classList.contains("sc-refreshing"));
+    renderCartGoalBonusSlider();
     renderUpsellSection();
   }
 
