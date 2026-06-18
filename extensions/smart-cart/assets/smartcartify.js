@@ -214,7 +214,7 @@
   let __SC_PRIMED_POPUPS__ = false;
   // Free product rewards use the selectable gift popup when a milestone completes.
   const DISABLE_FREE_REWARD_POPUP = true;
-  const DISABLE_REWARD_SUCCESS_POPUPS = true;
+  const DISABLE_REWARD_SUCCESS_POPUPS = false;
 
   // Auto-add guard + per-key cooldown (prevents retry spam on 429/422)
   let __SC_AUTO_ADDING__ = false;
@@ -5431,7 +5431,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 /* Reward popup */
 .sc-freegift-overlay{
-  position:fixed;
+  position:absolute;
   inset:0;
   background:rgba(17,24,39,.62);
   display:flex;
@@ -5440,15 +5440,15 @@ body.sc-cartify-open .shopify-section-group-header-group{
   opacity:0;
   visibility:hidden;
   transition:opacity .2s ease, visibility .2s ease;
-  z-index:2147483647 !important;
+  z-index:120 !important;
 }
 .sc-freegift-overlay.open{
   opacity:1;
   visibility:visible;
 }
 .sc-freegift-card{
-  width:min(520px, 96vw);
-  max-height:min(700px, 94vh);
+  width:min(380px, calc(100% - 28px));
+  max-height:min(680px, calc(100% - 28px));
   background:var(--sc-freegift-bg);
   border-radius:12px;
   padding:0;
@@ -6350,7 +6350,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const index = Number(offerAction.getAttribute("data-offer-action"));
       const offer = Array.isArray(drawer.__sc_offerRows) ? drawer.__sc_offerRows[index] : null;
       if (!offer?.rule) return;
-      const kind = offer.type === "free" ? "free" : "bxgy";
+      const kind =
+        offer.type === "free"
+          ? "free"
+          : offer.type === "buyxgety"
+            ? "buyxgety"
+            : "bxgy";
       openRewardPopupFor({
         kind,
         rule: offer.rule,
@@ -7066,17 +7071,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const minPurchaseFail = minCents != null && subtotalCents < minCents;
 
-      const discountAmountFail =
-        meta &&
-        !meta.isPercent &&
-        Number.isFinite(meta.cents) &&
-        meta.cents > subtotalCents;
+	      const discountAmountFail =
+	        meta &&
+	        !meta.isPercent &&
+	        Number.isFinite(meta.cents) &&
+	        meta.cents > subtotalCents;
 
-      if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
+	      if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
 
-      DISCOUNT_REMOVE_IN_FLIGHT = true;
+	      const validationMessage = minQuantityFail
+	        ? `Discount code ${code} was removed. Add ${Math.ceil(minQuantity - cartQty)} more item(s) to use this discount code.`
+	        : minPurchaseFail
+	          ? `Discount code ${code} was removed. Add ${formatMoney(minCents - subtotalCents, currency)} more to use this discount code.`
+	          : `Discount code ${code} was removed because the discount amount is greater than the cart subtotal.`;
 
-      try {
+	      DISCOUNT_REMOVE_IN_FLIGHT = true;
+
+	      try {
         await clearDiscountCode(code);
 
         scStore.del(MANUAL_DISCOUNT_CODE_KEY);
@@ -7088,9 +7099,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         await refreshFromNetwork();
         renderAllFromCache();
 
-        setDiscountMessage("");
-        LAST_AUTO_REMOVED_CODE = code;
-        LAST_AUTO_REMOVED_AT = Date.now();
+	        if (discountMsg) discountMsg.style.color = "#dc2626";
+	        setDiscountMessage(validationMessage);
+	        LAST_AUTO_REMOVED_CODE = code;
+	        LAST_AUTO_REMOVED_AT = Date.now();
       } catch (err) {
         console.error("[SmartCartify] auto remove discount failed:", err);
       } finally {
@@ -7144,6 +7156,22 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const currency = normalizeCurrencyCode();
     const subtotal = Math.max(0, Number(subtotalCents) || 0);
+    const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount")
+      .trim()
+      .toLowerCase();
+
+    const minQuantity = Number(rule?.minQuantity ?? rule?.min_quantity);
+    if (
+      triggerType === "quantity" &&
+      Number.isFinite(minQuantity) &&
+      minQuantity > 0 &&
+      getCartTotalQty() < minQuantity
+    ) {
+      return {
+        ok: false,
+        message: `Add ${Math.ceil(minQuantity - getCartTotalQty())} more item(s) to use this discount code.`,
+      };
+    }
 
     const minPurchase = Number(
       rule?.minPurchase ??
@@ -7154,7 +7182,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       rule?.min_amount
     );
 
-    if (Number.isFinite(minPurchase) && minPurchase > 0) {
+    if (triggerType !== "quantity" && Number.isFinite(minPurchase) && minPurchase > 0) {
       const minCents = Math.round(minPurchase * priceDivisor(currency));
 
       if (subtotal < minCents) {
@@ -7198,6 +7226,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
 
     setDiscountMessage("");
+    setDiscountApplyLoading(true);
 
     const rule = findCodeDiscountRuleByCode(code);
 
@@ -7224,18 +7253,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
     const validation = validateCodeDiscountRule(rule, getCartSubtotalCents());
 
-    if (!validation.ok) {
-      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
-      scStore.del("__SC_LAST_APPLIED_CODE__");
+      if (!validation.ok) {
+        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+        scStore.del("__SC_LAST_APPLIED_CODE__");
 
-      if (discountMsg) discountMsg.style.color = "#dc2626";
-      setDiscountMessage(validation.message);
-      return;
-    }
+        if (discountMsg) discountMsg.style.color = "#dc2626";
+        setDiscountMessage(validation.message);
+        setDiscountApplyLoading(false);
+        return;
+      }
 
     const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart.js")}`;
-
-    setDiscountApplyLoading(true);
 
     try {
       await fetch(target, { credentials: "same-origin", redirect: "follow" });
@@ -7436,7 +7464,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         return !isCodeDiscount && !isBuyRule;
       }
 
-      return type === "free" || type === "bxgy" || type === "buyxgety";
+      return type === "free";
     };
 
     const buildProgressStep = (type, rule, slot) => {
@@ -7703,15 +7731,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       })
       .map((step, index) => ({ ...step, slot: `step${index + 1}` }));
 
-    if (cartGoalSteps.length) {
-      return cartGoalSteps;
-    }
+    if (selectedCartGoalCampaign) return cartGoalSteps;
 
     const progressCandidates = [
       ...(Array.isArray(shippingList) ? shippingList : []).map((rule) => ({ type: "shipping", rule })),
       ...(Array.isArray(discountList) ? discountList : []).map((rule) => ({ type: "discount", rule })),
       ...(Array.isArray(freeList) ? freeList : []).map((rule) => ({ type: "free", rule })),
-      ...(Array.isArray(buyxgetyList) ? buyxgetyList : []).map((rule) => ({ type: "buyxgety", rule })),
     ].filter(({ type, rule }) => isRuleEnabled(rule) && isProgressBarRuleType(type, rule));
 
     const assignedRuleKeys = new Set();
@@ -9513,7 +9538,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       </div>
     `;
 
-    (document.body || document.documentElement).appendChild(overlayEl);
+    (drawer || document.body || document.documentElement).appendChild(overlayEl);
 
     const closeBtn = overlayEl.querySelector(".sc-freegift-close");
     const addBtn = overlayEl.querySelector(".sc-freegift-add");
@@ -9735,13 +9760,24 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const getFreeGiftProductIds = (rule, kind = "free") => {
-    const products = Array.isArray(rule?.bonusProducts)
-      ? rule.bonusProducts
-      : parseArrayish(rule?.bonusProducts);
     const normalizedKind = String(kind || "free").toLowerCase();
     const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
+    const products = isBxgyReward
+      ? [
+        ...parseArrayish(rule?.rewardProducts),
+        ...parseArrayish(rule?.reward_products),
+        ...parseArrayish(rule?.getProducts),
+        ...parseArrayish(rule?.get_products),
+      ]
+      : [
+        ...parseArrayish(rule?.bonusProducts),
+        ...parseArrayish(rule?.bonus_products),
+      ];
     const bonusIds = refsFromValue(rule?.bonusProductIds).map(normalizeResourceId).filter(Boolean);
-    const rewardIds = refsFromValue(rule?.rewardProductIds).map(normalizeResourceId).filter(Boolean);
+    const rewardIds = [
+      ...refsFromValue(rule?.rewardProductIds),
+      ...refsFromValue(rule?.reward_product_ids),
+    ].map(normalizeResourceId).filter(Boolean);
     const getProductIds = refsFromValue(rule?.getProductIds || rule?.yProductIds).map(normalizeResourceId).filter(Boolean);
     const giftSkuIds = refsFromValue(rule?.giftSku).map(normalizeResourceId).filter(Boolean);
     const ids = isBxgyReward
@@ -9762,7 +9798,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       )
       : (trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus));
     const productIds = products
-      .map((product) => trimToNull(product?.id || product?.productId))
+      .map((product) => trimToNull(product?.id || product?.productId || product?.product_id))
       .filter(Boolean);
     const allIds = [...ids, ...stringFallbackIds, ...productIds, fallback]
       .map((id) => normalizeResourceId(id) || trimToNull(id))
@@ -9779,11 +9815,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getFreeGiftProductMeta = (rule, productId, index) => {
     const products = [
       ...parseArrayish(rule?.bonusProducts),
+      ...parseArrayish(rule?.bonus_products),
       ...parseArrayish(rule?.rewardProducts),
+      ...parseArrayish(rule?.reward_products),
+      ...parseArrayish(rule?.getProducts),
+      ...parseArrayish(rule?.get_products),
       ...parseArrayish(rule?.products),
     ];
     const byId = products.find((product) => {
-      const id = trimToNull(product?.id || product?.productId);
+      const id = trimToNull(product?.id || product?.productId || product?.product_id);
       return id && productId && String(id) === String(productId);
     });
     return byId || products[index] || null;
@@ -9791,6 +9831,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const getFreeGiftVariantFromRule = (rule, productId, index, kind = "free") => {
     const productMeta = getFreeGiftProductMeta(rule, productId, index);
+    const normalizedKind = String(kind || "free").toLowerCase();
+    const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
     const hasProductMetaVariant = !!(
       trimToNull(productMeta?.variantId) ||
       trimToNull(productMeta?.variant_id)
@@ -9798,6 +9840,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const rawVariantId =
       trimToNull(productMeta?.variantId) ||
       trimToNull(productMeta?.variant_id) ||
+      (isBxgyReward
+        ? (
+          trimToNull(rule?.rewardProductVariantId) ||
+          trimToNull(rule?.reward_product_variant_id) ||
+          trimToNull(rule?.getProductVariantId) ||
+          trimToNull(rule?.get_product_variant_id) ||
+          trimToNull(rule?.yProductVariantId) ||
+          trimToNull(rule?.y_product_variant_id)
+        )
+        : null) ||
       trimToNull(rule?.bonusProductVariantId) ||
       trimToNull(rule?.bonus_product_variant_id) ||
       trimToNull(rule?.freeProductVariantId) ||
@@ -9806,9 +9858,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!rawVariantId) return null;
 
     const firstProductId =
+      getFreeGiftProductIds(rule, kind)[0] ||
+      (isBxgyReward
+        ? (
+          trimToNull(rule?.rewardProductId) ||
+          trimToNull(rule?.reward_product_id) ||
+          trimToNull(rule?.getProductId) ||
+          trimToNull(rule?.get_product_id) ||
+          trimToNull(rule?.yProductId) ||
+          trimToNull(rule?.y_product_id)
+        )
+        : null) ||
       trimToNull(rule?.bonusProductId) ||
       trimToNull(rule?.bonus) ||
-      getFreeGiftProductIds(rule, kind)[0] ||
       null;
     if (!hasProductMetaVariant && index > 0 && firstProductId && productId && String(productId) !== String(firstProductId)) {
       return null;
@@ -9822,11 +9884,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       legacyResourceId: gidToId(variantGid),
       productId: normalizeProductNumericId(productId || firstProductId),
       product: {
-        title: trimToNull(productMeta?.title) || trimToNull(rule?.bonusProductTitle) || trimToNull(rule?.productTitle) || "",
-        image: trimToNull(productMeta?.image) || trimToNull(rule?.bonusProductImage) || trimToNull(rule?.productImage) || "",
+        title: trimToNull(productMeta?.title) || trimToNull(rule?.rewardProductTitle) || trimToNull(rule?.bonusProductTitle) || trimToNull(rule?.productTitle) || "",
+        image: trimToNull(productMeta?.image) || trimToNull(rule?.rewardProductImage) || trimToNull(rule?.bonusProductImage) || trimToNull(rule?.productImage) || "",
       },
-      title: trimToNull(productMeta?.variantTitle) || trimToNull(rule?.bonusProductVariantTitle) || "",
-      image: trimToNull(productMeta?.image) || trimToNull(rule?.bonusProductImage) || trimToNull(rule?.productImage) || "",
+      title: trimToNull(productMeta?.variantTitle) || trimToNull(rule?.rewardProductVariantTitle) || trimToNull(rule?.bonusProductVariantTitle) || "",
+      image: trimToNull(productMeta?.image) || trimToNull(rule?.rewardProductImage) || trimToNull(rule?.bonusProductImage) || trimToNull(rule?.productImage) || "",
     };
   };
 
@@ -9890,6 +9952,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       trimToNull(product?.title) ||
       trimToNull(selectedVariant?.product?.title) ||
       trimToNull(selectedVariant?.productTitle) ||
+      trimToNull(rule?.rewardProductTitle) ||
       trimToNull(rule?.bonusProductTitle) ||
       trimToNull(rule?.productTitle) ||
       "Free gift";
@@ -9908,7 +9971,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       selectedOptions,
       qty: getRewardQtyFromRule(kind, optionRule),
       title: productName,
-      image: trimToNull(product?.image) || trimToNull(selectedVariant?.image) || trimToNull(selectedVariant?.product?.image) || "",
+      image: trimToNull(product?.image) || trimToNull(selectedVariant?.image) || trimToNull(selectedVariant?.product?.image) || trimToNull(rule?.rewardProductImage) || trimToNull(rule?.bonusProductImage) || "",
       priceCents: centsFromDecimalPrice(selectedVariant?.price),
     };
   };
@@ -10770,8 +10833,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
 
     if (!stepsAll.length) {
-      setProgressVisible(false);
-      label.innerHTML = renderGoalMessageHtml("Milestones not configured yet.");
+      const selectedCartGoalCampaign = getSelectedCartGoalCampaign();
+      if (selectedCartGoalCampaign) {
+        setProgressVisible(true);
+        progressWrap.classList.add("sc-cart-goal-progress");
+      } else {
+        setProgressVisible(false);
+      }
+      label.innerHTML = selectedCartGoalCampaign ? "" : renderGoalMessageHtml("Milestones not configured yet.");
       fill.style.width = "0%";
       dotsWrap.innerHTML = "";
       legends.innerHTML = "";
@@ -10790,8 +10859,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const configuredSteps = stepsAll.filter(isProgressStepConfigured);
 
     if (!configuredSteps.length) {
-      setProgressVisible(false);
-      label.innerHTML = renderGoalMessageHtml("Milestones not configured yet.");
+      const selectedCartGoalCampaign = getSelectedCartGoalCampaign();
+      if (selectedCartGoalCampaign) {
+        setProgressVisible(true);
+        progressWrap.classList.add("sc-cart-goal-progress");
+      } else {
+        setProgressVisible(false);
+      }
+      label.innerHTML = selectedCartGoalCampaign ? "" : renderGoalMessageHtml("Milestones not configured yet.");
       fill.style.width = "0%";
       dotsWrap.innerHTML = "";
       legends.innerHTML = "";
@@ -10904,6 +10979,30 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
 
       if (!anyBuyCompletedNow) drawer.__sc_buy_completed_before = false;
+    }
+
+    const newlyCompletedSteps = !priming && doneCount > LAST_DONE
+      ? doneSteps.slice(Math.max(0, LAST_DONE))
+      : [];
+    const newlyCompletedGiftStep = newlyCompletedSteps.find(
+      (step) => String(step?.type || "").toLowerCase() === "free" && step?.rule?.isCartGoal
+    );
+    if (isDrawerOpen && newlyCompletedGiftStep && !rewardPopupShown) {
+      const popupShown = openRewardPopupFor({
+        kind: "free",
+        rule: newlyCompletedGiftStep.rule,
+        ruleKey: getRuleKey(newlyCompletedGiftStep.rule, "cartgoal"),
+        slot: newlyCompletedGiftStep.slot,
+        title:
+          trimToNull(newlyCompletedGiftStep.progressTextAfter) ||
+          trimToNull(newlyCompletedGiftStep.title) ||
+          "Gift unlocked",
+      });
+
+      if (popupShown) {
+        firePaperEffect(2800);
+        rewardPopupShown = true;
+      }
     }
 
     const stepCompletedNow = !priming && doneCount > LAST_DONE;

@@ -6,7 +6,7 @@ import {
 } from "@shopify/polaris";
 import {
   DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon,
-  DeleteIcon, PlusIcon, DuplicateIcon,
+  DeleteIcon, PlusIcon, DuplicateIcon, ChevronUpIcon, ChevronDownIcon,
   ProductIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server.js";
@@ -101,8 +101,8 @@ export const loader = async ({ request }) => {
     }),
     prisma.cartGoalRule.findMany({
       where: { shop },
-      orderBy: [{ updatedAt: "desc" }],
-      select: { id: true, campaignName: true, enabled: true, updatedAt: true, trackBy: true, shownGoals: true },
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+      select: { id: true, campaignName: true, enabled: true, updatedAt: true, trackBy: true, shownGoals: true, priority: true },
     }),
     prisma.upsellSettings.findUnique({
       where: { shop },
@@ -229,6 +229,7 @@ export const loader = async ({ request }) => {
       updatedAt: r.updatedAt,
       meta: `${r.shownGoals || 3} goal${r.shownGoals === 1 ? "" : "s"} shown Â· ${r.trackBy === "quantity" ? "Quantity" : "Cart value"}`,
       cartStep: "Cart Drawer",
+      priority: r.priority || 0,
     })),
     ...(upsellRow ? [{
       id: upsellRow.id,
@@ -243,6 +244,7 @@ export const loader = async ({ request }) => {
   ]
     .filter((rule) => !HIDDEN_CAMPAIGN_TYPES.has(rule.ruleType))
     .sort((a, b) =>
+      (Number(b.priority || 0) - Number(a.priority || 0)) ||
       (new Date(b.updatedAt) - new Date(a.updatedAt)) ||
       (Number(b.id || 0) - Number(a.id || 0))
     );
@@ -347,7 +349,9 @@ async function duplicateRule(ruleType, id, shop) {
   delete data.createdAt;
   delete data.updatedAt;
   data.enabled = false;
-  if ("priority" in data) data.priority = 0;
+  if ("priority" in data) {
+    data.priority = ruleType === "cart-goal" ? Number(source.priority || 0) - 1 : 0;
+  }
 
   if (ruleType === "cart-goal") {
     data.campaignName = await nextCartGoalCampaignName(shop);
@@ -385,6 +389,13 @@ async function duplicateRule(ruleType, id, shop) {
   }
 
   return model.create({ data });
+}
+
+async function setCartGoalPriority(id, shop, priority) {
+  await prisma.cartGoalRule.updateMany({
+    where: { id, shop },
+    data: { priority },
+  });
 }
 
 export const action = async ({ request }) => {
@@ -473,6 +484,28 @@ export const action = async ({ request }) => {
     return Response.json({ success: true, message: "Rule duplicated as disabled." });
   }
 
+  if (body._action === "move-cart-goal") {
+    const rows = Array.isArray(body.rows) ? body.rows : [];
+    const id = parseInt(body.id, 10);
+    const currentIndex = rows.findIndex((row) => parseInt(row?.id, 10) === id);
+    const targetIndex = body.direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= rows.length) {
+      return Response.json({ error: "Cannot move Cart Goal in that direction" }, { status: 400 });
+    }
+
+    const reordered = [...rows];
+    const [current] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, current);
+
+    await Promise.all(reordered.map((row, index) =>
+      setCartGoalPriority(parseInt(row.id, 10), shop, (reordered.length - index) * 10)
+    ));
+    await reconcileCartGoalPriorityDiscounts(admin, shop);
+    invalidateShopCache(shop);
+    return Response.json({ success: true, message: "Cart Goal display order updated." });
+  }
+
   return Response.json({ error: "Unknown action" }, { status: 400 });
 };
 
@@ -511,6 +544,8 @@ const TABLE_HEADINGS = [
   { title: "Status", id: "status" },
   { title: "Actions", id: "actions", alignment: "center" },
 ];
+
+const CART_GOAL_ORDER_HEADING = { title: "Cart Goal order", id: "cart-goal-order", alignment: "center" };
 
 function RuleCampaignMark({ meta, name }) {
   if (meta.image) {
@@ -580,6 +615,11 @@ export default function MyRules() {
   const filtered = activeType === "all"
     ? rules
     : rules.filter((r) => r.ruleType === activeType);
+  const showCartGoalOrder = activeType === "all" || activeType === "cart-goal";
+  const cartGoalRows = filtered.filter((row) => row.ruleType === "cart-goal");
+  const tableHeadings = showCartGoalOrder
+    ? [...TABLE_HEADINGS, CART_GOAL_ORDER_HEADING]
+    : TABLE_HEADINGS;
 
   const handleEdit = (rule) => {
     const base = RULE_ROUTES[rule.ruleType];
@@ -603,6 +643,20 @@ export default function MyRules() {
     setBusyKey(key);
     fetcher.submit(
       { _action: "duplicate", id: rule.id, ruleType: rule.ruleType },
+      { method: "post", encType: "application/json" }
+    );
+  };
+
+  const handleCartGoalMove = (rule, direction) => {
+    const key = `move-${direction}-${rule.ruleType}-${rule.id}`;
+    setBusyKey(key);
+    fetcher.submit(
+      {
+        _action: "move-cart-goal",
+        id: rule.id,
+        direction,
+        rows: cartGoalRows.map((row) => ({ id: row.id })),
+      },
       { method: "post", encType: "application/json" }
     );
   };
@@ -663,10 +717,13 @@ export default function MyRules() {
               resourceName={{ singular: "rule", plural: "rules" }}
               itemCount={filtered.length}
               selectable={false}
-              headings={TABLE_HEADINGS}
+              headings={tableHeadings}
             >
               {filtered.map((rule, i) => {
                 const meta = RULE_META[rule.ruleType] || {};
+                const cartGoalIndex = rule.ruleType === "cart-goal"
+                  ? cartGoalRows.findIndex((row) => row.id === rule.id)
+                  : -1;
                 return (
                   <IndexTable.Row
                     key={`${rule.ruleType}-${rule.id}`}
@@ -729,6 +786,37 @@ export default function MyRules() {
                         )}
                       </InlineStack>
                     </IndexTable.Cell>
+
+                    {showCartGoalOrder && (
+                      <IndexTable.Cell>
+                        {rule.ruleType === "cart-goal" ? (
+                          <InlineStack gap="100" align="center" wrap={false}>
+                            <Tooltip content="Move up">
+                              <Button
+                                variant="plain"
+                                icon={ChevronUpIcon}
+                                disabled={cartGoalIndex <= 0}
+                                onClick={() => handleCartGoalMove(rule, "up")}
+                                loading={busyKey === `move-up-${rule.ruleType}-${rule.id}`}
+                                accessibilityLabel={`Move ${rule.name} up`}
+                              />
+                            </Tooltip>
+                            <Tooltip content="Move down">
+                              <Button
+                                variant="plain"
+                                icon={ChevronDownIcon}
+                                disabled={cartGoalIndex < 0 || cartGoalIndex === cartGoalRows.length - 1}
+                                onClick={() => handleCartGoalMove(rule, "down")}
+                                loading={busyKey === `move-down-${rule.ruleType}-${rule.id}`}
+                                accessibilityLabel={`Move ${rule.name} down`}
+                              />
+                            </Tooltip>
+                          </InlineStack>
+                        ) : (
+                          <Text as="span" tone="subdued">—</Text>
+                        )}
+                      </IndexTable.Cell>
+                    )}
 
                   </IndexTable.Row>
                 );
