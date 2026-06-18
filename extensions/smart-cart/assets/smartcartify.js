@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -4390,7 +4390,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-name{
   margin:0;
   font-size:calc(var(--sc-base-font-size) * 1.02) !important;
-  font-weight:800;
+  font-weight:700;
   line-height:1.22 !important;
   color:var(--sc-drawer-text-color);
   overflow:hidden;
@@ -4428,6 +4428,141 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-item-reward .sc-mid-bottom{
   align-items:flex-start;
+}
+.sc-item.sc-item-reward{
+  grid-template-columns:88px minmax(0, 1fr);
+  align-items:start;
+  gap:16px;
+  min-height:110px;
+  padding:16px 28px 16px 26px;
+  background:#ffffff;
+  border-bottom:1px solid rgba(148,163,184,.22) !important;
+}
+.sc-item.sc-item-reward .sc-img{
+  position:relative;
+  width:88px;
+  height:64px;
+  border:2px solid #b667ff;
+  border-radius:8px;
+  overflow:visible;
+  background:#f8f3ff;
+  box-shadow:0 8px 20px rgba(148,91,255,.12);
+}
+.sc-item.sc-item-reward .sc-img img{
+  border-radius:6px;
+}
+.sc-item.sc-item-reward .sc-img::before{
+  content:"";
+  position:absolute;
+  top:-15px;
+  left:50%;
+  transform:translateX(-50%);
+  width:28px;
+  height:28px;
+  border-radius:999px;
+  background:#b667ff;
+  border:3px solid #ffffff;
+  box-shadow:0 4px 10px rgba(124,58,237,.24);
+  z-index:2;
+}
+.sc-item.sc-item-reward .sc-img::after{
+  content:"";
+  position:absolute;
+  top:-7px;
+  left:50%;
+  transform:translateX(-50%);
+  width:14px;
+  height:14px;
+  background:#ffffff;
+  z-index:3;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M20 7h-2.18A3 3 0 0 0 12 5.5A3 3 0 0 0 6.18 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8h1a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1ZM9 5a1 1 0 0 1 1 1v1H8a1 1 0 0 1 1-2Zm6 0a1 1 0 0 1 1 2h-2V6a1 1 0 0 1 1-1ZM5 9h6v1H5V9Zm2 3h4v7H7v-7Zm10 7h-4v-7h4v7Zm2-9h-6V9h6v1Z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M20 7h-2.18A3 3 0 0 0 12 5.5A3 3 0 0 0 6.18 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8h1a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1ZM9 5a1 1 0 0 1 1 1v1H8a1 1 0 0 1 1-2Zm6 0a1 1 0 0 1 1 2h-2V6a1 1 0 0 1 1-1ZM5 9h6v1H5V9Zm2 3h4v7H7v-7Zm10 7h-4v-7h4v7Zm2-9h-6V9h6v1Z'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.sc-item.sc-item-reward .sc-mid{
+  min-height:78px;
+  gap:9px;
+  padding-top:2px;
+}
+.sc-item.sc-item-reward .sc-name,
+.sc-item.sc-item-reward .sc-name a{
+  color:#17226d;
+  font-size:calc(var(--sc-base-font-size) * 1.1) !important;
+  font-weight:800;
+  line-height:1.2 !important;
+}
+.sc-item.sc-item-reward .sc-mid-bottom{
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) auto;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  margin-top:0;
+}
+.sc-item.sc-item-reward .sc-qty,
+.sc-item.sc-item-reward .sc-qty-stack{
+  display:none !important;
+}
+.sc-item.sc-item-reward .sc-pricebox{
+  flex-direction:row;
+  align-items:center;
+  gap:10px;
+  margin-left:0;
+  padding-top:0;
+}
+.sc-item.sc-item-reward .sc-compare{
+  color:#747b8c;
+  font-size:calc(var(--sc-small-font-size) * 1.05) !important;
+  font-weight:700;
+}
+.sc-item.sc-item-reward .sc-reward-free-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:30px;
+  padding:5px 16px;
+  border-radius:999px;
+  background:#ececf1;
+  color:#17226d;
+  font-size:calc(var(--sc-base-font-size) * 1.06) !important;
+  font-weight:900;
+  line-height:1;
+}
+.sc-item.sc-item-reward .sc-reward-line-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  max-width:100%;
+  width:max-content;
+  margin-left:0;
+  padding:5px 10px;
+  border-radius:5px;
+  background:#e8eafb;
+  color:#17226d;
+  font-size:calc(var(--sc-small-font-size) * 1.02) !important;
+  font-weight:900;
+  line-height:1.15;
+  box-shadow:none;
+}
+.sc-item.sc-item-reward .sc-reward-line-badge::before{
+  content:"";
+  width:13px;
+  height:13px;
+  flex:0 0 auto;
+  background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='black' d='M2.5 10.7 9.3 17.5a1.7 1.7 0 0 0 2.4 0l5.8-5.8a1.7 1.7 0 0 0 .5-1.2V4.2A2.2 2.2 0 0 0 15.8 2H9.5a1.7 1.7 0 0 0-1.2.5L2.5 8.3a1.7 1.7 0 0 0 0 2.4ZM14 7.5A1.5 1.5 0 1 1 14 4.5a1.5 1.5 0 0 1 0 3Z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='black' d='M2.5 10.7 9.3 17.5a1.7 1.7 0 0 0 2.4 0l5.8-5.8a1.7 1.7 0 0 0 .5-1.2V4.2A2.2 2.2 0 0 0 15.8 2H9.5a1.7 1.7 0 0 0-1.2.5L2.5 8.3a1.7 1.7 0 0 0 0 2.4ZM14 7.5A1.5 1.5 0 1 1 14 4.5a1.5 1.5 0 0 1 0 3Z'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.sc-item.sc-item-reward .sc-remove-x{
+  top:26px;
+  right:22px;
+  color:#a5adbb;
+  font-size:28px;
+  font-weight:700;
+}
+.sc-item.sc-item-reward .sc-remove-x:hover{
+  color:#17226d;
+  background:transparent;
 }
 .sc-qty{
   display:inline-flex;
@@ -4678,7 +4813,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-cartgoal-bonus-product{
   margin:0;
   font-size:calc(var(--sc-base-font-size) * 1.02);
-  font-weight:800;
+  font-weight:700;
   color:var(--sc-drawer-text-color);
   line-height:1.22;
   overflow:hidden;
@@ -4796,7 +4931,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   object-fit: cover;
 }
 .sc-upsell-name{
-  font-weight:800;
+  font-weight:700;
   font-size:calc(var(--sc-base-font-size) * 1.02);
   color: var(--sc-upsell-text, var(--sc-drawer-text-color));
   overflow: hidden;
@@ -5256,17 +5391,17 @@ position: relative;
   color:var(--sc-drawer-text-color);
   font-size:calc(var(--sc-base-font-size) * 1.02);
   line-height:1.22;
-  font-weight:800;
+  font-weight:700;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 .sc-offer-subtitle{
   margin:4px 0 0;
-  color:var(--sc-muted);
-  font-size:var(--sc-small-font-size);
+  color: var(--sc-drawer-text-color);
+  font-size:var(--sc-base-font-size);
   line-height:1.3;
-  font-weight:600;
+  font-weight:500;
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
@@ -5275,7 +5410,6 @@ position: relative;
 .sc-offer-codebox{
   min-width:112px;
   border:1px solid var(--sc-border);
-  border-radius:var(--sc-btn-radius);
   overflow:hidden;
   background:#fff;
   display:grid;
@@ -5295,12 +5429,12 @@ position: relative;
   position:relative;
 }
 .sc-offer-code{
-  font-weight:900;
-  font-size:var(--sc-small-font-size);
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+    font-weight: 700;
+    font-size: var(--sc-base-font-size);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .sc-offer-copy-icon{
   width:16px;
@@ -5347,12 +5481,11 @@ position: relative;
   border:1px solid var(--sc-checkout-bg);
   background:var(--sc-checkout-bg);
   color:var(--sc-checkout-text);
-  border-radius:4px;
   padding:8px 12px;
-  font-weight:900;
+  font-weight:600;
   white-space:nowrap;
   cursor:pointer;
-  font-size:var(--sc-small-font-size);
+  font-size:var(--sc-base-font-size);
 }
 .sc-offers-empty{
   padding:24px;
@@ -9584,11 +9717,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const priceClass = `sc-price${displayPrice === 0 ? " sc-price-free" : ""}`;
         const freeTagText = isReward
           ? isFreeGift
-            ? "Free"
-            : "buyxgety"
+            ? "Cart Goals Gift"
+            : "Buy X Get Y"
           : "Free";
         const rewardBadge = isReward
           ? `<span class="sc-free-tag sc-free-tag-under sc-reward-line-badge">${safe(freeTagText)}</span>`
+          : "";
+        const rewardFreePill = isReward
+          ? `<span class="sc-reward-free-pill">Free</span>`
           : "";
         const bxgyLineBadge = !isReward && isBuyXGetYQualifyingLine(it)
           ? `<span class="sc-free-tag sc-free-tag-under sc-bxgy-line-badge"></span>`
@@ -9626,6 +9762,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             ? `<span class="sc-compare">${formatMoney(isReward ? rewardCompareCents : compareLine, currency)}</span>`
             : ``
           }
+                  ${rewardFreePill}
                   ${showPrice ? `<span class="${priceClass}">${priceText}</span>` : ``}
                 </div>
               </div>
@@ -10723,6 +10860,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       : null;
     state.current.selectedOption = defaultSelected;
     state.current.selectedOptionId = defaultSelected?.optionId || null;
+    const selectedCount = state.current.selectedOption ? 1 : 0;
+    if (state.headerSubEl) {
+      state.headerSubEl.innerHTML = `Choose any 1 free gifts <span class="sc-freegift-count">${selectedCount}/1</span>`;
+    }
     if (state.messageEl) {
       state.messageEl.hidden = false;
       state.messageEl.classList.remove("is-error");
@@ -10786,7 +10927,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       `;
     }).join("");
 
-    optionsEl.innerHTML = rowsHtml + renderVariantPanel(state.current.selectedOption);
+    optionsEl.innerHTML = rowsHtml + (selectedId ? renderVariantPanel(state.current.selectedOption) : "");
 
     if (state.addButton) state.addButton.disabled = state.current.goalMet === false || !state.current.selectedOption;
   };
