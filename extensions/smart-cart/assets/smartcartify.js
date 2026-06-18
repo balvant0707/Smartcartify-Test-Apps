@@ -931,7 +931,7 @@
     return {
       metric: "amount",
       goal,
-      current: (Number(CART?.items_subtotal_price || 0) / priceDivisor()) || 0,
+      current: (getRuleProgressSubtotalCents(type, rule) / priceDivisor(CART?.currency)) || 0,
     };
   };
 
@@ -1710,7 +1710,7 @@
   };
 
   const getCartGoalBonusAfterMessage = (rule) => {
-    const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor(CART?.currency);
+    const subtotalRupees = getRuleProgressSubtotalCents("free", rule) / priceDivisor(CART?.currency);
     const raw =
       trimToNull(getProgressAfter(rule)) ||
       trimToNull(rule?.afterMessage) ||
@@ -1726,12 +1726,28 @@
     });
   };
 
+  const isCartGoalShowcaseFreeGiftsEnabled = (campaign) => {
+    const raw =
+      campaign?.showcaseFreeGifts ??
+      campaign?.showcase_free_gifts ??
+      campaign?.showFreeGifts ??
+      campaign?.show_free_gifts ??
+      campaign?.showcaseGiftSlider ??
+      campaign?.showcase_gift_slider ??
+      "show";
+    const value = String(raw ?? "show").trim().toLowerCase();
+    if (["hide", "hidden", "false", "0", "no", "off", "disabled"].includes(value)) return false;
+    if (["show", "visible", "true", "1", "yes", "on", "enabled"].includes(value)) return true;
+    return true;
+  };
+
   const getCartGoalBonusSlides = () => {
     const campaign = getSelectedCartGoalCampaign();
     if (!campaign) return [];
+    if (!isCartGoalShowcaseFreeGiftsEnabled(campaign)) return [];
 
     const rules = buildCartGoalFreeProductRules(campaign)
-      .filter((rule) => isRuleEnabled(rule))
+      .filter((rule) => isRuleEnabled(rule) && isCartGoalShowcaseFreeGiftsEnabled(rule))
       .sort(compareRulesByCustomerPriority);
 
     const slides = [];
@@ -1749,6 +1765,7 @@
         }));
       const displayProducts = products.length ? products : fallbackProducts;
       const goalMet = isRewardOfferGoalMet("free", rule);
+      if (goalMet) return;
       const message = getCartGoalBonusAfterMessage(rule);
       const ruleKey = getRuleKey(rule, "cartgoal");
       const slot = rule?.cartStepName || `step${ruleIndex + 1}`;
@@ -1804,23 +1821,10 @@
 
     const hasMultiple = slides.length > 1;
     const activeIndex = CART_GOAL_BONUS_INDEX;
-    const campaign = getSelectedCartGoalCampaign();
-    const heading =
-      trimToNull(campaign?.campaignName) ||
-      "Free Product Goals";
 
     wrap.hidden = false;
     wrap.innerHTML = `
       <div class="sc-cartgoal-bonus-card">
-        <div class="sc-cartgoal-bonus-head">
-          <p class="sc-cartgoal-bonus-title">${safe(heading)}</p>
-          ${hasMultiple ? `
-            <div class="sc-cartgoal-bonus-nav" aria-label="Cart goal free products">
-              <button class="sc-cartgoal-bonus-arrow" type="button" data-cartgoal-bonus-nav="prev" aria-label="Previous free product">‹</button>
-              <button class="sc-cartgoal-bonus-arrow" type="button" data-cartgoal-bonus-nav="next" aria-label="Next free product">›</button>
-            </div>
-          ` : ""}
-        </div>
         <div class="sc-cartgoal-bonus-viewport">
           <div class="sc-cartgoal-bonus-track" style="transform:translateX(-${activeIndex * 100}%);">
             ${slides.map((slide, index) => {
@@ -1830,14 +1834,14 @@
                 : `<span>${label}</span>`;
               return `
                 <div class="sc-cartgoal-bonus-slide">
-                  <div class="sc-cartgoal-bonus-item">
+                  <div class="sc-cartgoal-bonus-item" role="button" tabindex="0" data-cartgoal-bonus-open="${index}" aria-label="Open ${safe(slide.title)} free gift">
                     <div class="sc-cartgoal-bonus-img">${imageHtml}</div>
                     <div class="sc-cartgoal-bonus-info">
                       <p class="sc-cartgoal-bonus-product">${safe(slide.title)}</p>
                       <p class="sc-cartgoal-bonus-msg">${safe(slide.message)}</p>
                     </div>
-                    <button class="sc-cartgoal-bonus-btn${slide.goalMet ? "" : " is-locked"}" type="button" data-cartgoal-bonus-open="${index}">
-                      ${slide.goalMet ? "Choose Gift" : "View Gift"}
+                    <button class="sc-cartgoal-bonus-arrow${slide.goalMet ? "" : " is-locked"}" type="button" ${hasMultiple ? `data-cartgoal-bonus-nav="next"` : `data-cartgoal-bonus-open="${index}"`} aria-label="${hasMultiple ? "Next free gift" : "Open free gift"}">
+                      ›
                     </button>
                   </div>
                 </div>
@@ -2253,6 +2257,14 @@
           cartStepName: `step${index + 1}`,
           triggerType: trackBy === "quantity" ? "quantity" : "amount",
           shopifyDiscountId: goal?.shopifyDiscountId || null,
+          discountProgressMode:
+            campaign?.discountProgressMode ??
+            campaign?.discount_progress_mode ??
+            "after",
+          rewardSelectionMandatory:
+            campaign?.rewardSelectionMandatory ??
+            campaign?.reward_selection_mandatory ??
+            "yes",
           bonusProductId,
           bonus: bonusProductId,
           bonusProductIds: productIds,
@@ -4458,51 +4470,37 @@ body.sc-cartify-open .shopify-section-group-header-group{
 
 .sc-cartgoal-bonus{
   display:block;
-  margin:0 0 10px;
+  margin:0 0 8px;
 }
 .sc-cartgoal-bonus[hidden]{
   display:none !important;
 }
 .sc-cartgoal-bonus-card{
   background:var(--sc-upsell-bg, var(--sc-drawer-bg));
-  border:1px solid var(--sc-border);
-  border-radius:14px;
-  padding:10px;
+  border:0;
+  border-radius:12px;
+  padding:8px 10px 6px;
   color:var(--sc-drawer-text-color);
   overflow:hidden;
-}
-.sc-cartgoal-bonus-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:8px;
-}
-.sc-cartgoal-bonus-title{
-  margin:0;
-  font-size:calc(var(--sc-base-font-size) * 1.02);
-  font-weight:800;
-  line-height:1.2;
-  color:var(--sc-drawer-text-color);
-}
-.sc-cartgoal-bonus-nav{
-  display:flex;
-  align-items:center;
-  gap:6px;
+  box-shadow:none;
 }
 .sc-cartgoal-bonus-arrow{
-  width:28px;
-  height:28px;
+  width:24px;
+  height:24px;
   border-radius:999px;
-  border:1px solid var(--sc-border);
+  border:1px solid color-mix(in srgb, var(--sc-border) 75%, transparent);
   background:var(--sc-input-bg, #fff);
-  color:var(--sc-drawer-text-color);
+  color:#0b185c;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   cursor:pointer;
-  font-size:17px;
+  font-size:16px;
+  font-weight:900;
   line-height:1;
+  flex:0 0 auto;
+  box-shadow:0 2px 8px rgba(15,23,42,.08);
+  padding:0;
 }
 .sc-cartgoal-bonus-viewport{
   overflow:hidden;
@@ -4519,14 +4517,21 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-cartgoal-bonus-item{
   display:grid;
-  grid-template-columns:58px minmax(0,1fr) auto;
-  gap:10px;
+  grid-template-columns:82px minmax(0,1fr) 26px;
+  gap:14px;
   align-items:center;
+  width:100%;
+  min-height:62px;
+  cursor:pointer;
+  border:0;
+  background:transparent;
+  text-align:left;
+  padding:2px 0;
 }
 .sc-cartgoal-bonus-img{
-  width:58px;
-  height:58px;
-  border-radius:12px;
+  width:82px;
+  height:54px;
+  border-radius:5px;
   background:var(--sc-image-bg);
   overflow:hidden;
   display:flex;
@@ -4547,36 +4552,25 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-cartgoal-bonus-product{
   margin:0;
-  font-size:calc(var(--sc-base-font-size) * .98);
-  font-weight:800;
-  color:var(--sc-drawer-text-color);
+  font-size:calc(var(--sc-base-font-size) * 1.05);
+  font-weight:900;
+  color:#0b185c;
   line-height:1.25;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 .sc-cartgoal-bonus-msg{
-  margin:3px 0 0;
-  font-size:var(--sc-small-font-size);
+  margin:6px 0 0;
+  font-size:calc(var(--sc-base-font-size) * .9);
   line-height:1.35;
-  color:var(--sc-muted);
+  color:#8b95a5;
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
   overflow:hidden;
 }
-.sc-cartgoal-bonus-btn{
-  border:0;
-  border-radius:999px;
-  background:var(--sc-checkout-bg);
-  color:var(--sc-checkout-text);
-  padding:9px 12px;
-  font-size:var(--sc-small-font-size);
-  font-weight:800;
-  cursor:pointer;
-  white-space:nowrap;
-}
-.sc-cartgoal-bonus-btn.is-locked{
+.sc-cartgoal-bonus-arrow.is-locked{
   opacity:.72;
 }
 .sc-cartgoal-bonus-dots{
@@ -4584,19 +4578,19 @@ body.sc-cartify-open .shopify-section-group-header-group{
   align-items:center;
   justify-content:center;
   gap:5px;
-  margin-top:8px;
+  margin-top:6px;
 }
 .sc-cartgoal-bonus-dot{
   width:6px;
-  height:6px;
+  height:3px;
   border-radius:999px;
   border:0;
   padding:0;
-  background:color-mix(in srgb, var(--sc-drawer-text-color) 25%, transparent);
+  background:#dfe3ea;
 }
 .sc-cartgoal-bonus-dot.is-active{
-  width:16px;
-  background:var(--sc-progress);
+  width:18px;
+  background:#cbd2dc;
 }
 
 .sc-upsell{
@@ -7256,6 +7250,52 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return Number(CART?.items_subtotal_price || 0);
   };
 
+  const isCartGoalRule = (rule) =>
+    Boolean(rule?.isCartGoal || String(rule?.id || "").startsWith("cartgoal:"));
+
+  const getCartGoalDiscountProgressMode = (rule = null) => {
+    const campaign = getSelectedCartGoalCampaign();
+    const raw =
+      rule?.discountProgressMode ??
+      rule?.discount_progress_mode ??
+      campaign?.discountProgressMode ??
+      campaign?.discount_progress_mode ??
+      "after";
+    return String(raw || "after").trim().toLowerCase() === "before" ? "before" : "after";
+  };
+
+  const getCartRewardOriginalLineCents = () => {
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    return items.reduce((sum, it) => {
+      if (!isRewardCartLine(it)) return sum;
+      return sum + Math.max(0, Number(it?.original_line_price) || 0);
+    }, 0);
+  };
+
+  const getCartGoalOriginalSubtotalCents = () =>
+    Math.max(0, getCartOriginalSubtotalCents() - getCartRewardOriginalLineCents());
+
+  const getCartDiscountedSubtotalCents = () => {
+    const totalPrice = Number(CART?.total_price);
+    if (Number.isFinite(totalPrice)) {
+      return Math.max(0, totalPrice - getCartRewardLineCents());
+    }
+
+    const subtotal = getCartOriginalSubtotalCents();
+    const totalDiscount = Math.max(0, Number(CART?.total_discount || 0));
+    return Math.max(0, subtotal - totalDiscount - getCartRewardLineCents());
+  };
+
+  const getCartGoalProgressSubtotalCents = (rule = null) =>
+    getCartGoalDiscountProgressMode(rule) === "before"
+      ? getCartGoalOriginalSubtotalCents()
+      : getCartDiscountedSubtotalCents();
+
+  const getRuleProgressSubtotalCents = (type, rule = null) =>
+    isCartGoalRule(rule)
+      ? getCartGoalProgressSubtotalCents(rule)
+      : getCartOriginalSubtotalCents();
+
   const findCodeDiscountRuleByCode = (code) => {
     const needle = String(code || "").trim().toLowerCase();
     if (!needle) return null;
@@ -7483,7 +7523,61 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return appliedCodes.length ? appliedCodes[0] : null;
   };
 
+  const isCartGoalRewardSelectionMandatory = (campaign) => {
+    const raw =
+      campaign?.rewardSelectionMandatory ??
+      campaign?.reward_selection_mandatory ??
+      "yes";
+    return String(raw || "yes").trim().toLowerCase() !== "no";
+  };
+
+  const cartHasSelectedRewardForRule = (rule) => {
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    const expectedSlot = trimToNull(rule?.cartStepName);
+    const expectedRuleKey = trimToNull(getRuleKey(rule, "cartgoal"));
+    const expectedDiscountId = trimToNull(getFreeGiftDiscountId(rule));
+
+    return items.some((item) => {
+      const props = item?.properties || {};
+      if (String(props?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() !== "true") {
+        return false;
+      }
+
+      const itemSlot = trimToNull(props?.[FREE_GIFT_RULE_PROPERTY]);
+      const itemRuleKey = trimToNull(props?.[FREE_GIFT_RULE_KEY_PROPERTY]);
+      const itemDiscountId = trimToNull(props?.[FREE_GIFT_DISCOUNT_PROPERTY]);
+
+      return (
+        (expectedRuleKey && itemRuleKey === expectedRuleKey) ||
+        (expectedSlot && itemSlot === expectedSlot) ||
+        (expectedDiscountId && itemDiscountId === expectedDiscountId)
+      );
+    });
+  };
+
+  const getMissingMandatoryCartGoalReward = () => {
+    const campaign = getSelectedCartGoalCampaign();
+    if (!campaign || !isCartGoalRewardSelectionMandatory(campaign)) return null;
+
+    const unlockedRules = buildCartGoalFreeProductRules(campaign).filter(
+      (rule) => isRuleEnabled(rule) && isRewardOfferGoalMet("free", rule)
+    );
+
+    return unlockedRules.find((rule) => !cartHasSelectedRewardForRule(rule)) || null;
+  };
+
+  const validateRewardSelectionBeforeCheckout = () => {
+    const missingRule = getMissingMandatoryCartGoalReward();
+    if (!missingRule) return true;
+
+    openDrawer();
+    showCenterCelebratePopup("Please select your reward before checkout.", "", 3500);
+    return false;
+  };
+
   const goToCheckoutWithDiscount = () => {
+    if (!validateRewardSelectionBeforeCheckout()) return;
+
     const code = getCheckoutDiscountCode();
 
     if (code) {
@@ -7738,8 +7832,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   ========================================================= */
   const buildSteps = () => {
     const assignment = {};
-    const subtotalCents = getCartOriginalSubtotalCents();
-    const subtotalRupees = subtotalCents / priceDivisor();
 
     CODE_DISCOUNT_RULES = [];
     BXGY_RULES = [];
@@ -7892,6 +7984,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const beforeRaw = trimToNull(getProgressBefore(rule)) || "";
       const afterRaw = trimToNull(getProgressAfter(rule)) || "";
+      const subtotalRupees =
+        getRuleProgressSubtotalCents(type, rule) / priceDivisor(CART?.currency);
 
       // Resolve configured text (with all {{token}} replacements)
       const resolvedBefore = replaceProgressText({
@@ -8043,6 +8137,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         offerSubtitleBefore: trimToNull(texts.offerSubtitleBefore) || "",
         offerSubtitleAfter: trimToNull(texts.offerSubtitleAfter) || "",
         shopifyDiscountId: goal?.shopifyDiscountId || null,
+        discountProgressMode:
+          campaign?.discountProgressMode ??
+          campaign?.discount_progress_mode ??
+          "after",
+        rewardSelectionMandatory:
+          campaign?.rewardSelectionMandatory ??
+          campaign?.reward_selection_mandatory ??
+          "yes",
         bonusProductId,
         bonus: bonusProductId,
         bonusProductIds: productIds,
@@ -8220,7 +8322,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         getOfferUnlockTitle(rule?.afterOfferUnlockMessage)
         : pickMessageTextAny(rule, ["beforeTitle", "before_title"], "") ||
         getOfferUnlockTitle(rule?.beforeOfferUnlockMessage);
-    const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor();
+    const subtotalRupees = getRuleProgressSubtotalCents(textType, rule) / priceDivisor(CART?.currency);
     const replaced = rawTitle
       ? replaceProgressText({
         text: rawTitle,
@@ -8276,8 +8378,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const getOfferRuleSubtitle = (type, rule, fallback = "Reward available in this order") => {
     const normalized = String(type || "").toLowerCase();
-    const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor();
     const textType = normalized === "code" ? "discount" : normalized;
+    const subtotalRupees = getRuleProgressSubtotalCents(textType, rule) / priceDivisor(CART?.currency);
     const thresholdState = getRuleThresholdState(textType, rule);
     const complete = normalized === "code"
       ? isCodeDiscountRuleApplied(rule)
@@ -8421,14 +8523,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const type = String(step.type || "").toLowerCase();
       const ruleKey = getRuleKey(step.rule, type || "rule");
       const identityType = type === "buyxgety" ? "bxgy" : type;
-      const stepDone = isProgressStepDone(step, getCartOriginalSubtotalCents());
+      const stepDone = isProgressStepDone(step);
       const offerTitleTemplate = trimToNull(
         stepDone ? step.rule?.offerTitleAfter : step.rule?.offerTitleBefore
       );
       const offerSubtitleTemplate = trimToNull(
         stepDone ? step.rule?.offerSubtitleAfter : step.rule?.offerSubtitleBefore
       );
-      const subtotalRupees = getCartOriginalSubtotalCents() / priceDivisor(CART?.currency);
+      const subtotalRupees = getRuleProgressSubtotalCents(type, step.rule) / priceDivisor(CART?.currency);
       const dynamicOfferTitle = offerTitleTemplate
         ? replaceProgressText({
           text: offerTitleTemplate,
@@ -11016,7 +11118,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             }
           } else {
             const goal = getGoalRupees("free", rule);
-            const subtotalRupees = (getCartOriginalSubtotalCents() / priceDivisor()) || 0;
+            const subtotalRupees =
+              (getRuleProgressSubtotalCents("free", rule) / priceDivisor(CART?.currency)) || 0;
             if (!(Number.isFinite(Number(goal)) && Number(goal) > 0)) {
               linesToRemove.push(line);
             } else {
@@ -11140,7 +11243,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getProgressStepCurrent = (step, subtotalCents) =>
     step?.progressMetric === "quantity"
       ? Math.max(0, getNonRewardItemQty())
-      : Math.max(0, Number(subtotalCents) || 0);
+      : Math.max(
+        0,
+        isCartGoalRule(step?.rule)
+          ? getCartGoalProgressSubtotalCents(step.rule)
+          : Number.isFinite(Number(subtotalCents))
+            ? Number(subtotalCents)
+            : getRuleProgressSubtotalCents(step?.type, step?.rule)
+      );
 
   const isProgressStepConfigured = (step) =>
     Number.isFinite(getProgressStepThreshold(step)) &&
@@ -12105,15 +12215,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       renderAllFromCache();
 
       if (String(settings?.ctaBehavior || "addToCart") === "buyNow") {
-        const codeToApply = getCheckoutDiscountCode();
-        window.location.href = codeToApply ? `/checkout?discount=${encodeURIComponent(codeToApply)}` : "/checkout";
+        goToCheckoutWithDiscount();
         return;
       }
 
       const after = String(settings?.afterAddToCart || "openCartWidget");
       if (after === "goToCheckout") {
-        const codeToApply = getCheckoutDiscountCode();
-        window.location.href = codeToApply ? `/checkout?discount=${encodeURIComponent(codeToApply)}` : "/checkout";
+        goToCheckoutWithDiscount();
         return;
       }
       if (after === "openCartWidget") {
@@ -12506,15 +12614,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     await maybeRemoveInvalidDiscountCodes();
 
-    const codeToApply = getCheckoutDiscountCode();
-
-    if (codeToApply) {
-      window.location.href =
-        `/discount/${encodeURIComponent(codeToApply)}?redirect=${encodeURIComponent("/checkout")}`;
-      return;
-    }
-
-    window.location.href = "/checkout";
+    goToCheckoutWithDiscount();
   });
 
   /* =========================================================

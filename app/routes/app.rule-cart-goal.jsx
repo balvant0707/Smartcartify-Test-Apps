@@ -2124,6 +2124,11 @@ export default function RuleCartGoal() {
           white-space: nowrap;
           transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
         }
+          .Polaris-ButtonGroup--variantSegmented [aria-pressed=true] {
+            z-index: var(--pc-button-group-item);
+            background: #000 !important;
+        }
+
         .cg-softSegmentButtonActive {
           background: #000000;
           color: #fff;
