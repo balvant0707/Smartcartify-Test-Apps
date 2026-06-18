@@ -2933,6 +2933,8 @@
   const setProgressLoading = (isLoading) => {
     drawer.classList.toggle("sc-refreshing", !!isLoading);
     syncItemsLoading(!!isLoading);
+    const itemsLoading = drawer.querySelector(".sc-items-loading");
+    if (itemsLoading) itemsLoading.setAttribute("aria-hidden", isLoading ? "false" : "true");
   };
 
   const syncItemsLoading = (isLoading) => {
@@ -3177,7 +3179,35 @@
   };
 
   const isDiscountAppliedInCart = (code) => {
-    return Boolean(getCartDiscountCodeEntry(code));
+    const c = trimToNull(code);
+    if (!c || !CART) return false;
+    if (getCartDiscountCodeEntry(c)) return true;
+
+    const needle = c.toLowerCase();
+    const discountCodes = Array.isArray(CART.discount_codes) ? CART.discount_codes : [];
+    const hasCartCode = discountCodes.some((d) => {
+      const dc = String(d?.code || d || "").trim().toLowerCase();
+      return dc && dc === needle && d?.applicable !== false;
+    });
+    const totalDiscount = Number(CART?.total_discount || 0);
+    if (hasCartCode && Number.isFinite(totalDiscount) && totalDiscount > 0) return true;
+
+    const attrCode =
+      trimToNull(CART?.attributes?.discount_code) ||
+      trimToNull(CART?.attributes?.discountCode);
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const lastCode = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
+    const persistedCode = [attrCode, manualCode, lastCode].some(
+      (value) => value && String(value).trim().toLowerCase() === needle
+    );
+    const ruleExists = (Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : []).some((rule) => {
+      const ruleCode = String(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "")
+        .trim()
+        .toLowerCase();
+      return ruleCode && ruleCode === needle && isRuleEnabled(rule);
+    });
+
+    return Boolean(persistedCode && ruleExists);
   };
 
   const getCartDiscountCodeAmountCents = (code) => {
@@ -4283,9 +4313,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:0;
-  background:rgba(255,255,255,.88);
-  z-index:2;
+  gap:8px;
+  background:rgba(255,255,255,.76);
+  z-index:20;
+  pointer-events:auto;
 }
 .sc-loading-items .sc-items-loading{
   display:flex;
@@ -4294,7 +4325,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   width:34px;
   height:34px;
   border-radius:50%;
-  border:3px solid #e5e7eb;
+  border:3px solid rgba(17,24,39,.2);
   border-top-color:var(--sc-progress);
   animation:scSpin .8s linear infinite;
 }
@@ -4381,7 +4412,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   flex:0 0 auto;
 }
 .sc-img img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
-.sc-mid{
+.sc-mid,.sc-item.sc-item-reward .sc-mid{
   min-width:0;
   display:flex;
   flex-direction:column;
@@ -4430,23 +4461,22 @@ body.sc-cartify-open .shopify-section-group-header-group{
   align-items:flex-start;
 }
 .sc-item.sc-item-reward{
-  grid-template-columns:88px minmax(0, 1fr);
-  align-items:start;
-  gap:16px;
-  min-height:110px;
-  padding:16px 28px 16px 26px;
-  background:#ffffff;
-  border-bottom:1px solid rgba(148,163,184,.22) !important;
+    position: relative;
+    display: grid;
+    grid-template-columns: 80px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    min-height: 72px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--sc-badge-bg) !important;
+    border-radius: 0;
+    background: transparent;
 }
 .sc-item.sc-item-reward .sc-img{
   position:relative;
-  width:88px;
-  height:64px;
-  border:2px solid #b667ff;
-  border-radius:8px;
+  width:60px;
+  height:50px;
   overflow:visible;
-  background:#f8f3ff;
-  box-shadow:0 8px 20px rgba(148,91,255,.12);
 }
 .sc-item.sc-item-reward .sc-img img{
   border-radius:6px;
@@ -4460,9 +4490,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   width:28px;
   height:28px;
   border-radius:999px;
-  background:#b667ff;
-  border:3px solid #ffffff;
-  box-shadow:0 4px 10px rgba(124,58,237,.24);
+  background:var(--sc-apply-bg);
   z-index:2;
 }
 .sc-item.sc-item-reward .sc-img::after{
@@ -4478,17 +4506,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M20 7h-2.18A3 3 0 0 0 12 5.5A3 3 0 0 0 6.18 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8h1a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1ZM9 5a1 1 0 0 1 1 1v1H8a1 1 0 0 1 1-2Zm6 0a1 1 0 0 1 1 2h-2V6a1 1 0 0 1 1-1ZM5 9h6v1H5V9Zm2 3h4v7H7v-7Zm10 7h-4v-7h4v7Zm2-9h-6V9h6v1Z'/%3E%3C/svg%3E") center/contain no-repeat;
   mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M20 7h-2.18A3 3 0 0 0 12 5.5A3 3 0 0 0 6.18 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8h1a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1ZM9 5a1 1 0 0 1 1 1v1H8a1 1 0 0 1 1-2Zm6 0a1 1 0 0 1 1 2h-2V6a1 1 0 0 1 1-1ZM5 9h6v1H5V9Zm2 3h4v7H7v-7Zm10 7h-4v-7h4v7Zm2-9h-6V9h6v1Z'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-.sc-item.sc-item-reward .sc-mid{
-  min-height:78px;
-  gap:9px;
-  padding-top:2px;
-}
+
 .sc-item.sc-item-reward .sc-name,
 .sc-item.sc-item-reward .sc-name a{
-  color:#17226d;
-  font-size:calc(var(--sc-base-font-size) * 1.1) !important;
-  font-weight:800;
-  line-height:1.2 !important;
+color: var(--sc-drawer-text-color);
+    font-size: var(--sc-base-font-size);
+    font-weight: 700;
+    line-height: 1.2 !important;
 }
 .sc-item.sc-item-reward .sc-mid-bottom{
   display:grid;
@@ -4515,17 +4539,17 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-weight:700;
 }
 .sc-item.sc-item-reward .sc-reward-free-pill{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-height:30px;
-  padding:5px 16px;
-  border-radius:999px;
-  background:#ececf1;
-  color:#17226d;
-  font-size:calc(var(--sc-base-font-size) * 1.06) !important;
-  font-weight:900;
-  line-height:1;
+  display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 25px;
+    padding: 5px 16px;
+    border-radius: 999px;
+    background: var(--sc-checkout-bg);
+    color: var(--sc-checkout-text);
+    font-size: calc(var(--sc-base-font-size) * 1.06) !important;
+    font-weight: 600;
+    line-height: 1;
 }
 .sc-item.sc-item-reward .sc-reward-line-badge{
   display:inline-flex;
@@ -4543,6 +4567,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   font-weight:900;
   line-height:1.15;
   box-shadow:none;
+  display:none;
 }
 .sc-item.sc-item-reward .sc-reward-line-badge::before{
   content:"";
@@ -4553,16 +4578,13 @@ body.sc-cartify-open .shopify-section-group-header-group{
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='black' d='M2.5 10.7 9.3 17.5a1.7 1.7 0 0 0 2.4 0l5.8-5.8a1.7 1.7 0 0 0 .5-1.2V4.2A2.2 2.2 0 0 0 15.8 2H9.5a1.7 1.7 0 0 0-1.2.5L2.5 8.3a1.7 1.7 0 0 0 0 2.4ZM14 7.5A1.5 1.5 0 1 1 14 4.5a1.5 1.5 0 0 1 0 3Z'/%3E%3C/svg%3E") center/contain no-repeat;
   mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='black' d='M2.5 10.7 9.3 17.5a1.7 1.7 0 0 0 2.4 0l5.8-5.8a1.7 1.7 0 0 0 .5-1.2V4.2A2.2 2.2 0 0 0 15.8 2H9.5a1.7 1.7 0 0 0-1.2.5L2.5 8.3a1.7 1.7 0 0 0 0 2.4ZM14 7.5A1.5 1.5 0 1 1 14 4.5a1.5 1.5 0 0 1 0 3Z'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-.sc-item.sc-item-reward .sc-remove-x{
-  top:26px;
-  right:22px;
-  color:#a5adbb;
-  font-size:28px;
-  font-weight:700;
+.sc-item.sc-item-reward .sc-remove-x {
+    font-size: 24px !important;
+    font-weight: 500;
+    color: var(--sc-drawer-text-color);
 }
 .sc-item.sc-item-reward .sc-remove-x:hover{
-  color:#17226d;
-  background:transparent;
+  color: var(--sc-drawer-text-color);
 }
 .sc-qty{
   display:inline-flex;
@@ -6230,6 +6252,18 @@ display: flex;
 .sc-freegift-option.selected .sc-freegift-check::before{
   content:"✓";
 }
+.sc-freegift-option-wrap{
+  display:grid;
+  gap:0;
+}
+.sc-freegift-option-wrap.selected{
+  overflow:hidden;
+  border-radius:18px;
+}
+.sc-freegift-option-wrap.selected .sc-freegift-option{
+  border-bottom-left-radius:0;
+  border-bottom-right-radius:0;
+}
 .sc-freegift-message{
   margin:0;
   padding:10px 18px;
@@ -6244,6 +6278,10 @@ display: flex;
   gap:12px;
   background:#eee8f6;
   padding:22px;
+  border:1px solid rgba(15,23,42,.08);
+  border-top:0;
+  border-bottom-left-radius:18px;
+  border-bottom-right-radius:18px;
 }
 .sc-freegift-variant-field{
   display:grid;
@@ -7973,7 +8011,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart.js")}`;
 
     try {
-      await fetch(target, { credentials: "same-origin", redirect: "follow" });
+      const discountResponse = await fetch(target, { credentials: "same-origin", redirect: "follow" });
+      const discountEndpointOk =
+        !discountResponse ||
+        discountResponse.ok ||
+        discountResponse.type === "opaqueredirect";
 
       await fetch("/cart/update.js", {
         method: "POST",
@@ -7990,11 +8032,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       await refreshFromNetwork();
       renderAllFromCache();
 
-      if (rule && isDiscountAppliedInCart(code)) {
+      if (rule && (isDiscountAppliedInCart(code) || discountEndpointOk)) {
         scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
         scStore.set("__SC_LAST_APPLIED_CODE__", code);
 
-        if (discountInput) discountInput.value = "";
+        if (discountInput) discountInput.value = code;
 
         if (discountMsg) discountMsg.style.color = "#16a34a";
         setDiscountMessage(`Discount applied: ${code}`);
@@ -10974,18 +11016,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         ? `<img src="${safe(image)}" alt="${safe(option.title)}" loading="lazy">`
         : `<span class="sc-freegift-thumb-empty">${safe((option.title || "G").slice(0, 1))}</span>`;
       return `
-        <button class="sc-freegift-option ${selected ? "selected" : ""}" type="button" data-option-id="${safe(option.optionId)}">
-          <span class="sc-freegift-thumb">${imageHtml}</span>
-          <span class="sc-freegift-option-main">
-            <span class="sc-freegift-option-title">${safe(option.title)}</span>
-            <span class="sc-freegift-option-price">${priceHtml}<span class="sc-freegift-free-pill">Free</span></span>
-          </span>
-          <span class="sc-freegift-check" role="checkbox" aria-checked="${selected ? "true" : "false"}" aria-hidden="true"></span>
-        </button>
+        <div class="sc-freegift-option-wrap ${selected ? "selected" : ""}">
+          <button class="sc-freegift-option ${selected ? "selected" : ""}" type="button" data-option-id="${safe(option.optionId)}">
+            <span class="sc-freegift-thumb">${imageHtml}</span>
+            <span class="sc-freegift-option-main">
+              <span class="sc-freegift-option-title">${safe(option.title)}</span>
+              <span class="sc-freegift-option-price">${priceHtml}<span class="sc-freegift-free-pill">Free</span></span>
+            </span>
+            <span class="sc-freegift-check" role="checkbox" aria-checked="${selected ? "true" : "false"}" aria-hidden="true"></span>
+          </button>
+          ${selected ? renderVariantPanel(option) : ""}
+        </div>
       `;
     }).join("");
 
-    optionsEl.innerHTML = rowsHtml + (selectedId ? renderVariantPanel(state.current.selectedOption) : "");
+    optionsEl.innerHTML = rowsHtml;
 
     if (state.addButton) state.addButton.disabled = state.current.goalMet === false || !state.current.selectedOption;
   };
@@ -12763,10 +12808,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   let refreshTimer = null;
   const refreshFromNetwork = async () => {
     if (refreshTimer) clearTimeout(refreshTimer);
+    setProgressLoading(true);
     return new Promise((resolve) => {
       refreshTimer = setTimeout(async () => {
         try {
-          setProgressLoading(true);
           CART = await fetchCart({ force: true });
           PROXY = await fetchProxy(CART);
 
@@ -13060,6 +13105,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           e.stopPropagation();
           if (e.stopImmediatePropagation) e.stopImmediatePropagation();
           if (markPointer) btn.__scPointerOpened = Date.now();
+          setProgressLoading(true);
           openDrawer();
           await refreshFromNetwork();
           renderAllFromCache();
