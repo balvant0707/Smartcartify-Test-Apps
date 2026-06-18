@@ -1,4 +1,4 @@
-﻿(() => {
+﻿﻿(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -4685,9 +4685,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:none !important;
 }
 .sc-cartgoal-bonus-card{
-  background:var(--sc-upsell-bg, var(--sc-drawer-bg));
-  border:0;
-  border-radius:0;
   padding:8px 12px 6px;
   color:var(--sc-drawer-text-color);
   overflow:hidden;
@@ -4854,9 +4851,10 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 
 .sc-upsell{
-  order:2;
-  background:transparent;
-  flex:0 0 auto;
+    order: 2;
+    background: var(--sc-upsell-bg);
+    flex: 0 0 auto;
+    padding: 5px;
 }
 .sc-upsell-card{padding:0;}
 .sc-upsell-title {
@@ -4869,8 +4867,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
     line-height: 1.2;
 }
 .sc-upsell-inner {
-    background: transparent;
-    padding: 0 34px;
+background: var(--sc-upsell-bg);
+    padding: 0 20px;
     position: relative;
     overflow: visible;
     width: 100%;

@@ -309,6 +309,21 @@ const attachLoadedProductPreviews = (storedItems, loadedMap, fallbackTag = "") =
     .filter(Boolean);
 };
 
+const getFreeGiftRuleProductRefs = (rule = {}) => {
+  const refs = [
+    rule.bonusProductId,
+    ...(parseStoredArray(rule.allProductIds) || []),
+  ].filter(Boolean);
+  const seen = new Set();
+  return refs.filter((item) => {
+    const id = extractProductId(item);
+    const key = String(id || item).trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const cartGoalPrioritySort = (a = {}, b = {}) => {
   const priorityDiff = Number(b.priority || 0) - Number(a.priority || 0);
   if (priorityDiff) return priorityDiff;
@@ -468,7 +483,8 @@ export const loader = async ({ request }) => {
         cartStepName: true,
         iconChoice: true,
         campaignName: true,
-        selectedProductIds: true,
+        bonusProductId: true,
+        allProductIds: true,
       },
     }),
     prisma.upsellSettings.findUnique({ where: { shop } }).catch(() => null),
@@ -532,7 +548,7 @@ export const loader = async ({ request }) => {
     .sort(cartGoalPrioritySort);
 
   const previewProductIds = [
-    ...(freeGiftRules || []).flatMap((rule) => parseStoredArray(rule.selectedProductIds)),
+    ...(freeGiftRules || []).flatMap(getFreeGiftRuleProductRefs),
     ...(bxgyRules || []).flatMap((rule) => parseStoredArray(rule.rewardProductIds || rule.giftSku)),
     ...cartGoalRules.flatMap((campaign) =>
       parseCartGoalArray(campaign.goals).flatMap((goal) => parseStoredArray(goal?.bonusProducts || goal?.products || goal?.selectedProducts))
@@ -547,7 +563,7 @@ export const loader = async ({ request }) => {
 
   const freeGiftRulesWithProducts = (freeGiftRules || []).map((rule) => ({
     ...rule,
-    previewProducts: attachLoadedProductPreviews(rule.selectedProductIds, productPreviewMap, "Free product"),
+    previewProducts: attachLoadedProductPreviews(getFreeGiftRuleProductRefs(rule), productPreviewMap, "Free product"),
   }));
 
   const bxgyRulesWithProducts = (bxgyRules || []).map((rule) => ({
