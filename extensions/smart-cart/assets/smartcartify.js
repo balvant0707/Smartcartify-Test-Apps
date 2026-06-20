@@ -3216,8 +3216,6 @@
       const code = trimToNull(d?.code || d);
       if (code && isDiscountAppliedInCart(code)) out.push(code);
     });
-    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    if (manualCode) out.push(manualCode);
     const seen = new Set();
     return out.filter((c) => {
       const key = String(c).trim().toLowerCase();
@@ -3589,7 +3587,7 @@
       const code = getDiscountRuleCode(rule);
       if (!code) continue;
 
-      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) {
+      if (isDiscountAppliedInCart(code)) {
         return { rule, code };
       }
     }
@@ -6789,7 +6787,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     <div class="sc-discount-loading-overlay" data-discount-loading hidden aria-live="polite" aria-label="Applying discount code">
       <div class="sc-discount-loading-card">
         <div class="sc-items-spinner"></div>
-        <span>Applying discount...</span>
       </div>
     </div>
 
@@ -7678,7 +7675,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (!isRuleEnabled(rule)) return;
       const code = getDiscountRuleCode(rule);
       if (!code) return;
-      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) {
+      if (isDiscountAppliedInCart(code)) {
         applied.push({ rule, code });
       }
     });
@@ -7873,15 +7870,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const getCheckoutDiscountCode = () => {
-    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    if (manualCode) return manualCode;
-
-    const lastCode = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
-    if (lastCode) return lastCode;
-
-    const attrCode = trimToNull(CART?.attributes?.discount_code) || trimToNull(CART?.attributes?.discountCode);
-    if (attrCode) return attrCode;
-
     const appliedCodes = getAppliedDiscountCodes();
     return appliedCodes.length ? appliedCodes[0] : null;
   };
@@ -8091,8 +8079,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const target = buildDiscountUrl(code, "/cart");
 
     try {
-      await fetch(target, { credentials: "same-origin", redirect: "follow" });
-      rememberManualDiscountCode(code);
+      const discountRes = await fetch(target, { credentials: "same-origin", redirect: "follow" });
+      if (!discountRes || (!discountRes.ok && discountRes.type !== "opaqueredirect")) {
+        throw new Error(`Discount endpoint failed (${discountRes?.status || "unknown"})`);
+      }
 
       await fetch("/cart/update.js", {
         method: "POST",
@@ -8107,6 +8097,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
 
       await refreshFromNetwork();
+      CART = await fetchCart({ force: true });
+
+      if (!isDiscountAppliedInCart(code)) {
+        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+        scStore.del("__SC_LAST_APPLIED_CODE__");
+        if (discountInput) discountInput.value = "";
+        await clearDiscountCode(code);
+        CART = await fetchCart({ force: true });
+        throw new Error(`Discount code was not accepted by Shopify: ${code}`);
+      }
+
       renderAllFromCache();
 
       rememberManualDiscountCode(code);
@@ -9614,7 +9615,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const appliedCode = findAppliedDiscountCodeRule();
 
     if (appliedCode?.rule && isDiscountAppliedInCart(appliedCode.code)) {
-      const codeDiscountCents = resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
+      const actualCodeDiscountCents = getCartDiscountCodeAmountCents(appliedCode.code);
+      const codeDiscountCents =
+        Number.isFinite(actualCodeDiscountCents) && actualCodeDiscountCents > 0
+          ? actualCodeDiscountCents
+          : resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
 
       if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
         rows.push({
@@ -9737,7 +9742,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const appliedCodeRuleForTotal = findAppliedDiscountCodeRule();
     if (appliedCodeRuleForTotal?.rule) {
-      const codeDiscountCents = resolveCodeDiscountCents(appliedCodeRuleForTotal.rule, subtotalCents);
+      const actualCodeDiscountCents = getCartDiscountCodeAmountCents(appliedCodeRuleForTotal.code);
+      const codeDiscountCents =
+        Number.isFinite(actualCodeDiscountCents) && actualCodeDiscountCents > 0
+          ? actualCodeDiscountCents
+          : resolveCodeDiscountCents(appliedCodeRuleForTotal.rule, subtotalCents);
       if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
         codeDiscountCentsForTotal += codeDiscountCents;
       }
@@ -10516,27 +10525,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return Math.max(1, Number.isFinite(n) ? n : 1);
   };
 
-  const getRewardSelectionLimit = (kind, rule, options = []) => {
-    const requestedQty = getRewardQtyFromRule(kind, rule);
-    const optionCount = Array.isArray(options) ? options.length : 0;
-    const rewardKind = String(kind || "").toLowerCase();
-    if ((rewardKind === "free" || rewardKind === "bxgy" || rewardKind === "buyxgety") && optionCount > 1) {
-      const selectedRewardCount = [
-        ...parseArrayish(rule?.bonusProducts),
-        ...parseArrayish(rule?.bonus_products),
-        ...parseArrayish(rule?.rewardProducts),
-        ...parseArrayish(rule?.reward_products),
-      ].length || [
-        ...refsFromValue(rule?.bonusProductIds),
-        ...refsFromValue(rule?.bonus_product_ids),
-        ...refsFromValue(rule?.rewardProductIds),
-        ...refsFromValue(rule?.reward_product_ids),
-      ].filter(Boolean).length;
-      const effectiveQty = Math.max(requestedQty, selectedRewardCount || optionCount);
-      return Math.max(1, Math.min(effectiveQty, optionCount));
-    }
-    return 1;
-  };
+  const getRewardSelectionLimit = () => 1;
 
   const ensureRewardPopup = () => {
     if (rewardPopupCache) return rewardPopupCache;
@@ -10635,11 +10624,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const selectedCount = nextIds.length;
       const goalMet = rewardPopupCache.current.goalMet !== false;
       if (rewardPopupCache.headerSubEl) {
-        rewardPopupCache.headerSubEl.innerHTML = `Choose any ${selectionLimit} free gift${selectionLimit === 1 ? "" : "s"} <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
+        rewardPopupCache.headerSubEl.innerHTML = `Choose one free gift <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
       }
       if (rewardPopupCache.addButton) rewardPopupCache.addButton.disabled = selectedCount < selectionLimit || !goalMet;
       if (rewardPopupCache.messageEl) {
-        const addLabel = rewardPopupCache.current.kind === "free" ? "Add Free Gifts" : "Add Item";
+        const addLabel = rewardPopupCache.current.kind === "free" ? "Add Free Gift" : "Add Item";
         rewardPopupCache.messageEl.classList.remove("is-error");
         rewardPopupCache.messageEl.textContent = !goalMet
           ? getRewardGoalPendingMessage(rewardPopupCache.current.kind)
@@ -11173,7 +11162,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     state.current.selectedOptionId = defaultSelected?.optionId || null;
     const selectedCount = state.current.selectedOptionIds.length;
     if (state.headerSubEl) {
-      state.headerSubEl.innerHTML = `Choose any ${selectionLimit} free gift${selectionLimit === 1 ? "" : "s"} <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
+      state.headerSubEl.innerHTML = `Choose one free gift <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
     }
     if (state.messageEl) {
       state.messageEl.hidden = false;
@@ -11373,7 +11362,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (state.headerSubEl) {
       state.headerSubEl.innerHTML =
         kind === "free"
-          ? `Choose any ${qty} free gift${qty === 1 ? "" : "s"} <span class="sc-freegift-count">0/${qty}</span>`
+          ? `Choose one free gift <span class="sc-freegift-count">0/1</span>`
           : addItemGoalMet
             ? "Click Add to add it in your cart"
             : getRewardGoalPendingMessage(kind);
@@ -11427,7 +11416,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       "Reward";
     if (state.ruleTitleEl) state.ruleTitleEl.textContent = ruleName;
 
-    if (state.addButton) state.addButton.textContent = kind === "free" ? "✓ Add Free Gifts" : `Add Item${qty > 1 ? ` (${qty})` : ""}`;
+    if (state.addButton) state.addButton.textContent = kind === "free" ? "✓ Add Free Gift" : `Add Item${qty > 1 ? ` (${qty})` : ""}`;
 
     state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, options: [], selectedOption: null, selectedOptionId: null, selectedOptionIds: [], selectedOptions: [] };
     state.overlay.classList.add("open");
