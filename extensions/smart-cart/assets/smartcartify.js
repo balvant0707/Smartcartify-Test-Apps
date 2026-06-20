@@ -2337,6 +2337,12 @@
             campaign?.rewardSelectionMandatory ??
             campaign?.reward_selection_mandatory ??
             "yes",
+          qty:
+            goal?.qty ??
+            goal?.quantity ??
+            goal?.freeQty ??
+            goal?.free_qty ??
+            String(Math.max(1, productIds.length || 1)),
           bonusProductId,
           bonus: bonusProductId,
           bonusProductIds: productIds,
@@ -9931,14 +9937,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       null
     );
 
-  const addRewardToCart = async ({ kind, rule, ruleKey, slot, variant, qty, markAutoAdded }) => {
+  const addRewardToCart = async ({ kind, rule, ruleKey, slot, variant, qty, markAutoAdded, skipExistingCheck = false }) => {
     const variantToAdd = await resolveRewardVariantForAdd(rule, variant);
     const legacyId = getVariantLegacyId(variantToAdd);
     // Guard: legacyId must be a pure numeric string — GIDs or empty strings will 422 immediately
     if (!legacyId || !/^\d+$/.test(String(legacyId))) return false;
 
     const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
-    if (guardKey && cartHasRewardForKey(kind, guardKey)) return false;
+    if (!skipExistingCheck && guardKey && cartHasRewardForKey(kind, guardKey)) return false;
 
     try {
       setProgressLoading(true);
@@ -10476,18 +10482,47 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const getRewardQtyFromRule = (kind, rule) => {
+    const rewardKind = String(kind || "").toLowerCase();
+    const selectedProducts = [
+      ...parseArrayish(rule?.bonusProducts),
+      ...parseArrayish(rule?.bonus_products),
+      ...parseArrayish(rule?.rewardProducts),
+      ...parseArrayish(rule?.reward_products),
+    ];
+    const selectedProductIds = [
+      ...refsFromValue(rule?.bonusProductIds),
+      ...refsFromValue(rule?.bonus_product_ids),
+      ...refsFromValue(rule?.rewardProductIds),
+      ...refsFromValue(rule?.reward_product_ids),
+    ].filter(Boolean);
+    const selectedRewardCount = selectedProducts.length || selectedProductIds.length || 0;
     const raw =
       rule?.qty ??
       rule?.quantity ??
       rule?.freeQty ??
       rule?.free_qty ??
+      rule?.rewardQty ??
+      rule?.reward_qty ??
+      (["bxgy", "buyxgety"].includes(rewardKind) && selectedRewardCount > 1
+        ? selectedRewardCount
+        : null) ??
       rule?.yQty ??
       rule?.y_qty ??
       rule?.getQty ??
       rule?.get_qty ??
+      (selectedRewardCount || null) ??
       1;
     const n = Number(raw);
     return Math.max(1, Number.isFinite(n) ? n : 1);
+  };
+
+  const getRewardSelectionLimit = (kind, rule, options = []) => {
+    const requestedQty = getRewardQtyFromRule(kind, rule);
+    const optionCount = Array.isArray(options) ? options.length : 0;
+    if ((kind === "free" || kind === "bxgy" || kind === "buyxgety") && optionCount > 1) {
+      return Math.max(1, Math.min(requestedQty, optionCount));
+    }
+    return 1;
   };
 
   const ensureRewardPopup = () => {
@@ -10559,28 +10594,50 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       )
         return;
       const selectedId = trimToNull(value);
-      rewardPopupCache.current.selectedOptionId = selectedId;
       const options = Array.isArray(rewardPopupCache.current.options)
         ? rewardPopupCache.current.options
         : [];
-      const selectedCount = selectedId ? 1 : 0;
+      const selectionLimit = getRewardSelectionLimit(
+        rewardPopupCache.current.kind,
+        rewardPopupCache.current.rule,
+        options
+      );
+      const currentIds = Array.isArray(rewardPopupCache.current.selectedOptionIds)
+        ? [...rewardPopupCache.current.selectedOptionIds]
+        : rewardPopupCache.current.selectedOptionId
+          ? [rewardPopupCache.current.selectedOptionId]
+          : [];
+      let nextIds = currentIds;
+      if (selectedId) {
+        if (nextIds.includes(selectedId)) {
+          nextIds = nextIds.filter((id) => String(id) !== String(selectedId));
+        } else {
+          nextIds = selectionLimit <= 1
+            ? [selectedId]
+            : [...nextIds, selectedId].slice(0, selectionLimit);
+        }
+      }
+      rewardPopupCache.current.selectedOptionIds = nextIds;
+      rewardPopupCache.current.selectedOptionId = nextIds[0] || null;
+      const selectedCount = nextIds.length;
       const goalMet = rewardPopupCache.current.goalMet !== false;
       if (rewardPopupCache.headerSubEl) {
-        rewardPopupCache.headerSubEl.innerHTML = `Choose any 1 free gifts <span class="sc-freegift-count">${selectedCount}/1</span>`;
+        rewardPopupCache.headerSubEl.innerHTML = `Choose any ${selectionLimit} free gift${selectionLimit === 1 ? "" : "s"} <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
       }
-      if (rewardPopupCache.addButton) rewardPopupCache.addButton.disabled = selectedCount < 1 || !goalMet;
+      if (rewardPopupCache.addButton) rewardPopupCache.addButton.disabled = selectedCount < selectionLimit || !goalMet;
       if (rewardPopupCache.messageEl) {
         const addLabel = rewardPopupCache.current.kind === "free" ? "Add Free Gifts" : "Add Item";
         rewardPopupCache.messageEl.classList.remove("is-error");
         rewardPopupCache.messageEl.textContent = !goalMet
           ? getRewardGoalPendingMessage(rewardPopupCache.current.kind)
-          : selectedCount
+          : selectedCount >= selectionLimit
             ? `Item selected. Click ${addLabel} to add it to your cart.`
-            : "Select a free gift to add it to your cart.";
+            : `Select ${selectionLimit - selectedCount} more free gift${selectionLimit - selectedCount === 1 ? "" : "s"} to add to your cart.`;
       }
       if (rewardPopupCache.listEl) {
         rewardPopupCache.listEl.querySelectorAll(".sc-freegift-option").forEach((row) => {
-          const checked = String(row.getAttribute("data-option-id") || "") === String(selectedId || "");
+          const optionId = String(row.getAttribute("data-option-id") || "");
+          const checked = nextIds.some((id) => String(id) === optionId);
           row.classList.toggle("selected", checked);
           const box = row.querySelector(".sc-freegift-check");
           if (box) {
@@ -10590,7 +10647,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         });
       }
       rewardPopupCache.current.selectedOption =
-        options.find((option) => String(option.optionId) === String(selectedId)) || null;
+        options.find((option) => String(option.optionId) === String(nextIds[0])) || null;
+      rewardPopupCache.current.selectedOptions = nextIds
+        .map((id) => options.find((option) => String(option.optionId) === String(id)))
+        .filter(Boolean);
       if (rewardPopupCache.current.selectedOption) {
         renderFreeGiftPopupOptions(rewardPopupCache, options, normalizeCurrencyCode());
       }
@@ -10615,7 +10675,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (!key) return;
       const current = rewardPopupCache.current;
       const options = Array.isArray(current.options) ? current.options : [];
-      const selectedId = current.selectedOptionId;
+      const selectedId =
+        trimToNull(select.closest(".sc-freegift-option-wrap")?.querySelector("[data-option-id]")?.getAttribute("data-option-id")) ||
+        current.selectedOptionId;
       const updatedOptions = options.map((option) =>
         String(option.optionId) === String(selectedId)
           ? setRewardOptionSelection(option, key, select.value)
@@ -10623,7 +10685,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       );
       current.options = updatedOptions;
       current.selectedOption =
-        updatedOptions.find((option) => String(option.optionId) === String(selectedId)) || null;
+        updatedOptions.find((option) => String(option.optionId) === String(current.selectedOptionId)) || null;
+      current.selectedOptions = (Array.isArray(current.selectedOptionIds) ? current.selectedOptionIds : [])
+        .map((id) => updatedOptions.find((option) => String(option.optionId) === String(id)))
+        .filter(Boolean);
       renderFreeGiftPopupOptions(rewardPopupCache, updatedOptions, normalizeCurrencyCode());
     });
 
@@ -10649,24 +10714,46 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               Array.isArray(cur.options) &&
               cur.options.length > 0
             );
-          const selectedOption = isMultiOption ? cur.selectedOption : null;
+          const selectedOptions = isMultiOption
+            ? (
+              Array.isArray(cur.selectedOptions) && cur.selectedOptions.length
+                ? cur.selectedOptions
+                : cur.selectedOption
+                  ? [cur.selectedOption]
+                  : []
+            )
+            : [];
+          const selectedOption = selectedOptions[0] || null;
+          const selectionLimit = isMultiOption
+            ? getRewardSelectionLimit(cur.kind, cur.rule, cur.options)
+            : 1;
 
-          if (isMultiOption && !selectedOption) {
+          if (isMultiOption && selectedOptions.length < selectionLimit) {
             if (rewardPopupCache.messageEl) {
               rewardPopupCache.messageEl.classList.add("is-error");
-              rewardPopupCache.messageEl.textContent = "Please select one free gift before adding.";
+              rewardPopupCache.messageEl.textContent =
+                selectionLimit === 1
+                  ? "Please select one free gift before adding."
+                  : `Please select ${selectionLimit} free gifts before adding.`;
             }
             return;
           }
-          const ok = await addRewardToCart({
-            kind: cur.kind,
-            rule: selectedOption?.rule || cur.rule,
-            ruleKey: cur.ruleKey,
-            slot: cur.slot,
-            variant: selectedOption?.variant || cur.variant,
-            qty: selectedOption?.qty || cur.qty,
-            markAutoAdded: false,
-          });
+          const addTargets = isMultiOption ? selectedOptions : [{ rule: cur.rule, variant: cur.variant, qty: cur.qty }];
+          let addedCount = 0;
+          for (const target of addTargets) {
+            const ok = await addRewardToCart({
+              kind: cur.kind,
+              rule: target?.rule || cur.rule,
+              ruleKey: cur.ruleKey,
+              slot: cur.slot,
+              variant: target?.variant || cur.variant,
+              qty: selectionLimit > 1 ? 1 : (target?.qty || cur.qty),
+              markAutoAdded: false,
+              skipExistingCheck: isMultiOption && addTargets.length > 1,
+            });
+            if (ok) addedCount += 1;
+          }
+          const ok = addedCount > 0;
           if (ok) {
             const addedGuardKey = cur.kind === "free" ? cur.slot || cur.ruleKey : cur.ruleKey;
             if (addedGuardKey) {
@@ -10691,9 +10778,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               Array.isArray(active?.options) &&
               active.options.length > 0
             );
+          const activeLimit = requiresSelection
+            ? getRewardSelectionLimit(active?.kind, active?.rule, active?.options)
+            : 1;
+          const activeSelectedCount = Array.isArray(active?.selectedOptionIds)
+            ? active.selectedOptionIds.length
+            : active?.selectedOption
+              ? 1
+              : 0;
           addBtn.disabled =
             active?.goalMet === false ||
-            (requiresSelection && !active?.selectedOption);
+            (requiresSelection && activeSelectedCount < activeLimit);
           addBtn.classList.remove("loading");
         }
       });
@@ -11048,22 +11143,39 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     state.listEl.hidden = false;
     state.listEl.style.removeProperty("display");
     state.current.options = Array.isArray(options) ? options : [];
-    const preservedSelectedId = trimToNull(state.current.selectedOptionId);
-    const defaultSelected = preservedSelectedId
-      ? state.current.options.find((option) => String(option.optionId) === String(preservedSelectedId)) || null
-      : state.current.options[0] || null;
+    const selectionLimit = getRewardSelectionLimit(state.current.kind, state.current.rule, state.current.options);
+    const preservedSelectedIds = Array.isArray(state.current.selectedOptionIds)
+      ? state.current.selectedOptionIds.map(trimToNull).filter(Boolean)
+      : trimToNull(state.current.selectedOptionId)
+        ? [trimToNull(state.current.selectedOptionId)]
+        : [];
+    const validSelectedIds = preservedSelectedIds
+      .filter((id) => state.current.options.some((option) => String(option.optionId) === String(id)))
+      .slice(0, selectionLimit);
+    const defaultSelectedIds = validSelectedIds.length
+      ? validSelectedIds
+      : state.current.options[0]
+        ? [state.current.options[0].optionId]
+        : [];
+    state.current.selectedOptionIds = defaultSelectedIds;
+    state.current.selectedOptions = defaultSelectedIds
+      .map((id) => state.current.options.find((option) => String(option.optionId) === String(id)))
+      .filter(Boolean);
+    const defaultSelected = state.current.selectedOptions[0] || null;
     state.current.selectedOption = defaultSelected;
     state.current.selectedOptionId = defaultSelected?.optionId || null;
-    const selectedCount = state.current.selectedOption ? 1 : 0;
+    const selectedCount = state.current.selectedOptionIds.length;
     if (state.headerSubEl) {
-      state.headerSubEl.innerHTML = `Choose any 1 free gifts <span class="sc-freegift-count">${selectedCount}/1</span>`;
+      state.headerSubEl.innerHTML = `Choose any ${selectionLimit} free gift${selectionLimit === 1 ? "" : "s"} <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
     }
     if (state.messageEl) {
       state.messageEl.hidden = false;
       state.messageEl.classList.remove("is-error");
       state.messageEl.textContent = state.current.goalMet === false
         ? getRewardGoalPendingMessage(state.current.kind)
-        : "Select a free gift to add it to your cart.";
+        : selectedCount >= selectionLimit
+          ? "Click Add to add your free gift to the cart."
+          : `Select ${selectionLimit - selectedCount} more free gift${selectionLimit - selectedCount === 1 ? "" : "s"} to add to your cart.`;
     }
 
     if (!state.current.options.length) {
@@ -11097,9 +11209,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       `;
     };
 
-    const selectedId = state.current.selectedOptionId;
+    const selectedIds = Array.isArray(state.current.selectedOptionIds) ? state.current.selectedOptionIds : [];
     const rowsHtml = state.current.options.map((option) => {
-      const selected = String(option.optionId) === String(selectedId);
+      const selected = selectedIds.some((id) => String(id) === String(option.optionId));
       const activeVariant = selected ? getSelectedRewardVariant(option) : option.variant;
       const priceCents = selected ? centsFromDecimalPrice(activeVariant?.price) : option.priceCents;
       const priceHtml = priceCents > 0
@@ -11126,7 +11238,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     optionsEl.innerHTML = rowsHtml;
 
-    if (state.addButton) state.addButton.disabled = state.current.goalMet === false || !state.current.selectedOption;
+    if (state.addButton) state.addButton.disabled = state.current.goalMet === false || selectedCount < selectionLimit;
   };
 
   const getBxgyReferenceItems = (rule) => {
@@ -11254,7 +11366,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (state.headerSubEl) {
       state.headerSubEl.innerHTML =
         kind === "free"
-          ? `Choose any 1 free gifts <span class="sc-freegift-count">0/1</span>`
+          ? `Choose any ${qty} free gift${qty === 1 ? "" : "s"} <span class="sc-freegift-count">0/${qty}</span>`
           : addItemGoalMet
             ? "Click Add to add it in your cart"
             : getRewardGoalPendingMessage(kind);
@@ -11310,7 +11422,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (state.addButton) state.addButton.textContent = kind === "free" ? "✓ Add Free Gifts" : `Add Item${qty > 1 ? ` (${qty})` : ""}`;
 
-    state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, options: [], selectedOption: null, selectedOptionId: null };
+    state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, options: [], selectedOption: null, selectedOptionId: null, selectedOptionIds: [], selectedOptions: [] };
     state.overlay.classList.add("open");
 
     drawer.__sc_reward_popup_for = `${kind}:${guardKey || ""}`;

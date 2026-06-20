@@ -252,6 +252,7 @@ export const action = async ({ request }) => {
   const selectedBuyProducts = parseJsonArray(buyProductIds);
   const selectedBuyCollections = parseJsonArray(buyCollectionIds);
   const selectedRewards = parseJsonArray(rewardProductIds);
+  const selectedRewardQty = String(Math.max(1, selectedRewards.length || 1));
   const scope =
     normalizedCondition === CONDITION_TYPES.BUY_PRODUCT
       ? "specific_products"
@@ -304,7 +305,7 @@ export const action = async ({ request }) => {
     status: status || (isActive ? "active" : "draft"),
     enabled: isActive,
     xQty: xValue || "1",
-    yQty: "1",
+    yQty: selectedRewardQty,
     scope,
     appliesTo: appliesToPayload,
     giftType: "specific",
@@ -391,7 +392,7 @@ export const action = async ({ request }) => {
           normalizedCondition === CONDITION_TYPES.SPEND_COLLECTION ? "spend" : "quantity",
         minQty: minQuantity || "1",
         minSpend: String(positiveNumber(minSpend) || ""),
-        rewardQty: "1",
+        rewardQty: selectedRewardQty,
         rewardType: "free_product",
         rewardDiscount: null,
         scope,
