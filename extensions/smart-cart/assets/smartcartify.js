@@ -3210,6 +3210,8 @@
       const code = trimToNull(d?.code || d);
       if (code && isDiscountAppliedInCart(code)) out.push(code);
     });
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    if (manualCode) out.push(manualCode);
     const seen = new Set();
     return out.filter((c) => {
       const key = String(c).trim().toLowerCase();
@@ -3581,7 +3583,7 @@
       const code = getDiscountRuleCode(rule);
       if (!code) continue;
 
-      if (isDiscountAppliedInCart(code)) {
+      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) {
         return { rule, code };
       }
     }
@@ -4448,7 +4450,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-item.sc-item-reward{
     position: relative;
     display: grid;
-    grid-template-columns: 80px minmax(0, 1fr);
+    grid-template-columns: 56px minmax(0, 1fr);
     align-items: center;
     gap: 12px;
     min-height: 72px;
@@ -4459,37 +4461,18 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-item.sc-item-reward .sc-img{
   position:relative;
-  width:60px;
-  height:50px;
-  overflow:visible;
+  width:56px;
+  height:56px;
+  overflow:hidden;
 }
 .sc-item.sc-item-reward .sc-img img{
   border-radius:6px;
 }
 .sc-item.sc-item-reward .sc-img::before{
-  content:"";
-  position:absolute;
-  top:-15px;
-  left:50%;
-  transform:translateX(-50%);
-  width:28px;
-  height:28px;
-  border-radius:999px;
-  background:var(--sc-apply-bg);
-  z-index:2;
+  content:none;
 }
 .sc-item.sc-item-reward .sc-img::after{
-  content:"";
-  position:absolute;
-  top:-7px;
-  left:50%;
-  transform:translateX(-50%);
-  width:14px;
-  height:14px;
-  background:#ffffff;
-  z-index:3;
-  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M20 7h-2.18A3 3 0 0 0 12 5.5A3 3 0 0 0 6.18 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8h1a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1ZM9 5a1 1 0 0 1 1 1v1H8a1 1 0 0 1 1-2Zm6 0a1 1 0 0 1 1 2h-2V6a1 1 0 0 1 1-1ZM5 9h6v1H5V9Zm2 3h4v7H7v-7Zm10 7h-4v-7h4v7Zm2-9h-6V9h6v1Z'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M20 7h-2.18A3 3 0 0 0 12 5.5A3 3 0 0 0 6.18 7H4a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8h1a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1ZM9 5a1 1 0 0 1 1 1v1H8a1 1 0 0 1 1-2Zm6 0a1 1 0 0 1 1 2h-2V6a1 1 0 0 1 1-1ZM5 9h6v1H5V9Zm2 3h4v7H7v-7Zm10 7h-4v-7h4v7Zm2-9h-6V9h6v1Z'/%3E%3C/svg%3E") center/contain no-repeat;
+  content:none;
 }
 
 .sc-item.sc-item-reward .sc-name,
@@ -4552,7 +4535,6 @@ color: var(--sc-drawer-text-color);
   font-weight:900;
   line-height:1.15;
   box-shadow:none;
-  display:none;
 }
 .sc-item.sc-item-reward .sc-reward-line-badge::before{
   content:"";
@@ -4669,6 +4651,14 @@ color: var(--sc-drawer-text-color);
     padding: 1px 10px;
     border-radius: 10px;
 }
+.sc-reward-line-badge.sc-freegift-line-badge{
+  background:#e8eafb;
+  color:#17226d;
+}
+.sc-reward-line-badge.sc-bxgy-reward-line-badge{
+  background:rgba(122, 0, 86, .10);
+  color:var(--sc-progress);
+}
 .sc-qty-stack{
   display:flex;
   flex-direction:column;
@@ -4681,6 +4671,32 @@ color: var(--sc-drawer-text-color);
   color:var(--sc-free-tag-color);
   font-weight:800;
   white-space:nowrap;
+}
+.sc-bxgy-line-badge:empty::before{
+  content:"Buy X Get Y";
+}
+[data-smart-cartify-open],
+.sc-mobile-open-fallback{
+  position:relative;
+}
+[data-smart-cartify-open].sc-open-loading,
+.sc-mobile-open-fallback.sc-open-loading{
+  pointer-events:none;
+}
+[data-smart-cartify-open].sc-open-loading::after,
+.sc-mobile-open-fallback.sc-open-loading::after{
+  content:"";
+  position:absolute;
+  right:-4px;
+  top:-4px;
+  width:14px;
+  height:14px;
+  border-radius:50%;
+  border:2px solid rgba(17,24,39,.18);
+  border-top-color:var(--sc-progress);
+  background:var(--sc-drawer-bg);
+  animation:scSpin .8s linear infinite;
+  z-index:3;
 }
 
 .sc-cartgoal-bonus{
@@ -5990,7 +6006,7 @@ position: relative;
   animation:scCheckoutShine 2.8s ease-in-out infinite;
   z-index:0;
 }
-.sc-checkout:hover{filter:brightness(1.04);transform:scaleX(1.4);transform-origin:right center;}
+.sc-checkout:hover{filter:brightness(1.04);transform:scaleX(1.3);transform-origin:right center;}
 .sc-checkout:active{transform:scale(.985);}
 .sc-checkout-label{position:relative;z-index:1;}
 @keyframes scCheckoutShine{
@@ -7519,28 +7535,61 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (discountInput) discountInput.disabled = active;
   };
 
+  const rememberManualDiscountCode = (code) => {
+    const normalized = trimToNull(code);
+    if (!normalized) return;
+    scStore.set(MANUAL_DISCOUNT_CODE_KEY, normalized);
+    scStore.set("__SC_LAST_APPLIED_CODE__", normalized);
+    if (discountInput) discountInput.value = normalized;
+  };
+
+  const isManualDiscountCodeRemembered = (code) => {
+    const normalized = trimToNull(code);
+    if (!normalized) return false;
+    const lower = normalized.toLowerCase();
+    const manual = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const last = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
+    const attr =
+      trimToNull(CART?.attributes?.discount_code) ||
+      trimToNull(CART?.attributes?.discountCode);
+    return [manual, last, attr].some(
+      (value) => value && String(value).trim().toLowerCase() === lower
+    );
+  };
+
   const getCartRewardLineCents = () => {
     const items = Array.isArray(CART?.items) ? CART.items : [];
     return items.reduce((sum, it) => {
-      const props = it?.properties || {};
-      const isFreeGift =
-        String(props?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
-      const isBxgyGift =
-        String(props?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
-      if (!isFreeGift && !isBxgyGift) return sum;
+      if (!isRewardCartLine(it)) return sum;
       return sum + Math.max(0, Number(it?.final_line_price) || 0);
+    }, 0);
+  };
+
+  const getCartPaidLineSubtotalCents = () => {
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    return items.reduce((sum, it) => {
+      if (isRewardCartLine(it)) return sum;
+      return sum + Math.max(0, Number(it?.final_line_price) || 0);
+    }, 0);
+  };
+
+  const getCartPaidOriginalSubtotalCents = () => {
+    const items = Array.isArray(CART?.items) ? CART.items : [];
+    return items.reduce((sum, it) => {
+      if (isRewardCartLine(it)) return sum;
+      const originalLine = Number(it?.original_line_price);
+      const finalLine = Number(it?.final_line_price);
+      const lineAmount = Number.isFinite(originalLine) ? originalLine : finalLine;
+      return sum + Math.max(0, Number(lineAmount) || 0);
     }, 0);
   };
 
   const getCartSubtotalCents = () => {
     const raw = Number(CART?.items_subtotal_price);
-    const items = Array.isArray(CART?.items) ? CART.items : [];
-    const baseSubtotal = Number.isFinite(raw)
-      ? Math.max(0, raw)
-      : items.reduce(
-        (sum, it) => sum + Math.max(0, Number(it?.final_line_price) || 0),
-        0
-      );
+    const dynamicPaidSubtotal = getCartPaidLineSubtotalCents();
+    if (dynamicPaidSubtotal > 0) return Math.max(0, dynamicPaidSubtotal);
+
+    const baseSubtotal = Number.isFinite(raw) ? Math.max(0, raw) : 0;
     return Math.max(0, baseSubtotal - getCartRewardLineCents());
   };
 
@@ -7549,10 +7598,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getCartOriginalSubtotalCents = () => {
     const items = Array.isArray(CART?.items) ? CART.items : [];
     if (items.length) {
-      return items.reduce(
-        (sum, it) => sum + Math.max(0, Number(it?.original_line_price) || 0),
-        0
-      );
+      return getCartPaidOriginalSubtotalCents();
     }
     const raw = Number(CART?.original_total_price);
     if (Number.isFinite(raw)) return Math.max(0, raw);
@@ -7626,7 +7672,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (!isRuleEnabled(rule)) return;
       const code = getDiscountRuleCode(rule);
       if (!code) return;
-      if (isDiscountAppliedInCart(code)) applied.push({ rule, code });
+      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) {
+        applied.push({ rule, code });
+      }
     });
     return applied;
   };
@@ -7820,13 +7868,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const getCheckoutDiscountCode = () => {
     const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    if (manualCode && isDiscountAppliedInCart(manualCode)) return manualCode;
+    if (manualCode) return manualCode;
 
     const lastCode = trimToNull(scStore.get("__SC_LAST_APPLIED_CODE__"));
-    if (lastCode && isDiscountAppliedInCart(lastCode)) return lastCode;
+    if (lastCode) return lastCode;
 
     const attrCode = trimToNull(CART?.attributes?.discount_code) || trimToNull(CART?.attributes?.discountCode);
-    if (attrCode && isDiscountAppliedInCart(attrCode)) return attrCode;
+    if (attrCode) return attrCode;
 
     const appliedCodes = getAppliedDiscountCodes();
     return appliedCodes.length ? appliedCodes[0] : null;
@@ -8033,12 +8081,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       await refreshFromNetwork();
       renderAllFromCache();
 
-      if (isDiscountAppliedInCart(code)) {
-        scStore.set(MANUAL_DISCOUNT_CODE_KEY, code);
-        scStore.set("__SC_LAST_APPLIED_CODE__", code);
-
-        if (discountInput) discountInput.value = code;
-
+      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) {
+        rememberManualDiscountCode(code);
         if (discountMsg) discountMsg.style.color = "#16a34a";
         setDiscountMessage(`Discount applied: ${code}`);
       } else {
@@ -9643,24 +9687,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       trimToNull(PROXY?.styleSettings?.checkoutButtonText) || "Checkout";
 
     const subtotalEl = $("[data-subtotal]");
-    const computedSubtotalCents = items.reduce((sum, it) => {
-      const lineAmount = Number(it?.final_line_price) || 0;
-      return sum + Math.max(0, lineAmount);
-    }, 0);
-    const baseSubtotalCents = Number.isFinite(Number(CART?.items_subtotal_price))
-      ? Math.max(0, Number(CART.items_subtotal_price))
-      : computedSubtotalCents;
-    const rewardLineCents = items.reduce((sum, it) => {
-      const props = it?.properties || {};
-      const isFreeGift =
-        String(props?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
-      const isBxgyGift =
-        String(props?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
-      if (!isFreeGift && !isBxgyGift) return sum;
-      const lineAmount = Number(it?.final_line_price) || 0;
-      return sum + Math.max(0, lineAmount);
-    }, 0);
-    const subtotalCents = Math.max(0, baseSubtotalCents - rewardLineCents);
+    const dynamicPaidSubtotalCents = getCartPaidLineSubtotalCents();
+    const cartSubtotalRaw = Number(CART?.items_subtotal_price);
+    const subtotalCents = dynamicPaidSubtotalCents > 0
+      ? Math.max(0, dynamicPaidSubtotalCents)
+      : Number.isFinite(cartSubtotalRaw)
+        ? Math.max(0, cartSubtotalRaw - getCartRewardLineCents())
+        : 0;
     const appliedCodes = getAppliedDiscountCodes();
     const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
     const manualLower = manualCode ? manualCode.toLowerCase() : null;
@@ -9804,11 +9837,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const priceClass = `sc-price${displayPrice === 0 ? " sc-price-free" : ""}`;
         const freeTagText = isReward
           ? isFreeGift
-            ? "Cart Goals Gift"
-            : "Buy X Get Y"
+            ? "Free"
+            : "BuyXGetY"
           : "Free";
         const rewardBadge = isReward
-          ? `<span class="sc-free-tag sc-free-tag-under sc-reward-line-badge">${safe(freeTagText)}</span>`
+          ? `<span class="sc-free-tag sc-free-tag-under sc-reward-line-badge ${isBxgyGift ? "sc-bxgy-reward-line-badge" : "sc-freegift-line-badge"}">${safe(freeTagText)}</span>`
           : "";
         const rewardFreePill = isReward
           ? `<span class="sc-reward-free-pill">Free</span>`
@@ -13151,10 +13184,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           e.stopPropagation();
           if (e.stopImmediatePropagation) e.stopImmediatePropagation();
           if (markPointer) btn.__scPointerOpened = Date.now();
-          setProgressLoading(true);
-          openDrawer();
-          await refreshFromNetwork();
-          renderAllFromCache();
+          btn.classList.add("sc-open-loading");
+          btn.setAttribute("aria-busy", "true");
+          try {
+            setProgressLoading(true);
+            openDrawer();
+            await refreshFromNetwork();
+            renderAllFromCache();
+          } finally {
+            btn.classList.remove("sc-open-loading");
+            btn.removeAttribute("aria-busy");
+          }
         };
         btn.addEventListener(
           "pointerdown",
