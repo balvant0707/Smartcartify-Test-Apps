@@ -3160,25 +3160,91 @@
 
   };
 
+  const getDiscountApplicationCode = (entry) =>
+    trimToNull(
+      entry?.code ??
+      entry?.title ??
+      entry?.discount_code ??
+      entry?.discountCode ??
+      entry?.discount_application?.code ??
+      entry?.discount_application?.title ??
+      entry?.discountApplication?.code ??
+      entry?.discountApplication?.title ??
+      entry
+    );
+
+  const decimalDiscountAmountToCents = (value) => {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    return Math.max(0, Math.round(amount * priceDivisor(CART?.currency)));
+  };
+
+  const cartDiscountAmountToCents = (value) => {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    return Math.max(0, Math.round(amount));
+  };
+
+  const isDiscountCodeApplicationEntry = (entry) => {
+    if (!entry || typeof entry !== "object") return true;
+    const type = String(
+      entry?.type ??
+      entry?.discount_application?.type ??
+      entry?.discountApplication?.type ??
+      ""
+    ).trim().toLowerCase();
+    return !type || type.includes("code");
+  };
+
+  const getCartDiscountEntries = () => {
+    const entries = [];
+    const addEntry = (entry, amountCents = null) => {
+      if (!entry) return;
+      entries.push({ entry, amountCents });
+    };
+
+    (Array.isArray(CART?.discount_codes) ? CART.discount_codes : []).forEach((entry) => {
+      addEntry(entry, decimalDiscountAmountToCents(entry?.amount));
+    });
+
+    [
+      ...(Array.isArray(CART?.cart_level_discount_applications) ? CART.cart_level_discount_applications : []),
+      ...(Array.isArray(CART?.discount_applications) ? CART.discount_applications : []),
+    ].forEach((entry) => {
+      addEntry(
+        entry,
+        cartDiscountAmountToCents(
+          entry?.total_allocated_amount ??
+          entry?.totalAllocatedAmount ??
+          entry?.amount
+        )
+      );
+    });
+
+    (Array.isArray(CART?.items) ? CART.items : []).forEach((item) => {
+      [
+        ...(Array.isArray(item?.discount_allocations) ? item.discount_allocations : []),
+        ...(Array.isArray(item?.line_level_discount_allocations) ? item.line_level_discount_allocations : []),
+      ].forEach((entry) => {
+        addEntry(entry, cartDiscountAmountToCents(entry?.amount));
+      });
+    });
+
+    return entries;
+  };
+
   const getCartDiscountCodeEntry = (code) => {
     const c = trimToNull(code);
     if (!c || !CART) return null;
 
     const needle = c.toLowerCase();
 
-    const totalDiscount = Number(CART?.total_discount || 0);
-    if (!Number.isFinite(totalDiscount) || totalDiscount <= 0) return null;
-
-    const discountCodes = Array.isArray(CART.discount_codes) ? CART.discount_codes : [];
-
-    return discountCodes.find((d) => {
-      const dc = String(d?.code || d || "").trim().toLowerCase();
-      const amount = Number(d?.amount || 0);
-      const applicable = d?.applicable;
+    return getCartDiscountEntries().find(({ entry }) => {
+      const dc = getDiscountApplicationCode(entry).toLowerCase();
+      const applicable = entry?.applicable;
 
       return (
         dc === needle &&
-        amount > 0 &&
         applicable !== false
       );
     }) || null;
@@ -3190,30 +3256,29 @@
     if (getCartDiscountCodeEntry(c)) return true;
 
     const needle = c.toLowerCase();
-    const discountCodes = Array.isArray(CART.discount_codes) ? CART.discount_codes : [];
-    const hasCartCode = discountCodes.some((d) => {
-      const dc = String(d?.code || d || "").trim().toLowerCase();
-      return dc && dc === needle && d?.applicable !== false;
+    const hasCartCode = getCartDiscountEntries().some(({ entry }) => {
+      const dc = getDiscountApplicationCode(entry).toLowerCase();
+      return dc && dc === needle && entry?.applicable !== false;
     });
-    const totalDiscount = Number(CART?.total_discount || 0);
-    if (hasCartCode && Number.isFinite(totalDiscount) && totalDiscount > 0) return true;
+    if (hasCartCode) return true;
 
     return false;
   };
 
   const getCartDiscountCodeAmountCents = (code) => {
-    const entry = getCartDiscountCodeEntry(code);
-    if (!entry) return null;
-    const amount = Number(entry?.amount || 0);
-    if (!Number.isFinite(amount) || amount <= 0) return null;
-    return Math.max(0, Math.round(amount * priceDivisor(CART?.currency)));
+    const match = getCartDiscountCodeEntry(code);
+    if (!match) return null;
+    if (Number.isFinite(match.amountCents) && match.amountCents > 0) {
+      return match.amountCents;
+    }
+    return null;
   };
 
   const getAppliedDiscountCodes = () => {
     const out = [];
-    const cartCodes = Array.isArray(CART?.discount_codes) ? CART.discount_codes : [];
-    cartCodes.forEach((d) => {
-      const code = trimToNull(d?.code || d);
+    getCartDiscountEntries().forEach(({ entry }) => {
+      if (!isDiscountCodeApplicationEntry(entry)) return;
+      const code = getDiscountApplicationCode(entry);
       if (code && isDiscountAppliedInCart(code)) out.push(code);
     });
     const seen = new Set();
@@ -4312,13 +4377,46 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-loading-items .sc-items-loading{
   display:flex;
 }
-.sc-items-spinner{
-  width:34px;
-  height:34px;
-  border-radius:50%;
-  border:3px solid rgba(17,24,39,.2);
-  border-top-color:var(--sc-progress);
-  animation:scSpin .8s linear infinite;
+.spinner-square{
+  display:flex;
+  flex-direction:row;
+  width:90px;
+  height:120px;
+}
+.spinner-square > .square{
+  width:17px;
+  height:80px;
+  margin:auto auto;
+  border-radius:4px;
+}
+.square-1{
+  animation:square-anim 1200ms cubic-bezier(0.445, 0.05, 0.55, 0.95) 0s infinite;
+}
+.square-2{
+  animation:square-anim 1200ms cubic-bezier(0.445, 0.05, 0.55, 0.95) 200ms infinite;
+}
+.square-3{
+  animation:square-anim 1200ms cubic-bezier(0.445, 0.05, 0.55, 0.95) 400ms infinite;
+}
+@keyframes square-anim{
+  0%{
+    height:80px;
+    background-color:rgb(111, 163, 240);
+  }
+  20%{
+    height:80px;
+  }
+  40%{
+    height:120px;
+    background-color:rgb(111, 200, 240);
+  }
+  80%{
+    height:80px;
+  }
+  100%{
+    height:80px;
+    background-color:rgb(111, 163, 240);
+  }
 }
 .sc-items-loading-text{
   font-size:var(--sc-small-font-size);
@@ -4344,8 +4442,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:none !important;
 }
 .sc-discount-loading-card{
-  width:58px;
-  height:58px;
+  width:118px;
+  height:148px;
   padding:0;
   border-radius:12px;
   background:#fff;
@@ -6776,7 +6874,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         <div class="sc-empty">Loading cart…</div>
       </div>
       <div class="sc-items-loading" aria-hidden="true">
-        <div class="sc-items-spinner"></div>
+        <div class="spinner-square">
+          <div class="square-1 square"></div>
+          <div class="square-2 square"></div>
+          <div class="square-3 square"></div>
+        </div>
       </div>
       <div class="sc-items-footer">
         <div class="sc-cartgoal-bonus" hidden></div>
@@ -6787,7 +6889,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     <div class="sc-offers" data-offers-panel hidden></div>
     <div class="sc-discount-loading-overlay" data-discount-loading hidden aria-live="polite" aria-label="Applying discount code">
       <div class="sc-discount-loading-card">
-        <div class="sc-items-spinner"></div>
+        <div class="spinner-square">
+          <div class="square-1 square"></div>
+          <div class="square-2 square"></div>
+          <div class="square-3 square"></div>
+        </div>
       </div>
     </div>
 
@@ -7907,6 +8013,27 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const applyCodeThroughShopify = async (code) => {
+    try {
+      const cartRes = await fetch("/cart/update.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          discount: code,
+          attributes: {
+            discount_code: code,
+            discountCode: code,
+          },
+        }),
+      });
+      if (cartRes?.ok) {
+        try {
+          CART = await cartRes.json();
+        } catch { }
+        if (isDiscountAppliedInCart(code)) return true;
+      }
+    } catch { }
+
     const target = buildDiscountUrl(code, "/cart");
     const res = await fetch(target, {
       method: "GET",
@@ -7918,20 +8045,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!res || (!res.ok && res.type !== "opaqueredirect")) {
       throw new Error(`Discount endpoint failed (${res?.status || "unknown"})`);
     }
-
-    try {
-      await fetch("/cart/update.js", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          attributes: {
-            discount_code: code,
-            discountCode: code,
-          },
-        }),
-      });
-    } catch { }
 
     return waitForDiscountApplied(code);
   };
