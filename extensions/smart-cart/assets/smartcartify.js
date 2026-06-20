@@ -3187,13 +3187,23 @@
 
   const isDiscountCodeApplicationEntry = (entry) => {
     if (!entry || typeof entry !== "object") return true;
+    const hasCodeField = Boolean(
+      trimToNull(
+        entry?.code ??
+        entry?.discount_code ??
+        entry?.discountCode ??
+        entry?.discount_application?.code ??
+        entry?.discountApplication?.code
+      )
+    );
     const type = String(
       entry?.type ??
       entry?.discount_application?.type ??
       entry?.discountApplication?.type ??
       ""
     ).trim().toLowerCase();
-    return !type || type.includes("code");
+    if (type) return type.includes("code");
+    return hasCodeField;
   };
 
   const getCartDiscountEntries = () => {
@@ -4440,22 +4450,6 @@ body.sc-cartify-open .shopify-section-group-header-group{
 }
 .sc-discount-loading-overlay[hidden]{
   display:none !important;
-}
-.sc-discount-loading-card{
-  width:118px;
-  height:148px;
-  padding:0;
-  border-radius:12px;
-  background:#fff;
-  border:1px solid rgba(17,24,39,.08);
-  box-shadow:0 18px 45px rgba(15,23,42,.18);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:10px;
-  color:#111827;
-  font-weight:700;
-  font-size:var(--sc-small-font-size);
 }
 .sc-drawer.sc-empty-state .sc-items-footer,
 .sc-drawer.sc-empty-state .sc-footer{
@@ -6888,12 +6882,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     <div class="sc-offers" data-offers-panel hidden></div>
     <div class="sc-discount-loading-overlay" data-discount-loading hidden aria-live="polite" aria-label="Applying discount code">
-      <div class="sc-discount-loading-card">
-        <div class="spinner-square">
-          <div class="square-1 square"></div>
-          <div class="square-2 square"></div>
-          <div class="square-3 square"></div>
-        </div>
+      <div class="spinner-square">
+        <div class="square-1 square"></div>
+        <div class="square-2 square"></div>
+        <div class="square-3 square"></div>
       </div>
     </div>
 
