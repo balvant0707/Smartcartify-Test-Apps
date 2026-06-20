@@ -7880,6 +7880,28 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return appliedCodes.length ? appliedCodes[0] : null;
   };
 
+  const getStorefrontRootPath = () => {
+    const rootPath = String(window.Shopify?.routes?.root || "/").trim() || "/";
+    return rootPath.startsWith("/") ? rootPath : `/${rootPath}`;
+  };
+
+  const storefrontPath = (path) => {
+    const rootPath = getStorefrontRootPath();
+    const cleanRoot = rootPath.endsWith("/") ? rootPath : `${rootPath}/`;
+    const cleanPath = String(path || "").replace(/^\/+/, "");
+    return `${cleanRoot}${cleanPath}`;
+  };
+
+  const buildDiscountUrl = (code, redirectPath = "/cart") => {
+    const redirect =
+      redirectPath === "/checkout"
+        ? storefrontPath("checkout")
+        : redirectPath === "/cart"
+          ? storefrontPath("cart")
+          : redirectPath;
+    return `${storefrontPath(`discount/${encodeURIComponent(code)}`)}?redirect=${encodeURIComponent(redirect)}`;
+  };
+
   const isCartGoalRewardSelectionMandatory = (campaign) => {
     const raw =
       campaign?.rewardSelectionMandatory ??
@@ -7938,8 +7960,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const code = getCheckoutDiscountCode();
 
     if (code) {
-      window.location.href =
-        `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/checkout")}`;
+      window.location.href = buildDiscountUrl(code, "/checkout");
       return;
     }
 
@@ -8061,10 +8082,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         return;
       }
 
-    const target = `/discount/${encodeURIComponent(code)}?redirect=${encodeURIComponent("/cart.js")}`;
+    const target = buildDiscountUrl(code, "/cart");
 
     try {
       await fetch(target, { credentials: "same-origin", redirect: "follow" });
+      rememberManualDiscountCode(code);
 
       await fetch("/cart/update.js", {
         method: "POST",
@@ -8081,17 +8103,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       await refreshFromNetwork();
       renderAllFromCache();
 
-      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) {
-        rememberManualDiscountCode(code);
-        if (discountMsg) discountMsg.style.color = "#16a34a";
-        setDiscountMessage(`Discount applied: ${code}`);
-      } else {
-        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
-        scStore.del("__SC_LAST_APPLIED_CODE__");
-
-        if (discountMsg) discountMsg.style.color = "#dc2626";
-        setDiscountMessage(`Discount code ${code} could not be applied.`);
-      }
+      rememberManualDiscountCode(code);
+      if (discountMsg) discountMsg.style.color = "#16a34a";
+      setDiscountMessage(`Discount applied: ${code}`);
     } catch (err) {
       console.error("[SmartCartify] discount apply failed:", err);
       if (discountMsg) discountMsg.style.color = "#dc2626";

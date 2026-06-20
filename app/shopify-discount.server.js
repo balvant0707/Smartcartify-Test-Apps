@@ -99,6 +99,12 @@ const COMBINES_WITH_ORDER_DISCOUNTS = {
   shippingDiscounts: false,
 };
 
+const COMBINES_WITH_CODE_DISCOUNTS = {
+  orderDiscounts: true,
+  productDiscounts: true,
+  shippingDiscounts: true,
+};
+
 const COMBINES_WITH_FREE_SHIPPING_REWARDS = {
   orderDiscounts: true,
   productDiscounts: true,
@@ -951,7 +957,7 @@ export async function upsertDiscountCode(admin, {
     },
     appliesOncePerCustomer: false,
     minimumRequirement,
-    combinesWith: COMBINES_WITH_ORDER_DISCOUNTS,
+    combinesWith: COMBINES_WITH_CODE_DISCOUNTS,
     ...(codeStr ? { code: codeStr } : {}),
   };
 
