@@ -2342,7 +2342,7 @@
             goal?.quantity ??
             goal?.freeQty ??
             goal?.free_qty ??
-            String(Math.max(1, productIds.length || 1)),
+            "1",
           bonusProductId,
           bonus: bonusProductId,
           bonusProductIds: productIds,
@@ -4344,15 +4344,16 @@ body.sc-cartify-open .shopify-section-group-header-group{
   display:none !important;
 }
 .sc-discount-loading-card{
-  min-width:150px;
-  padding:18px 20px;
+  width:58px;
+  height:58px;
+  padding:0;
   border-radius:12px;
   background:#fff;
   border:1px solid rgba(17,24,39,.08);
   box-shadow:0 18px 45px rgba(15,23,42,.18);
   display:flex;
-  flex-direction:column;
   align-items:center;
+  justify-content:center;
   gap:10px;
   color:#111827;
   font-weight:700;
@@ -7538,6 +7539,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (discountInput) discountInput.disabled = active;
   };
 
+  const waitForDiscountApplied = async (code, attempts = 8) => {
+    for (let i = 0; i < attempts; i += 1) {
+      CART = await fetchCart({ force: true });
+      if (isDiscountAppliedInCart(code)) return true;
+      await new Promise((resolve) => setTimeout(resolve, 250 + i * 100));
+    }
+    return false;
+  };
+
   const rememberManualDiscountCode = (code) => {
     const normalized = trimToNull(code);
     if (!normalized) return;
@@ -7896,6 +7906,36 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return `${storefrontPath(`discount/${encodeURIComponent(code)}`)}?redirect=${encodeURIComponent(redirect)}`;
   };
 
+  const applyCodeThroughShopify = async (code) => {
+    const target = buildDiscountUrl(code, "/cart");
+    const res = await fetch(target, {
+      method: "GET",
+      credentials: "same-origin",
+      redirect: "follow",
+      cache: "no-store",
+    });
+
+    if (!res || (!res.ok && res.type !== "opaqueredirect")) {
+      throw new Error(`Discount endpoint failed (${res?.status || "unknown"})`);
+    }
+
+    try {
+      await fetch("/cart/update.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          attributes: {
+            discount_code: code,
+            discountCode: code,
+          },
+        }),
+      });
+    } catch { }
+
+    return waitForDiscountApplied(code);
+  };
+
   const isCartGoalRewardSelectionMandatory = (campaign) => {
     const raw =
       campaign?.rewardSelectionMandatory ??
@@ -8076,30 +8116,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         return;
       }
 
-    const target = buildDiscountUrl(code, "/cart");
-
     try {
-      const discountRes = await fetch(target, { credentials: "same-origin", redirect: "follow" });
-      if (!discountRes || (!discountRes.ok && discountRes.type !== "opaqueredirect")) {
-        throw new Error(`Discount endpoint failed (${discountRes?.status || "unknown"})`);
-      }
+      const applied = await applyCodeThroughShopify(code);
 
-      await fetch("/cart/update.js", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          attributes: {
-            discount_code: code,
-            discountCode: code,
-          },
-        }),
-      });
-
-      await refreshFromNetwork();
-      CART = await fetchCart({ force: true });
-
-      if (!isDiscountAppliedInCart(code)) {
+      if (!applied) {
         scStore.del(MANUAL_DISCOUNT_CODE_KEY);
         scStore.del("__SC_LAST_APPLIED_CODE__");
         if (discountInput) discountInput.value = "";
@@ -9624,7 +9644,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
         rows.push({
           key: `code:${appliedCode.code}`,
-          label: "Code Discount",
+          label: `Discount Code (${String(appliedCode.code).toUpperCase()})`,
           amount: formatDiscountAmount(codeDiscountCents, currency),
         });
       }
@@ -9644,7 +9664,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (Number.isFinite(amount) && amount > 0) {
         rows.push({
           key: `code:${code}`,
-          label: "Code Discount",
+          label: `Discount Code (${String(code).toUpperCase()})`,
           amount: formatDiscountAmount(Math.min(amount, subtotalCents), currency),
         });
       }
@@ -10490,21 +10510,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return null;
   };
 
-  const getRewardQtyFromRule = (kind, rule) => {
-    const rewardKind = String(kind || "").toLowerCase();
-    const selectedProducts = [
-      ...parseArrayish(rule?.bonusProducts),
-      ...parseArrayish(rule?.bonus_products),
-      ...parseArrayish(rule?.rewardProducts),
-      ...parseArrayish(rule?.reward_products),
-    ];
-    const selectedProductIds = [
-      ...refsFromValue(rule?.bonusProductIds),
-      ...refsFromValue(rule?.bonus_product_ids),
-      ...refsFromValue(rule?.rewardProductIds),
-      ...refsFromValue(rule?.reward_product_ids),
-    ].filter(Boolean);
-    const selectedRewardCount = selectedProducts.length || selectedProductIds.length || 0;
+  const getRewardQtyFromRule = (_kind, rule) => {
     const raw =
       rule?.qty ??
       rule?.quantity ??
@@ -10512,14 +10518,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       rule?.free_qty ??
       rule?.rewardQty ??
       rule?.reward_qty ??
-      (["bxgy", "buyxgety"].includes(rewardKind) && selectedRewardCount > 1
-        ? selectedRewardCount
-        : null) ??
       rule?.yQty ??
       rule?.y_qty ??
       rule?.getQty ??
       rule?.get_qty ??
-      (selectedRewardCount || null) ??
       1;
     const n = Number(raw);
     return Math.max(1, Number.isFinite(n) ? n : 1);
