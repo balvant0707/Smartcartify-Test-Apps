@@ -10519,8 +10519,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getRewardSelectionLimit = (kind, rule, options = []) => {
     const requestedQty = getRewardQtyFromRule(kind, rule);
     const optionCount = Array.isArray(options) ? options.length : 0;
-    if ((kind === "free" || kind === "bxgy" || kind === "buyxgety") && optionCount > 1) {
-      return Math.max(1, Math.min(requestedQty, optionCount));
+    const rewardKind = String(kind || "").toLowerCase();
+    if ((rewardKind === "free" || rewardKind === "bxgy" || rewardKind === "buyxgety") && optionCount > 1) {
+      const selectedRewardCount = [
+        ...parseArrayish(rule?.bonusProducts),
+        ...parseArrayish(rule?.bonus_products),
+        ...parseArrayish(rule?.rewardProducts),
+        ...parseArrayish(rule?.reward_products),
+      ].length || [
+        ...refsFromValue(rule?.bonusProductIds),
+        ...refsFromValue(rule?.bonus_product_ids),
+        ...refsFromValue(rule?.rewardProductIds),
+        ...refsFromValue(rule?.reward_product_ids),
+      ].filter(Boolean).length;
+      const effectiveQty = Math.max(requestedQty, selectedRewardCount || optionCount);
+      return Math.max(1, Math.min(effectiveQty, optionCount));
     }
     return 1;
   };
@@ -10651,9 +10664,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       rewardPopupCache.current.selectedOptions = nextIds
         .map((id) => options.find((option) => String(option.optionId) === String(id)))
         .filter(Boolean);
-      if (rewardPopupCache.current.selectedOption) {
-        renderFreeGiftPopupOptions(rewardPopupCache, options, normalizeCurrencyCode());
-      }
+      renderFreeGiftPopupOptions(rewardPopupCache, options, normalizeCurrencyCode());
     };
 
     overlayEl.addEventListener("click", (event) => {
@@ -11152,11 +11163,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const validSelectedIds = preservedSelectedIds
       .filter((id) => state.current.options.some((option) => String(option.optionId) === String(id)))
       .slice(0, selectionLimit);
-    const defaultSelectedIds = validSelectedIds.length
-      ? validSelectedIds
-      : state.current.options[0]
-        ? [state.current.options[0].optionId]
-        : [];
+    const defaultSelectedIds = validSelectedIds.length ? validSelectedIds : [];
     state.current.selectedOptionIds = defaultSelectedIds;
     state.current.selectedOptions = defaultSelectedIds
       .map((id) => state.current.options.find((option) => String(option.optionId) === String(id)))
