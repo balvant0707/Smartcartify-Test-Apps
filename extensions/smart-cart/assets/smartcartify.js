@@ -2985,11 +2985,57 @@
   /* =========================================================
    LOADING LINE under sc-progress ✅
   ========================================================= */
-  const setProgressLoading = (isLoading) => {
+  const PROGRESS_LOADING_MIN_MS = 420;
+  const PROGRESS_LOADING_MAX_MS = 12000;
+  let progressLoadingStartedAt = 0;
+  let progressLoadingHideTimer = null;
+  let progressLoadingMaxTimer = null;
+
+  const applyProgressLoadingState = (isLoading) => {
     drawer.classList.toggle("sc-refreshing", !!isLoading);
     syncItemsLoading(!!isLoading);
     const itemsLoading = drawer.querySelector(".sc-items-loading");
     if (itemsLoading) itemsLoading.setAttribute("aria-hidden", isLoading ? "false" : "true");
+  };
+
+  const setProgressLoading = (isLoading, opts = {}) => {
+    const active = !!isLoading;
+    const minVisibleMs = Number(opts.minVisibleMs ?? PROGRESS_LOADING_MIN_MS);
+    const maxVisibleMs = Number(opts.maxVisibleMs ?? PROGRESS_LOADING_MAX_MS);
+
+    if (progressLoadingHideTimer) {
+      clearTimeout(progressLoadingHideTimer);
+      progressLoadingHideTimer = null;
+    }
+
+    if (active) {
+      if (!drawer.classList.contains("sc-refreshing")) {
+        progressLoadingStartedAt = Date.now();
+      }
+      applyProgressLoadingState(true);
+
+      if (progressLoadingMaxTimer) clearTimeout(progressLoadingMaxTimer);
+      progressLoadingMaxTimer = setTimeout(() => {
+        progressLoadingMaxTimer = null;
+        progressLoadingStartedAt = 0;
+        applyProgressLoadingState(false);
+      }, Number.isFinite(maxVisibleMs) && maxVisibleMs > 0 ? maxVisibleMs : PROGRESS_LOADING_MAX_MS);
+      return;
+    }
+
+    if (progressLoadingMaxTimer) {
+      clearTimeout(progressLoadingMaxTimer);
+      progressLoadingMaxTimer = null;
+    }
+
+    const elapsed = progressLoadingStartedAt ? Date.now() - progressLoadingStartedAt : minVisibleMs;
+    const delay = Math.max(0, (Number.isFinite(minVisibleMs) ? minVisibleMs : PROGRESS_LOADING_MIN_MS) - elapsed);
+
+    progressLoadingHideTimer = setTimeout(() => {
+      progressLoadingHideTimer = null;
+      progressLoadingStartedAt = 0;
+      applyProgressLoadingState(false);
+    }, delay);
   };
 
   const syncItemsLoading = (isLoading) => {
@@ -7678,12 +7724,58 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
   };
 
-  const setDiscountApplyLoading = (isLoading) => {
+  const DISCOUNT_APPLY_LOADING_MIN_MS = 650;
+  const DISCOUNT_APPLY_LOADING_MAX_MS = 12000;
+  let discountApplyLoadingStartedAt = 0;
+  let discountApplyLoadingHideTimer = null;
+  let discountApplyLoadingMaxTimer = null;
+
+  const applyDiscountApplyLoadingState = (isLoading) => {
     const active = !!isLoading;
     drawer.classList.toggle("sc-applying-discount", active);
     if (discountLoadingOverlay) discountLoadingOverlay.hidden = !active;
     if (discountButton) discountButton.disabled = active;
     if (discountInput) discountInput.disabled = active;
+  };
+
+  const setDiscountApplyLoading = (isLoading, opts = {}) => {
+    const active = !!isLoading;
+    const minVisibleMs = Number(opts.minVisibleMs ?? DISCOUNT_APPLY_LOADING_MIN_MS);
+    const maxVisibleMs = Number(opts.maxVisibleMs ?? DISCOUNT_APPLY_LOADING_MAX_MS);
+
+    if (discountApplyLoadingHideTimer) {
+      clearTimeout(discountApplyLoadingHideTimer);
+      discountApplyLoadingHideTimer = null;
+    }
+
+    if (active) {
+      if (!drawer.classList.contains("sc-applying-discount")) {
+        discountApplyLoadingStartedAt = Date.now();
+      }
+      applyDiscountApplyLoadingState(true);
+
+      if (discountApplyLoadingMaxTimer) clearTimeout(discountApplyLoadingMaxTimer);
+      discountApplyLoadingMaxTimer = setTimeout(() => {
+        discountApplyLoadingMaxTimer = null;
+        discountApplyLoadingStartedAt = 0;
+        applyDiscountApplyLoadingState(false);
+      }, Number.isFinite(maxVisibleMs) && maxVisibleMs > 0 ? maxVisibleMs : DISCOUNT_APPLY_LOADING_MAX_MS);
+      return;
+    }
+
+    if (discountApplyLoadingMaxTimer) {
+      clearTimeout(discountApplyLoadingMaxTimer);
+      discountApplyLoadingMaxTimer = null;
+    }
+
+    const elapsed = discountApplyLoadingStartedAt ? Date.now() - discountApplyLoadingStartedAt : minVisibleMs;
+    const delay = Math.max(0, (Number.isFinite(minVisibleMs) ? minVisibleMs : DISCOUNT_APPLY_LOADING_MIN_MS) - elapsed);
+
+    discountApplyLoadingHideTimer = setTimeout(() => {
+      discountApplyLoadingHideTimer = null;
+      discountApplyLoadingStartedAt = 0;
+      applyDiscountApplyLoadingState(false);
+    }, delay);
   };
 
   const waitForDiscountApplied = async (code, attempts = 8) => {
@@ -7968,7 +8060,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ? Math.round(minPurchase * priceDivisor(currency))
           : null;
 
-      const meta = getDiscountRuleMeta(rule, subtotalCents);
+      const meta = getDiscountRuleMeta(rule, subtotalCents, currency);
 
       const minPurchaseFail = minCents != null && subtotalCents < minCents;
 
@@ -8186,7 +8278,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
     }
 
-    const meta = getDiscountRuleMeta(rule, subtotal);
+    const meta = getDiscountRuleMeta(rule, subtotal, currency);
 
     if (
       meta &&
@@ -9681,7 +9773,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return percentText ? `Auto ${percentText}` : "Automatic discount";
   };
 
-  const getDiscountRuleMeta = (rule, subtotalCents) => {
+  const getDiscountRuleMeta = (rule, subtotalCents, currency = null) => {
     const raw = trimToNull(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "");
     if (!raw) return null;
 
@@ -9701,24 +9793,26 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const isPercent = hasPercentToken || (!hasFixedToken && num <= 100);
 
     const base = Math.max(0, Number(subtotalCents) || 0);
-    const cents = isPercent ? Math.round((base * num) / 100) : Math.round(num * 100);
+    const cents = isPercent
+      ? Math.round((base * num) / 100)
+      : Math.round(num * priceDivisor(currency));
     const capped = Math.max(0, Math.min(cents, base));
     return { isPercent, cents: Math.max(0, cents), capped };
   };
 
-  const parseDiscountRuleCents = (rule, subtotalCents) => {
-    const meta = getDiscountRuleMeta(rule, subtotalCents);
+  const parseDiscountRuleCents = (rule, subtotalCents, currency = null) => {
+    const meta = getDiscountRuleMeta(rule, subtotalCents, currency);
     return meta ? meta.capped : null;
   };
 
-  const resolveCodeDiscountCents = (rule, subtotalCents) => {
+  const resolveCodeDiscountCents = (rule, subtotalCents, currency = null) => {
     const code = trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
     const fromCart = getCartDiscountCodeAmountCents(code);
     if (Number.isFinite(fromCart) && fromCart > 0) {
       return Math.min(fromCart, Math.max(0, Number(subtotalCents) || 0));
     }
 
-    const fromRule = parseDiscountRuleCents(rule, subtotalCents);
+    const fromRule = parseDiscountRuleCents(rule, subtotalCents, currency);
     if (Number.isFinite(fromRule) && fromRule > 0) return fromRule;
 
     return null;
@@ -9726,6 +9820,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const formatDiscountAmount = (cents, currency) => {
     const formatted = formatMoney(cents, currency);
+    return `-${String(formatted || "").replace(/^\s+/, "")}`;
+  };
+
+  const formatDiscountAmountWithCode = (cents, currency) => {
+    const formatted = formatMoneyWithCode(cents, currency);
     return `-${String(formatted || "").replace(/^\s+/, "")}`;
   };
 
@@ -9763,13 +9862,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
 
     completedOrderDiscountSteps.forEach((step) => {
-      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
+      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents, currency);
 
       if (Number.isFinite(discountCents) && discountCents > 0) {
         rows.push({
           key: `order:${step?.rule?.id ?? step?.title ?? step?.slot}`,
           label: "Order Discount",
-          amount: formatDiscountAmount(discountCents, currency),
+          amount: formatDiscountAmountWithCode(discountCents, currency),
         });
       }
     });
@@ -9785,13 +9884,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const codeDiscountCents =
         Number.isFinite(actualCodeDiscountCents) && actualCodeDiscountCents > 0
           ? actualCodeDiscountCents
-          : resolveCodeDiscountCents(appliedCode.rule, subtotalCents);
+          : resolveCodeDiscountCents(appliedCode.rule, subtotalCents, currency);
 
       if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
         rows.push({
           key: `code:${appliedCode.code}`,
           label: `Discount Code (${String(appliedCode.code).toUpperCase()})`,
-          amount: formatDiscountAmount(codeDiscountCents, currency),
+          amount: formatDiscountAmountWithCode(codeDiscountCents, currency),
         });
       }
     }
@@ -9811,7 +9910,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         rows.push({
           key: `code:${code}`,
           label: `Discount Code (${String(code).toUpperCase()})`,
-          amount: formatDiscountAmount(Math.min(amount, subtotalCents), currency),
+          amount: formatDiscountAmountWithCode(Math.min(amount, subtotalCents), currency),
         });
       }
     });
@@ -9900,7 +9999,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
 
     const autoDiscountCents = completedAutoDiscountSteps.reduce((sum, step) => {
-      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents);
+      const discountCents = parseDiscountRuleCents(step?.rule, subtotalCents, currency);
       return Number.isFinite(discountCents) && discountCents > 0 ? sum + discountCents : sum;
     }, 0);
 
@@ -9912,7 +10011,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const codeDiscountCents =
         Number.isFinite(actualCodeDiscountCents) && actualCodeDiscountCents > 0
           ? actualCodeDiscountCents
-          : resolveCodeDiscountCents(appliedCodeRuleForTotal.rule, subtotalCents);
+          : resolveCodeDiscountCents(appliedCodeRuleForTotal.rule, subtotalCents, currency);
       if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
         codeDiscountCentsForTotal += codeDiscountCents;
       }
