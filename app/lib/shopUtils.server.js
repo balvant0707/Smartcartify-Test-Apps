@@ -29,12 +29,20 @@ export const normalizeShopDomain = (value, strict = false) => {
 };
 
 /**
- * Extracts shop domain from request headers or query params
+ * Extracts shop domain from query params or request headers.
+ *
+ * Shopify app proxy requests include a signed `shop` query parameter. Prefer it
+ * over headers so multi-store installs cannot accidentally share data because
+ * of a stale forwarded header.
  *
  * @param {Request} request - The incoming request
  * @returns {string|null} - Normalized shop domain or null
  */
 export const getShopFromRequest = (request) => {
+  const url = new URL(request.url);
+  const queryShop = normalizeShopDomain(url.searchParams.get("shop"), true);
+  if (queryShop) return queryShop;
+
   const headers = request.headers;
   const candidates = [
     headers.get("x-shopify-shop-domain"),
@@ -47,8 +55,7 @@ export const getShopFromRequest = (request) => {
     if (normalized) return normalized;
   }
 
-  const url = new URL(request.url);
-  return normalizeShopDomain(url.searchParams.get("shop"), true);
+  return null;
 };
 
 export default { normalizeShopDomain, getShopFromRequest };
