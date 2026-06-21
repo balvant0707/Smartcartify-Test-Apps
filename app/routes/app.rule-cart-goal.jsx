@@ -163,6 +163,61 @@ const CART_GOAL_ORDER_DISCOUNT_COMBINES_WITH = {
   shippingDiscounts: true,
 };
 
+
+const DEFAULT_STORE_CURRENCY_CODE = "INR";
+const DEFAULT_STORE_CURRENCY_SYMBOL = "₹";
+
+function currencySymbolFromCode(currencyCode) {
+  const code = String(currencyCode || DEFAULT_STORE_CURRENCY_CODE).trim().toUpperCase();
+
+  try {
+    const part = new Intl.NumberFormat("en", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "narrowSymbol",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })
+      .formatToParts(0)
+      .find((item) => item.type === "currency");
+
+    return part?.value || code;
+  } catch {
+    return DEFAULT_STORE_CURRENCY_SYMBOL;
+  }
+}
+
+async function getShopCurrency(admin) {
+  try {
+    const response = await admin.graphql(`
+      query ShopCurrencyForCartGoal {
+        shop {
+          currencyCode
+        }
+      }
+    `);
+    const payload = await response.json();
+    const currencyCode = String(
+      payload?.data?.shop?.currencyCode || DEFAULT_STORE_CURRENCY_CODE
+    ).toUpperCase();
+
+    return {
+      currencyCode,
+      currencySymbol: currencySymbolFromCode(currencyCode),
+    };
+  } catch (error) {
+    console.error("[Cart Goal] Failed to load shop currency:", error);
+    return {
+      currencyCode: DEFAULT_STORE_CURRENCY_CODE,
+      currencySymbol: DEFAULT_STORE_CURRENCY_SYMBOL,
+    };
+  }
+}
+
+function formatCurrencyAmount(value, currencySymbol = DEFAULT_STORE_CURRENCY_SYMBOL) {
+  return `${currencySymbol}${value}`;
+}
+
 function makeRewardId(type, index) {
   const seed = `${type}-${index + 1}`;
   let hash = 0;
@@ -315,11 +370,11 @@ function serializeGoals(goals) {
   return JSON.stringify((Array.isArray(goals) ? goals : defaultGoals()).map(normalizeGoal));
 }
 
-function formatDiscountValue(goal) {
+function formatDiscountValue(goal, currencySymbol = DEFAULT_STORE_CURRENCY_SYMBOL) {
   const value = goal?.value || "0";
   return goal?.discountType === "amount"
-  ? `${storeCurrencySymbol}${value}`
-  : `${value}%`;
+    ? formatCurrencyAmount(value, currencySymbol)
+    : `${value}%`;
 }
 
 function getGoalContentText(goal, key) {
@@ -484,12 +539,17 @@ async function syncCartGoalDiscounts({
 }
 
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const id = Number.parseInt(url.searchParams.get("id") || "", 10);
+  const shopCurrency = await getShopCurrency(admin);
 
   if (!Number.isFinite(id)) {
-    return { rule: null, nextCampaignName: await nextCartGoalCampaignName(session.shop) };
+    return {
+      rule: null,
+      nextCampaignName: await nextCartGoalCampaignName(session.shop),
+      ...shopCurrency,
+    };
   }
 
   const row = await prisma.cartGoalRule.findFirst({
@@ -498,6 +558,7 @@ export const loader = async ({ request }) => {
 
   return {
     nextCampaignName: "Cart Goal 1",
+    ...shopCurrency,
     rule: row
       ? {
         ...row,
@@ -856,10 +917,11 @@ function GoalCard({
   onMove,
   onDelete,
   onRewardTypeChange,
+  currencySymbol = DEFAULT_STORE_CURRENCY_SYMBOL,
 }) {
   const [rewardMenuOpen, setRewardMenuOpen] = useState(false);
   const icon = REWARD_CONFIG[goal.type].icon;
-  const goalPrefix = trackBy === "quantity" ? "Qty" : "INR";
+  const goalPrefix = trackBy === "quantity" ? "Qty" : currencySymbol;
   const ordinal = `${index + 1}${index === 0 ? "st" : index === 1 ? "nd" : "rd"}`;
   const selectedGiftProductIds = Array.isArray(goal.bonusProductIds)
     ? goal.bonusProductIds
@@ -1156,7 +1218,7 @@ function GoalCard({
                       value={goal.value}
                       onChange={(value) => onGoalChange(index, { value })}
                       suffix={goal.discountType === "percentage" ? "%" : undefined}
-                      prefix={goal.discountType === "amount" ? "INR" : undefined}
+                      prefix={goal.discountType === "amount" ? currencySymbol : undefined}
                       autoComplete="off"
                       error={rewardValidationError || undefined}
                       helpText={
@@ -1197,6 +1259,7 @@ function PreviewPanel({
   trackBy,
   sliderValue,
   onSliderChange,
+  currencySymbol = DEFAULT_STORE_CURRENCY_SYMBOL,
 }) {
   const activeGoals = Array.isArray(goals) ? goals : [];
   const visibleGoals = activeGoals.slice(0, shownGoals || 3);
@@ -1209,14 +1272,14 @@ function PreviewPanel({
   const messageGoal = nextIncompleteGoal || visibleGoals[visibleGoals.length - 1];
   const isMessageGoalCompleted = Boolean(messageGoal) && !nextIncompleteGoal;
   const remaining = Math.max(0, Number(messageGoal?.goal || 0) - cartValue).toFixed(0);
-  const goalToken = trackBy === "quantity" ? remaining : `${storeCurrencySymbol}${remaining}`;
+  const goalToken = trackBy === "quantity" ? remaining : formatCurrencyAmount(remaining, currencySymbol);
   const messageTemplate = isMessageGoalCompleted
     ? getGoalContentText(messageGoal, "aboveAfter")
     : getGoalContentText(messageGoal, "aboveBefore");
   const message = messageGoal && messageTemplate
     ? messageTemplate
       .replaceAll("{{goal}}", goalToken)
-      .replaceAll("{{discount}}", formatDiscountValue(messageGoal))
+      .replaceAll("{{discount}}", formatDiscountValue(messageGoal, currencySymbol))
     : "Select a reward type";
 
   return (
@@ -1293,7 +1356,7 @@ function PreviewPanel({
                       </span>
                       <span>
                         {goal.type === "discount"
-                          ? `${formatDiscountValue(goal)} Off`
+                          ? `${formatDiscountValue(goal, currencySymbol)} Off`
                           : goal.previewLabel}
                       </span>
                     </div>
@@ -1752,7 +1815,12 @@ export default function RuleCartGoal() {
   const [searchParams] = useSearchParams();
   const host = searchParams.get("host");
   const id = searchParams.get("id");
-  const { rule, nextCampaignName } = useLoaderData();
+  const {
+    rule,
+    nextCampaignName,
+    currencyCode = DEFAULT_STORE_CURRENCY_CODE,
+    currencySymbol = DEFAULT_STORE_CURRENCY_SYMBOL,
+  } = useLoaderData();
   const actionData = useActionData();
   const navigation = useNavigation();
   const submit = useSubmit();
@@ -2673,6 +2741,7 @@ export default function RuleCartGoal() {
                           )
                         }
                         onRewardTypeChange={changeGoalRewardType}
+                        currencySymbol={currencySymbol}
                       />
                     ))}
                   </div>
@@ -2740,6 +2809,7 @@ export default function RuleCartGoal() {
             trackBy={trackBy}
             sliderValue={sliderValue}
             onSliderChange={setSliderValue}
+            currencySymbol={currencySymbol}
           />
         </div>
       </Box>
