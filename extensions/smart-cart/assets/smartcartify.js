@@ -18,18 +18,24 @@
     proxyPath = `/${proxyPath}`;
   }
   if (proxyPath.endsWith("/")) proxyPath = proxyPath.slice(0, -1);
+  const directProxyPath = "https://smartcartify-test-apps.vercel.app/proxy/smart";
+  const shopDomain = String(window.Shopify?.shop || root.dataset.shop || "").trim();
   const customerLoggedIn = String(root.dataset.customerLoggedIn || "false") === "true";
   const customerTags = String(root.dataset.customerTags || "");
   const storefrontLocale =
     String(root.dataset.locale || window.Shopify?.locale || navigator.language || "")
       .trim();
 
-  const buildProxyUrl = (cart = CART) => {
-    const base = new URL(proxyPath, window.location.origin);
+  const buildProxyUrl = (cart = CART, path = proxyPath) => {
+    const base = new URL(path, window.location.origin);
     const subtotalRupees = (Number(cart?.items_subtotal_price || 0) / priceDivisor()) || 0;
     const quantity = Number(cart?.item_count || 0) || getCartTotalQty();
     base.searchParams.set("subtotal", String(subtotalRupees));
     base.searchParams.set("quantity", String(quantity));
+    if (shopDomain && /^https?:\/\//i.test(String(path || ""))) {
+      base.searchParams.set("shop", shopDomain);
+      base.searchParams.set("_sc_direct", "1");
+    }
     base.searchParams.set("customer_logged_in", customerLoggedIn ? "true" : "false");
     if (customerTags) base.searchParams.set("customer_tags", customerTags);
     if (storefrontLocale) base.searchParams.set("locale", storefrontLocale);
@@ -45,7 +51,7 @@
       abSeed = String(Date.now());
     }
     base.searchParams.set("ab_seed", abSeed);
-    return `${base.pathname}${base.search}`;
+    return /^https?:\/\//i.test(String(path || "")) ? base.href : `${base.pathname}${base.search}`;
   };
 
   /* =========================================================
@@ -2776,52 +2782,63 @@
   };
 
   const fetchProxy = async (cart = CART) => {
-    const r = await fetch(buildProxyUrl(cart), {
-      headers: { Accept: "application/json" },
-      credentials: "same-origin",
-    });
+    const urls = shopDomain
+      ? [buildProxyUrl(cart, directProxyPath), buildProxyUrl(cart)]
+      : [buildProxyUrl(cart)];
+    let lastError = null;
 
-    const ct = r.headers.get("content-type") || "";
-    if (!r.ok) {
-      let text = "";
+    for (const url of urls) {
       try {
-        text = await r.text();
-      } catch { }
-      return {
-        ok: true,
-        _proxyError: new Error(
-          `[SmartCartify] Proxy fetch failed (${r.status}). ct=${ct} body=${text.slice(
-            0,
-            220
-          )}...`
-        ),
-      };
+        const isDirect = /^https?:\/\//i.test(String(url || ""));
+        const r = await fetch(url, {
+          headers: { Accept: "application/json" },
+          credentials: isDirect ? "omit" : "same-origin",
+        });
+
+        const ct = r.headers.get("content-type") || "";
+        if (!r.ok) {
+          let text = "";
+          try {
+            text = await r.text();
+          } catch { }
+          lastError = new Error(
+            `[SmartCartify] Proxy fetch failed (${r.status}). ct=${ct} body=${text.slice(
+              0,
+              220
+            )}...`
+          );
+          continue;
+        }
+
+        if (!ct.includes("application/json")) {
+          let text = "";
+          try {
+            text = await r.text();
+          } catch { }
+          lastError = new Error(
+            `[SmartCartify] Proxy not JSON. status=${r.status} ct=${ct} body=${text.slice(
+              0,
+              220
+            )}...`
+          );
+          continue;
+        }
+
+        const j = await r.json();
+        if (!j?.ok) {
+          lastError = new Error(j?.error || "Invalid proxy response (ok:false)");
+          continue;
+        }
+        return j;
+      } catch (err) {
+        lastError = err;
+      }
     }
 
-    if (!ct.includes("application/json")) {
-      let text = "";
-      try {
-        text = await r.text();
-      } catch { }
-      return {
-        ok: true,
-        _proxyError: new Error(
-          `[SmartCartify] Proxy not JSON. status=${r.status} ct=${ct} body=${text.slice(
-            0,
-            220
-          )}...`
-        ),
-      };
-    }
-
-    const j = await r.json();
-    if (!j?.ok) {
-      return {
-        ok: true,
-        _proxyError: new Error(j?.error || "Invalid proxy response (ok:false)"),
-      };
-    }
-    return j;
+    return {
+      ok: true,
+      _proxyError: lastError || new Error("[SmartCartify] Proxy fetch failed"),
+    };
   };
 
   const cartChange = async (line, quantity) => {

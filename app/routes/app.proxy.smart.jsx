@@ -54,6 +54,36 @@ const jsonResponse = (data, status = 200, extraHeaders = {}) =>
     },
   });
 
+const originFromHeader = (value) => {
+  try {
+    return value ? new URL(value).hostname.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+};
+
+const directProxyCorsHeaders = (request) => {
+  const origin = request.headers.get("origin");
+  return origin
+    ? {
+        "Access-Control-Allow-Origin": origin,
+        "Vary": "Origin",
+      }
+    : {};
+};
+
+const isAllowedDirectProxyRequest = (request) => {
+  const url = new URL(request.url);
+  if (url.searchParams.get("_sc_direct") !== "1") return false;
+
+  const shop = getShopFromRequest(request);
+  if (!shop) return false;
+
+  const originHost = originFromHeader(request.headers.get("origin"));
+  const referrerHost = originFromHeader(request.headers.get("referer"));
+  return [originHost, referrerHost].some((host) => host === shop);
+};
+
 const DEFAULT_ADD_TO_CART_BAR_SETTINGS = {
   status: "active",
   mobileShowCondition: "notinview",
@@ -818,13 +848,16 @@ const resolveShopAccessToken = async (shop, shopRow) => {
 };
 
 export const loader = async ({ request }) => {
-  if (!verifyAppProxySignature(request)) {
-    return jsonResponse({ ok: false, error: "Invalid proxy signature" }, 401);
+  const isDirectProxy = isAllowedDirectProxyRequest(request);
+  const responseHeaders = isDirectProxy ? directProxyCorsHeaders(request) : {};
+
+  if (!isDirectProxy && !verifyAppProxySignature(request)) {
+    return jsonResponse({ ok: false, error: "Invalid proxy signature" }, 401, responseHeaders);
   }
 
   const shop = getShopFromRequest(request);
   if (!shop) {
-    return jsonResponse({ ok: false, error: "Shop domain not provided" }, 400);
+    return jsonResponse({ ok: false, error: "Shop domain not provided" }, 400, responseHeaders);
   }
 
   try {
@@ -1079,6 +1112,7 @@ export const loader = async ({ request }) => {
       200,
       {
         "Cache-Control": "private, max-age=30",
+        ...responseHeaders,
       }
     );
   } catch (error) {
@@ -1095,7 +1129,7 @@ export const loader = async ({ request }) => {
             configSource: "stale-cache",
           }),
           200,
-          { "Cache-Control": "private, max-age=10" }
+          { "Cache-Control": "private, max-age=10", ...responseHeaders }
         );
       }
 
@@ -1109,7 +1143,7 @@ export const loader = async ({ request }) => {
           configSource: "safe-defaults",
         }),
         200,
-        { "Cache-Control": "private, max-age=10" }
+        { "Cache-Control": "private, max-age=10", ...responseHeaders }
       );
     }
 
@@ -1122,7 +1156,8 @@ export const loader = async ({ request }) => {
             ? error.message
             : "Failed to load CartLift: Cart Drawer & Upsell configuration",
       },
-      500
+      500,
+      responseHeaders
     );
   }
 };

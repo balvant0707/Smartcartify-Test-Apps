@@ -317,7 +317,9 @@ function serializeGoals(goals) {
 
 function formatDiscountValue(goal) {
   const value = goal?.value || "0";
-  return goal?.discountType === "amount" ? `INR ${value}` : `${value}%`;
+  return goal?.discountType === "amount"
+  ? `${storeCurrencySymbol}${value}`
+  : `${value}%`;
 }
 
 function getGoalContentText(goal, key) {
@@ -1207,7 +1209,7 @@ function PreviewPanel({
   const messageGoal = nextIncompleteGoal || visibleGoals[visibleGoals.length - 1];
   const isMessageGoalCompleted = Boolean(messageGoal) && !nextIncompleteGoal;
   const remaining = Math.max(0, Number(messageGoal?.goal || 0) - cartValue).toFixed(0);
-  const goalToken = trackBy === "quantity" ? remaining : `${remaining} INR`;
+  const goalToken = trackBy === "quantity" ? remaining : `${storeCurrencySymbol}${remaining}`;
   const messageTemplate = isMessageGoalCompleted
     ? getGoalContentText(messageGoal, "aboveAfter")
     : getGoalContentText(messageGoal, "aboveBefore");
