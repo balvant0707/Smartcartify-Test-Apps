@@ -3662,7 +3662,7 @@
       const code = getDiscountRuleCode(rule);
       if (!code) continue;
 
-      if (isDiscountAppliedInCart(code)) {
+      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) {
         return { rule, code };
       }
     }
@@ -7979,7 +7979,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const getCheckoutDiscountCode = () => {
     const appliedCodes = getAppliedDiscountCodes();
-    return appliedCodes.length ? appliedCodes[0] : null;
+    if (appliedCodes.length) return appliedCodes[0];
+
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    if (!manualCode) return null;
+
+    const rule = findCodeDiscountRuleByCode(manualCode);
+    if (!rule) return null;
+
+    const validation = validateCodeDiscountRule(rule, getCartSubtotalCents());
+    return validation.ok ? manualCode : null;
   };
 
   const getStorefrontRootPath = () => {
@@ -8038,7 +8047,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       throw new Error(`Discount endpoint failed (${res?.status || "unknown"})`);
     }
 
-    return waitForDiscountApplied(code);
+    const applied = await waitForDiscountApplied(code, 12);
+    if (applied) return true;
+
+    // Shopify can accept /discount/{code} into the storefront session without
+    // immediately reflecting the raw code in /cart.js. For app-configured code
+    // rules, keep the code and send it again on checkout instead of clearing it.
+    return Boolean(findCodeDiscountRuleByCode(code));
   };
 
   const isCartGoalRewardSelectionMandatory = (campaign) => {
@@ -8233,9 +8248,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         throw new Error(`Discount code was not accepted by Shopify: ${code}`);
       }
 
+      rememberManualDiscountCode(code);
       renderAllFromCache();
 
-      rememberManualDiscountCode(code);
       if (discountMsg) discountMsg.style.color = "#16a34a";
       setDiscountMessage(`Discount applied: ${code}`);
     } catch (err) {
