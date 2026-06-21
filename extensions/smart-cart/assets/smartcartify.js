@@ -1145,6 +1145,29 @@
     return "discount";
   };
 
+  const isDefaultCartGoalShippingGoal = (goal) => {
+    if (normalizeCartGoalRewardType(goal) !== "shipping") return false;
+
+    const hasShopifyDiscount =
+      trimToNull(goal?.shopifyDiscountId) ||
+      trimToNull(goal?.shopify_discount_id) ||
+      trimToNull(goal?.discountId) ||
+      trimToNull(goal?.discount_id);
+    if (hasShopifyDiscount) return false;
+
+    const title = String(
+      goal?.title ??
+      goal?.cartGoalTitle ??
+      goal?.goalTitle ??
+      goal?.previewLabel ??
+      ""
+    )
+      .trim()
+      .toLowerCase();
+
+    return !title || title === "free shipping" || title === "free shipping!";
+  };
+
   const getCartGoalBonusProductIds = (goal) => {
     const products = Array.isArray(goal?.bonusProducts)
       ? goal.bonusProducts
@@ -2931,6 +2954,15 @@
     requestAnimationFrame(() => requestAnimationFrame(() => backdrop.classList.add("open")));
     setTimeout(dismiss, ms);
     return true;
+  };
+
+  const celebrateDiscountApplied = (code) => {
+    firePaperEffect(2200);
+    showCenterCelebratePopup(
+      "Discount Applied",
+      `${String(code || "").toUpperCase()} has been added to your cart.`,
+      2200
+    );
   };
 
   /* =========================================================
@@ -6448,7 +6480,7 @@ display: flex;
 .icon.icon-cart.cart-lift {
     height: 2.4rem !important;
     width: 2.4rem !important;
-    fill: var(--sc-base-font-size);
+    fill: currentColor;
     vertical-align: middle;
 }
 /* confetti */
@@ -8014,46 +8046,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const applyCodeThroughShopify = async (code) => {
-    try {
-      const cartRes = await fetch("/cart/update.js", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          discount: code,
-          attributes: {
-            discount_code: code,
-            discountCode: code,
-          },
-        }),
-      });
-      if (cartRes?.ok) {
-        try {
-          CART = await cartRes.json();
-        } catch { }
-        if (isDiscountAppliedInCart(code)) return true;
-      }
-    } catch { }
-
     const target = buildDiscountUrl(code, "/cart");
     const res = await fetch(target, {
-      method: "GET",
       credentials: "same-origin",
       redirect: "follow",
-      cache: "no-store",
     });
 
     if (!res || (!res.ok && res.type !== "opaqueredirect")) {
       throw new Error(`Discount endpoint failed (${res?.status || "unknown"})`);
     }
 
-    const applied = await waitForDiscountApplied(code, 12);
-    if (applied) return true;
-
-    // Shopify can accept /discount/{code} into the storefront session without
-    // immediately reflecting the raw code in /cart.js. For app-configured code
-    // rules, keep the code and send it again on checkout instead of clearing it.
-    return Boolean(findCodeDiscountRuleByCode(code));
+    return true;
   };
 
   const isCartGoalRewardSelectionMandatory = (campaign) => {
@@ -8249,10 +8252,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
 
       rememberManualDiscountCode(code);
+      await refreshFromNetwork();
       renderAllFromCache();
 
       if (discountMsg) discountMsg.style.color = "#16a34a";
       setDiscountMessage(`Discount applied: ${code}`);
+      celebrateDiscountApplied(code);
     } catch (err) {
       console.error("[SmartCartify] discount apply failed:", err);
       if (discountMsg) discountMsg.style.color = "#dc2626";
@@ -8710,6 +8715,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           const goals = parseArrayish(campaign?.goals);
           return goals
             .filter((goal) => goal && Number(goal?.goal) > 0)
+            .filter((goal) => !isDefaultCartGoalShippingGoal(goal))
             .map((goal, index) => buildCartGoalRule(campaign, goal, index));
         })
       : [];
@@ -9751,10 +9757,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
     });
 
-    // ✅ Code Discount: code actually applied hoy tyare j show
+    // Code Discount: show Shopify-applied codes and locally remembered app codes.
     const appliedCode = findAppliedDiscountCodeRule();
 
-    if (appliedCode?.rule && isDiscountAppliedInCart(appliedCode.code)) {
+    if (
+      appliedCode?.rule &&
+      (isDiscountAppliedInCart(appliedCode.code) || isManualDiscountCodeRemembered(appliedCode.code))
+    ) {
       const actualCodeDiscountCents = getCartDiscountCodeAmountCents(appliedCode.code);
       const codeDiscountCents =
         Number.isFinite(actualCodeDiscountCents) && actualCodeDiscountCents > 0
