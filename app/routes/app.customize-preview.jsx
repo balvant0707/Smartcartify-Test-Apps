@@ -828,7 +828,7 @@ function renderRichMessage(parts, keyPrefix = "msg") {
 
   return normalizedParts.map((part, index) =>
     part.bold ? (
-      <strong key={`${keyPrefix}-${index}`} style={{ fontWeight: 900 }}>
+      <strong key={`${keyPrefix}-${index}`} style={{ fontWeight: 700 }}>
         {part.text}
       </strong>
     ) : (
@@ -1617,11 +1617,11 @@ function CartDrawerPreview({
               ) : (
                 <PreviewIcon source={headerCartIcon} size={22} color={ic || hc} />
               )}
-              <span style={{ color: hc, fontWeight: 900, fontSize: headingFs, lineHeight: 1.1 }}>
+              <span style={{ color: hc, fontWeight: 700, fontSize: headingFs, lineHeight: 1.1 }}>
                 {activeDrawerTab === "offers" ? "Offers" : "Your Cart"}
               </span>
               {activeDrawerTab === "cart" && (
-                <span style={{ color: hc, fontWeight: 800, fontSize: Math.max(fs, 12), opacity: 0.82 }}>
+                <span style={{ color: hc, fontWeight: 700, fontSize: Math.max(fs, 12), opacity: 0.82 }}>
                   (1)
                 </span>
               )}
@@ -1779,7 +1779,7 @@ function CartDrawerPreview({
                       fontSize: Math.max(fs - 2, 10),
                       lineHeight: "13px",
                       color: ptc,
-                      fontWeight: 800,
+                      fontWeight: 700,
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -1808,7 +1808,7 @@ function CartDrawerPreview({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <InlineStack align="space-between" blockAlign="start" wrap={false}>
                   <BlockStack gap="050">
-                    <div style={{ color: tc, fontWeight: 900, fontSize: Math.max(fs + 1, 13), lineHeight: "17px" }}>
+                    <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 1, 13), lineHeight: "17px" }}>
                       {mainProduct.title || "Sample Product"}
                     </div>
                     <div style={{ color: `${tc}99`, fontSize: Math.max(fs - 1, 11) }}>
@@ -1821,10 +1821,10 @@ function CartDrawerPreview({
                 <InlineStack align="space-between" blockAlign="center" wrap={false}>
                   <InlineStack gap="100" blockAlign="center" wrap={false}>
                     <button type="button" style={{ width: 24, height: 24, borderRadius: 6, border: `1px solid ${brc}`, background: "#fff", color: ic, cursor: "pointer" }}>-</button>
-                    <span style={{ minWidth: 18, textAlign: "center", fontWeight: 800 }}>1</span>
+                    <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700 }}>1</span>
                     <button type="button" style={{ width: 24, height: 24, borderRadius: 6, border: `1px solid ${brc}`, background: "#fff", cursor: "pointer" }}>+</button>
                   </InlineStack>
-                  <div style={{ color: tc, fontWeight: 900 }}>{mainProduct.price || formatCurrencyAmount(300, shopCurrencyCode)}</div>
+                  <div style={{ color: tc, fontWeight: 700 }}>{mainProduct.price || formatCurrencyAmount(300, shopCurrencyCode)}</div>
                 </InlineStack>
               </div>
             </InlineStack>
@@ -1835,7 +1835,7 @@ function CartDrawerPreview({
               <Divider />
               <Box padding="400" background="transparent">
                 <BlockStack gap="200">
-                  <div style={{ textAlign: "center", color: tc, fontSize: Math.max(fs + 2, 14), fontWeight: 900 }}>
+                  <div style={{ textAlign: "center", color: tc, fontSize: Math.max(fs + 2, 14), fontWeight: 700 }}>
                     Free product
                   </div>
                   <InlineStack gap="200" blockAlign="center" wrap={false}>
@@ -1875,7 +1875,7 @@ function CartDrawerPreview({
                     >
                       <ProductImage src={activeFreeProduct.image} alt={activeFreeProduct.title} size={50} />
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ color: tc, fontWeight: 900, fontSize: Math.max(fs + 1, 13), lineHeight: "17px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 1, 13), lineHeight: "17px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {activeFreeProduct.title || "Free product"}
                         </div>
                         <div style={{ color: `${tc}99`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 3, lineHeight: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -1939,7 +1939,7 @@ function CartDrawerPreview({
               <Divider />
               <Box padding="400" background="transparent">
                 <BlockStack gap="200">
-                  <div style={{ textAlign: "center", color: `${upsellTextColor}99`, fontSize: Math.max(fs - 1, 11), fontWeight: 800 }}>
+                  <div style={{ textAlign: "center", color: `${upsellTextColor}99`, fontSize: Math.max(fs - 1, 11), fontWeight: 700 }}>
                     {upsellTitle}
                   </div>
 
@@ -1985,7 +1985,7 @@ function CartDrawerPreview({
                         <ProductImage src={activeUpsellProduct.image} alt={activeUpsellProduct.title} size={48} />
 
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ color: upsellTextColor, fontWeight: 900, fontSize: Math.max(fs, 12), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <div style={{ color: upsellTextColor, fontWeight: 700, fontSize: Math.max(fs, 12), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {activeUpsellProduct.title || "Nike Orange"}
                           </div>
                           <div style={{ color: `${upsellTextColor}CC`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 2 }}>
@@ -2001,7 +2001,7 @@ function CartDrawerPreview({
                             border: "none",
                             borderRadius: Math.max(r, 6),
                             padding: "8px 12px",
-                            fontWeight: 900,
+                            fontWeight: 700,
                             fontSize: Math.max(fs - 1, 11),
                             whiteSpace: "nowrap",
                             cursor: "pointer",
@@ -2055,7 +2055,7 @@ function CartDrawerPreview({
                         >
                           <ProductImage src={product.image} alt={product.title} size={48} />
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ color: upsellTextColor, fontWeight: 900, fontSize: Math.max(fs, 12), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            <div style={{ color: upsellTextColor, fontWeight: 700, fontSize: Math.max(fs, 12), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                               {product.title || "Nike Orange"}
                             </div>
                             <div style={{ color: `${upsellTextColor}CC`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 2 }}>
@@ -2070,7 +2070,7 @@ function CartDrawerPreview({
                               border: "none",
                               borderRadius: Math.max(r, 6),
                               padding: "8px 12px",
-                              fontWeight: 900,
+                              fontWeight: 700,
                               fontSize: Math.max(fs - 1, 11),
                               whiteSpace: "nowrap",
                               cursor: "pointer",
@@ -2158,7 +2158,7 @@ function CartDrawerPreview({
                     </div>
                   )}
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ color: tc, fontWeight: 900, fontSize: Math.max(fs + 3, 15), lineHeight: "20px" }}>
+                    <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 3, 15), lineHeight: "20px" }}>
                       {offer.title}
                     </div>
                     <div style={{ color: `${tc}99`, fontSize: Math.max(fs, 12), lineHeight: "17px", marginTop: 4, fontWeight: 700 }}>
@@ -2176,7 +2176,7 @@ function CartDrawerPreview({
                         padding: "8px 10px",
                       }}
                     >
-                      <div style={{ color: tc, fontWeight: 900, fontSize: Math.max(fs + 1, 13), whiteSpace: "nowrap" }}>
+                      <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 1, 13), whiteSpace: "nowrap" }}>
                         {offer.code}
                       </div>
                     </div>
@@ -2189,7 +2189,7 @@ function CartDrawerPreview({
                         color: blc,
                         borderRadius: Math.max(r, 6),
                         padding: "12px 14px",
-                        fontWeight: 900,
+                        fontWeight: 700,
                         whiteSpace: "nowrap",
                         cursor: "pointer",
                       }}
@@ -2200,7 +2200,7 @@ function CartDrawerPreview({
                 </div>
               ))
             ) : (
-              <div style={{ padding: 24, textAlign: "center", color: `${tc}99`, fontWeight: 800 }}>
+              <div style={{ padding: 24, textAlign: "center", color: `${tc}99`, fontWeight: 700 }}>
                 No offers configured yet.
               </div>
             )}
@@ -2229,7 +2229,7 @@ function CartDrawerPreview({
                   color: blc,
                   padding: "0 16px",
                   minHeight: 40,
-                  fontWeight: 900,
+                  fontWeight: 700,
                   fontSize: Math.max(fs - 1, 11),
                   cursor: "pointer",
                   whiteSpace: "nowrap",
@@ -2259,7 +2259,7 @@ function CartDrawerPreview({
           <Box padding="200">
             <BlockStack gap="050">
               <div style={{ color: `${tc}99`, fontSize: Math.max(fs), fontWeight: 700 }}>Total</div>
-              <div style={{ color: tc, fontSize: Math.max(fs + 2, 14), fontWeight: 900, lineHeight: "18px" }}>{totalPrice}</div>
+              <div style={{ color: tc, fontSize: Math.max(fs + 2, 14), fontWeight: 700, lineHeight: "18px" }}>{totalPrice}</div>
             </BlockStack>
           </Box>
 
@@ -2269,7 +2269,7 @@ function CartDrawerPreview({
               placeItems: "center",
               background: bc,
               color: blc,
-              fontWeight: 900,
+              fontWeight: 700,
               fontSize: Math.max(fs, 12),
               textAlign: "center",
               padding: "0 12px",
@@ -2320,7 +2320,7 @@ function CartDrawerPreview({
                     justifyContent: "center",
                     gap: 6,
                     fontSize: Math.max(fs + 1, 13),
-                    fontWeight: 900,
+                    fontWeight: 700,
                     cursor: "pointer",
                   }}
                 >
@@ -2459,7 +2459,7 @@ export default function CustomizePreview() {
         </Box>
       )}
 
-      <Box paddingBlockEnd="800">
+      <Box paddingBlockEnd="700">
         <div className="cp-layout">
 
           {/* ── Main column ── */}
