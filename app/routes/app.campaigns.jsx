@@ -516,11 +516,11 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
 
       <div
         style={{
-          padding: "28px 42px 34px",
+          padding: "15px 30px 15px",
           textAlign: "center",
         }}
       >
-        <BlockStack>
+        <BlockStack gap="300">
           <Text variant="headingXl" as="h2" fontWeight="bold">
             {ruleType.preview.title}
           </Text>

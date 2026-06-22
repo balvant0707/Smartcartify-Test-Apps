@@ -11609,9 +11609,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     drawer.__sc_reward_popup_for = `${kind}:${guardKey || ""}`;
 
-    // BXGY is marked on open. Free gifts are marked only after the shopper adds one.
-    if (guardKey && kind !== "free" && !force) markPopupShown(kind, guardKey);
-
     if (!variant && !isMultiOptionReward && hasBxgyReferences) {
       if (state.contentEl) state.contentEl.hidden = true;
       if (state.headerSubEl) state.headerSubEl.textContent = "Products or collections included in this offer";
@@ -12134,8 +12131,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const isDrawerOpen = drawer.classList.contains("open");
 
     const showCompletedBxgyRewardPopup = () => {
-      if (!isDrawerOpen) return false;
-
       const firstCompleted = buyStatuses.find((x) => x.complete);
       if (firstCompleted) {
         const popupShown = openRewardPopupFor({
