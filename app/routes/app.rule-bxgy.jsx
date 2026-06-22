@@ -1080,7 +1080,7 @@ export default function RuleBxgy() {
         {
           content: status === "active" ? "Pause" : "Activate",
           tone: status === "active" ? "caution" : "success",
-          accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
+          accessibilityLabel: status === "active" ? "Pause campaign" : "Activate campaign",
           onAction: () => setStatus((value) => (value === "active" ? "paused" : "active")),
         },
       ]}
