@@ -709,6 +709,26 @@
     }
   };
 
+  const stripCampaignAmountDecimals = (text) =>
+    String(text ?? "").replace(/\b(\d{1,3}(?:,\d{3})*|\d+)\.\d+\b/g, "$1");
+
+  const formatCampaignMoney = (cents, currency = null) => {
+    const shopCurrency = currency || window.Shopify?.currency?.active || "USD";
+    const amount = (Number(cents) || 0) / priceDivisor(shopCurrency);
+    const wholeAmount = amount < 0 ? Math.ceil(amount) : Math.floor(amount);
+    const locale = window.Shopify?.locale || navigator.language || "en-US";
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: shopCurrency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(wholeAmount);
+    } catch {
+      return `${shopCurrency} ${wholeAmount}`;
+    }
+  };
+
   const normalizeCurrencyCode = (currency = null) => {
     const raw =
       trimToNull(currency) ||
@@ -974,7 +994,7 @@
     }
 
     if (hasAmountToken && Number.isFinite(numeric) && numeric > 0) {
-      const money = formatMoney(
+      const money = formatCampaignMoney(
         Math.round(numeric * priceDivisor(CART?.currency)),
         CART?.currency
       );
@@ -1066,13 +1086,13 @@
         ? ""
         : isQuantity
           ? formatQuantityGoal(goalValue)
-          : formatMoney(amountToCurrencyMinorUnits(goalValue), CART?.currency);
+          : formatCampaignMoney(amountToCurrencyMinorUnits(goalValue), CART?.currency);
     const remainingText =
       remainingValue == null
         ? ""
         : isQuantity
           ? formatQuantityGoal(remainingValue)
-          : formatMoney(amountToCurrencyMinorUnits(remainingValue), CART?.currency);
+          : formatCampaignMoney(amountToCurrencyMinorUnits(remainingValue), CART?.currency);
 
     const goalToken = useRemainingForGoal ? remainingText : goalText;
 
@@ -1108,11 +1128,11 @@
     );
     const normalized =
       type === "discount" ? normalizeDiscountProgressText(replaced) : replaced;
-    return stripCurrencySymbolIfCodePresent(normalized, CART?.currency);
+    return stripCampaignAmountDecimals(stripCurrencySymbolIfCodePresent(normalized, CART?.currency));
   };
 
   const renderGoalMessageHtml = (message) => {
-    const raw = String(message ?? "");
+    const raw = stripCampaignAmountDecimals(message);
     if (!raw) return "";
     if (raw.includes('<strong class="sc-goal-bold">')) return raw;
 
@@ -3465,13 +3485,13 @@
           ? ""
           : isQuantity
             ? formatQuantityGoal(goalValue)
-            : formatMoney(amountToCurrencyMinorUnits(goalValue), CART?.currency);
+          : formatCampaignMoney(amountToCurrencyMinorUnits(goalValue), CART?.currency);
       const remainingText =
         remainingValue == null
           ? ""
           : isQuantity
             ? formatQuantityGoal(remainingValue)
-            : formatMoney(amountToCurrencyMinorUnits(remainingValue), CART?.currency);
+          : formatCampaignMoney(amountToCurrencyMinorUnits(remainingValue), CART?.currency);
 
       const goalToken = useRemainingForGoal ? remainingText : goalText;
 
@@ -3505,7 +3525,8 @@
         tokenMap,
         { tokenWrap }
       );
-      return type === "discount" ? normalizeDiscountProgressText(replaced) : replaced;
+      const normalized = type === "discount" ? normalizeDiscountProgressText(replaced) : replaced;
+      return stripCampaignAmountDecimals(normalized);
     };
 
     // (A) Code discount rules (before/after announcement text comes from the
@@ -8075,7 +8096,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const validationMessage = minQuantityFail
           ? `Discount code ${code} was removed. Add ${Math.ceil(minQuantity - cartQty)} more item(s) to use this discount code.`
           : minPurchaseFail
-            ? `Discount code ${code} was removed. Add ${formatMoney(minCents - subtotalCents, currency)} more to use this discount code.`
+            ? `Discount code ${code} was removed. Add ${formatCampaignMoney(minCents - subtotalCents, currency)} more to use this discount code.`
             : `Discount code ${code} was removed because the discount amount is greater than the cart subtotal.`;
 
         DISCOUNT_REMOVE_IN_FLIGHT = true;
@@ -8273,7 +8294,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (subtotal < minCents) {
         return {
           ok: false,
-          message: `Add ${formatMoney(minCents - subtotal, currency)} more to use this discount code.`,
+          message: `Add ${formatCampaignMoney(minCents - subtotal, currency)} more to use this discount code.`,
         };
       }
     }
@@ -8288,7 +8309,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     ) {
       return {
         ok: false,
-        message: `Discount amount ${formatMoney(meta.cents, currency)} cannot be greater than cart subtotal ${formatMoney(subtotal, currency)}.`,
+        message: `Discount amount ${formatCampaignMoney(meta.cents, currency)} cannot be greater than cart subtotal ${formatCampaignMoney(subtotal, currency)}.`,
       };
     }
 
@@ -8328,7 +8349,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         }
 
         setDiscountMessage(
-          `Add ${formatMoney(remaining * priceDivisor())} more to use code ${code}.`
+          `Add ${formatCampaignMoney(remaining * priceDivisor())} more to use code ${code}.`
         );
 
         setDiscountApplyLoading(false);
@@ -8567,7 +8588,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           const rt = String(rule?.rewardType ?? rule?.reward_type ?? "").trim().toLowerCase();
           if (rt === "reduce" && (rule?.amount ?? rule?.rateAmount)) {
             const amt = rule?.amount ?? rule?.rateAmount;
-            return `${formatMoney(amountToCurrencyMinorUnits(amt), CART?.currency)} shipping`;
+            return `${formatCampaignMoney(amountToCurrencyMinorUnits(amt), CART?.currency)} shipping`;
           }
           return "Free Shipping!";
         }
@@ -8641,14 +8662,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const goalAmt = progressMetric.goal != null
         ? progressMetric.metric === "quantity"
           ? formatQuantityGoal(progressMetric.goal)
-          : formatMoney(amountToCurrencyMinorUnits(progressMetric.goal), CART?.currency)
+          : formatCampaignMoney(amountToCurrencyMinorUnits(progressMetric.goal), CART?.currency)
         : "";
       const defaultBeforeTemplate = (() => {
         if (!goalAmt) return title;
         const rt = String(rule?.rewardType ?? rule?.reward_type ?? "").trim().toLowerCase();
         if (type === "shipping") {
           if (rt === "reduce" && (rule?.amount ?? rule?.rateAmount)) {
-            const shipAmt = formatMoney(amountToCurrencyMinorUnits(rule.amount ?? rule.rateAmount), CART?.currency);
+            const shipAmt = formatCampaignMoney(amountToCurrencyMinorUnits(rule.amount ?? rule.rateAmount), CART?.currency);
             return `Spend {{goal}} more to get ${shipAmt} shipping`;
           }
           return `Spend {{goal}} more for free shipping`;
@@ -8671,7 +8692,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const rt = String(rule?.rewardType ?? rule?.reward_type ?? "").trim().toLowerCase();
         if (type === "shipping") {
           if (rt === "reduce" && (rule?.amount ?? rule?.rateAmount)) {
-            const shipAmt = formatMoney(amountToCurrencyMinorUnits(rule.amount ?? rule.rateAmount), CART?.currency);
+            const shipAmt = formatCampaignMoney(amountToCurrencyMinorUnits(rule.amount ?? rule.rateAmount), CART?.currency);
             return `${shipAmt} shipping unlocked! 🎉`;
           }
           return "Free shipping unlocked! 🎉";
@@ -8976,7 +8997,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         useRemainingForGoal: !complete,
       })
       : "";
-    return trimToNull(replaced) || fallback;
+    return stripCampaignAmountDecimals(trimToNull(replaced) || fallback);
   };
 
   const isCodeDiscountRuleApplied = (rule) => {
@@ -9050,7 +9071,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const finalText = normalized === "free"
       ? String(replaced || "").replace(/\bfree gift\b/gi, "Free Gift Products")
       : replaced;
-    return trimToNull(finalText) || fallback;
+    return stripCampaignAmountDecimals(trimToNull(finalText) || fallback);
   };
 
   const getOfferProductThumbs = (type, rule) => {
@@ -11654,7 +11675,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const productName = finalNameParts.length > 0 ? finalNameParts.join(" – ") : "Reward product";
     if (state.titleEl) state.titleEl.textContent = productName;
 
-    if (state.subtitleEl) state.subtitleEl.textContent = `${formatMoney(0, currency)} (Free)`;
+    if (state.subtitleEl) state.subtitleEl.textContent = `${formatCampaignMoney(0, currency)} (Free)`;
 
     const ruleName =
       popupRuleTitle ||
@@ -12192,6 +12213,52 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const buyStatuses = getBuyXGetYStatuses();
     const anyBuyCompletedNow = buyStatuses.some((x) => x.complete);
+    const isDrawerOpen = drawer.classList.contains("open");
+
+    const showCompletedBxgyRewardPopup = () => {
+      if (!isDrawerOpen) return false;
+
+      const firstCompleted = buyStatuses.find((x) => x.complete);
+      if (firstCompleted) {
+        const popupShown = openRewardPopupFor({
+          kind: "buyxgety",
+          rule: firstCompleted.rule,
+          ruleKey: firstCompleted.ruleKey,
+          title: getDynamicOfferTitle(
+            "buyxgety",
+            firstCompleted.rule,
+            true,
+            trimToNull(firstCompleted.afterMsg) ||
+            trimToNull(firstCompleted.currentMsg) ||
+            "Buy X Get Y unlocked"
+          ),
+        });
+
+        if (popupShown) firePaperEffect(2800);
+        return popupShown;
+      }
+
+      if (bxgyCompleteNow && bxgyNow) {
+        const popupShown = openRewardPopupFor({
+          kind: "bxgy",
+          rule: bxgyNow.rule,
+          ruleKey: bxgyNow.ruleKey,
+          title: getDynamicOfferTitle(
+            "bxgy",
+            bxgyNow.rule,
+            true,
+            trimToNull(bxgyNow.afterMsg) ||
+            trimToNull(bxgyNow.currentMsg) ||
+            "Offer unlocked"
+          ),
+        });
+
+        if (popupShown) firePaperEffect(2800);
+        return popupShown;
+      }
+
+      return false;
+    };
 
     buyStatuses.forEach((st) => {
       if (!st?.ruleKey) return;
@@ -12228,6 +12295,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         LAST_BXGY_DONE = bxgyCompleteNow;
         drawer.__sc_buy_completed_before = anyBuyCompletedNow;
         __SC_PRIMED_POPUPS__ = true;
+        showCompletedBxgyRewardPopup();
       }
       return;
     }
@@ -12253,6 +12321,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         LAST_BXGY_DONE = bxgyCompleteNow;
         drawer.__sc_buy_completed_before = anyBuyCompletedNow;
         __SC_PRIMED_POPUPS__ = true;
+        showCompletedBxgyRewardPopup();
       }
       return;
     }
@@ -12295,17 +12364,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const fillPct = computeMixedFillPercent(stepsAll, subtotal);
     fill.style.width = `${fillPct}%`;
 
-    const isDrawerOpen = drawer.classList.contains("open");
-
+    let rewardPopupShown = false;
     const priming = !__SC_PRIMED_POPUPS__;
     if (priming) {
       LAST_DONE = doneCount;
       LAST_BXGY_DONE = bxgyCompleteNow;
       drawer.__sc_buy_completed_before = anyBuyCompletedNow;
       __SC_PRIMED_POPUPS__ = true;
-    }
 
-    let rewardPopupShown = false;
+      rewardPopupShown = showCompletedBxgyRewardPopup();
+    }
 
     if (isDrawerOpen && !priming) {
       const firstCompleted = buyStatuses.find((x) => x.complete);

@@ -2171,7 +2171,10 @@ export default function RuleCartGoal() {
         .Polaris-Button::after {
           border-radius: 12px !important;
         }
-        
+        .Polaris-ActionMenu-SecondaryAction button{
+          background:#fff8db !important;
+          color : #fff !important;
+        }
         .Polaris-Button[aria-pressed="true"] *,
         .Polaris-Button.cg-activeButton * {
           color: #fff !important;
