@@ -20,3 +20,6 @@ approval_mode = "approve"
 
 [mcp_servers.shopify-dev-mcp.tools.validate_graphql_codeblocks]
 approval_mode = "approve"
+
+[mcp_servers.shopify-dev-mcp.tools.validate_theme]
+approval_mode = "approve"

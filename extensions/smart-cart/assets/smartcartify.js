@@ -4405,46 +4405,58 @@ body.sc-cartify-open .shopify-section-group-header-group{
 .sc-loading-items .sc-items-loading{
   display:flex;
 }
-.spinner-square{
-  display:flex;
-  flex-direction:row;
-  width:90px;
-  height:120px;
+.sc-layered-loader{
+  position:relative;
+  width:112px;
+  height:112px;
+  display:grid;
+  place-items:center;
+  color:#111827;
 }
-.spinner-square > .square{
-  width:17px;
-  height:80px;
-  margin:auto auto;
-  border-radius:4px;
+.sc-layered-loader-ring{
+  position:absolute;
+  border:3px solid var(--sc-button, #d6336c);
+  border-left-color:transparent;
+  border-right-color:transparent;
+  border-radius:50%;
+  animation:sc-loader-rotate 2s cubic-bezier(.26,1.36,.74,-.29) infinite;
 }
-.square-1{
-  animation:square-anim 1200ms cubic-bezier(0.445, 0.05, 0.55, 0.95) 0s infinite;
+.sc-layered-loader-ring:nth-child(1){width:62px;height:62px;}
+.sc-layered-loader-ring:nth-child(2){
+  width:76px;
+  height:76px;
+  border-color:var(--sc-icon, #3bc9db);
+  border-left-color:transparent;
+  border-right-color:transparent;
+  animation-name:sc-loader-rotate-reverse;
 }
-.square-2{
-  animation:square-anim 1200ms cubic-bezier(0.445, 0.05, 0.55, 0.95) 200ms infinite;
+.sc-layered-loader-ring:nth-child(3){width:90px;height:90px;}
+.sc-layered-loader-ring:nth-child(4){
+  width:104px;
+  height:104px;
+  border-color:var(--sc-icon, #3bc9db);
+  border-left-color:transparent;
+  border-right-color:transparent;
+  animation-name:sc-loader-rotate-reverse;
 }
-.square-3{
-  animation:square-anim 1200ms cubic-bezier(0.445, 0.05, 0.55, 0.95) 400ms infinite;
+.sc-layered-loader-label{
+  position:relative;
+  z-index:1;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.08em;
+  color:currentColor;
 }
-@keyframes square-anim{
-  0%{
-    height:80px;
-    background-color:rgb(111, 163, 240);
-  }
-  20%{
-    height:80px;
-  }
-  40%{
-    height:120px;
-    background-color:rgb(111, 200, 240);
-  }
-  80%{
-    height:80px;
-  }
-  100%{
-    height:80px;
-    background-color:rgb(111, 163, 240);
-  }
+@keyframes sc-loader-rotate{
+  from{transform:rotate(-360deg);}
+  to{transform:rotate(0deg);}
+}
+@keyframes sc-loader-rotate-reverse{
+  from{transform:rotate(360deg);}
+  to{transform:rotate(0deg);}
+}
+@media (prefers-reduced-motion:reduce){
+  .sc-layered-loader-ring{animation-duration:6s;}
 }
 .sc-items-loading-text{
   font-size:var(--sc-small-font-size);
@@ -6886,10 +6898,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         <div class="sc-empty">Loading cart…</div>
       </div>
       <div class="sc-items-loading" aria-hidden="true">
-        <div class="spinner-square">
-          <div class="square-1 square"></div>
-          <div class="square-2 square"></div>
-          <div class="square-3 square"></div>
+        <div class="sc-layered-loader" role="status" aria-label="Loading cart">
+          <span class="sc-layered-loader-ring" aria-hidden="true"></span>
+          <span class="sc-layered-loader-ring" aria-hidden="true"></span>
+          <span class="sc-layered-loader-ring" aria-hidden="true"></span>
+          <span class="sc-layered-loader-ring" aria-hidden="true"></span>
+          <span class="sc-layered-loader-label" aria-hidden="true">LOADING...</span>
         </div>
       </div>
       <div class="sc-items-footer">
@@ -6900,10 +6914,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     <div class="sc-offers" data-offers-panel hidden></div>
     <div class="sc-discount-loading-overlay" data-discount-loading hidden aria-live="polite" aria-label="Applying discount code">
-      <div class="spinner-square">
-        <div class="square-1 square"></div>
-        <div class="square-2 square"></div>
-        <div class="square-3 square"></div>
+      <div class="sc-layered-loader" role="status" aria-label="Applying discount code">
+        <span class="sc-layered-loader-ring" aria-hidden="true"></span>
+        <span class="sc-layered-loader-ring" aria-hidden="true"></span>
+        <span class="sc-layered-loader-ring" aria-hidden="true"></span>
+        <span class="sc-layered-loader-ring" aria-hidden="true"></span>
+        <span class="sc-layered-loader-label" aria-hidden="true">LOADING...</span>
       </div>
     </div>
 
