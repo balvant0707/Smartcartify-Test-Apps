@@ -6,7 +6,7 @@ import {
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, RadioButton, Banner, Modal,
+  Icon, RadioButton, Banner, Modal, Badge,
 } from "@shopify/polaris";
 import {
   ProductIcon, SettingsIcon, EditIcon,
@@ -16,32 +16,13 @@ import {
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
-const DEFAULT_STYLE_SETTINGS = {
-  font: "inter",
-  base: "16",
-  headingScale: "1.25",
-  radius: "0",
-  textColor: "#000000",
-  bg: "#ffffff",
-  progress: "#000000",
-  buttonColor: "#000000",
-  buttonLabelColor: "#ffffff",
+const UPSELL_PREVIEW_COLORS = {
+  buttonColor: "#111827",
+  buttonTextColor: "#ffffff",
+  backgroundColor: "#ffffff",
+  textColor: "#111827",
   borderColor: "#e1e3e5",
-  iconColor: "#000000",
-  checkoutButtonText: "Checkout",
-  announcementBarBackgroundColor: "#000000",
-  announcementBarTextColor: "#ffffff",
-  cartDrawerBackgroundMode: "color",
-  cartDrawerBackground: "#ffffff",
-  cartDrawerImage: "",
-  cartDrawerTextColor: "#111111",
-  cartDrawerHeaderColor: "#111111",
-  cartIconUrl: "",
-  discountCodeApply: false,
-  drawerAutoOpen: true,
-  stickyCheckout: true,
-  drawerPosition: "right",
-  mobileLayout: "drawer",
+  arrowColor: "#6b7280",
 };
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
@@ -49,19 +30,14 @@ const DEFAULT_STYLE_SETTINGS = {
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   let record = null;
-  let styleRecord = null;
   try {
     record = await prisma.upsellSettings.findUnique({
       where: { shop: session.shop },
     });
-    styleRecord = await prisma.styleSettings.findFirst({
-      where: { shop: session.shop },
-      orderBy: { updatedAt: "desc" },
-    });
   } catch {
     // Table may not exist yet
   }
-  return { record, styleRecord };
+  return { record };
 };
 
 // ─── Action ──────────────────────────────────────────────────────────────────
@@ -73,7 +49,6 @@ export const action = async ({ request }) => {
   const {
     enabled, showAsSlider, autoplay, recommendationMode,
     sectionTitle, buttonText,
-    buttonColor, buttonTextColor, backgroundColor, textColor, borderColor, arrowColor,
     selectedProductIds, selectedCollectionIds,
   } = body;
 
@@ -97,12 +72,6 @@ export const action = async ({ request }) => {
     recommendationMode: recommendationMode || "auto",
     sectionTitle: sectionTitle || "You may also like",
     buttonText: buttonText || "Add to cart",
-    buttonColor: buttonColor || null,
-    buttonTextColor: buttonTextColor || null,
-    backgroundColor: backgroundColor || null,
-    textColor: textColor || null,
-    borderColor: borderColor || null,
-    arrowColor: arrowColor || null,
     selectedProductIds: parseIds(selectedProductIds),
     selectedCollectionIds: parseIds(selectedCollectionIds),
   };
@@ -121,7 +90,7 @@ export const action = async ({ request }) => {
 
 // ─── ResourcePickerModal ──────────────────────────────────────────────────────
 
-function ResourcePickerModal({ open, onClose, title, items, multi = true, selected = [], onApply, emptyText = "No items found.", kindLabel = "items" }) {
+function ResourcePickerModal({ open, onClose, title, items, multi = true, selected = [], onApply, emptyText = "No items found.", kindLabel = "items", loading = false, error = null }) {
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState([]);
 
@@ -171,7 +140,15 @@ function ResourcePickerModal({ open, onClose, title, items, multi = true, select
       </Modal.Section>
       <Modal.Section>
         <div style={{ maxHeight: "340px", overflowY: "auto" }}>
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div style={{ padding: "24px 0", textAlign: "center" }}>
+              <Text tone="subdued" as="p">Loading {kindLabel}…</Text>
+            </div>
+          ) : error ? (
+            <div style={{ padding: "24px 0" }}>
+              <Banner tone="critical" title={`Could not load ${kindLabel}`}>{error}</Banner>
+            </div>
+          ) : filtered.length === 0 ? (
             <div style={{ padding: "24px 0", textAlign: "center" }}>
               <Text tone="subdued" as="p">{emptyText}</Text>
             </div>
@@ -254,57 +231,6 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
 
 // ─── ColorInputField ─────────────────────────────────────────────────────────
 
-const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
-
-const getSafeColor = (value, fallback = "#000000") => (
-  HEX_COLOR_PATTERN.test(String(value || "")) ? value : fallback
-);
-
-function ColorInputField({ label, value, onChange, fallback = "#000000" }) {
-  const safeColor = getSafeColor(value, fallback);
-  const isInvalid = value && !HEX_COLOR_PATTERN.test(value);
-
-  const handleTextChange = (nextValue) => {
-    const cleaned = nextValue.replace(/[^0-9A-Fa-f#]/g, "");
-    const withHash = cleaned.startsWith("#") ? cleaned : `#${cleaned}`;
-    onChange(withHash.slice(0, 7));
-  };
-
-  return (
-    <div>
-      <Text variant="bodySm" as="p" tone="subdued">{label}</Text>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginTop: "6px" }}>
-        <input
-          type="color"
-          value={safeColor}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={label}
-          style={{
-            width: "38px",
-            height: "38px",
-            border: "1px solid #e1e3e5",
-            borderRadius: "6px",
-            cursor: "pointer",
-            padding: "2px",
-            flexShrink: 0,
-          }}
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <TextField
-            label={label}
-            labelHidden
-            value={value || fallback}
-            onChange={handleTextChange}
-            autoComplete="off"
-            maxLength={7}
-            error={isInvalid ? "Enter valid hex color" : undefined}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── SelectedItemsDisplay ─────────────────────────────────────────────────────
 
 function SelectedItemsDisplay({ ids, allItems, onRemove, emptyLabel }) {
@@ -363,13 +289,17 @@ export default function RuleUpsell() {
 
   // Fetch products & collections for pickers
   const productFetcher = useFetcher();
+  const collectionFetcher = useFetcher();
   useEffect(() => {
     if (productFetcher.state === "idle" && !productFetcher.data) {
-      productFetcher.load("/api/products?includeCollectionProducts=1");
+      productFetcher.load("/api/products?resource=products&limit=100");
+    }
+    if (collectionFetcher.state === "idle" && !collectionFetcher.data) {
+      collectionFetcher.load("/api/products?resource=collections&limit=100");
     }
   }, []);
   const allProducts = productFetcher.data?.products || [];
-  const allCollections = productFetcher.data?.collections || [];
+  const allCollections = collectionFetcher.data?.collections || [];
 
   const productPickerItems = allProducts.map(p => ({
     id: p.id,
@@ -427,13 +357,14 @@ export default function RuleUpsell() {
   const [selectedProductIds, setSelectedProductIds] = useState(() => parseStoredIds(r?.selectedProductIds));
   const [selectedCollectionIds, setSelectedCollectionIds] = useState(() => parseStoredIds(r?.selectedCollectionIds));
 
-  // Style
-  const [buttonColor, setButtonColor] = useState(r?.buttonColor ?? "#111827");
-  const [buttonTextColor, setButtonTextColor] = useState(r?.buttonTextColor ?? "#ffffff");
-  const [backgroundColor, setBackgroundColor] = useState(r?.backgroundColor ?? "#ffffff");
-  const [textColor, setTextColor] = useState(r?.textColor ?? "#111827");
-  const [borderColor, setBorderColor] = useState(r?.borderColor ?? "#e1e3e5");
-  const [arrowColor, setArrowColor] = useState(r?.arrowColor ?? "#6b7280");
+  const {
+    buttonColor,
+    buttonTextColor,
+    backgroundColor,
+    textColor,
+    borderColor,
+    arrowColor,
+  } = UPSELL_PREVIEW_COLORS;
   const [previewIndex, setPreviewIndex] = useState(0);
 
   useEffect(() => {
@@ -451,20 +382,15 @@ export default function RuleUpsell() {
         recommendationMode,
         sectionTitle,
         buttonText,
-        selectedProductIds,
-        selectedCollectionIds,
-        buttonColor: getSafeColor(buttonColor, "#111827"),
-        buttonTextColor: getSafeColor(buttonTextColor, "#ffffff"),
-        backgroundColor: getSafeColor(backgroundColor, "#ffffff"),
-        textColor: getSafeColor(textColor, "#111827"),
-        borderColor: getSafeColor(borderColor, "#e1e3e5"),
-        arrowColor: getSafeColor(arrowColor, "#6b7280"),
+        selectedProductIds: selectionType === "products" ? selectedProductIds : [],
+        selectedCollectionIds: selectionType === "collections" ? selectedCollectionIds : [],
       },
       { method: "post", encType: "application/json" }
     );
   };
 
-  const isLoadingPicker = productFetcher.state === "loading";
+  const isLoadingProducts = !productFetcher.data || productFetcher.state === "loading";
+  const isLoadingCollections = !collectionFetcher.data || collectionFetcher.state === "loading";
   const selectedProductsForPreview = selectedProductIds
     .map((id) => productPickerItems.find((product) => product.id === id))
     .filter(Boolean);
@@ -550,45 +476,12 @@ export default function RuleUpsell() {
     <Page
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
       title="Upsell Product Rules"
+      titleMetadata={enabled
+        ? <Badge tone="success">Active</Badge>
+        : <Badge tone="attention">Draft</Badge>}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
-      secondaryActions={[{
-        content: enabled ? "Draft" : "Active",
-        accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
-        onAction: () => setEnabled(v => !v),
-      }]}
     >
-      <style>{`/* Activate Button - Success Green */
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] {
-            background: #16a34a !important;
-            border-color: #16a34a !important;
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] span {
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"]:hover {
-            background: #15803d !important;
-            border-color: #15803d !important;
-          }
-
-          /* Pause Button - Warning Orange */
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] {
-            background: #f59e0b !important;
-            border-color: #f59e0b !important;
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] span {
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"]:hover {
-            background: #d97706 !important;
-            border-color: #d97706 !important;
-          }
-          .up-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:20px;align-items:start}.up-color-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:1100px){.up-layout{grid-template-columns:minmax(0,1fr) 380px}}@media(max-width:900px){.up-layout{grid-template-columns:1fr}.up-color-grid{grid-template-columns:1fr}}`}</style>
+      <style>{`.up-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:20px;align-items:start}@media(max-width:1100px){.up-layout{grid-template-columns:minmax(0,1fr) 380px}}@media(max-width:900px){.up-layout{grid-template-columns:1fr}}`}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
           <Banner tone="critical" title="Save failed">{actionData.error}</Banner>
@@ -682,7 +575,7 @@ export default function RuleUpsell() {
                           <Button
                             size="slim"
                             onClick={(e) => { e.stopPropagation(); setSelectionType("products"); setProductPickerOpen(true); }}
-                            loading={isLoadingPicker}
+                            loading={isLoadingProducts}
                           >
                             {selectedProductIds.length > 0 ? `Edit (${selectedProductIds.length})` : "Browse"}
                           </Button>
@@ -719,7 +612,7 @@ export default function RuleUpsell() {
                           <Button
                             size="slim"
                             onClick={(e) => { e.stopPropagation(); setSelectionType("collections"); setCollectionPickerOpen(true); }}
-                            loading={isLoadingPicker}
+                            loading={isLoadingCollections}
                           >
                             {selectedCollectionIds.length > 0 ? `Edit (${selectedCollectionIds.length})` : "Browse"}
                           </Button>
@@ -784,30 +677,6 @@ export default function RuleUpsell() {
                     helpText="Text on the button that adds the upsell product to the cart."
                   />
                 </BlockStack>
-
-                <Divider />
-
-                <BlockStack gap="300">
-                  <Text variant="bodyMd" fontWeight="semibold" as="p">Colors</Text>
-                  <div className="up-color-grid">
-                    {[
-                      { label: "Button background color", value: buttonColor, onChange: setButtonColor, fallback: "#111827" },
-                      { label: "Button text color", value: buttonTextColor, onChange: setButtonTextColor, fallback: "#ffffff" },
-                      { label: "Background color", value: backgroundColor, onChange: setBackgroundColor, fallback: "#ffffff" },
-                      { label: "Text color", value: textColor, onChange: setTextColor, fallback: "#111827" },
-                      { label: "Border color", value: borderColor, onChange: setBorderColor, fallback: "#e1e3e5" },
-                      { label: "Arrow / icon color", value: arrowColor, onChange: setArrowColor, fallback: "#6b7280" },
-                    ].map(({ label, value, onChange, fallback }) => (
-                      <ColorInputField
-                        key={label}
-                        label={label}
-                        value={value}
-                        onChange={onChange}
-                        fallback={fallback}
-                      />
-                    ))}
-                  </div>
-                </BlockStack>
               </BlockStack>
             </SectionCard>
 
@@ -827,7 +696,7 @@ export default function RuleUpsell() {
                 label="Status"
                 options={[
                   { label: "Active", value: "true" },
-                  { label: "Inactive", value: "false" },
+                  { label: "Draft", value: "false" },
                 ]}
                 value={String(enabled)}
                 onChange={(v) => setEnabled(v === "true")}
@@ -1165,9 +1034,15 @@ export default function RuleUpsell() {
         items={productPickerItems}
         multi={true}
         selected={selectedProductIds}
-        onApply={setSelectedProductIds}
+        onApply={(ids) => {
+          setSelectionType("products");
+          setSelectedProductIds(ids);
+          setSelectedCollectionIds([]);
+        }}
         emptyText="No products available. Make sure your store has products."
         kindLabel="products"
+        loading={isLoadingProducts}
+        error={productFetcher.data?.error || null}
       />
 
       {/* Collection picker modal */}
@@ -1178,9 +1053,15 @@ export default function RuleUpsell() {
         items={collectionPickerItems}
         multi={true}
         selected={selectedCollectionIds}
-        onApply={setSelectedCollectionIds}
+        onApply={(ids) => {
+          setSelectionType("collections");
+          setSelectedCollectionIds(ids);
+          setSelectedProductIds([]);
+        }}
         emptyText="No collections available. Create collections in your Shopify admin."
         kindLabel="collections"
+        loading={isLoadingCollections}
+        error={collectionFetcher.data?.error || null}
       />
     </Page>
   );
