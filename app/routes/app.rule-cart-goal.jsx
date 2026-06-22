@@ -2172,36 +2172,36 @@ export default function RuleCartGoal() {
           border-radius: 12px !important;
         }
      /* Activate Button - Success Green */
-.Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] {
-  background: #16a34a !important;
-  border-color: #16a34a !important;
-  color: #ffffff !important;
-}
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] {
+            background: #16a34a !important;
+            border-color: #16a34a !important;
+            color: #ffffff !important;
+          }
 
-.Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] span {
-  color: #ffffff !important;
-}
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] span {
+            color: #ffffff !important;
+          }
 
-.Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"]:hover {
-  background: #15803d !important;
-  border-color: #15803d !important;
-}
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"]:hover {
+            background: #15803d !important;
+            border-color: #15803d !important;
+          }
 
-/* Pause Button - Warning Orange */
-.Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] {
-  background: #f59e0b !important;
-  border-color: #f59e0b !important;
-  color: #ffffff !important;
-}
+          /* Pause Button - Warning Orange */
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] {
+            background: #f59e0b !important;
+            border-color: #f59e0b !important;
+            color: #ffffff !important;
+          }
 
-.Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] span {
-  color: #ffffff !important;
-}
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] span {
+            color: #ffffff !important;
+          }
 
-.Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"]:hover {
-  background: #d97706 !important;
-  border-color: #d97706 !important;
-}
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"]:hover {
+            background: #d97706 !important;
+            border-color: #d97706 !important;
+          }
         .Polaris-Button[aria-pressed="true"] *,
         .Polaris-Button.cg-activeButton * {
           color: #fff !important;
@@ -2279,10 +2279,7 @@ export default function RuleCartGoal() {
         .cg-layout .Polaris-OptionList,
         .cg-layout .Polaris-Popover,
         .cg-layout .Polaris-Popover__Pane,
-        .cg-layout .Polaris-ActionList,
-        .cg-layout .Polaris-Button,
-        .cg-layout .Polaris-Button::before,
-        .cg-layout .Polaris-Button::after {
+        .cg-layout .Polaris-ActionList {
           border-radius: 12px !important;
           --pc-shadow-bevel-border-radius: 12px !important;
           --pc-shadow-bevel-border-radius-xs: 12px !important;

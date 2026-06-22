@@ -307,6 +307,7 @@ export default function RuleCodeDiscount() {
       secondaryActions={[
         {
           content: enabled ? "Draft" : "Active",
+          accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
           tone: enabled ? "caution" : "success",
           onAction: () => setEnabled(v => !v),
         },
@@ -319,6 +320,37 @@ export default function RuleCodeDiscount() {
         .cd-statusButtonDraft{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
 
         @media(max-width:900px){.cd-layout{grid-template-columns:1fr}}
+        /* Activate Button - Success Green */
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] {
+            background: #16a34a !important;
+            border-color: #16a34a !important;
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] span {
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"]:hover {
+            background: #15803d !important;
+            border-color: #15803d !important;
+          }
+
+          /* Pause Button - Warning Orange */
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] {
+            background: #f59e0b !important;
+            border-color: #f59e0b !important;
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] span {
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"]:hover {
+            background: #d97706 !important;
+            border-color: #d97706 !important;
+          }
       `}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
@@ -578,4 +610,6 @@ export default function RuleCodeDiscount() {
       </Box>
     </Page>
   );
+
+
 }
