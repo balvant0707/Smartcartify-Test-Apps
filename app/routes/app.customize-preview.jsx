@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   useNavigate, useSearchParams, useSubmit,
   useActionData, useLoaderData, useNavigation,
+  useRouteError,
 } from "react-router";
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
@@ -1573,7 +1574,6 @@ function CartDrawerPreview({
           align-items: center;
           gap: 10px;
           padding-inline: 18px;
-          font-weight: 900;
         }
         @media (prefers-reduced-motion: reduce) {
           .cp-announcementTrack { animation: none; }
@@ -1697,7 +1697,7 @@ function CartDrawerPreview({
           }}
         >
           <div style={{ position: "relative", minHeight: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <button
+            {/* <button
               type="button"
               aria-label="Back"
               style={{
@@ -1717,7 +1717,7 @@ function CartDrawerPreview({
               }}
             >
               <PreviewIcon source={ChevronLeftIcon} size={18} color="currentColor" />
-            </button>
+            </button> */}
             <p
               style={{
                 margin: 0,
@@ -1725,7 +1725,6 @@ function CartDrawerPreview({
                 color: ptc,
                 fontSize: Math.max(fs, 12),
                 lineHeight: "18px",
-                fontWeight: 800,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -2760,7 +2759,6 @@ export default function CustomizePreview() {
 }
 
 export function ErrorBoundary() {
-  const { useRouteError } = require("react-router");
   const error = useRouteError();
   return (
     <Page title="Error">
