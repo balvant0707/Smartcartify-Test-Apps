@@ -1403,8 +1403,8 @@ function CartDrawerPreview({
       return (
         <div
           style={{
-            width: 64,
-            height: 64,
+            width: 50,
+            height: 40,
             display: "grid",
             placeItems: "center",
             background: "#ffffff",
@@ -1420,8 +1420,8 @@ function CartDrawerPreview({
     return (
       <div
         style={{
-          width: 70,
-          height: 70,
+          width: 50,
+          height: 40,
           display: "grid",
           gridTemplateColumns: "repeat(2, 1fr)",
           gap: 4,
