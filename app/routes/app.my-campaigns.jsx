@@ -6,15 +6,13 @@ import {
 } from "@shopify/polaris";
 import {
   DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon,
-  DeleteIcon, PlusIcon, DuplicateIcon, ChevronUpIcon, ChevronDownIcon,
+  DeleteIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon,
   ProductIcon,
-  TextAlignCenterIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server.js";
 import prisma from "../db.server.js";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
 import {
-  clearCartGoalDiscountIdsFromGoals,
   deactivateCartGoalRuleDiscounts,
   reconcileCartGoalPriorityDiscounts,
 } from "../lib/cartGoalPriority.server.js";
@@ -51,20 +49,6 @@ function formatCartGoalCampaignName(rule, index) {
     return `Cart Goal ${index + 1}`;
   }
   return name;
-}
-
-async function nextCartGoalCampaignName(shop) {
-  const rows = await prisma.cartGoalRule.findMany({
-    where: { shop },
-    select: { campaignName: true },
-  });
-
-  const maxNumber = rows.reduce((max, row) => {
-    const match = String(row.campaignName || "").trim().match(/^Cart Goal\s+(\d+)$/i);
-    return match ? Math.max(max, Number(match[1])) : max;
-  }, 0);
-
-  return `Cart Goal ${Math.max(maxNumber, rows.length) + 1}`;
 }
 
 // Loader
@@ -315,83 +299,6 @@ async function deleteShopifyShippingRate(admin, methodDefinitionId) {
   } catch { /* non-fatal */ }
 }
 
-const RULE_MODELS = {
-  "shipping": () => prisma.shippingRule,
-  "automatic-discount": () => prisma.discountRule,
-  "free-product": () => prisma.freeGiftRule,
-  "code-discount": () => prisma.discountRule,
-  "buy-x-get-y": () => prisma.bxgyRule,
-  "cart-goal": () => prisma.cartGoalRule,
-};
-
-const copyLabel = (value, fallback) => {
-  const base = String(value || fallback || "Rule").trim();
-  return base.toLowerCase().endsWith(" copy") ? base : `${base} Copy`;
-};
-
-function getRuleModel(ruleType) {
-  const getModel = RULE_MODELS[ruleType];
-  return getModel ? getModel() : null;
-}
-
-async function duplicateRule(ruleType, id, shop) {
-  if (ruleType === "upsell-product") {
-    throw new Error("Upsell Product is a single settings rule and cannot be duplicated.");
-  }
-
-  const model = getRuleModel(ruleType);
-  if (!model) throw new Error("Unknown rule type");
-
-  const source = await model.findFirst({ where: { id, shop } });
-  if (!source) throw new Error("Rule not found");
-
-  const data = { ...source };
-  delete data.id;
-  delete data.createdAt;
-  delete data.updatedAt;
-  data.enabled = false;
-  if ("priority" in data) {
-    data.priority = ruleType === "cart-goal" ? Number(source.priority || 0) - 1 : 0;
-  }
-
-  if (ruleType === "cart-goal") {
-    data.campaignName = await nextCartGoalCampaignName(shop);
-    data.goals = clearCartGoalDiscountIdsFromGoals(data.goals);
-  } else if ("campaignName" in data) {
-    data.campaignName = copyLabel(data.campaignName, "Rule");
-  }
-
-  if (ruleType === "code-discount" || ruleType === "automatic-discount") {
-    data.shopifyDiscountCodeId = null;
-    data.shopifyPriceRuleId = null;
-    data.codeDiscountId = null;
-    if (ruleType === "code-discount") {
-      data.codeCampaignName = copyLabel(data.codeCampaignName || data.campaignName, "Code Discount");
-      data.campaignName = data.codeCampaignName;
-      const suffix = `COPY${Date.now().toString().slice(-5)}`;
-      data.discountCode = data.discountCode ? `${data.discountCode}-${suffix}` : null;
-    }
-  }
-
-  if (ruleType === "shipping") {
-    data.shopifyRateId = null;
-    data.shopifyMethodDefinitionId = null;
-  }
-
-  if (ruleType === "free-product") {
-    data.freeProductDiscountID = null;
-    data.minAmountFreeGiftDiscountId = null;
-    data.minAmountShippingRateId = null;
-  }
-
-  if (ruleType === "buy-x-get-y") {
-    data.buyxgetyId = null;
-    data.status = "draft";
-  }
-
-  return model.create({ data });
-}
-
 async function setCartGoalPriority(id, shop, priority) {
   await prisma.cartGoalRule.updateMany({
     where: { id, shop },
@@ -473,16 +380,6 @@ export const action = async ({ request }) => {
     }
     invalidateShopCache(shop);
     return Response.json({ success: true, message: "Rule deleted and removed from Shopify." });
-  }
-
-  if (body._action === "duplicate") {
-    const id = parseInt(body.id, 10);
-    await duplicateRule(body.ruleType, id, shop);
-    if (body.ruleType === "cart-goal") {
-      await reconcileCartGoalPriorityDiscounts(admin, shop);
-    }
-    invalidateShopCache(shop);
-    return Response.json({ success: true, message: "Rule duplicated as disabled." });
   }
 
   if (body._action === "move-cart-goal") {
@@ -639,15 +536,6 @@ export default function MyRules() {
     setDeleteTarget(null);
   };
 
-  const handleDuplicate = (rule) => {
-    const key = `duplicate-${rule.ruleType}-${rule.id}`;
-    setBusyKey(key);
-    fetcher.submit(
-      { _action: "duplicate", id: rule.id, ruleType: rule.ruleType },
-      { method: "post", encType: "application/json" }
-    );
-  };
-
   const handleCartGoalMove = (rule, direction) => {
     const key = `move-${direction}-${rule.ruleType}-${rule.id}`;
     setBusyKey(key);
@@ -773,18 +661,6 @@ export default function MyRules() {
                           accessibilityLabel={`Delete ${rule.name}`}
                           loading={deletingKey === `${rule.ruleType}-${rule.id}`}
                         />
-                        {!rule.singleton && (
-                          // Duplicate button
-                          <Tooltip content="Duplicate rule">
-                            <Button
-                              size="slim"
-                              icon={DuplicateIcon}
-                              onClick={() => handleDuplicate(rule)}
-                              loading={busyKey === `duplicate-${rule.ruleType}-${rule.id}`}
-                              accessibilityLabel={`Duplicate ${rule.name}`}
-                            />
-                          </Tooltip>
-                        )}
                       </InlineStack>
                     </IndexTable.Cell>
 
@@ -814,7 +690,7 @@ export default function MyRules() {
                             </Tooltip>
                           </InlineStack>
                         ) : (
-                          <Text as="span" tone="subdued" style={{ TextAlignCenterIcon: "center" }}>Fixed</Text>
+                          <Text as="span" tone="subdued" style={{ textAlign: "center" }}>Fixed</Text>
                         )}
                       </IndexTable.Cell>
                     )}
