@@ -1588,7 +1588,10 @@
       if (Array.isArray(UPSELL_DYNAMIC) && UPSELL_DYNAMIC.length) {
         return UPSELL_DYNAMIC;
       }
-      return [];
+      const fallbackProducts = Array.isArray(PROXY?.upsellProducts)
+        ? PROXY.upsellProducts
+        : [];
+      return buildUpsellItemsFromProxyProducts(fallbackProducts, currency);
     }
 
     const wantsProducts =
