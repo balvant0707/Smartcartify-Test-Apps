@@ -282,7 +282,6 @@ model StyleSettings {
   checkoutButtonText             String?
   announcementBarBackgroundColor String?
   announcementBarTextColor       String?
-  announcementBarText            String?  @db.VarChar(512)
   buttonLabelColor               String?
   iconColor                      String?
   drawerAutoOpen                 Boolean  @default(true)

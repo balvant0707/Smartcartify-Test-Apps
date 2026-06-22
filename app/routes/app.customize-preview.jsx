@@ -50,7 +50,6 @@ const DEFAULT_STYLE = {
   iconColor: "#000000",
   announcementBarBackgroundColor: "#000000",
   announcementBarTextColor: "#ffffff",
-  announcementBarText: "Free shipping on orders over $50! 🎉",
   cartDrawerBackgroundMode: "color",
   cartDrawerBackground: "#ffffff",
   cartDrawerImage: "",
@@ -217,23 +216,57 @@ const saveSingleStyleSettings = async (prisma, shop, settings) =>
 
 // ─── Loader ───────────────────────────────────────────────────────────────────
 
-const formatAdminMoney = (amount, currencyCode = "INR") => {
+const DEFAULT_CURRENCY_CODE = "INR";
+
+function formatCurrencyAmount(amount, currencyCode = DEFAULT_CURRENCY_CODE) {
   const value = Number(amount);
   if (!Number.isFinite(value)) return "";
-  const formatted = value.toLocaleString("en-IN", {
-    maximumFractionDigits: value % 1 === 0 ? 0 : 2,
-    minimumFractionDigits: value % 1 === 0 ? 0 : 2,
-  });
-  return String(currencyCode || "").toUpperCase() === "INR" ? `₹${formatted}` : `${formatted} ${currencyCode}`;
-};
+  const code = String(currencyCode || DEFAULT_CURRENCY_CODE).toUpperCase();
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "narrowSymbol",
+      maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+      minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+    }).format(value);
+  } catch {
+    const formatted = value.toLocaleString("en-IN", {
+      maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+      minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+    });
+    return `${formatted} ${code}`;
+  }
+}
 
-const productToUpsellPreview = (product, tag) => {
+async function getShopCurrencyCode(admin) {
+  try {
+    const res = await admin.graphql(
+      `#graphql
+      query CustomizePreviewShopCurrency {
+        shop {
+          currencyCode
+        }
+      }`
+    );
+    const payload = await res.json();
+    return String(payload?.data?.shop?.currencyCode || DEFAULT_CURRENCY_CODE).toUpperCase();
+  } catch (err) {
+    console.warn("[app.customize-preview] Shop currency load failed:", err?.message);
+    return DEFAULT_CURRENCY_CODE;
+  }
+}
+
+const formatAdminMoney = (amount, currencyCode = DEFAULT_CURRENCY_CODE) =>
+  formatCurrencyAmount(amount, currencyCode);
+
+const productToUpsellPreview = (product, tag, currencyCode = DEFAULT_CURRENCY_CODE) => {
   const variant = product?.variants?.nodes?.[0] || product?.variants?.edges?.[0]?.node || null;
   return {
     id: product?.id || product?.legacyResourceId || product?.title,
     title: product?.title || "Product",
     tag,
-    price: formatAdminMoney(variant?.price, variant?.currencyCode) || "300 INR",
+    price: formatAdminMoney(variant?.price, variant?.currencyCode || currencyCode) || formatCurrencyAmount(300, currencyCode),
     image: product?.featuredImage?.url || product?.image?.url || product?.image || "",
   };
 };
@@ -348,7 +381,7 @@ const toShopifyGid = (type, id) => {
   return match ? `gid://shopify/${type}/${match[1]}` : raw;
 };
 
-async function loadUpsellPreviewItems(admin, upsellSettings) {
+async function loadUpsellPreviewItems(admin, upsellSettings, currencyCode = DEFAULT_CURRENCY_CODE) {
   if (!upsellSettings?.enabled) return [];
   const productFields = `id title featuredImage { url } variants(first: 1) { nodes { price } }`;
   const productIds = parseStoredIds(upsellSettings.selectedProductIds).map((id) => toShopifyGid("Product", id)).filter(Boolean);
@@ -368,7 +401,7 @@ async function loadUpsellPreviewItems(admin, upsellSettings) {
       );
       const json = await res.json();
       return (json?.data?.nodes || []).filter(Boolean).map((product) =>
-        productToUpsellPreview(product, "Selected product")
+        productToUpsellPreview(product, "Selected product", currencyCode)
       );
     }
 
@@ -393,7 +426,7 @@ async function loadUpsellPreviewItems(admin, upsellSettings) {
         .filter(Boolean)
         .flatMap((collection) =>
           (collection?.products?.nodes || []).map((product) =>
-            productToUpsellPreview(product, collection?.title ? `From ${collection.title}` : "Selected collection")
+            productToUpsellPreview(product, collection?.title ? `From ${collection.title}` : "Selected collection", currencyCode)
           )
         );
     }
@@ -408,7 +441,7 @@ async function loadUpsellPreviewItems(admin, upsellSettings) {
     );
     const json = await res.json();
     return (json?.data?.products?.nodes || []).map((product) =>
-      productToUpsellPreview(product, "")
+      productToUpsellPreview(product, "", currencyCode)
     );
   } catch (err) {
     console.warn("[app.customize-preview] Upsell preview product load failed:", err?.message);
@@ -416,7 +449,7 @@ async function loadUpsellPreviewItems(admin, upsellSettings) {
   }
 }
 
-async function loadProductPreviewItemsByIds(admin, ids = [], tag = "") {
+async function loadProductPreviewItemsByIds(admin, ids = [], tag = "", currencyCode = DEFAULT_CURRENCY_CODE) {
   const uniqueIds = [...new Set((ids || []).map((id) => toShopifyGid("Product", extractProductId(id))).filter(Boolean))];
   if (!uniqueIds.length) return new Map();
 
@@ -438,7 +471,7 @@ async function loadProductPreviewItemsByIds(admin, ids = [], tag = "") {
     const data = await res.json();
     const map = new Map();
     (data?.data?.nodes || []).filter(Boolean).forEach((product) => {
-      const preview = productToUpsellPreview(product, tag);
+      const preview = productToUpsellPreview(product, tag, currencyCode);
       map.set(product.id, preview);
       map.set(extractProductId(product.id), preview);
     });
@@ -555,10 +588,12 @@ export const loader = async ({ request }) => {
     ),
   ].map(extractProductId).filter(Boolean);
 
+  const shopCurrencyCode = await getShopCurrencyCode(admin);
+
   const [styleWithIcon, upsellPreviewItems, productPreviewMap] = await Promise.all([
     loadCartIconUrl(prisma, styleRow),
-    loadUpsellPreviewItems(admin, upsellSettings),
-    loadProductPreviewItemsByIds(admin, previewProductIds, "Free product"),
+    loadUpsellPreviewItems(admin, upsellSettings, shopCurrencyCode),
+    loadProductPreviewItemsByIds(admin, previewProductIds, "Free product", shopCurrencyCode),
   ]);
 
   const freeGiftRulesWithProducts = (freeGiftRules || []).map((rule) => ({
@@ -593,6 +628,7 @@ export const loader = async ({ request }) => {
     codeDiscountRules: codeDiscountRules || [],
     bxgyRules: bxgyRulesWithProducts || [],
     cartGoalRules: cartGoalRulesWithProducts,
+    shopCurrencyCode,
     shop,
   };
 };
@@ -638,7 +674,6 @@ export const action = async ({ request }) => {
     iconColor: parseText(d.iconColor) || DEFAULT_STYLE.iconColor,
     announcementBarBackgroundColor: parseText(d.announcementBarBackgroundColor) || DEFAULT_STYLE.announcementBarBackgroundColor,
     announcementBarTextColor: parseText(d.announcementBarTextColor) || DEFAULT_STYLE.announcementBarTextColor,
-    announcementBarText: parseText(d.announcementBarText) || DEFAULT_STYLE.announcementBarText,
     cartDrawerBackgroundMode: mode,
     cartDrawerBackground: mode === "color" ? (parseText(d.cartDrawerBackground) || DEFAULT_STYLE.cartDrawerBackground) : null,
     cartDrawerImage: mode === "image" ? parseText(d.cartDrawerImage) : null,
@@ -773,42 +808,106 @@ function ColorField({ label, value, onChange }) {
 
 // ─── Cart drawer preview ──────────────────────────────────────────────────────
 
-function fmtAmount(val) {
+function fmtAmount(val, currencyCode = DEFAULT_CURRENCY_CODE) {
   const n = parseFloat(val);
-  return isNaN(n) ? "$20" : `$${n % 1 === 0 ? n : n.toFixed(2)}`;
+  return isNaN(n) ? formatCurrencyAmount(20, currencyCode) : formatCurrencyAmount(n, currencyCode);
+}
+
+function normalizeMessageText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function renderRichMessage(parts, keyPrefix = "msg") {
+  const normalizedParts = (Array.isArray(parts) ? parts : [{ text: normalizeMessageText(parts) }])
+    .map((part) => ({
+      ...part,
+      text: String(part?.text || "").replace(/\s+/g, " "),
+    }))
+    .filter((part) => part.text.trim());
+
+  return normalizedParts.map((part, index) =>
+    part.bold ? (
+      <strong key={`${keyPrefix}-${index}`} style={{ fontWeight: 900 }}>
+        {part.text}
+      </strong>
+    ) : (
+      <span key={`${keyPrefix}-${index}`}>{part.text}</span>
+    )
+  );
+}
+
+function resolveTemplateParts(text, replacements = {}) {
+  const source = normalizeMessageText(text);
+  if (!source) return [];
+
+  const parts = [];
+  let cursor = 0;
+  const pattern = /\{\{\s*([^}]+?)\s*\}\}/g;
+  let match;
+
+  while ((match = pattern.exec(source))) {
+    if (match.index > cursor) {
+      parts.push({ text: source.slice(cursor, match.index) });
+    }
+
+    const token = String(match[1] || "").trim().toLowerCase();
+    const replacement = replacements[token];
+    if (replacement !== undefined && replacement !== null && String(replacement).trim()) {
+      parts.push({ text: replacement, bold: true });
+    }
+
+    cursor = pattern.lastIndex;
+  }
+
+  if (cursor < source.length) {
+    parts.push({ text: source.slice(cursor) });
+  }
+
+  return parts;
+}
+
+function partsToText(parts) {
+  return normalizeMessageText((parts || []).map((part) => part.text || "").join(""));
 }
 
 function resolveStepText(text, amount, discountOpts = {}) {
-  if (!text) return null;
+  return partsToText(resolveStepTextParts(text, amount, discountOpts)) || null;
+}
+
+function resolveStepTextParts(text, amount, discountOpts = {}) {
+  if (!text) return [];
+  const currencyCode = discountOpts.currencyCode || DEFAULT_CURRENCY_CODE;
   const goalValue = discountOpts.goal ?? amount;
   const formattedGoal = discountOpts.trackBy === "quantity"
     ? String(goalValue ?? "")
-    : fmtAmount(goalValue);
-  let result = text
-    .replace(/\{\{amount\}\}/gi, fmtAmount(amount))
-    .replace(/\{\{goal\}\}/gi, formattedGoal);
+    : fmtAmount(goalValue, currencyCode);
+  const replacements = {
+    amount: fmtAmount(amount, currencyCode),
+    goal: formattedGoal,
+  };
+
   if (discountOpts.value !== undefined) {
     const valueType = String(discountOpts.valueType || "").toLowerCase();
-    const ds = valueType === "percent" || valueType === "percentage"
+    replacements.discount = valueType === "percent" || valueType === "percentage"
       ? `${parseFloat(discountOpts.value)}%`
-      : fmtAmount(discountOpts.value);
-    result = result.replace(/\{\{discount\}\}/gi, ds);
+      : fmtAmount(discountOpts.value, currencyCode);
   }
-  if (discountOpts.x !== undefined) result = result.replace(/\{\{x\}\}/gi, String(discountOpts.x));
-  if (discountOpts.y !== undefined) result = result.replace(/\{\{y\}\}/gi, String(discountOpts.y));
-  result = result.replace(/\{\{[^}]+\}\}/g, "").trim();
-  return result || null;
+
+  if (discountOpts.x !== undefined) replacements.x = String(discountOpts.x);
+  if (discountOpts.y !== undefined) replacements.y = String(discountOpts.y);
+
+  return resolveTemplateParts(text, replacements);
 }
 
-function formatDiscountValueWithOff(valueType, value) {
+function formatDiscountValueWithOff(valueType, value, currencyCode = DEFAULT_CURRENCY_CODE) {
   const raw = String(value || "").trim();
   if (!raw) return "your discount";
   return String(valueType || "").toLowerCase() === "amount"
-    ? `${fmtAmount(raw)} off`
+    ? `${fmtAmount(raw, currencyCode)} off`
     : `${parseFloat(raw)}% off`;
 }
 
-function formatCodeDiscountGoal(rule) {
+function formatCodeDiscountGoal(rule, currencyCode = DEFAULT_CURRENCY_CODE) {
   const triggerType = String(rule?.triggerType || "amount").toLowerCase();
   if (triggerType === "quantity") {
     const minQty = Number(rule?.minQuantity || 0);
@@ -816,18 +915,20 @@ function formatCodeDiscountGoal(rule) {
   }
 
   const minPurchase = Number(rule?.minPurchase || 0);
-  return fmtAmount(minPurchase);
+  return fmtAmount(minPurchase, currencyCode);
 }
 
-function resolveCodeDiscountBeforeMessage(rule) {
+function resolveCodeDiscountBeforeMessage(rule, currencyCode = DEFAULT_CURRENCY_CODE) {
+  return partsToText(resolveCodeDiscountBeforeMessageParts(rule, currencyCode)) || null;
+}
+
+function resolveCodeDiscountBeforeMessageParts(rule, currencyCode = DEFAULT_CURRENCY_CODE) {
   const fallback = "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}!";
-  return String(rule?.progressTextBefore || fallback)
-    .replace(/\{\{goal\}\}/gi, formatCodeDiscountGoal(rule))
-    .replace(/\{\{discount_code\}\}/gi, String(rule?.discountCode || "CODE").toUpperCase())
-    .replace(/\{\{discount_value_with_off\}\}/gi, formatDiscountValueWithOff(rule?.valueType, rule?.value))
-    .replace(/\{\{[^}]+\}\}/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return resolveTemplateParts(rule?.progressTextBefore || fallback, {
+    goal: formatCodeDiscountGoal(rule, currencyCode),
+    discount_code: String(rule?.discountCode || "CODE").toUpperCase(),
+    discount_value_with_off: formatDiscountValueWithOff(rule?.valueType, rule?.value, currencyCode),
+  });
 }
 
 function normalizeCartGoalRewardType(goal = {}) {
@@ -884,37 +985,37 @@ function buildCartGoalPreviewRules(campaign) {
 }
 
 // Returns a short human-readable label for a step milestone
-function ruleStepLabel(rule) {
+function ruleStepLabel(rule, currencyCode = DEFAULT_CURRENCY_CODE) {
   if (rule._ruleType === "shipping") {
-    if (rule.rewardType === "reduce" && rule.amount) return `${fmtAmount(rule.amount)} shipping`;
+    if (rule.rewardType === "reduce" && rule.amount) return `${fmtAmount(rule.amount, currencyCode)} shipping`;
     return "Free Shipping!";
   }
   if (rule._ruleType === "discount") {
     if (!rule.value) return "Discount";
     return rule.valueType === "percent" || rule.valueType === "percentage"
       ? `${parseFloat(rule.value)}% Off`
-      : `${fmtAmount(rule.value)} Off`;
+      : `${fmtAmount(rule.value, currencyCode)} Off`;
   }
   if (rule._ruleType === "free") return "Free Gift";
   return rule.campaignName || "Reward";
 }
 
 // Generates a default "before" progress message when merchant hasn't configured one
-function buildDefaultProgressBefore(rule) {
+function buildDefaultProgressBefore(rule, currencyCode = DEFAULT_CURRENCY_CODE) {
   const amt = rule.triggerType === "quantity"
     ? String(rule.minQuantity || 0)
     : rule._ruleType === "shipping"
-      ? fmtAmount(rule.minSubtotal)
-      : fmtAmount(rule.minPurchase || "0");
+      ? fmtAmount(rule.minSubtotal, currencyCode)
+      : fmtAmount(rule.minPurchase || "0", currencyCode);
   if (rule._ruleType === "shipping") {
     if (rule.rewardType === "reduce" && rule.amount)
-      return `Spend ${amt} more to get ${fmtAmount(rule.amount)} shipping`;
+      return `Spend ${amt} more to get ${fmtAmount(rule.amount, currencyCode)} shipping`;
     return `Spend ${amt} more for free shipping`;
   }
   if (rule._ruleType === "discount") {
     const lbl = !rule.value ? "a discount"
       : rule.valueType === "percent" || rule.valueType === "percentage" ? `${parseFloat(rule.value)}% off`
-        : `${fmtAmount(rule.value)} off`;
+        : `${fmtAmount(rule.value, currencyCode)} off`;
     return rule.triggerType === "quantity"
       ? `Add ${amt} items to get ${lbl}`
       : `Spend ${amt} more to get ${lbl}`;
@@ -930,17 +1031,17 @@ function buildDefaultProgressBefore(rule) {
 }
 
 // Generates a default "after" progress message when merchant hasn't configured one
-function buildDefaultProgressAfter(rule) {
+function buildDefaultProgressAfter(rule, currencyCode = DEFAULT_CURRENCY_CODE) {
   if (rule._ruleType === "shipping") {
     if (rule.rewardType === "reduce" && rule.amount)
-      return `${fmtAmount(rule.amount)} shipping unlocked! 🎉`;
+      return `${fmtAmount(rule.amount, currencyCode)} shipping unlocked! 🎉`;
     return "Free shipping unlocked! 🎉";
   }
   if (rule._ruleType === "discount") {
     if (!rule.value) return "Discount unlocked! 🎉";
     const lbl = rule.valueType === "percent" || rule.valueType === "percentage"
       ? `${parseFloat(rule.value)}% off`
-      : `${fmtAmount(rule.value)} off`;
+      : `${fmtAmount(rule.value, currencyCode)} off`;
     return `${lbl} unlocked! 🎉`;
   }
   if (rule._ruleType === "free") return "Free gift unlocked! 🎉";
@@ -990,11 +1091,11 @@ function PreviewIcon({ source, size = 14, color = "currentColor" }) {
   );
 }
 
-function parsePreviewPrice(price = "300 INR") {
-  const raw = String(price || "300 INR");
+function parsePreviewPrice(price = "", fallbackCurrencyCode = DEFAULT_CURRENCY_CODE) {
+  const raw = String(price || "");
   const amount = Number(raw.replace(/[^\d.]/g, ""));
   const currencyMatch = raw.match(/[A-Z]{3}|₹|\$|€|£/i);
-  const currency = currencyMatch ? currencyMatch[0].toUpperCase() : "INR";
+  const currency = currencyMatch ? currencyMatch[0].toUpperCase() : fallbackCurrencyCode;
 
   return {
     amount: Number.isFinite(amount) ? amount : 300,
@@ -1002,17 +1103,8 @@ function parsePreviewPrice(price = "300 INR") {
   };
 }
 
-function formatPreviewPrice(amount, currency = "INR") {
-  const value = Number(amount);
-  const clean = Number.isFinite(value) ? value : 0;
-  const formatted = clean.toLocaleString("en-IN", {
-    maximumFractionDigits: clean % 1 === 0 ? 0 : 2,
-    minimumFractionDigits: clean % 1 === 0 ? 0 : 2,
-  });
-
-  if (currency === "₹" || currency === "INR") return `₹${formatted}`;
-  if (currency === "$" || currency === "€" || currency === "£") return `${currency}${formatted}`;
-  return `${formatted} ${currency}`;
+function formatPreviewPrice(amount, currencyCode = DEFAULT_CURRENCY_CODE) {
+  return formatCurrencyAmount(amount, currencyCode);
 }
 
 function normalizePreviewImage(src, fallback = "/images/upsellproduct.png") {
@@ -1023,7 +1115,7 @@ function normalizePreviewImage(src, fallback = "/images/upsellproduct.png") {
 function CartDrawerPreview({
   bg, uiBg, textColor, progressTextColor, headerColor, buttonColor, buttonLabelColor,
   progress, progressBg, radius, base, headingScale, font, checkoutText,
-  announcementBg, announcementText, announcementBarText,
+  announcementBg, announcementText,
   shippingRules, discountRules, freeGiftRules, cartGoalRules, upsellSettings,
   upsellPreviewItems,
   codeDiscountRules,
@@ -1035,6 +1127,7 @@ function CartDrawerPreview({
   cartIconUrl,
   cartIconType,
   cartDefaultIcon,
+  shopCurrencyCode = DEFAULT_CURRENCY_CODE,
 }) {
   const r = Math.max(Number(radius) || 10, 6);
   const fs = Math.max(Number(base) || 12, 10);
@@ -1061,8 +1154,8 @@ function CartDrawerPreview({
   const mainProduct = {
     title: "Cream Sofa",
     tag: "",
-    price: "₹500",
-    image: "/images/upsellproduct.png",
+    price: formatCurrencyAmount(500, shopCurrencyCode),
+    image: "/images/Shirt_cc945e9e-c2e1-4d98-a085-15dfd9fb3457.png",
   };
 
   const fallbackUpsellProducts = [
@@ -1070,14 +1163,14 @@ function CartDrawerPreview({
       id: "preview-upsell-1",
       title: "Nike Orange",
       tag: "Recommended",
-      price: "300 INR",
+      price: formatCurrencyAmount(300, shopCurrencyCode),
       image: "/images/upsellproduct.png",
     },
     {
       id: "preview-upsell-2",
       title: "Sample Puma Shoes",
       tag: "Recommended",
-      price: "300 INR",
+      price: formatCurrencyAmount(300, shopCurrencyCode),
       image: "/images/upsellproduct.png",
     },
   ];
@@ -1087,20 +1180,24 @@ function CartDrawerPreview({
   const [activeDrawerTab, setActiveDrawerTab] = useState("cart");
   const activeUpsellProduct = upsellProducts[activeUpsellIndex] || upsellProducts[0] || fallbackUpsellProducts[0];
 
-  const parsedPrice = parsePreviewPrice(mainProduct.price);
-  const totalPrice = formatPreviewPrice(parsedPrice.amount, parsedPrice.currency);
+  const parsedPrice = parsePreviewPrice(mainProduct.price, shopCurrencyCode);
+  const totalPrice = formatPreviewPrice(parsedPrice.amount, shopCurrencyCode);
 
-  const announceMessages = [];
-  if (announcementBarText) announceMessages.push(announcementBarText);
+  const announceMessageParts = [];
   (codeDiscountRules || []).forEach((rule) => {
-    const beforeMsg = resolveCodeDiscountBeforeMessage(rule);
-    if (beforeMsg) {
-      announceMessages.push(beforeMsg);
+    const beforeMsgParts = resolveCodeDiscountBeforeMessageParts(rule, shopCurrencyCode);
+    if (beforeMsgParts.length) {
+      announceMessageParts.push(beforeMsgParts);
       return;
     }
-    if (rule?.discountCode) announceMessages.push(`Use code ${String(rule.discountCode).toUpperCase()}`);
+    if (rule?.discountCode) {
+      announceMessageParts.push([
+        { text: "Use code " },
+        { text: String(rule.discountCode).toUpperCase(), bold: true },
+      ]);
+    }
   });
-  if (!announceMessages.length) announceMessages.push("This is just a SampleMessage");
+  if (!announceMessageParts.length) announceMessageParts.push([{ text: "This is just a SampleMessage" }]);
 
   const topCartGoalCampaign = (cartGoalRules || [])[0] || null;
   const cartGoalPreviewRules = buildCartGoalPreviewRules(topCartGoalCampaign);
@@ -1174,8 +1271,8 @@ function CartDrawerPreview({
   const progressFill = stepCount ? stepPosition(0) : 33;
 
   const firstPending = displaySteps[0]?.rule;
-  const nextGoalText = (() => {
-    if (!firstPending) return "Add more to get Free Gift with this order";
+  const nextGoalParts = (() => {
+    if (!firstPending) return [{ text: "Add more to get Free Gift with this order" }];
 
     const amount = firstPending.triggerType === "quantity"
       ? firstPending.minQuantity
@@ -1184,13 +1281,15 @@ function CartDrawerPreview({
         : firstPending.minPurchase;
 
     const discountOpts = firstPending._ruleType === "discount"
-      ? { value: firstPending.value, valueType: firstPending.valueType, goal: amount, trackBy: firstPending.triggerType }
-      : { goal: amount, trackBy: firstPending.triggerType };
+      ? { value: firstPending.value, valueType: firstPending.valueType, goal: amount, trackBy: firstPending.triggerType, currencyCode: shopCurrencyCode }
+      : { goal: amount, trackBy: firstPending.triggerType, currencyCode: shopCurrencyCode };
 
-    return resolveStepText(firstPending.progressTextBefore, amount, discountOpts)
-      || buildDefaultProgressBefore(firstPending)
-      || "Add more to get Free Gift with this order";
+    const resolvedParts = resolveStepTextParts(firstPending.progressTextBefore, amount, discountOpts);
+    return resolvedParts.length
+      ? resolvedParts
+      : [{ text: buildDefaultProgressBefore(firstPending, shopCurrencyCode) || "Add more to get Free Gift with this order" }];
   })();
+  const nextGoalText = partsToText(nextGoalParts);
 
   const resolveStepLabel = (step) => {
     if (step.fallbackLabel) return step.fallbackLabel;
@@ -1204,10 +1303,10 @@ function CartDrawerPreview({
         : rule.minPurchase;
 
     const discountOpts = rule._ruleType === "discount"
-      ? { value: rule.value, valueType: rule.valueType, goal: amount, trackBy: rule.triggerType }
-      : { goal: amount, trackBy: rule.triggerType };
+      ? { value: rule.value, valueType: rule.valueType, goal: amount, trackBy: rule.triggerType, currencyCode: shopCurrencyCode }
+      : { goal: amount, trackBy: rule.triggerType, currencyCode: shopCurrencyCode };
 
-    return resolveStepText(rule.progressTextBelow, amount, discountOpts) || ruleStepLabel(rule);
+    return resolveStepText(rule.progressTextBelow, amount, discountOpts) || ruleStepLabel(rule, shopCurrencyCode);
   };
 
   const offerSubtitleForRule = (rule, fallback = "") => {
@@ -1218,10 +1317,10 @@ function CartDrawerPreview({
         ? rule.minSubtotal
         : rule.minPurchase;
     const opts = rule._ruleType === "discount"
-      ? { value: rule.value, valueType: rule.valueType, goal: amount, trackBy: rule.triggerType }
-      : { goal: amount, trackBy: rule.triggerType };
+      ? { value: rule.value, valueType: rule.valueType, goal: amount, trackBy: rule.triggerType, currencyCode: shopCurrencyCode }
+      : { goal: amount, trackBy: rule.triggerType, currencyCode: shopCurrencyCode };
     return resolveStepText(rule.progressTextBefore, amount, opts)
-      || buildDefaultProgressBefore(rule)
+      || buildDefaultProgressBefore(rule, shopCurrencyCode)
       || fallback;
   };
 
@@ -1295,10 +1394,11 @@ function CartDrawerPreview({
   const upsellSurface = upsellSettings?.backgroundColor || surface;
   const upsellTextColor = upsellSettings?.textColor || tc;
   const upsellBorderColor = upsellSettings?.borderColor || brc;
-  const marqueeMessages = announceMessages.filter(Boolean);
+  const marqueeMessages = announceMessageParts.filter((message) => partsToText(message));
   const marqueeContent = marqueeMessages.length
     ? marqueeMessages
-    : ["This is just a SampleMessage"];
+    : [[{ text: "This is just a SampleMessage" }]];
+  const marqueeTextContent = marqueeContent.map((message) => partsToText(message));
 
   useEffect(() => {
     setActiveUpsellIndex(0);
@@ -1561,14 +1661,14 @@ function CartDrawerPreview({
             flexShrink: 0,
           }}
         >
-          <div className="cp-announcementMarquee" aria-label={marqueeContent.join(" ")}>
+          <div className="cp-announcementMarquee" aria-label={marqueeTextContent.join(" ")}>
             <div className="cp-announcementTrack">
               {[0, 1].map((group) => (
                 <div className="cp-announcementGroup" key={group} aria-hidden={group === 1}>
                   {marqueeContent.map((message, index) => (
                     <span
                       className="cp-announcementItem"
-                      key={`${group}-${index}-${message}`}
+                      key={`${group}-${index}-${partsToText(message)}`}
                       style={{
                         fontSize: Math.max(fs + 1, 13),
                         lineHeight: "16px",
@@ -1576,7 +1676,7 @@ function CartDrawerPreview({
                       }}
                     >
                       {index > 0 && <span aria-hidden="true">{"\u2022"}</span>}
-                      <span>{message}</span>
+                      <span>{renderRichMessage(message, `announce-${group}-${index}`)}</span>
                     </span>
                   ))}
                 </div>
@@ -1633,7 +1733,7 @@ function CartDrawerPreview({
                 width: "100%",
               }}
             >
-              {nextGoalText}
+              {renderRichMessage(nextGoalParts, "next-goal")}
             </p>
           </div>
 
@@ -1726,7 +1826,7 @@ function CartDrawerPreview({
                     <span style={{ minWidth: 18, textAlign: "center", fontWeight: 800 }}>1</span>
                     <button type="button" style={{ width: 24, height: 24, borderRadius: 6, border: `1px solid ${brc}`, background: "#fff", cursor: "pointer" }}>+</button>
                   </InlineStack>
-                  <div style={{ color: tc, fontWeight: 900 }}>{mainProduct.price || "300 INR"}</div>
+                  <div style={{ color: tc, fontWeight: 900 }}>{mainProduct.price || formatCurrencyAmount(300, shopCurrencyCode)}</div>
                 </InlineStack>
               </div>
             </InlineStack>
@@ -1781,7 +1881,7 @@ function CartDrawerPreview({
                           {activeFreeProduct.title || "Free product"}
                         </div>
                         <div style={{ color: `${tc}99`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 3, lineHeight: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {nextGoalText}
+                          {renderRichMessage(nextGoalParts, "free-product-goal")}
                         </div>
                       </div>
                     </div>
@@ -1891,7 +1991,7 @@ function CartDrawerPreview({
                             {activeUpsellProduct.title || "Nike Orange"}
                           </div>
                           <div style={{ color: `${upsellTextColor}CC`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 2 }}>
-                            {activeUpsellProduct.price || "300 INR"}
+                            {activeUpsellProduct.price || formatCurrencyAmount(300, shopCurrencyCode)}
                           </div>
                         </div>
 
@@ -1961,7 +2061,7 @@ function CartDrawerPreview({
                               {product.title || "Nike Orange"}
                             </div>
                             <div style={{ color: `${upsellTextColor}CC`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 2 }}>
-                              {product.price || "300 INR"}
+                              {product.price || formatCurrencyAmount(300, shopCurrencyCode)}
                             </div>
                           </div>
                           <button
@@ -2259,6 +2359,7 @@ export default function CustomizePreview() {
   const codeDiscountRules = loaderData?.codeDiscountRules || [];
   const bxgyRules = loaderData?.bxgyRules || [];
   const cartGoalRules = loaderData?.cartGoalRules || [];
+  const shopCurrencyCode = loaderData?.shopCurrencyCode || DEFAULT_CURRENCY_CODE;
   const isSaving = navigation.state === "submitting";
 
   // Typography & Sizes
@@ -2278,7 +2379,6 @@ export default function CustomizePreview() {
   const [iconColor, setIconColor] = useState(s.iconColor ?? DEFAULT_STYLE.iconColor);
   const [announcementBg, setAnnouncementBg] = useState(s.announcementBarBackgroundColor ?? DEFAULT_STYLE.announcementBarBackgroundColor);
   const [announcementText, setAnnouncementText] = useState(s.announcementBarTextColor ?? DEFAULT_STYLE.announcementBarTextColor);
-  const [announcementBarMsg, setAnnouncementBarMsg] = useState(s.announcementBarText ?? DEFAULT_STYLE.announcementBarText);
 
   // Checkout
   const [checkoutButtonText, setCheckoutButtonText] = useState(s.checkoutButtonText ?? DEFAULT_STYLE.checkoutButtonText);
@@ -2326,7 +2426,7 @@ export default function CustomizePreview() {
     submit({
       font, base, headingScale, radius,
       textColor, bg, progress, progressBg, buttonColor, buttonLabelColor, borderColor, iconColor,
-      announcementBarBackgroundColor: announcementBg, announcementBarTextColor: announcementText, announcementBarText: announcementBarMsg,
+      announcementBarBackgroundColor: announcementBg, announcementBarTextColor: announcementText,
       checkoutButtonText, discountCodeApply,
       cartIconType, cartDefaultIcon, cartIconUrl,
       cartDrawerBackgroundMode: drawerBgMode,
@@ -2417,14 +2517,6 @@ export default function CustomizePreview() {
                 </div>
                 <Divider />
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Announcement bar</Text>
-                <TextField
-                  label="Announcement text"
-                  value={announcementBarMsg}
-                  onChange={setAnnouncementBarMsg}
-                  autoComplete="off"
-                  placeholder="Free shipping on orders over $50! 🎉"
-                  helpText="Text shown in the announcement strip at the top of the cart drawer."
-                />
                 <div className="cp-color-grid">
                   <ColorField label="Background" value={announcementBg} onChange={setAnnouncementBg} />
                   <ColorField label="Text color" value={announcementText} onChange={setAnnouncementText} />
@@ -2634,7 +2726,7 @@ export default function CustomizePreview() {
                   checkoutText={checkoutButtonText}
                   announcementBg={announcementBg}
                   announcementText={announcementText}
-                  announcementBarText={announcementBarMsg}
+                  shopCurrencyCode={shopCurrencyCode}
                   shippingRules={shippingRules}
                   discountRules={discountRules}
                   freeGiftRules={freeGiftRules}
