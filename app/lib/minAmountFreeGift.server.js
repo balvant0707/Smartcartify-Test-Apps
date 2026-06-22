@@ -215,7 +215,7 @@ const GIFT_VARIANT_QUERY = `
         id
       }
       ... on Product {
-        variants(first: 1) {
+        variants(first: 250) {
           edges {
             node {
               id
@@ -229,6 +229,7 @@ const GIFT_VARIANT_QUERY = `
 
 const allProductsIdsCache = new TTLCache();
 const giftVariantCache = new TTLCache();
+const giftVariantIdsCache = new TTLCache();
 
 // Convert plain numeric REST IDs to GID format required by GraphQL
 const normalizeToGid = (rawId, defaultType = "Product") => {
@@ -252,20 +253,20 @@ const getGiftVariantLookupIds = (giftId) => {
   return [raw];
 };
 
-const resolveGiftVariantId = async (shopDomain, accessToken, giftId) => {
-  if (!giftId) return null;
+const resolveGiftVariantIdsForGift = async (shopDomain, accessToken, giftId) => {
+  if (!giftId) return [];
 
   const rawGiftId = String(giftId || "").trim();
   if (rawGiftId.startsWith("gid://shopify/ProductVariant/")) {
-    return rawGiftId;
+    return [rawGiftId];
   }
 
   const lookupIds = getGiftVariantLookupIds(giftId);
   const normalizedShop = cleanShopDomain(shopDomain);
   const cacheKey = `${normalizedShop}:${lookupIds.join("|")}`;
 
-  if (giftVariantCache.has(cacheKey)) {
-    return giftVariantCache.get(cacheKey);
+  if (giftVariantIdsCache.has(cacheKey)) {
+    return giftVariantIdsCache.get(cacheKey);
   }
 
   for (const lookupId of lookupIds) {
@@ -274,34 +275,49 @@ const resolveGiftVariantId = async (shopDomain, accessToken, giftId) => {
     });
 
     const node = data?.node;
-    let resolvedId = null;
+    let resolvedIds = [];
 
     if (node?.__typename === "ProductVariant" && node.id) {
-      resolvedId = node.id;
+      resolvedIds = [node.id];
     } else if (node?.__typename === "Product") {
-      const variantEdge = node.variants?.edges?.[0];
-      const variantId = variantEdge?.node?.id;
-      resolvedId = variantId ?? null;
+      resolvedIds = (node.variants?.edges || [])
+        .map((edge) => edge?.node?.id)
+        .filter(Boolean);
     }
 
-    if (resolvedId) {
-      giftVariantCache.set(cacheKey, resolvedId);
-      return resolvedId;
+    if (resolvedIds.length) {
+      const uniqueIds = [...new Set(resolvedIds)];
+      giftVariantIdsCache.set(cacheKey, uniqueIds);
+      giftVariantCache.set(cacheKey, uniqueIds[0]);
+      return uniqueIds;
     }
   }
 
-  return null;
+  return [];
+};
+
+const resolveGiftVariantId = async (shopDomain, accessToken, giftId) => {
+  if (!giftId) return null;
+
+  const lookupIds = getGiftVariantLookupIds(giftId);
+  const cacheKey = `${cleanShopDomain(shopDomain)}:${lookupIds.join("|")}`;
+  if (giftVariantCache.has(cacheKey)) {
+    return giftVariantCache.get(cacheKey);
+  }
+
+  const resolvedIds = await resolveGiftVariantIdsForGift(shopDomain, accessToken, giftId);
+  return resolvedIds[0] || null;
 };
 
 const resolveGiftVariantIds = async (shopDomain, accessToken, giftIds = []) => {
   const ids = Array.isArray(giftIds) ? giftIds : [giftIds];
-  const resolved = await Promise.all(
+  const resolvedGroups = await Promise.all(
     [...new Set(ids.map(String).map((id) => id.trim()).filter(Boolean))].map((id) =>
-      resolveGiftVariantId(shopDomain, accessToken, id),
+      resolveGiftVariantIdsForGift(shopDomain, accessToken, id),
     ),
   );
 
-  return [...new Set(resolved.filter(Boolean))];
+  return [...new Set(resolvedGroups.flat().filter(Boolean))];
 };
 
 export const resolveAllProductsCollectionId = async (

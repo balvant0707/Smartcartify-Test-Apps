@@ -6,13 +6,14 @@ import {
 } from "@shopify/polaris";
 import {
   DeliveryIcon, DiscountIcon, GiftCardIcon, CodeIcon,
-  DeleteIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon,
+  DeleteIcon, DuplicateIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon,
   ProductIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server.js";
 import prisma from "../db.server.js";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
 import {
+  clearCartGoalDiscountIdsFromGoals,
   deactivateCartGoalRuleDiscounts,
   reconcileCartGoalPriorityDiscounts,
 } from "../lib/cartGoalPriority.server.js";
@@ -306,10 +307,101 @@ async function setCartGoalPriority(id, shop, priority) {
   });
 }
 
+function cloneRecord(source, excludedFields = []) {
+  const clone = { ...source };
+  ["id", "createdAt", "updatedAt", ...excludedFields].forEach((field) => {
+    delete clone[field];
+  });
+  return clone;
+}
+
+function duplicateName(value, fallback) {
+  return `${String(value || fallback).trim()} (Copy)`;
+}
+
 export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const body = await request.json();
   const shop = session.shop;
+
+  if (body._action === "duplicate") {
+    const id = parseInt(body.id, 10);
+    if (!Number.isInteger(id)) {
+      return Response.json({ error: "Invalid campaign ID" }, { status: 400 });
+    }
+
+    let duplicate;
+    switch (body.ruleType) {
+      case "code-discount":
+      case "automatic-discount": {
+        const source = await prisma.discountRule.findFirst({ where: { id, shop } });
+        if (!source) return Response.json({ error: "Campaign not found" }, { status: 404 });
+        duplicate = await prisma.discountRule.create({
+          data: {
+            ...cloneRecord(source),
+            enabled: false,
+            campaignName: duplicateName(source.campaignName, "Discount Campaign"),
+            codeCampaignName: source.type === "code"
+              ? duplicateName(source.codeCampaignName || source.campaignName, "Code Discount")
+              : source.codeCampaignName,
+            discountCode: source.type === "code" ? null : source.discountCode,
+            shopifyDiscountCodeId: null,
+            shopifyPriceRuleId: null,
+            codeDiscountId: null,
+            analyticsImpressions: 0,
+            analyticsConversions: 0,
+          },
+        });
+        break;
+      }
+      case "buy-x-get-y": {
+        const source = await prisma.bxgyRule.findFirst({ where: { id, shop } });
+        if (!source) return Response.json({ error: "Campaign not found" }, { status: 404 });
+        duplicate = await prisma.bxgyRule.create({
+          data: {
+            ...cloneRecord(source),
+            enabled: false,
+            status: "draft",
+            campaignName: duplicateName(source.campaignName, "Buy X Get Y Discount"),
+            buyxgetyId: null,
+            analyticsImpressions: 0,
+            analyticsConversions: 0,
+          },
+        });
+        break;
+      }
+      case "cart-goal": {
+        const source = await prisma.cartGoalRule.findFirst({ where: { id, shop } });
+        if (!source) return Response.json({ error: "Campaign not found" }, { status: 404 });
+        duplicate = await prisma.cartGoalRule.create({
+          data: {
+            ...cloneRecord(source),
+            enabled: false,
+            campaignName: duplicateName(source.campaignName, "Cart Goal"),
+            goals: clearCartGoalDiscountIdsFromGoals(source.goals),
+            priority: 0,
+            analyticsImpressions: 0,
+            analyticsConversions: 0,
+          },
+        });
+        break;
+      }
+      case "upsell-product":
+        return Response.json(
+          { error: "Upsell Product settings are unique per shop and cannot be duplicated." },
+          { status: 400 }
+        );
+      default:
+        return Response.json({ error: "Unknown rule type" }, { status: 400 });
+    }
+
+    invalidateShopCache(shop);
+    return Response.json({
+      success: true,
+      id: duplicate.id,
+      message: "Campaign duplicated as a disabled copy.",
+    });
+  }
 
   if (body._action === "delete") {
     const id = parseInt(body.id, 10);
@@ -536,6 +628,15 @@ export default function MyRules() {
     setDeleteTarget(null);
   };
 
+  const handleDuplicate = (rule) => {
+    const key = `duplicate-${rule.ruleType}-${rule.id}`;
+    setBusyKey(key);
+    fetcher.submit(
+      { _action: "duplicate", id: rule.id, ruleType: rule.ruleType },
+      { method: "post", encType: "application/json" }
+    );
+  };
+
   const handleCartGoalMove = (rule, direction) => {
     const key = `move-${direction}-${rule.ruleType}-${rule.id}`;
     setBusyKey(key);
@@ -654,6 +755,17 @@ export default function MyRules() {
                         >
                           Edit
                         </Button>
+                        {!rule.singleton && (
+                          <Tooltip content="Duplicate">
+                            <Button
+                              size="slim"
+                              icon={DuplicateIcon}
+                              onClick={() => handleDuplicate(rule)}
+                              accessibilityLabel={`Duplicate ${rule.name}`}
+                              loading={busyKey === `duplicate-${rule.ruleType}-${rule.id}`}
+                            />
+                          </Tooltip>
+                        )}
                         <Button
                           size="slim"
                           icon={DeleteIcon}

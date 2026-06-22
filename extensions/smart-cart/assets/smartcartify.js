@@ -11602,7 +11602,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       "Reward";
     if (state.ruleTitleEl) state.ruleTitleEl.textContent = ruleName;
 
-    if (state.addButton) state.addButton.textContent = kind === "free" ? "✓ Add Free Gift" : `Add Item${qty > 1 ? ` (${qty})` : ""}`;
+    if (state.addButton) state.addButton.textContent = kind === "free" ? "✓ Add Free Gift" : `Add Item`;
 
     state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, options: [], selectedOption: null, selectedOptionId: null, selectedOptionIds: [], selectedOptions: [] };
     state.overlay.classList.add("open");
