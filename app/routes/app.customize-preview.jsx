@@ -1775,7 +1775,7 @@ function CartDrawerPreview({
                         background: "transparent",
                       }}
                     >
-                      <ProductImage src={activeFreeProduct.image} alt={activeFreeProduct.title} size={64} />
+                      <ProductImage src={activeFreeProduct.image} alt={activeFreeProduct.title} size={50} />
                       <div style={{ minWidth: 0 }}>
                         <div style={{ color: tc, fontWeight: 900, fontSize: Math.max(fs + 1, 13), lineHeight: "17px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {activeFreeProduct.title || "Free product"}
