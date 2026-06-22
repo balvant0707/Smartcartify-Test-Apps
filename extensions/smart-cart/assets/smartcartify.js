@@ -1941,11 +1941,11 @@
         <div class="sc-cartgoal-bonus-viewport">
           <div class="sc-cartgoal-bonus-track" style="transform:translate3d(-${activeIndex * 100}%, 0, 0);">
             ${slides.map((slide, index) => {
-              const label = safe((slide.title || "G").slice(0, 1).toUpperCase());
-              const imageHtml = slide.image
-                ? `<img src="${safe(slide.image)}" alt="${safe(slide.title)}" loading="lazy">`
-                : `<span>${label}</span>`;
-              return `
+      const label = safe((slide.title || "G").slice(0, 1).toUpperCase());
+      const imageHtml = slide.image
+        ? `<img src="${safe(slide.image)}" alt="${safe(slide.title)}" loading="lazy">`
+        : `<span>${label}</span>`;
+      return `
                 <div class="sc-cartgoal-bonus-slide">
                   <div class="sc-cartgoal-bonus-item" role="button" tabindex="0" data-cartgoal-bonus-open="${index}" aria-label="Open ${safe(slide.title)} free gift">
                     <div class="sc-cartgoal-bonus-img">${imageHtml}</div>
@@ -1956,7 +1956,7 @@
                   </div>
                 </div>
               `;
-            }).join("")}
+    }).join("")}
           </div>
         </div>
         ${hasMultiple ? `
@@ -3485,13 +3485,13 @@
           ? ""
           : isQuantity
             ? formatQuantityGoal(goalValue)
-          : formatCampaignMoney(amountToCurrencyMinorUnits(goalValue), CART?.currency);
+            : formatCampaignMoney(amountToCurrencyMinorUnits(goalValue), CART?.currency);
       const remainingText =
         remainingValue == null
           ? ""
           : isQuantity
             ? formatQuantityGoal(remainingValue)
-          : formatCampaignMoney(amountToCurrencyMinorUnits(remainingValue), CART?.currency);
+            : formatCampaignMoney(amountToCurrencyMinorUnits(remainingValue), CART?.currency);
 
       const goalToken = useRemainingForGoal ? remainingText : goalText;
 
@@ -5492,12 +5492,12 @@ position: relative;
   display:grid;
   place-items:center;
   border:1px solid var(--sc-border);
-  background:var(--sc-image-bg);
+     background: transparent;
   color:var(--sc-icon-color);
 }
 .sc-offer-icon svg{
-  width:28px;
-  height:28px;
+  width:50px;
+  height:50px;
   display:block;
   stroke-width:1.8;
 }
@@ -6855,7 +6855,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
   ensureStyles();
 
-  // ✅ Announcement bar between header and progress
+  // ✅ Announcement bar inside the cart items container
   drawer.innerHTML = `
     <div class="sc-header">
       <div class="sc-title-wrap">
@@ -6874,9 +6874,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       </button>
     </div>
     <div class="content-cart-smartcartify">
-    <div class="sc-announce" data-sc-announce hidden></div>
-
     <div class="sc-items">
+      <div class="sc-announce" data-sc-announce hidden></div>
       <div class="sc-progress">
         <p class="sc-label">Loading…</p>
 
@@ -8003,23 +8002,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const minPurchaseFail = minCents != null && subtotalCents < minCents;
 
-        const discountAmountFail =
-          meta &&
-          !meta.isPercent &&
-          Number.isFinite(meta.cents) &&
-          meta.cents > subtotalCents;
+      const discountAmountFail =
+        meta &&
+        !meta.isPercent &&
+        Number.isFinite(meta.cents) &&
+        meta.cents > subtotalCents;
 
-        if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
+      if (!minQuantityFail && !minPurchaseFail && !discountAmountFail) continue;
 
-        const validationMessage = minQuantityFail
-          ? `Discount code ${code} was removed. Add ${Math.ceil(minQuantity - cartQty)} more item(s) to use this discount code.`
-          : minPurchaseFail
-            ? `Discount code ${code} was removed. Add ${formatCampaignMoney(minCents - subtotalCents, currency)} more to use this discount code.`
-            : `Discount code ${code} was removed because the discount amount is greater than the cart subtotal.`;
+      const validationMessage = minQuantityFail
+        ? `Discount code ${code} was removed. Add ${Math.ceil(minQuantity - cartQty)} more item(s) to use this discount code.`
+        : minPurchaseFail
+          ? `Discount code ${code} was removed. Add ${formatCampaignMoney(minCents - subtotalCents, currency)} more to use this discount code.`
+          : `Discount code ${code} was removed because the discount amount is greater than the cart subtotal.`;
 
-        DISCOUNT_REMOVE_IN_FLIGHT = true;
+      DISCOUNT_REMOVE_IN_FLIGHT = true;
 
-        try {
+      try {
         await clearDiscountCode(code);
 
         scStore.del(MANUAL_DISCOUNT_CODE_KEY);
@@ -8031,10 +8030,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         await refreshFromNetwork();
         renderAllFromCache();
 
-          if (discountMsg) discountMsg.style.color = "#dc2626";
-          setDiscountMessage(validationMessage);
-          LAST_AUTO_REMOVED_CODE = code;
-          LAST_AUTO_REMOVED_AT = Date.now();
+        if (discountMsg) discountMsg.style.color = "#dc2626";
+        setDiscountMessage(validationMessage);
+        LAST_AUTO_REMOVED_CODE = code;
+        LAST_AUTO_REMOVED_AT = Date.now();
       } catch (err) {
         console.error("[SmartCartify] auto remove discount failed:", err);
       } finally {
@@ -8277,15 +8276,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
     const validation = validateCodeDiscountRule(rule, getCartSubtotalCents());
 
-      if (!validation.ok) {
-        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
-        scStore.del("__SC_LAST_APPLIED_CODE__");
+    if (!validation.ok) {
+      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+      scStore.del("__SC_LAST_APPLIED_CODE__");
 
-        if (discountMsg) discountMsg.style.color = "#dc2626";
-        setDiscountMessage(validation.message);
-        setDiscountApplyLoading(false);
-        return;
-      }
+      if (discountMsg) discountMsg.style.color = "#dc2626";
+      setDiscountMessage(validation.message);
+      setDiscountApplyLoading(false);
+      return;
+    }
 
     try {
       const applied = await applyCodeThroughShopify(code);

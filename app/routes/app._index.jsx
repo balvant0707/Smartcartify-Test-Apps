@@ -630,9 +630,6 @@ export default function Index() {
                       >
                         Open App Embeds
                       </Button>
-                      <Text as="p" tone="subdued">
-                        Save your theme changes after enabling it.
-                      </Text>
                     </InlineStack>
                   </BlockStack>
                   <span style={embedStatusStyle}>{embedStatusLabel}</span>
