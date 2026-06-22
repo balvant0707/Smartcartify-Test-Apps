@@ -926,7 +926,6 @@ export default function RuleUpsell() {
                                 padding: "10px",
                                 background: "transparent",
                                 border: `1px solid ${borderColor || "#dfe7ef"}`,
-                                borderRadius: "8px",
                               }}
                             >
                               {p.image ? (
@@ -995,7 +994,6 @@ export default function RuleUpsell() {
                                     gap: "6px",
                                     backgroundColor: buttonColor || "#111827",
                                     border: "none",
-                                    borderRadius: "6px",
                                     color: buttonTextColor || "#ffffff",
                                     fontSize: "13px",
                                     lineHeight: "18px",

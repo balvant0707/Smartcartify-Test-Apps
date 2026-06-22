@@ -1367,7 +1367,6 @@ function CartDrawerPreview({
       style={{
         width: size,
         height: size,
-        borderRadius: Math.max(r, 8),
         objectFit: "cover",
         border: `1px solid ${brc}`,
         background: "#F7F7F7",
@@ -1406,7 +1405,6 @@ function CartDrawerPreview({
           style={{
             width: 64,
             height: 64,
-            borderRadius: Math.max(r, 8),
             display: "grid",
             placeItems: "center",
             background: "#ffffff",
@@ -1440,7 +1438,6 @@ function CartDrawerPreview({
               width: 30,
               height: 30,
               objectFit: "cover",
-              borderRadius: 5,
               border: `1px solid ${brc}`,
               background: "#F7F7F7",
             }}
@@ -1496,9 +1493,6 @@ function CartDrawerPreview({
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          borderRadius: isBottomSheetPreview
-            ? `${previewRadius}px ${previewRadius}px 0 0`
-            : previewRadius,
           border: `1px solid ${brc}`,
           color: tc,
           fontSize: fs,
