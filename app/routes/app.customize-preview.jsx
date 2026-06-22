@@ -1468,7 +1468,6 @@ function CartDrawerPreview({
         width: size,
         height: size,
         objectFit: "cover",
-        border: `1px solid ${brc}`,
         background: "#F7F7F7",
         flexShrink: 0,
       }}

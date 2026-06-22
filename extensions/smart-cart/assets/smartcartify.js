@@ -3574,72 +3574,9 @@
       if (trimToNull(msg)) msgs.push(msg);
     });
 
-    // (B) BXGY (discountrule)
-    const bx = getBxgyStatus();
-    if (bx?.rule) {
-      const r = bx.rule;
-      const minPurchase = Number(r?.minPurchase ?? r?.min_purchase);
-      const xQty = Number(r?.xQty ?? r?.x_qty ?? r?.x ?? r?.buyQty ?? r?.buy_qty ?? r?.buy);
-      const yQty = Number(r?.yQty ?? r?.y_qty ?? r?.y ?? r?.getQty ?? r?.get_qty ?? r?.get);
-      const hasMin = Number.isFinite(minPurchase) && minPurchase > 0;
-      const hasX = Number.isFinite(xQty) && xQty > 0;
-      const cartQty = getCartTotalQty();
-      const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - (cartQty || 0));
-
-      const beforeRaw = getProgressBefore(r);
-      const afterRaw = getProgressAfter(r);
-      const fallbackBefore = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
-      const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
-
-      const msgBase = replaceProgressTextRaw({
-        text: bx.complete ? (afterRaw || fallbackAfter) : (beforeRaw || fallbackBefore),
-        type: "bxgy",
-        rule: r,
-        subtotalRupees,
-        useRemainingForGoal: false,
-        tokenWrap: wrapAnnouncementToken,
-        tokenOverrides: bx.complete ? {} : {
-          x: hasX ? remainingX : Number.isFinite(xQty) ? xQty : "",
-        },
-      });
-
-      const msg = String(msgBase || "").replace(/\s{2,}/g, " ").trim();
-      if (trimToNull(msg)) msgs.push(msg);
-    }
-
-    // (C) BuyXGetY (bxgyrule)
-    const buyStatuses = getBuyXGetYStatuses();
-    buyStatuses.forEach((st) => {
-      const r = st?.rule;
-      if (!r) return;
-      const xQty = Number(st?.xQty ?? r?.xQty ?? r?.x_qty ?? r?.x ?? r?.buyQty ?? r?.buy_qty ?? r?.buy);
-      const yQty = Number(st?.yQty ?? r?.yQty ?? r?.y_qty ?? r?.y ?? r?.getQty ?? r?.get_qty ?? r?.get);
-      const eligibleQty = Number(st?.eligibleQty ?? 0);
-      const remainingX = Math.max(0, (Number.isFinite(xQty) ? xQty : 0) - eligibleQty);
-
-      const beforeRaw = getProgressBefore(r);
-      const afterRaw = getProgressAfter(r);
-      const fallbackBefore = "Buy X Get Y: Add {{x}} more to unlock the offer";
-      const fallbackAfter = "Buy X Get Y Discount: Buy {{x}} get {{y}}";
-
-      const msgBase = replaceProgressTextRaw({
-        text: st.complete ? (afterRaw || fallbackAfter) : (beforeRaw || fallbackBefore),
-        type: "buyxgety",
-        rule: r,
-        subtotalRupees: st.eligibleSubtotalRupees ?? subtotalRupees,
-        useRemainingForGoal: !st.complete,
-        tokenWrap: wrapAnnouncementToken,
-        tokenOverrides: st.complete ? {} : {
-          x: Number.isFinite(xQty) ? remainingX : "",
-        },
-      });
-
-      const msg = String(msgBase || "").replace(/\s{2,}/g, " ").trim();
-      if (trimToNull(msg)) msgs.push(msg);
-    });
-
-    // NOTE: Sections D (automatic discount) and E (free gift) are intentionally omitted.
-    // Those rule types appear as progress bar steps, not in the announcement bar.
+    // NOTE: BXGY, BuyXGetY, automatic discount, and free gift rules are
+    // intentionally omitted. Those rule types appear as offer/progress UI, not
+    // in the announcement bar.
 
     // de-dup
     const unique = [];
@@ -3685,41 +3622,6 @@
           tokenWrap: wrapAnnouncementToken,
         });
         unique.push(fallback);
-      } else {
-        const firstBuyRule =
-          (BUYXGETY_RULES || []).find((r) => isRuleEnabled(r)) ||
-          (BXGY_RULES || []).find((r) => isRuleEnabled(r));
-        if (firstBuyRule) {
-          const x = trimToNull(
-            firstBuyRule?.xQty ??
-            firstBuyRule?.x_qty ??
-            firstBuyRule?.x ??
-            firstBuyRule?.buyQty ??
-            firstBuyRule?.buy_qty ??
-            firstBuyRule?.buy ??
-            ""
-          );
-          const y = trimToNull(
-            firstBuyRule?.yQty ??
-            firstBuyRule?.y_qty ??
-            firstBuyRule?.y ??
-            firstBuyRule?.getQty ??
-            firstBuyRule?.get_qty ??
-            firstBuyRule?.get ??
-            ""
-          );
-          const fallback = x && y
-            ? replaceProgressTextRaw({
-              text: "Buy X Get Y Discount: Buy {{x}} get {{y}}",
-              type: "buyxgety",
-              rule: firstBuyRule,
-              subtotalRupees,
-              useRemainingForGoal: false,
-              tokenWrap: wrapAnnouncementToken,
-            })
-            : "Buy X Get Y Discount";
-          unique.push(fallback);
-        }
       }
     }
 
@@ -4611,7 +4513,7 @@ body.sc-cartify-open .shopify-section-group-header-group{
   background:var(--sc-image-bg);
   flex:0 0 auto;
 }
-.sc-img img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
+.sc-img img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
 .sc-mid,.sc-item.sc-item-reward .sc-mid{
   min-width:0;
   display:flex;
@@ -9167,7 +9069,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
         const fallback = Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0
           ? `Buy ${x} and get ${y} free`
-          : "Buy something and get something";
+          : "";
         const ruleKey = getRuleKey(rule, "bxgy");
         pushRow({
           key: `bxgy:${ruleKey || key}`,
