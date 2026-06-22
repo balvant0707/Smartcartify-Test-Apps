@@ -2519,6 +2519,47 @@ export default function CustomizePreview() {
                   <ColorField label="Background" value={announcementBg} onChange={setAnnouncementBg} />
                   <ColorField label="Text color" value={announcementText} onChange={setAnnouncementText} />
                 </div>
+                <Divider />
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Background</Text>
+                  <Select
+                    label="Background type"
+                    options={[
+                      { label: "Solid color", value: "color" },
+                      { label: "Image URL", value: "image" },
+                      { label: "Gradient", value: "gradient" },
+                    ]}
+                    value={drawerBgMode}
+                    onChange={setDrawerBgMode}
+                  />
+                  {drawerBgMode === "color" && (
+                    <ColorField label="Drawer background color" value={drawerBg} onChange={setDrawerBg} />
+                  )}
+                  {drawerBgMode === "image" && (
+                    <TextField
+                      label="Background image URL"
+                      value={drawerImage}
+                      onChange={setDrawerImage}
+                      autoComplete="off"
+                      placeholder="https://example.com/background.jpg"
+                      helpText="Displayed as the cart drawer background."
+                    />
+                  )}
+                  {drawerBgMode === "gradient" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <ColorField label="Gradient start" value={drawerGradientStart} onChange={setDrawerGradientStart} />
+                      <ColorField label="Gradient end" value={drawerGradientEnd} onChange={setDrawerGradientEnd} />
+                    </div>
+                  )}
+                </BlockStack>
+                <Divider />
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Drawer text</Text>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <ColorField label="Text color" value={drawerTextColor} onChange={setDrawerTextColor} />
+                    <ColorField label="Heading color" value={drawerHeaderColor} onChange={setDrawerHeaderColor} />
+                  </div>
+                </BlockStack>
               </BlockStack>
             </SectionCard>
 
@@ -2593,53 +2634,6 @@ export default function CustomizePreview() {
             {/* Cart Drawer Settings */}
             <SectionCard icon={SettingsIcon} title="Cart Drawer Settings">
               <BlockStack gap="400">
-                {/* Background */}
-                <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold" as="p">Background</Text>
-                  <Select
-                    label="Background type"
-                    options={[
-                      { label: "Solid color", value: "color" },
-                      { label: "Image URL", value: "image" },
-                      { label: "Gradient", value: "gradient" },
-                    ]}
-                    value={drawerBgMode}
-                    onChange={setDrawerBgMode}
-                  />
-                  {drawerBgMode === "color" && (
-                    <ColorField label="Drawer background color" value={drawerBg} onChange={setDrawerBg} />
-                  )}
-                  {drawerBgMode === "image" && (
-                    <TextField
-                      label="Background image URL"
-                      value={drawerImage}
-                      onChange={setDrawerImage}
-                      autoComplete="off"
-                      placeholder="https://example.com/background.jpg"
-                      helpText="Displayed as the cart drawer background."
-                    />
-                  )}
-                  {drawerBgMode === "gradient" && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <ColorField label="Gradient start" value={drawerGradientStart} onChange={setDrawerGradientStart} />
-                      <ColorField label="Gradient end" value={drawerGradientEnd} onChange={setDrawerGradientEnd} />
-                    </div>
-                  )}
-                </BlockStack>
-
-                <Divider />
-
-                {/* Drawer text colors */}
-                <BlockStack gap="200">
-                  <Text variant="bodyMd" fontWeight="semibold" as="p">Drawer text</Text>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <ColorField label="Text color" value={drawerTextColor} onChange={setDrawerTextColor} />
-                    <ColorField label="Heading color" value={drawerHeaderColor} onChange={setDrawerHeaderColor} />
-                  </div>
-                </BlockStack>
-
-                <Divider />
-
                 {/* Checkout */}
                 <BlockStack gap="200">
                   <Text variant="bodyMd" fontWeight="semibold" as="p">Checkout</Text>
