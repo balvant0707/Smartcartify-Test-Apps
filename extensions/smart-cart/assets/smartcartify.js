@@ -5015,7 +5015,7 @@ color: var(--sc-drawer-text-color);
     font-weight: 600;
     text-align: center;
     letter-spacing: 0;
-    color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+    color: var(--sc-drawer-text-color);
     margin-bottom: 2px;
     line-height: 1.2;
 }
@@ -5084,7 +5084,7 @@ background: var(--sc-upsell-bg);
 .sc-upsell-name{
   font-weight:700;
   font-size:calc(var(--sc-base-font-size) * 1.02);
-  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+  color: var(--sc-drawer-text-color);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5092,7 +5092,7 @@ background: var(--sc-upsell-bg);
 }
 .sc-upsell-sub{
   font-size: 12px;
-  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+  color: var(--sc-drawer-text-color);
   opacity: 0.8;
   display: block;
   text-transform: capitalize;
@@ -5101,7 +5101,7 @@ background: var(--sc-upsell-bg);
 .sc-upsell-price{
   font-weight:500;
   font-size:var(--sc-small-font-size);
-  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+  color: var(--sc-drawer-text-color);
   white-space: nowrap;
 }
 .sc-upsell-controls{
@@ -5122,7 +5122,7 @@ background: var(--sc-upsell-bg);
   border:1px solid #d7dee8;
   padding:0 28px 0 10px;
   font-size:calc(var(--sc-base-font-size) * .92);
-  color: var(--sc-upsell-text, var(--sc-drawer-text-color));
+  color: var(--sc-drawer-text-color);
   background: #ffffff;
   min-height:28px;
   min-width:0;

@@ -1076,14 +1076,6 @@ export default function RuleBxgy() {
       title={campaignName || "Buy X Get Y Discount"}
       titleMetadata={isPaused ? <Badge tone="attention">Paused</Badge> : <Badge tone="success">Active</Badge>}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
-      secondaryActions={[
-        {
-          content: status === "active" ? "Pause" : "Activate",
-          tone: status === "active" ? "caution" : "success",
-          accessibilityLabel: status === "active" ? "Pause campaign" : "Activate campaign",
-          onAction: () => setStatus((value) => (value === "active" ? "paused" : "active")),
-        },
-      ]}
     >
       <style>{`
         .bxgy-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
@@ -1105,7 +1097,7 @@ export default function RuleBxgy() {
         .bxgy-selectedThumb{width:24px;height:24px;border-radius:4px;object-fit:cover;border:1px solid #e1e3e5}
         .bxgy-stepper{width:max-content;display:grid;grid-template-columns:38px 56px 38px;gap:6px;align-items:center;padding:5px;background:#f1f1f1;border-radius:12px}
         .bxgy-stepper span{text-align:center;font-weight:700}
-        .bxgy-segmented{display:inline-flex;gap:8px;background:#f1f1f1;border-radius:12px;padding:4px,width: fit-content;}
+        .bxgy-segmented{display:inline-flex;gap:8px;background:#f1f1f1;border-radius:12px;padding:4px;width: fit-content;}
         .bxgy-segmented button{border:0;background:transparent;border-radius:8px;padding:8px 12px;cursor:pointer;color:#6d7175;font-weight:600}
         .bxgy-segmented button[aria-pressed="true"]{background:#000000;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
         .bxgy-statusToggle{width:max-content;max-width:100%}
@@ -1137,38 +1129,7 @@ export default function RuleBxgy() {
         @media(max-width:980px){.bxgy-layout{grid-template-columns:1fr}.bxgy-sidebar{order:-1}}
         @media(max-width:640px){.bxgy-grid2{grid-template-columns:1fr}.bxgy-conditionRow,.bxgy-conditionTop{grid-template-columns:1fr;display:grid}.bxgy-layout{gap:14px}}
         .bxgy-paused .Polaris-Icon{margin:unset !important;}
-        /* Activate Button - Success Green */
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] {
-            background: #16a34a !important;
-            border-color: #16a34a !important;
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] span {
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"]:hover {
-            background: #15803d !important;
-            border-color: #15803d !important;
-          }
-
-          /* Pause Button - Warning Orange */
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] {
-            background: #f59e0b !important;
-            border-color: #f59e0b !important;
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] span {
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"]:hover {
-            background: #d97706 !important;
-            border-color: #d97706 !important;
-          }
-        `}</style>
+      `}</style>
 
       {actionData?.error && (
         <Box paddingBlockEnd="400">

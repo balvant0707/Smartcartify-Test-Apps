@@ -6,7 +6,7 @@ import {
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, RadioButton, Banner, Tabs,
+  Icon, RadioButton, Banner, Tabs, Badge,
 } from "@shopify/polaris";
 import {
   CodeIcon, SettingsIcon, EditIcon,
@@ -221,14 +221,26 @@ export default function RuleCodeDiscount() {
     }
   }, [actionData, host, navigate, navigation.state, recordId]);
 
+  const getDiscountValueError = (nextValue = value, nextValueType = valueType) => {
+    const numericDiscountValue = Number(nextValue || 0);
+
+    if (
+      nextValueType === "percent" &&
+      Number.isFinite(numericDiscountValue) &&
+      numericDiscountValue > 100
+    ) {
+      return "Percentage discount cannot be more than 100%.";
+    }
+
+    return undefined;
+  };
+
   const validateForm = () => {
     const errors = {};
-    const numericDiscountValue = Number(value || 0);
     const numericMinPurchase = Number(minPurchase || 0);
+    const valueError = getDiscountValueError();
 
-    if (valueType === "percent" && numericDiscountValue > 100) {
-      errors.value = "Percentage discount cannot be more than 100%.";
-    }
+    if (valueError) errors.value = valueError;
 
     if (triggerType === "amount" && (!Number.isFinite(numericMinPurchase) || numericMinPurchase <= 0)) {
       errors.minPurchase = "Minimum cart value is required.";
@@ -303,15 +315,10 @@ export default function RuleCodeDiscount() {
     <Page
       backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
       title={codeCampaignName || "Code Discount"}
+      titleMetadata={enabled
+        ? <Badge tone="success">Active</Badge>
+        : <Badge tone="attention">Draft</Badge>}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
-      secondaryActions={[
-        {
-          content: enabled ? "Draft" : "Active",
-          accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
-          tone: enabled ? "caution" : "success",
-          onAction: () => setEnabled(v => !v),
-        },
-      ]}
     >
       <style>{`
         .cd-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
@@ -320,37 +327,6 @@ export default function RuleCodeDiscount() {
         .cd-statusButtonDraft{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
 
         @media(max-width:900px){.cd-layout{grid-template-columns:1fr}}
-        /* Activate Button - Success Green */
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] {
-            background: #16a34a !important;
-            border-color: #16a34a !important;
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] span {
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"]:hover {
-            background: #15803d !important;
-            border-color: #15803d !important;
-          }
-
-          /* Pause Button - Warning Orange */
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] {
-            background: #f59e0b !important;
-            border-color: #f59e0b !important;
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] span {
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"]:hover {
-            background: #d97706 !important;
-            border-color: #d97706 !important;
-          }
       `}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
@@ -385,9 +361,14 @@ export default function RuleCodeDiscount() {
                       checked={valueType === "percent"}
                       id="cd-vt-percent"
                       name="cdValueType"
+                      min="0"
+                      max="100"
                       onChange={() => {
                         setValueType("percent");
-                        setFormErrors((current) => ({ ...current, value: undefined }));
+                        setFormErrors((current) => ({
+                          ...current,
+                          value: getDiscountValueError(value, "percent"),
+                        }));
                       }}
                     />
                     <RadioButton
@@ -409,10 +390,14 @@ export default function RuleCodeDiscount() {
                   value={value}
                   onChange={(nextValue) => {
                     setValue(nextValue);
-                    setFormErrors((current) => ({ ...current, value: undefined }));
+                    setFormErrors((current) => ({
+                      ...current,
+                      value: getDiscountValueError(nextValue, valueType),
+                    }));
                   }}
                   autoComplete="off"
                   error={formErrors.value}
+                  max={valueType === "percent" ? 100 : undefined}
                   suffix={valueType === "percent" ? "%" : undefined}
                   prefix={valueType === "amount" ? "$" : undefined}
                   placeholder={valueType === "percent" ? "e.g. 15" : "e.g. 20"}

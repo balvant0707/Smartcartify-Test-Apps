@@ -24,6 +24,7 @@ import {
   Page,
   Popover,
   ActionList,
+  Badge,
   RangeSlider,
   Select,
   Text,
@@ -2149,15 +2150,10 @@ export default function RuleCartGoal() {
         onAction: handleBack,
       }}
       title={campaignName || "Cart Goal"}
+      titleMetadata={enabled
+        ? <Badge tone="success">Active</Badge>
+        : <Badge tone="attention">Draft</Badge>}
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
-      secondaryActions={[
-        {
-          content: enabled ? "Pause" : "Activate",
-          accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
-          tone: enabled ? "caution" : "success",
-          onAction: () => setEnabled((value) => !value),
-        },
-      ]}
     >
       <style>{`
         .cg-layout {
@@ -2171,37 +2167,6 @@ export default function RuleCartGoal() {
         .Polaris-Button::after {
           border-radius: 12px !important;
         }
-     /* Activate Button - Success Green */
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] {
-            background: #16a34a !important;
-            border-color: #16a34a !important;
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] span {
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"]:hover {
-            background: #15803d !important;
-            border-color: #15803d !important;
-          }
-
-          /* Pause Button - Warning Orange */
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] {
-            background: #f59e0b !important;
-            border-color: #f59e0b !important;
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] span {
-            color: #ffffff !important;
-          }
-
-          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"]:hover {
-            background: #d97706 !important;
-            border-color: #d97706 !important;
-          }
         .Polaris-Button[aria-pressed="true"] *,
         .Polaris-Button.cg-activeButton * {
           color: #fff !important;
