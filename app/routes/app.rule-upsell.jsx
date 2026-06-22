@@ -552,11 +552,43 @@ export default function RuleUpsell() {
       title="Upsell Product Rules"
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
       secondaryActions={[{
-        content: enabled ? "Disable" : "Enable",
+        content: enabled ? "Draft" : "Active",
+        accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
         onAction: () => setEnabled(v => !v),
       }]}
     >
-      <style>{`.up-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:20px;align-items:start}.up-color-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:1100px){.up-layout{grid-template-columns:minmax(0,1fr) 380px}}@media(max-width:900px){.up-layout{grid-template-columns:1fr}.up-color-grid{grid-template-columns:1fr}}`}</style>
+      <style>{`/* Activate Button - Success Green */
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] {
+            background: #16a34a !important;
+            border-color: #16a34a !important;
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] span {
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"]:hover {
+            background: #15803d !important;
+            border-color: #15803d !important;
+          }
+
+          /* Pause Button - Warning Orange */
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] {
+            background: #f59e0b !important;
+            border-color: #f59e0b !important;
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] span {
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"]:hover {
+            background: #d97706 !important;
+            border-color: #d97706 !important;
+          }
+          .up-layout{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:20px;align-items:start}.up-color-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:1100px){.up-layout{grid-template-columns:minmax(0,1fr) 380px}}@media(max-width:900px){.up-layout{grid-template-columns:1fr}.up-color-grid{grid-template-columns:1fr}}`}</style>
       {actionData?.error && (
         <Box paddingBlockEnd="400">
           <Banner tone="critical" title="Save failed">{actionData.error}</Banner>

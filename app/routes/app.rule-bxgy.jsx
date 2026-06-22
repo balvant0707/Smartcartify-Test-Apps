@@ -1080,6 +1080,7 @@ export default function RuleBxgy() {
         {
           content: status === "active" ? "Pause" : "Activate",
           tone: status === "active" ? "caution" : "success",
+          accessibilityLabel: enabled ? "Pause campaign" : "Activate campaign",
           onAction: () => setStatus((value) => (value === "active" ? "paused" : "active")),
         },
       ]}
@@ -1136,6 +1137,37 @@ export default function RuleBxgy() {
         @media(max-width:980px){.bxgy-layout{grid-template-columns:1fr}.bxgy-sidebar{order:-1}}
         @media(max-width:640px){.bxgy-grid2{grid-template-columns:1fr}.bxgy-conditionRow,.bxgy-conditionTop{grid-template-columns:1fr;display:grid}.bxgy-layout{gap:14px}}
         .bxgy-paused .Polaris-Icon{margin:unset !important;}
+        /* Activate Button - Success Green */
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] {
+            background: #16a34a !important;
+            border-color: #16a34a !important;
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"] span {
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Activate campaign"]:hover {
+            background: #15803d !important;
+            border-color: #15803d !important;
+          }
+
+          /* Pause Button - Warning Orange */
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] {
+            background: #f59e0b !important;
+            border-color: #f59e0b !important;
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"] span {
+            color: #ffffff !important;
+          }
+
+          .Polaris-ActionMenu-SecondaryAction button[aria-label="Pause campaign"]:hover {
+            background: #d97706 !important;
+            border-color: #d97706 !important;
+          }
         `}</style>
 
       {actionData?.error && (
@@ -1302,7 +1334,7 @@ export default function RuleBxgy() {
                   />
                 </BlockStack>
 
-                <BlockStack gap="200" style={{ display: "flex", flexDirection: "column"}}>
+                <BlockStack gap="200" style={{ display: "flex", flexDirection: "column" }}>
                   <Text variant="bodyMd" fontWeight="semibold" as="p">
                     Set a maximum number of uses per order
                   </Text>
