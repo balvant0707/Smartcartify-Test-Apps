@@ -814,7 +814,7 @@ export default function MyRules() {
                             </Tooltip>
                           </InlineStack>
                         ) : (
-                          <Text as="span" tone="subdued" style={{ TextAlign: "center" }}>Fixed</Text>
+                          <Text as="span" tone="subdued" style={{ TextAlignCenterIcon: "center" }}>Fixed</Text>
                         )}
                       </IndexTable.Cell>
                     )}
