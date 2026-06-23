@@ -3889,7 +3889,7 @@
 
   --sc-checkout-bg: #a93dea;
   --sc-checkout-text: #ffffff;
-  --sc-announce-bg: linear-gradient(90deg, #673AB7 0%, #673AB7 46%, #673AB7 100%)
+  --sc-announce-bg: linear-gradient(90deg, #102864 0%, #5b2cf4 50%, #e126b9 100%);
   --sc-announce-text: #ffffff;
   --sc-badge-bg: rgba(17,24,39,.1);
   --sc-badge-text: #111827;
@@ -4158,14 +4158,16 @@ padding: 5px 10px 0px 10px;
 /* Announcement */
 .sc-announce,
 .smartcartify-announcement-bar{
-  background: var(--sc-announce-bg);
+  background: var(--sc-announce-bg, linear-gradient(90deg, #102864 0%, #5b2cf4 50%, #e126b9 100%));
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   width:100%;
-  padding: 0 15px;
-  border-radius:0;
-  box-shadow:0 8px 18px rgba(16,40,100,.12);
+  padding:0 12px;
+  border-radius:0.75em;
+  color:var(--sc-announce-text, #ffffff);
+  box-shadow:0 6px 16px rgba(16,40,100,.10);
+  overflow:hidden;
 }
 .sc-announce[hidden]{display:none !important;}
 .sc-announce-static{
@@ -4179,13 +4181,18 @@ padding: 5px 10px 0px 10px;
   display:inline-block;
   text-align:center;
   font-size:var(--sc-small-font-size);
-  font-weight:700;
-  color: var(--sc-announce-text);
+  font-weight:800;
+  line-height:1.25;
+  letter-spacing:.01em;
+  color: var(--sc-announce-text, #ffffff);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
 }
 .marquee-text{
   box-sizing:border-box;
   align-items:center;
   overflow:hidden;
+  color:var(--sc-announce-text, #ffffff);
 }
 .marquee-text .top-info-bar{
   font-size:var(--sc-small-font-size);
@@ -4196,19 +4203,24 @@ padding: 5px 10px 0px 10px;
 }
 .marquee-text .top-info-bar:hover{animation-play-state: paused;}
 .marquee-text .top-info-bar .info-text{
-  padding:10px 30px;
+  padding:8px 22px;
   white-space:nowrap;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap:.25em;
-  transition: all .2s ease;
-  color:var(--sc-announce-text);
+  transition:all .2s ease;
+  color:var(--sc-announce-text, #ffffff);
   font-size:var(--sc-base-font-size);
-      letter-spacing: normal;
+  font-weight:700;
+  line-height:1.25;
+  letter-spacing:.01em;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
 }
 .marquee-text .top-info-bar .info-text .sc-announce-em{
-  font-size:var(--sc-base-font-size);
+  font-size:inherit;
+  font-weight:800;
   margin:0 .15em;
 }
 .marquee-text .top-info-bar .info-text .sc-announce-code{
@@ -4218,7 +4230,7 @@ padding: 5px 10px 0px 10px;
 .marquee-text .top-info-bar .info-text .sc-announce-copied{
   opacity:0.9;
 }
-.marquee-text .top-info-bar .info-text a{color: var(--sc-announce-text);text-decoration:none;}
+.marquee-text .top-info-bar .info-text a{color:var(--sc-announce-text, #ffffff);text-decoration:none;}
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translate(-50%); } }
 
 /* Progress */
@@ -4635,7 +4647,7 @@ padding: 5px 10px 0px 10px;
 .sc-item{
   position:relative;
   display:grid;
-  grid-template-columns:80px minmax(0, 1fr);
+  grid-template-columns:72px minmax(0, 1fr);
   align-items:center;
   gap:12px;
   min-height:72px;
@@ -4648,10 +4660,11 @@ padding: 5px 10px 0px 10px;
   border-bottom:0;
 }
 .sc-img{
-  width:60px;
-  height:50px;
+  width:56px;
+  height:56px;
   overflow:hidden;
   background:var(--sc-image-bg);
+  border-radius:0.75em;
   flex:0 0 auto;
 }
 .sc-img img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
@@ -4720,9 +4733,10 @@ padding: 5px 10px 0px 10px;
   width:56px;
   height:56px;
   overflow:hidden;
+  border-radius:0.75em;
 }
 .sc-item.sc-item-reward .sc-img img{
-  border-radius:6px;
+  border-radius:0.75em;
 }
 .sc-item.sc-item-reward .sc-img::before{
   content:none;
@@ -5198,12 +5212,13 @@ color: var(--sc-drawer-text-color);
   justify-content:space-between;
 }
 .sc-upsell-img{
-  width:60px;
-  height:50px;
+  width:56px;
+  height:56px;
   background:#ffffff;
-  overflow: hidden;
-  display: grid;
-  place-items: center;
+  overflow:hidden;
+  border-radius:0.75em;
+  display:grid;
+  place-items:center;
 }
 .sc-upsell-img img{
   width: 100%;
@@ -6291,7 +6306,7 @@ position: relative;
 .sc-drawer .sc-item.sc-item-reward .sc-img img,
 .sc-drawer .sc-upsell-img,
 .sc-drawer .sc-upsell-img img{
-  border-radius:12px !important;
+  border-radius:0.75em !important;
 }
 
 .sc-drawer .sc-qty{
@@ -6349,7 +6364,7 @@ position: relative;
   margin:0 12px 14px !important;
   padding:0 !important;
   border:1px solid rgba(226,232,240,.9) !important;
-  border-radius:14px !important;
+  border-radius:.75em !important;
   background:rgba(255,255,255,.96) !important;
   box-shadow:0 8px 24px rgba(15,23,42,.13) !important;
   overflow:auto !important;
@@ -6518,7 +6533,7 @@ position: relative;
   bottom:auto !important;
   top:auto !important;
   border:1px solid rgba(255,255,255,.72) !important;
-  border-radius:18px !important;
+  border-radius:0.75em !important;
   background:rgba(255,255,255,.96) !important;
   color:var(--sc-drawer-text-color, #102864) !important;
   box-shadow:0 18px 42px rgba(18,24,40,.18) !important;
@@ -7657,7 +7672,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 .sc-drawer:not(.sc-offers-active) .smartcartify-announcement-bar{
   display:block;
   flex:0 0 auto !important;
-  border-radius:14px 14px 0 0 !important;
+  background:var(--sc-announce-bg, linear-gradient(90deg, #102864 0%, #5b2cf4 50%, #e126b9 100%)) !important;
+  color:var(--sc-announce-text, #ffffff) !important;
+  border-radius:0.75em 0.75em 0 0 !important;
   box-shadow:none !important;
   overflow:hidden !important;
 }
@@ -7705,17 +7722,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   gap:0 !important;
 }
 .sc-drawer:not(.sc-offers-active) .sc-item{
-  grid-template-columns:92px minmax(0,1fr) !important;
-  min-height:100px !important;
-  padding:14px 16px !important;
+  grid-template-columns:76px minmax(0,1fr) !important;
+  min-height:84px !important;
+  padding:12px 14px !important;
 }
 .sc-drawer:not(.sc-offers-active) .sc-img,
 .sc-drawer:not(.sc-offers-active) .sc-img img,
 .sc-drawer:not(.sc-offers-active) .sc-upsell-img,
 .sc-drawer:not(.sc-offers-active) .sc-upsell-img img{
-  width:70px !important;
-  height:58px !important;
-  border-radius:9px !important;
+  width:56px !important;
+  height:56px !important;
+  border-radius:0.75em !important;
   object-fit:cover !important;
 }
 .sc-drawer:not(.sc-offers-active) .sc-name,
@@ -8077,14 +8094,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     margin:0 14px 8px !important;
   }
   .sc-drawer:not(.sc-offers-active) .sc-item{
-    grid-template-columns:88px minmax(0,1fr) !important;
-    min-height:96px !important;
-    padding:13px 14px !important;
+    grid-template-columns:74px minmax(0,1fr) !important;
+    min-height:84px !important;
+    padding:12px 14px !important;
   }
   .sc-drawer:not(.sc-offers-active) .sc-img,
   .sc-drawer:not(.sc-offers-active) .sc-img img{
-    width:72px !important;
+    width:56px !important;
     height:56px !important;
+    border-radius:0.75em !important;
   }
   .sc-drawer.sc-offers-active .sc-offer-row{
     grid-template-columns:68px minmax(0,1fr) auto !important;
@@ -8204,13 +8222,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     <div class="sc-footer-tabs" data-offer-tabs hidden>
       <button class="sc-footer-tab is-active" data-drawer-tab="cart" type="button">
         <span class="sc-footer-tab-icon" aria-hidden="true">
-         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="rgb(9,27,107)" d="M20 13v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16zM14.5 2a3.5 3.5 0 0 1 3.163 5.001L21 7a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1l3.337.001a3.5 3.5 0 0 1 5.664-3.95A3.48 3.48 0 0 1 14.5 2zm-5 2a1.5 1.5 0 0 0-.144 2.993L9.5 7H11V5.5a1.5 1.5 0 0 0-1.356-1.493L9.5 4zm5 0l-.144.007a1.5 1.5 0 0 0-1.35 1.349L13 5.5V7h1.5l.144-.007a1.5 1.5 0 0 0 0-2.986L14.5 4z"></path></svg>
+         <svg viewBox="0 0 255 255" fill="rgb(9,27,107)" xmlns="http://www.w3.org/2000/svg" style="fill: rgb(9, 27, 107);"><path fill-rule="evenodd" clip-rule="evenodd" d="M0 13.6395C0 6.10663 6.10501 0 13.6359 0H20.7503C43.4539 0 62.1832 17.02 64.8815 39H215.849C241.649 39 260.387 63.5385 253.6 88.4363L234.404 152.851C231.168 164.72 220.391 172.953 208.092 172.953H61.9448C48.1927 172.953 37.0444 161.802 37.0444 148.047V39H37.0532C34.7667 32.1872 28.3315 27.2791 20.7503 27.2791H13.6359C6.10501 27.2791 0 21.1724 0 13.6395ZM88.1056 255C103.588 255 116.139 242.688 116.139 227.5C116.139 212.312 103.588 200 88.1056 200C72.6231 200 60.072 212.312 60.072 227.5C60.072 242.688 72.6231 255 88.1056 255ZM214.257 227.5C214.257 242.688 201.93 255 186.724 255C171.518 255 159.191 242.688 159.191 227.5C159.191 212.312 171.518 200 186.724 200C201.93 200 214.257 212.312 214.257 227.5ZM87.9883 120.115C118.946 143.929 162.054 143.929 193.012 120.115L178.988 101.885C156.298 119.339 124.702 119.339 102.012 101.885L87.9883 120.115Z"></path></svg>
         </span>
         <span>Cart</span>
       </button>
       <button class="sc-footer-tab" data-drawer-tab="offers" type="button">
         <span class="sc-footer-tab-icon" aria-hidden="true">
-          <svg viewBox="0 0 255 255" fill="rgb(9,27,107)" xmlns="http://www.w3.org/2000/svg" style="fill: rgb(9, 27, 107);"><path fill-rule="evenodd" clip-rule="evenodd" d="M0 13.6395C0 6.10663 6.10501 0 13.6359 0H20.7503C43.4539 0 62.1832 17.02 64.8815 39H215.849C241.649 39 260.387 63.5385 253.6 88.4363L234.404 152.851C231.168 164.72 220.391 172.953 208.092 172.953H61.9448C48.1927 172.953 37.0444 161.802 37.0444 148.047V39H37.0532C34.7667 32.1872 28.3315 27.2791 20.7503 27.2791H13.6359C6.10501 27.2791 0 21.1724 0 13.6395ZM88.1056 255C103.588 255 116.139 242.688 116.139 227.5C116.139 212.312 103.588 200 88.1056 200C72.6231 200 60.072 212.312 60.072 227.5C60.072 242.688 72.6231 255 88.1056 255ZM214.257 227.5C214.257 242.688 201.93 255 186.724 255C171.518 255 159.191 242.688 159.191 227.5C159.191 212.312 171.518 200 186.724 200C201.93 200 214.257 212.312 214.257 227.5ZM87.9883 120.115C118.946 143.929 162.054 143.929 193.012 120.115L178.988 101.885C156.298 119.339 124.702 119.339 102.012 101.885L87.9883 120.115Z"></path></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="rgb(9,27,107)" d="M20 13v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16zM14.5 2a3.5 3.5 0 0 1 3.163 5.001L21 7a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1l3.337.001a3.5 3.5 0 0 1 5.664-3.95A3.48 3.48 0 0 1 14.5 2zm-5 2a1.5 1.5 0 0 0-.144 2.993L9.5 7H11V5.5a1.5 1.5 0 0 0-1.356-1.493L9.5 4zm5 0l-.144.007a1.5 1.5 0 0 0-1.35 1.349L13 5.5V7h1.5l.144-.007a1.5 1.5 0 0 0 0-2.986L14.5 4z"></path></svg>
         </span>
         <span>Offers</span>
       </button>
@@ -8483,7 +8501,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       progress: "#a93dea",
       checkoutBg: "#9F42EB",
       checkoutText: "#ffffff",
-      announcementBarBackgroundColor: "linear-gradient(90deg, #102864 0%, #5b2cf4 45%, #e126b9 100%)",
+      announcementBarBackgroundColor: "linear-gradient(90deg, #102864 0%, #5b2cf4 50%, #e126b9 100%)",
       announcementBarTextColor: "#ffffff",
       buttonLabelColor: "#ffffff",
       iconColor: "#102864",
