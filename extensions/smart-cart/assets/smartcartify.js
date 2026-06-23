@@ -1271,8 +1271,8 @@
       selectionType: String(raw.selectionType || raw.selection_type || "").toLowerCase(),
       sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "You'll love these"),
       buttonText: pickTextAny(raw, ["buttonText"], "add"),
-      buttonColor: pickColor(raw, ["buttonColor", "button"], "rgb(246,246,218)"),
-      buttonTextColor: pickColor(raw, ["buttonTextColor", "buttonLabelColor", "button_text_color"], "#000000"),
+      buttonColor: pickColor(raw, ["buttonColor", "button"], "#9F42EB"),
+      buttonTextColor: pickColor(raw, ["buttonTextColor", "buttonLabelColor", "button_text_color"], "#ffffff"),
       backgroundColor: pickBackground(raw, ["backgroundColor", "background"], null),
       textColor: pickColor(raw, ["textColor", "text"], "#e2e8f0"),
       borderColor: pickColor(raw, ["borderColor", "border"], "#e2e8f0"),
@@ -1443,6 +1443,41 @@
     return priceToCents(value);
   };
 
+  const getUpsellCompareAtCents = (item, variant = null, priceCents = null) => {
+    const candidates = [
+      variant?.compare_at_price,
+      variant?.compareAtPrice,
+      variant?.compare_at,
+      variant?.compareAt,
+      variant?.compare_price,
+      variant?.comparePrice,
+      variant?.compareAtPriceV2?.amount,
+      item?.compareAtPriceCents,
+      item?.compareAtPrice,
+      item?.compare_at_price,
+      item?.compareAt,
+      item?.compare_price,
+      item?.comparePrice,
+    ];
+
+    let compareCents = null;
+    for (const raw of candidates) {
+      if (raw == null || raw === "") continue;
+      compareCents = typeof raw === "number" && item?.priceIsCents
+        ? normalizeCents(raw)
+        : priceToCentsFromItem(raw, item);
+      if (compareCents != null) break;
+    }
+
+    const saleCents = priceCents != null
+      ? normalizeCents(priceCents)
+      : normalizeCents(item?.priceCents);
+
+    return compareCents != null && saleCents != null && compareCents > saleCents
+      ? compareCents
+      : null;
+  };
+
   const buildUpsellItemsFromProxyProducts = (products, currency) => {
     const list = Array.isArray(products) ? products : [];
     return list.map((p) => {
@@ -1489,11 +1524,30 @@
       const priceRaw = p?.variantPrice ?? firstVariant?.price ?? null;
       const priceIsCents = false;
       const priceCents = priceToCents(priceRaw);
+      const compareRaw =
+        p?.variantCompareAtPrice ??
+        p?.variant_compare_at_price ??
+        p?.compareAtPrice ??
+        p?.compare_at_price ??
+        p?.compareAt ??
+        p?.compare_price ??
+        firstVariant?.compare_at_price ??
+        firstVariant?.compareAtPrice ??
+        firstVariant?.compare_at ??
+        firstVariant?.compareAt ??
+        firstVariant?.compare_price ??
+        firstVariant?.compareAtPriceV2?.amount ??
+        null;
+      const compareAtPriceCents = priceToCents(compareRaw);
       return {
         title: safe(p?.title || "Product"),
         price:
           priceCents != null ? formatMoney(priceCents, currency) : formatMoney(2500, currency),
         priceCents: priceCents != null ? priceCents : null,
+        compareAtPriceCents:
+          compareAtPriceCents != null && priceCents != null && compareAtPriceCents > priceCents
+            ? compareAtPriceCents
+            : null,
         priceIsCents,
         image: normalizeImage(p?.image) || "",
         size,
@@ -1689,8 +1743,18 @@
         const variants = Array.isArray(p?.variants) ? p.variants : [];
         const firstVariant = variants[0] || null;
         const priceRaw = firstVariant?.price ?? null;
+        const compareRaw =
+          firstVariant?.compare_at_price ??
+          firstVariant?.compareAtPrice ??
+          firstVariant?.compare_at ??
+          firstVariant?.compareAt ??
+          firstVariant?.compare_price ??
+          p?.compare_at_price ??
+          p?.compareAtPrice ??
+          null;
         const priceIsCents = inferPriceIsCents(priceRaw);
         const priceCents = priceIsCents ? normalizeCents(priceRaw) : priceToCents(priceRaw);
+        const compareAtPriceCents = priceIsCents ? normalizeCents(compareRaw) : priceToCents(compareRaw);
         const hasVariants =
           variants.length > 1 && !Boolean(p?.has_only_default_variant);
         const size = hasVariants
@@ -1717,6 +1781,10 @@
           price:
             priceCents != null ? formatMoney(priceCents, currency) : formatMoney(2500, currency),
           priceCents,
+          compareAtPriceCents:
+            compareAtPriceCents != null && priceCents != null && compareAtPriceCents > priceCents
+              ? compareAtPriceCents
+              : null,
           priceIsCents,
           image: getUpsellImageFromProduct(p),
           size,
@@ -1993,16 +2061,13 @@
     wrap.hidden = false;
     wrap.style.setProperty("--sc-upsell-bg", settings.backgroundColor || "var(--sc-drawer-bg, #ffffff)");
     wrap.style.setProperty("--sc-upsell-text", settings.textColor || "#111827");
-    wrap.style.setProperty("--sc-upsell-button-bg", settings.buttonColor || "#111111");
+    wrap.style.setProperty("--sc-upsell-button-bg", settings.buttonColor || "#9F42EB");
     wrap.style.setProperty("--sc-upsell-button-text", settings.buttonTextColor || "#ffffff");
     wrap.style.setProperty("--sc-border", settings.borderColor || "#e2e8f0");
     wrap.style.setProperty("--sc-upsell-arrow", settings.arrowColor || "#111827");
 
     const total = items.length;
-    const groupedSlides = [];
-    for (let i = 0; i < items.length; i += 2) groupedSlides.push(items.slice(i, i + 2));
-    const totalSlides = settings.showAsSlider ? Math.max(1, groupedSlides.length) : total;
-    if (UPSELL_INDEX >= totalSlides) UPSELL_INDEX = 0;
+    if (UPSELL_INDEX >= total) UPSELL_INDEX = 0;
     const visibleItems = items;
     const upsellItemMap = new Map();
 
@@ -2042,6 +2107,14 @@
         variants[0] ||
         null;
       const available = isVariantAvailable(picked, item);
+      const currentPriceCents =
+        picked?.price != null ? priceToCentsFromItem(picked.price, item) : normalizeCents(item?.priceCents);
+      const salePriceText =
+        currentPriceCents != null ? formatMoney(currentPriceCents, normalizeCurrencyCode()) : String(item?.price || "");
+      const compareAtCents = getUpsellCompareAtCents(item, picked, currentPriceCents);
+      const comparePriceHtml = compareAtCents
+        ? `<span class="sc-upsell-compare">${safe(formatMoney(compareAtCents, normalizeCurrencyCode()))}</span>`
+        : "";
       const addVariantId = available
         ? safe(
           picked?.id ||
@@ -2076,13 +2149,13 @@
               <div class="sc-upsell-info">
                 <div class="sc-upsell-top">
                   <div class="sc-upsell-name">${safe(item.title)}</div>
-                  <div class="sc-upsell-price">${safe(item.price)}</div>
+                  <div class="sc-upsell-price"><span class="sc-upsell-sale">${safe(salePriceText)}</span>${comparePriceHtml}</div>
                 </div>
                 ${sizeLabel ? `<div class="sc-upsell-sub">${safe(sizeLabel)}</div>` : ""}
                 <div class="${controlsClass}">
                   ${selectMarkup}
                   <div class="sc-upsell-action">
-                    <button class="sc-upsell-btn" type="button" data-upsell-add="${addVariantId}" data-upsell-key="${safeKey}" ${available ? "" : "disabled hidden"} style="${available ? `background-color:${safe(settings.buttonColor || "#111111")};color:${safe(settings.buttonTextColor || "#ffffff")};` : "display:none"}">
+                    <button class="sc-upsell-btn" type="button" data-upsell-add="${addVariantId}" data-upsell-key="${safeKey}" ${available ? "" : "disabled hidden"} style="${available ? `background-color:${safe(settings.buttonColor || "#9F42EB")};color:${safe(settings.buttonTextColor || "#ffffff")};` : "display:none"}">
                       <span class="sc-upsell-btn-icon">+</span>
                       <span class="sc-upsell-btn-text">${safe(settings.buttonText)}</span>
                     </button>
@@ -2097,7 +2170,7 @@
     };
 
     const arrows =
-      settings.showAsSlider && totalSlides > 1
+      settings.showAsSlider && total > 1
         ? `
           <button class="sc-upsell-arrow left" type="button" data-upsell-prev aria-label="Previous">
             <svg width="14" height="14" viewBox="0 0 256 256" xml:space="preserve">
@@ -2124,8 +2197,8 @@
       ? `
         <div class="sc-upsell-viewport">
           <div class="sc-upsell-track" style="transform: translateX(-${UPSELL_INDEX * 100}%);">
-            ${groupedSlides
-        .map((group, slideIndex) => `<div class="sc-upsell-slide">${group.map((item, i) => renderCard(item, (slideIndex * 2) + i)).join("")}</div>`)
+            ${visibleItems
+        .map((item, i) => `<div class="sc-upsell-slide">${renderCard(item, i)}</div>`)
         .join("")}
           </div>
         </div>
@@ -2143,14 +2216,14 @@
     `;
 
     wrap.querySelector("[data-upsell-prev]")?.addEventListener("click", () => {
-      if (totalSlides <= 1) return;
-      UPSELL_INDEX = UPSELL_INDEX - 1 < 0 ? totalSlides - 1 : UPSELL_INDEX - 1;
+      if (total <= 1) return;
+      UPSELL_INDEX = UPSELL_INDEX - 1 < 0 ? total - 1 : UPSELL_INDEX - 1;
       updateUpsellSliderPosition(wrap);
     });
 
     wrap.querySelector("[data-upsell-next]")?.addEventListener("click", () => {
-      if (totalSlides <= 1) return;
-      UPSELL_INDEX = UPSELL_INDEX + 1 >= totalSlides ? 0 : UPSELL_INDEX + 1;
+      if (total <= 1) return;
+      UPSELL_INDEX = UPSELL_INDEX + 1 >= total ? 0 : UPSELL_INDEX + 1;
       updateUpsellSliderPosition(wrap);
     });
 
@@ -2233,7 +2306,12 @@
         const priceEl = select.closest(".sc-upsell-item")?.querySelector(".sc-upsell-price");
         if (priceEl && picked?.price != null) {
           const nextCents = priceToCentsFromItem(picked.price, item);
-          if (nextCents != null) priceEl.textContent = formatMoney(nextCents, normalizeCurrencyCode());
+          if (nextCents != null) {
+            const compareCents = getUpsellCompareAtCents(item, picked, nextCents);
+            priceEl.innerHTML =
+              `<span class="sc-upsell-sale">${safe(formatMoney(nextCents, normalizeCurrencyCode()))}</span>` +
+              (compareCents ? `<span class="sc-upsell-compare">${safe(formatMoney(compareCents, normalizeCurrencyCode()))}</span>` : "");
+          }
         }
       });
     });
@@ -3759,10 +3837,8 @@
   --sc-muted: rgba(107,114,128,1);
 
   --sc-drawer-width: min(540px,94vw);
-  --sc-drawer-bg: rgb(246,246,218);
-  --sc-drawer-bg-color: rgb(246,246,218);
-  --sc-drawer-top-bg-image: url("public.jpeg");
-  --sc-drawer-top-bg-height: 30%;
+  --sc-drawer-bg-image: url("/images/campaigns/public.jpeg");
+  --sc-drawer-bg: linear-gradient(180deg, rgba(159,66,235,.86) 0%, rgba(185,59,15,.86) 100%), var(--sc-drawer-bg-image);
   --sc-drawer-text-color: #000000;
   --sc-drawer-header-color: #000000;
 
@@ -3803,7 +3879,7 @@
   --sc-input-text: #111827;
   --sc-input-placeholder: rgba(156,163,175,1);
 
-  --sc-apply-bg: #000000;
+  --sc-apply-bg: #9F42EB;
   --sc-apply-text: #ffffff;
   --sc-apply-border: rgba(17,24,39,.25);
 
@@ -3811,10 +3887,10 @@
   --sc-subtotal-text: #111827;
   --sc-subtotal-label: rgba(107,114,128,1);
 
-  --sc-checkout-bg: rgb(246,246,218);
-  --sc-checkout-text: #000000;
-  --sc-announce-bg: rgb(246,246,218);
-  --sc-announce-text: #000000;
+  --sc-checkout-bg: rgb(246 246 218);
+  --sc-checkout-text: #ffffff;
+  --sc-announce-bg: var(--sc-checkout-bg);
+  --sc-announce-text: #ffffff;
   --sc-badge-bg: rgba(17,24,39,.1);
   --sc-badge-text: #111827;
   --sc-icon-color: var(--sc-drawer-header-color);
@@ -3862,11 +3938,10 @@
   position:fixed;top:0;right:0;height:100%;
   max-width:435px;
   width:100% !important;
-  background: var(--sc-drawer-bg-color, var(--sc-drawer-bg));
-  background-size:cover;
-  background-position:center;
-  background-repeat:no-repeat;
-  overflow:hidden;
+  background: var(--sc-drawer-bg);
+  background-size:cover, cover;
+  background-position:center center, center center;
+  background-repeat:no-repeat, no-repeat;
   transform:translateX(110%);
   transition:transform .25s ease;
   z-index:2147483647 !important;
@@ -3912,24 +3987,6 @@
 .sc-drawer.open{transform:none;pointer-events:auto !important}
 .sc-drawer.sc-position-left.open{transform:none}
 .sc-drawer.sc-mobile-bottom-sheet.open{transform:none}
-.sc-drawer::before{
-  content:"";
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  height:var(--sc-drawer-top-bg-height, 30%);
-  background-image:var(--sc-drawer-top-bg-image, none);
-  background-size:cover;
-  background-position:top center;
-  background-repeat:no-repeat;
-  pointer-events:none !important;
-  z-index:0;
-}
-.sc-drawer > *{
-  position:relative;
-  z-index:1;
-}
 .sc-drawer *{box-sizing:border-box;pointer-events:auto !important;text-shadow:none !important;}
   .sc-close svg {
     fill: var(--sc-close-icon-color) !important;
@@ -5079,9 +5136,6 @@ color: var(--sc-drawer-text-color);
 .sc-upsell-slide{
   flex: 0 0 100%;
   min-width: 100%;
-  display:grid;
-  gap:6px;
-  grid-template-columns:1fr;
 }
 .sc-upsell-row{
   display: grid;
@@ -5132,10 +5186,20 @@ color: var(--sc-drawer-text-color);
   display: none;
 }
 .sc-upsell-price{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
   font-weight:500;
   font-size:var(--sc-small-font-size);
   color: var(--sc-drawer-text-color);
   white-space: nowrap;
+}
+.sc-upsell-compare{
+  opacity:.62;
+  text-decoration:line-through;
+  font-weight:500;
+  font-size:calc(var(--sc-small-font-size) * .94);
 }
 .sc-upsell-controls{
   display: grid;
@@ -5484,58 +5548,49 @@ color: var(--sc-drawer-text-color);
 }
 
 .sc-offers{
-  position:relative;
-  z-index:25;
-  max-width:none !important;
-  width:100% !important;
-  background:var(--sc-drawer-bg-color, var(--sc-drawer-bg));
-  background-size:cover;
-  background-position:center;
-  pointer-events:auto !important;
-  display:flex !important;
-  flex-direction:column;
-  gap:12px;
-  font-size:var(--sc-base-font-size);
-  color:var(--sc-drawer-text-color);
-  flex:1 1 auto;
-  min-height:0;
-  height:100%;
-  overflow:auto;
-  padding:14px;
-  border-bottom:0;
-  box-shadow:inset 0 8px 18px rgba(15,23,42,.05) !important;
+position: relative;
+    z-index: 25;
+    max-width: none !important;
+    width: 100% !important;
+    background: var(--sc-drawer-bg);
+    background-size: cover;
+    background-position: center;
+    pointer-events: auto !important;
+    display: flex !important;
+    flex-direction: column;
+    gap: 0;
+    font-size: var(--sc-base-font-size);
+    color: var(--sc-drawer-text-color);
+    flex: 1 1 auto;
+    min-height: 93.3%;
+    overflow: auto;
+    padding: 8px 10px;
+    box-shadow: none !important;
+    height: 100%;
+    bottom: 10%;
+    border-bottom: 1px solid #e9e7e7;
 }
-.sc-drawer.sc-offers-active{
-  height:100%;
-}
-.sc-drawer.sc-offers-active .content-cart-smartcartify{
-  flex:1 1 auto;
-  min-height:0;
-  height:100%;
-  background:var(--sc-drawer-bg-color, var(--sc-drawer-bg)) !important;
-}
+.sc-drawer.sc-offers-active .content-cart-smartcartify,
 .sc-drawer.sc-offers-active .sc-footer{
-  background:var(--sc-drawer-bg-color, var(--sc-drawer-bg)) !important;
+  background:var(--sc-drawer-bg) !important;
 }
 .sc-drawer.sc-offers-active .sc-offers{
-  box-shadow:inset 0 8px 18px rgba(15,23,42,.05) !important;
+  box-shadow:none;
 }
 .sc-offers[hidden]{display:none !important;}
-.sc-offer-row{
+.sc-offer-row {
   display:grid;
   grid-template-columns:64px minmax(0, 1fr) auto;
   gap:12px;
   align-items:center;
   min-height:76px;
-  padding:12px;
-  border:1px solid rgba(15,23,42,.08);
-  border-radius:14px;
-  background:rgba(255,255,255,.92);
-  box-shadow:0 10px 26px rgba(15,23,42,.12) !important;
+  padding:12px 4px;
+  border-bottom:1px solid var(--sc-border);
+  box-shadow:none !important;
   margin:0;
 }
-.sc-offer-row:first-child{border-top:1px solid rgba(15,23,42,.08);}
-.sc-offer-row:last-child{border-bottom:1px solid rgba(15,23,42,.08);}
+.sc-offer-row:first-child{border-top:0;}
+.sc-offer-row:last-child{border-bottom:0;}
 .sc-offer-icon{
   width:56px;
   height:56px;
@@ -5686,34 +5741,6 @@ color: var(--sc-drawer-text-color);
   white-space:nowrap;
   cursor:pointer;
   font-size:var(--sc-base-font-size);
-}
-@media(max-width:520px){
-  .sc-offers{padding:10px;gap:10px;}
-  .sc-offer-row{
-    grid-template-columns:52px minmax(0,1fr);
-    gap:10px;
-    padding:10px;
-  }
-  .sc-offer-icon,
-  .sc-offer-thumbs{
-    width:48px;
-    min-height:48px;
-  }
-  .sc-offer-icon{
-    height:48px;
-  }
-  .sc-offer-icon svg{
-    width:40px;
-    height:40px;
-  }
-  .sc-offer-codebox,
-  .sc-offer-action{
-    grid-column:1 / -1;
-    width:100%;
-  }
-  .sc-offer-title{
-    white-space:normal;
-  }
 }
 .sc-offers-empty{
   padding:24px;
@@ -7045,7 +7072,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         <span class="sc-footer-tab-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none"><path d="M20 12v8H4v-8M3 8h18v4H3V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 8v12M12 8H8.5A2.5 2.5 0 1 1 11 5.5V8ZM12 8h3.5A2.5 2.5 0 1 0 13 5.5V8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </span>
-        <span>Offer</span>
+        <span>Offers</span>
       </button>
     </div>
     </div>
@@ -7269,7 +7296,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return Number.isFinite(n) && n > 0 ? n : fallback;
     };
 
-    const baseFontSize = parsePositiveNumber(style?.base, 12);
+    const baseFontSize = parsePositiveNumber(style?.base, 14);
     const headingScaleValue = parsePositiveNumber(style?.headingScale, 1.2);
     const headingFontSize = Math.max(
       8,
@@ -7294,23 +7321,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (drawerFontFamily) r.setProperty("--sc-font", drawerFontFamily);
 
     const defaults = {
-      baseBg: "rgb(246,246,218)",
-      drawerImage: "public.jpeg",
+      baseBg: "linear-gradient(180deg, #9F42EB 0%, #B93B0F 100%)",
+      drawerImage: "/images/campaigns/public.jpeg",
       topText: "#000000",
       headerText: "#000000",
       drawerText: "#111827",
       border: "#e5e7eb",
       muted: "#6b7280",
       progress: "#000000",
-      checkoutBg: "rgb(246,246,218)",
-      checkoutText: "#000000",
-      announcementBarBackgroundColor: "rgb(246,246,218)",
-      announcementBarTextColor: "#000000",
-      buttonLabelColor: "#000000",
+      checkoutBg: "#9F42EB",
+      checkoutText: "#ffffff",
+      announcementBarBackgroundColor: "#000000",
+      announcementBarTextColor: "#ffffff",
+      buttonLabelColor: "#ffffff",
       iconColor: "#000000",
-      footerBg: "rgb(246,246,218)",
-      applyBtnBg: "rgb(246,246,218)",
-      applyBtnText: "#000000",
+      footerBg: "transparent",
+      applyBtnBg: "#9F42EB",
+      applyBtnText: "#ffffff",
       applyBtnBorder: "rgba(17,24,39,.25)",
       subtotalBg: "#ffffff",
       subtotalText: "#111827",
@@ -7318,12 +7345,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       discountCodeApply: 1,
     };
 
-    const mode = String(
-      pick(style, ["cartDrawerBackgroundMode", "drawerBgMode", "bgMode"], "color")
+    let mode = String(
+      pick(style, ["cartDrawerBackgroundMode", "drawerBgMode", "bgMode"], "gradient")
     )
       .trim()
       .toLowerCase();
-
     const baseBg = pickBackground(
       style,
       ["cartDrawerBackground", "cartDrawerBg", "drawerTopBg", "topBg", "baseBg"],
@@ -7332,13 +7358,30 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const gradientStart = pickColor(
       style,
       ["cartDrawerGradientStart", "drawerGradientStart", "gradientStart", "cartDrawerGradientFrom"],
-      getFirstColorFromBackground(baseBg) || defaults.baseBg
+      getFirstColorFromBackground(baseBg) || "#9F42EB"
     );
     const gradientEnd = pickColor(
       style,
       ["cartDrawerGradientEnd", "drawerGradientEnd", "gradientEnd", "cartDrawerGradientTo"],
-      getFirstColorFromBackground(baseBg) || "#f9f9f9"
+      getFirstColorFromBackground(baseBg) || "#B93B0F"
     );
+
+    const drawerBackgroundImageRaw =
+      pick(
+        style,
+        [
+          "cartDrawerImage",
+          "drawerImage",
+          "cartDrawerBackgroundImage",
+          "backgroundImage",
+          "cartBackgroundImage"
+        ],
+        defaults.drawerImage
+      ) || "";
+    const drawerBackgroundImage =
+      /^url\(/i.test(String(drawerBackgroundImageRaw))
+        ? String(drawerBackgroundImageRaw)
+        : buildCssUrl(drawerBackgroundImageRaw);
 
     let topTextColor = pickColor(
       style,
@@ -7584,8 +7627,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     r.setProperty("--sc-border", borderColor);
     r.setProperty("--sc-muted", mutedColor);
-    r.setProperty("--sc-drawer-bg", String(baseBg));
-    r.setProperty("--sc-drawer-bg-color", getFirstColorFromBackground(baseBg) || String(baseBg));
+    r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
+    r.setProperty("--sc-drawer-bg", drawerBackgroundImage ? `${String(baseBg)}, ${drawerBackgroundImage}` : String(baseBg));
 
     r.setProperty("--sc-text", topTextColor);
     r.setProperty("--sc-drawer-header-color", headerColor);
@@ -7628,18 +7671,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-close-border", closeBorder);
     r.setProperty("--sc-close-text", closeText);
     r.setProperty("--sc-close-icon-color", closeText);
-
-    const configuredDrawerImage =
-      pick(style, ["cartDrawerImage", "drawerImage", "topBgImage", "cartDrawerBackgroundImage"], defaults.drawerImage) || "";
-    const drawerTopImage =
-      /^url\(/i.test(String(configuredDrawerImage))
-        ? String(configuredDrawerImage)
-        : buildCssUrl(configuredDrawerImage);
-    r.setProperty("--sc-drawer-top-bg-image", drawerTopImage || "none");
-    r.setProperty("--sc-drawer-top-bg-height", normalizeLen(
-      pick(style, ["cartDrawerImageHeight", "drawerImageHeight", "topImageHeight"], null),
-      "30%"
-    ));
 
     r.setProperty("--sc-footer-bg", String(footerBg));
     r.setProperty("--sc-apply-bg", applyBtnBg);
@@ -7685,13 +7716,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (mode === "image") {
       const rawImage =
-        pick(style, ["cartDrawerBackground", "cartDrawerImage", "drawerImage", "topBgImage"], null) || "";
+        pick(
+          style,
+          ["cartDrawerBackground", "cartDrawerImage", "drawerImage", "topBgImage", "cartDrawerBackgroundImage"],
+          defaults.drawerImage
+        ) || "";
       const imgUrl =
         /^url\(/i.test(String(rawImage)) ? String(rawImage) : buildCssUrl(rawImage);
+      const imageOverlay = `linear-gradient(180deg, rgba(159,66,235,.82) 0%, rgba(185,59,15,.82) 100%)`;
 
       if (imgUrl) {
-        r.setProperty("--sc-top-bg-image", `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), ${imgUrl}`);
-        r.setProperty("--sc-drawer-top-bg-image", imgUrl);
+        r.setProperty("--sc-top-bg-image", `${imageOverlay}, ${imgUrl}`);
       } else {
         r.setProperty("--sc-top-bg-image", "none");
       }
@@ -7699,10 +7734,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-color-effective", "transparent");
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
-      r.setProperty("--sc-drawer-bg", String(baseBg || defaults.baseBg));
-      r.setProperty("--sc-drawer-bg-color", getFirstColorFromBackground(baseBg) || defaults.baseBg);
-      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", String(baseBg || defaults.baseBg));
-      if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", String(baseBg || defaults.baseBg));
+      r.setProperty("--sc-drawer-bg-image", imgUrl || "none");
+      r.setProperty("--sc-drawer-bg", imgUrl ? `${imageOverlay}, ${imgUrl}` : baseBg || "transparent");
+      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
+      if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else if (mode === "gradient") {
       const gradientBg = /gradient\(/i.test(String(baseBg))
         ? String(baseBg)
@@ -7713,8 +7748,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-color-effective", "transparent");
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
-      r.setProperty("--sc-drawer-bg", gradientBg);
-      r.setProperty("--sc-drawer-bg-color", getFirstColorFromBackground(baseBg) || defaults.baseBg);
+      r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
+      r.setProperty("--sc-drawer-bg", drawerBackgroundImage ? `${gradientBg}, ${drawerBackgroundImage}` : gradientBg);
       if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else {
@@ -7728,8 +7763,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-color-effective", "var(--sc-top-bg-color)");
       r.setProperty("--sc-top-bg-image-effective", "none");
 
-      r.setProperty("--sc-drawer-bg", String(solidBg));
-      r.setProperty("--sc-drawer-bg-color", String(solidBg));
+      r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
+      r.setProperty("--sc-drawer-bg", drawerBackgroundImage ? `linear-gradient(180deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.72) 100%), ${drawerBackgroundImage}` : String(solidBg));
       if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", String(solidBg));
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", String(solidBg));
     }
