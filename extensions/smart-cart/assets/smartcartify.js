@@ -3837,26 +3837,20 @@
   --sc-muted: rgba(107,114,128,1);
 
   --sc-drawer-width: min(540px,94vw);
-  --sc-drawer-bg-image: url("/images/campaigns/public.jpeg");
-  --sc-drawer-bg: linear-gradient(180deg, rgba(159,66,235,.86) 0%, rgba(185,59,15,.86) 100%), var(--sc-drawer-bg-image);
-  --smartcartify-cart-drawer-bg-color: #fff7ed;
-  --smartcartify-cart-drawer-bg-image: var(--sc-drawer-bg-image);
-  --smartcartify-cart-drawer-bg-overlay: linear-gradient(180deg, rgba(255,247,237,.20) 0%, rgba(255,247,237,.92) 100%);
-  --smartcartify-cart-drawer-banner-height: 240px;
-  --smartcartify-cart-drawer-card-bg: rgba(255,255,255,.92);
-  --smartcartify-cart-drawer-card-blur: 10px;
-  --sc-drawer-text-color: #000000;
-  --sc-drawer-header-color: #000000;
+  --sc-drawer-bg-image: none;
+  --sc-drawer-bg: #f4f4f7;
+  --sc-drawer-text-color: #102864;
+  --sc-drawer-header-color: #ffffff;
 
-  --sc-top-bg-color: #ffffff;
-  --sc-top-bg-image: none;
-  --sc-top-bg-color-effective: var(--sc-top-bg-color);
-  --sc-top-bg-image-effective: none;
+  --sc-top-bg-color: transparent;
+  --sc-top-bg-image: linear-gradient(135deg, #ff3b30 0%, #e126b9 48%, #f8dfd0 100%);
+  --sc-top-bg-color-effective: transparent;
+  --sc-top-bg-image-effective: var(--sc-top-bg-image);
 
   --sc-progress-bg: var(--sc-top-bg-color-effective);
   --sc-progress-text: var(--sc-text);
 
-  --sc-progress: #000000;
+  --sc-progress: #a93dea;
   --sc-free-tag-color: var(--sc-progress);
   --sc-free-tag-font-size: var(--sc-small-font-size);
   --sc-stepcount:4;
@@ -3893,13 +3887,17 @@
   --sc-subtotal-text: #111827;
   --sc-subtotal-label: rgba(107,114,128,1);
 
-  --sc-checkout-bg: rgb(246 246 218);
+  --sc-checkout-bg: #a93dea;
   --sc-checkout-text: #ffffff;
-  --sc-announce-bg: var(--sc-checkout-bg);
+  --sc-announce-bg: linear-gradient(90deg, #102864 0%, #5b2cf4 45%, #e126b9 100%);
   --sc-announce-text: #ffffff;
   --sc-badge-bg: rgba(17,24,39,.1);
   --sc-badge-text: #111827;
-  --sc-icon-color: var(--sc-drawer-header-color);
+  --sc-icon-color: #102864;
+  --sc-header-icon-color: var(--sc-drawer-header-color);
+  --sc-offer-icon-color: #111827;
+  --sc-tab-icon-color: #102864;
+  --sc-tab-active-color: var(--sc-checkout-bg);
 
   --sc-freegift-bg:var(--sc-drawer-bg);
   --sc-freegift-border: rgba(15,23,42,.08);
@@ -3922,10 +3920,10 @@
   --sc-celebrate-title-size: var(--sc-heading-font-size);
   --sc-celebrate-text-size: var(--sc-small-font-size);
 
-  --sc-close-bg: transparent;
-  --sc-close-border: var(--sc-border);
-  --sc-close-text: #ffffff;
-  --sc-close-icon-color: #ffffff;
+  --sc-close-bg: #ffffff;
+  --sc-close-border: transparent;
+  --sc-close-text: #102864;
+  --sc-close-icon-color: #102864;
 }
 
 .sc-overlay{
@@ -3937,18 +3935,18 @@
 }
 .sc-overlay.open{opacity:1;visibility:visible;pointer-events:auto !important}
 .sc-close svg path {
-    fill: var(--sc-icon-color) !important;
-    color: var(--sc-icon-color);
+    fill: currentColor !important;
+    color: currentColor;
 }
 .sc-drawer{
   position:fixed;top:0;right:0;height:100%;
   max-width:435px;
   width:100% !important;
-  background-color: var(--smartcartify-cart-drawer-bg-color);
-  background-image: var(--sc-drawer-bg);
+  background: var(--sc-drawer-bg);
   background-size:cover, cover;
   background-position:center center, center center;
   background-repeat:no-repeat, no-repeat;
+  overflow:hidden;
   transform:translateX(110%);
   transition:transform .25s ease;
   z-index:2147483647 !important;
@@ -3963,6 +3961,29 @@
   text-rendering:optimizeLegibility;
   -webkit-font-smoothing:antialiased;
   backface-visibility:hidden;
+}
+.sc-drawer::before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto 0;
+  height:190px;
+  background-color:var(--sc-top-bg-color-effective);
+  background-image:var(--sc-top-bg-image-effective);
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  pointer-events:none;
+  z-index:0;
+}
+.sc-drawer > *{
+  position:relative;
+  z-index:1;
+}
+.smartcartify-cart-drawer{
+  background:var(--sc-drawer-bg) !important;
+}
+.smartcartify-cart-overlay{
+  background:var(--sc-overlay-bg);
 }
 .sc-drawer button,
 .sc-drawer input,
@@ -3995,47 +4016,6 @@
 .sc-drawer.sc-position-left.open{transform:none}
 .sc-drawer.sc-mobile-bottom-sheet.open{transform:none}
 .sc-drawer *{box-sizing:border-box;pointer-events:auto !important;text-shadow:none !important;}
-
-.smartcartify-cart-drawer{
-  overflow:hidden;
-}
-.smartcartify-cart-bg-banner{
-  position:absolute;
-  z-index:0;
-  top:0;
-  left:0;
-  right:0;
-  height:var(--smartcartify-cart-drawer-banner-height);
-  pointer-events:none !important;
-  background-color:var(--smartcartify-cart-drawer-bg-color);
-  background-image:var(--smartcartify-cart-drawer-bg-overlay), var(--smartcartify-cart-drawer-bg-image);
-  background-size:cover, cover;
-  background-position:center center, center center;
-  background-repeat:no-repeat, no-repeat;
-}
-.smartcartify-cart-bg-gradient{
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:0;
-  height:56%;
-  background:linear-gradient(to bottom, rgba(255,255,255,0), var(--smartcartify-cart-drawer-bg-color) 90%);
-}
-.smartcartify-cart-drawer > .sc-header,
-.smartcartify-cart-drawer > .content-cart-smartcartify,
-.smartcartify-cart-drawer > .sc-page-tabs,
-.smartcartify-cart-drawer > .sc-footer{
-  position:relative;
-  z-index:2;
-}
-.smartcartify-cart-drawer .sc-items,
-.smartcartify-cart-drawer .sc-footer,
-.smartcartify-cart-drawer .sc-page-tabs,
-.smartcartify-cart-drawer .sc-offers{
-  background-color:var(--smartcartify-cart-drawer-card-bg);
-  backdrop-filter:blur(var(--smartcartify-cart-drawer-card-blur));
-  -webkit-backdrop-filter:blur(var(--smartcartify-cart-drawer-card-blur));
-}
   .sc-close svg {
     fill: var(--sc-close-icon-color) !important;
     color:var(--sc-close-icon-color);
@@ -4053,6 +4033,8 @@ body.sc-cartify-open .shopify-section-group-header-group{
   flex-direction:column;
   flex:1;
   min-height:0;
+  position:relative;
+  z-index:1;
 }
 
 .sc-header{
@@ -4062,8 +4044,6 @@ padding: 5px 10px 0px 10px;
     justify-content: space-between;
     gap: 0px;
     color: var(--sc-drawer-header-color);
-    background-color: var(--sc-top-bg-color-effective);
-    background-image: var(--sc-top-bg-image-effective);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -4082,7 +4062,7 @@ padding: 5px 10px 0px 10px;
   border-radius:10px;
   display:grid;
   place-items:center;
-  color:var(--sc-icon-color);
+  color:var(--sc-header-icon-color);
   background:rgba(255,255,255,.12);
   flex:0 0 auto;
 }
@@ -4090,8 +4070,9 @@ padding: 5px 10px 0px 10px;
   width:18px;
   height:18px;
   display:block;
-  color:var(--sc-icon-color);
+  color:var(--sc-header-icon-color);
 }
+.sc-title-icon svg path{fill:currentColor !important;stroke:currentColor;}
 .sc-title-icon .sc-cart-icon-img,
 [data-smart-cartify-open] .sc-cart-icon-img,
 .sc-mobile-open-fallback .sc-cart-icon-img{
@@ -4149,7 +4130,7 @@ padding: 5px 10px 0px 10px;
   border:unset;
   background:var(--sc-close-bg);
   cursor:pointer;font-size:var(--sc-button-font-size);line-height:1;
-  color:var(--sc-close-text);
+  color:var(--sc-close-icon-color);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -4168,16 +4149,34 @@ padding: 5px 10px 0px 10px;
 .sc-close svg path{
   fill:currentColor !important;
 }
+.sc-close::after{
+  content:"Close";
+  font-size:13px;
+  font-weight:800;
+  margin-left:4px;
+}
+.sc-close{
+  width:auto;
+  min-width:74px;
+  height:34px;
+  padding:0 13px;
+  border-radius:999px;
+  box-shadow:0 5px 14px rgba(15,23,42,.14);
+}
 
 /* Announcement */
-.sc-announce{
+.sc-announce,
+.smartcartify-announcement-bar{
   background: var(--sc-announce-bg);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   width:100%;
   padding: 0 15px;
+  border-radius:0;
+  box-shadow:0 8px 18px rgba(16,40,100,.12);
 }
+.sc-announce[hidden]{display:none !important;}
 .sc-announce-static{
   width:100%;
   display:flex;
@@ -4215,6 +4214,7 @@ padding: 5px 10px 0px 10px;
   transition: all .2s ease;
   color:var(--sc-announce-text);
   font-size:var(--sc-base-font-size);
+  font-weight:800;
 }
 .marquee-text .top-info-bar .info-text .sc-announce-em{
   font-weight:700;
@@ -4381,8 +4381,8 @@ padding: 5px 10px 0px 10px;
   height:max(var(--sc-track-h), 8px);
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-bubble{
-  width:24px;
-  height:24px;
+  width:26px;
+  height:26px;
   border:2px solid var(--sc-border);
   background:var(--sc-progress-bg);
   color:var(--sc-icon-color);
@@ -5424,9 +5424,9 @@ color: var(--sc-drawer-text-color);
 .sc-discount button{
     min-width: 80px;
     height: 40px;
-    border: 1px solid var(--sc-drawer-header-color);
+    border: 1px solid var(--sc-drawer-text-color);
     background: transparent;
-    color: var(--sc-drawer-header-color);
+    color: var(--sc-drawer-text-color);
     cursor: pointer;
     font-size: var(--sc-base-font-size);
     padding: 0 15px;
@@ -5645,7 +5645,7 @@ position: relative;
   place-items:center;
   border:1px solid var(--sc-border);
      background: transparent;
-  color:var(--sc-icon-color);
+  color:var(--sc-offer-icon-color);
 }
 .sc-offer-icon svg{
   width:50px;
@@ -5821,7 +5821,7 @@ position: relative;
   border:0;
   border-bottom:3px solid transparent;
   background:#fff;
-  color:var(--sc-drawer-text-color);
+  color:var(--sc-tab-icon-color);
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -5832,15 +5832,53 @@ position: relative;
   cursor:pointer;
 }
 .sc-footer-tab.is-active{
-  color:var(--sc-checkout-bg);
-  border-bottom-color:var(--sc-checkout-bg);
-  fill:var(--sc-checkout-bg);
+  color:var(--sc-tab-active-color);
+  border-bottom-color:var(--sc-tab-active-color);
+  fill:var(--sc-tab-active-color);
+}
+.sc-footer-tab svg,
+.sc-footer-tab svg path{
+  fill:currentColor !important;
+  color:currentColor !important;
+}
+.sc-footer-tab svg [stroke]{
+  stroke:currentColor !important;
 }
 .sc-footer-tab-icon,
 .sc-footer-tab-icon svg{
   width:26px;
   height:26px;
   display:block;
+}
+
+/* SmartCartify app icon color normalization */
+.smartcartify-cart-drawer .sc-dot-bubble,
+.smartcartify-cart-drawer .sc-dot-svg,
+.smartcartify-cart-drawer .sc-dot-html,
+.smartcartify-cart-drawer .sc-upsell-arrow,
+.smartcartify-cart-drawer .sc-offer-thumb{
+  color:var(--sc-icon-color);
+}
+.smartcartify-cart-drawer .sc-dot-bubble svg,
+.smartcartify-cart-drawer .sc-dot-bubble svg path,
+.smartcartify-cart-drawer .sc-upsell-arrow svg,
+.smartcartify-cart-drawer .sc-upsell-arrow svg path,
+.smartcartify-cart-drawer .sc-upsell-arrow svg g{
+  fill:currentColor !important;
+  color:currentColor !important;
+}
+.smartcartify-cart-drawer .sc-offer-icon svg,
+.smartcartify-cart-drawer .sc-offer-icon svg path,
+.smartcartify-cart-drawer .sc-offer-icon svg g{
+  fill:currentColor !important;
+  color:currentColor !important;
+  stroke:currentColor;
+}
+.smartcartify-cart-drawer .sc-close,
+.smartcartify-cart-drawer .sc-close svg,
+.smartcartify-cart-drawer .sc-close svg path{
+  color:var(--sc-close-icon-color) !important;
+  fill:currentColor !important;
 }
 
 .sc-drawer.sc-static-design{
@@ -5896,7 +5934,10 @@ position: relative;
   fill:var(--sc-static-text, #0f2a6f) !important;
 }
 .sc-static-design .sc-announce{
-  display:none !important;
+  display:block;
+  margin:0 18px 0;
+  border-radius:10px 10px 0 0;
+  overflow:hidden;
 }
 .sc-static-design .sc-progress{
   margin:-1px 18px 0;
@@ -6243,6 +6284,564 @@ position: relative;
     margin-top:2px;
   }
 }
+
+/* =========================================================
+   ✅ Requested UI Update: Offer tab design + border radius
+   - Dynamic data remains untouched.
+   - Uses existing dynamic CSS variables for colors/font where possible.
+========================================================= */
+.sc-drawer .sc-img,
+.sc-drawer .sc-img img,
+.sc-drawer .sc-item.sc-item-reward .sc-img,
+.sc-drawer .sc-item.sc-item-reward .sc-img img,
+.sc-drawer .sc-upsell-img,
+.sc-drawer .sc-upsell-img img{
+  border-radius:12px !important;
+}
+
+.sc-drawer .sc-qty{
+  gap:7px;
+}
+.sc-drawer .sc-qty button{
+  border-radius:10px !important;
+  min-width:34px;
+  height:26px;
+  box-shadow:0 1px 2px rgba(15,23,42,.06);
+}
+.sc-drawer .sc-qty input{
+  border-radius:8px !important;
+}
+
+.sc-drawer .sc-upsell-card,
+.sc-drawer .sc-upsell-inner,
+.sc-drawer .sc-upsell-item{
+  border-radius:14px !important;
+}
+.sc-drawer .sc-upsell-select{
+  border-radius:10px !important;
+}
+.sc-drawer .sc-upsell-btn{
+  border-radius:999px !important;
+  min-height:32px;
+  padding:0 14px;
+  font-weight:800;
+  box-shadow:0 5px 12px rgba(15,23,42,.12);
+}
+
+/* Offer tab shell like reference image */
+.sc-drawer.sc-offers-active,
+.smartcartify-cart-drawer.sc-offers-active{
+  background:linear-gradient(135deg, #ff3b30 0%, #df2dc6 45%, #ffe1d6 100%) !important;
+}
+.sc-drawer.sc-offers-active::before{
+  height:170px;
+  background:linear-gradient(135deg, #ff3b30 0%, #df2dc6 45%, #ffe1d6 100%) !important;
+}
+.sc-drawer.sc-offers-active .sc-header{
+  padding:24px 14px 14px !important;
+  background:transparent !important;
+  color:#ffffff !important;
+  align-items:center !important;
+}
+.sc-drawer.sc-offers-active .sc-title{
+  color:#ffffff !important;
+  font-size:26px !important;
+  line-height:1.1 !important;
+  font-weight:900 !important;
+  letter-spacing:-.02em;
+}
+.sc-drawer.sc-offers-active .sc-close{
+  width:auto !important;
+  min-width:72px !important;
+  height:34px !important;
+  border-radius:999px !important;
+  padding:0 13px !important;
+  background:#ffffff !important;
+  color:#20305f !important;
+  box-shadow:0 6px 18px rgba(15,23,42,.12);
+}
+.sc-drawer.sc-offers-active .content-cart-smartcartify,
+.sc-drawer.sc-offers-active .sc-footer{
+  background:transparent !important;
+}
+.sc-drawer.sc-offers-active .sc-offers{
+  width:calc(100% - 24px) !important;
+  min-height:0 !important;
+  height:auto !important;
+  flex:1 1 auto !important;
+  bottom:auto !important;
+  margin:0 12px 14px !important;
+  padding:0 !important;
+  border:1px solid rgba(226,232,240,.9) !important;
+  border-radius:14px !important;
+  background:rgba(255,255,255,.96) !important;
+  box-shadow:0 8px 24px rgba(15,23,42,.13) !important;
+  overflow:auto !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-row{
+  grid-template-columns:68px minmax(0, 1fr) auto !important;
+  gap:12px !important;
+  min-height:98px !important;
+  padding:16px 12px !important;
+  border-bottom:1px solid #edf0f4 !important;
+  background:transparent !important;
+  align-items:center !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-row:last-child{
+  border-bottom:0 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-icon{
+  width:56px !important;
+  height:56px !important;
+  border:0 !important;
+  border-radius:12px !important;
+  background:transparent !important;
+  color:var(--sc-offer-icon-color, #111827) !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-icon svg{
+  width:54px !important;
+  height:54px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-thumbs{
+  width:58px !important;
+  min-height:58px !important;
+  grid-template-columns:repeat(2, 27px) !important;
+  grid-auto-rows:27px !important;
+  gap:4px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-thumb{
+  width:27px !important;
+  height:27px !important;
+  border-radius:8px !important;
+  background:#eef1f4 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-copy{
+  gap:3px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-title{
+  color:var(--sc-drawer-text-color, #102864) !important;
+  font-size:calc(var(--sc-base-font-size) * 1.12) !important;
+  font-weight:900 !important;
+  line-height:1.18 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-subtitle{
+  color:var(--sc-muted, #7c8795) !important;
+  font-size:calc(var(--sc-base-font-size) * 1.02) !important;
+  font-weight:600 !important;
+  line-height:1.34 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-codebox{
+  min-width:112px !important;
+  border:1px solid #e1e5ec !important;
+  border-radius:9px !important;
+  background:#ffffff !important;
+  overflow:hidden !important;
+  box-shadow:0 4px 10px rgba(15,23,42,.06);
+}
+.sc-drawer.sc-offers-active .sc-offer-code-copy{
+  min-height:34px !important;
+  padding:6px 8px !important;
+  background:#ffffff !important;
+  color:var(--sc-drawer-text-color, #102864) !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-code{
+  font-size:calc(var(--sc-base-font-size) * 1.05) !important;
+  font-weight:900 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-code-apply{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  min-height:38px !important;
+  border-radius:0 !important;
+  background:var(--sc-checkout-bg, #a93dea) !important;
+  color:var(--sc-checkout-text, #ffffff) !important;
+  font-size:calc(var(--sc-base-font-size) * 1.05) !important;
+  font-weight:900 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-action{
+  border:2px solid var(--sc-checkout-bg, #a93dea) !important;
+  border-radius:10px !important;
+  background:#ffffff !important;
+  color:var(--sc-checkout-bg, #a93dea) !important;
+  padding:9px 12px !important;
+  font-weight:900 !important;
+  box-shadow:0 4px 10px rgba(15,23,42,.05);
+}
+.sc-drawer.sc-offers-active .sc-footer-tabs{
+  margin:0 12px 12px !important;
+  border:1px solid rgba(226,232,240,.9) !important;
+  border-radius:14px !important;
+  background:#ffffff !important;
+  overflow:hidden !important;
+  box-shadow:0 8px 22px rgba(15,23,42,.12) !important;
+}
+.sc-drawer.sc-offers-active .sc-footer-tab{
+  background:#ffffff !important;
+  min-height:58px !important;
+  font-size:calc(var(--sc-base-font-size) * 1.08) !important;
+}
+
+@media (max-width: 420px){
+  .sc-drawer.sc-offers-active .sc-offer-row{
+    grid-template-columns:64px minmax(0, 1fr) auto !important;
+    padding:15px 10px !important;
+  }
+  .sc-drawer.sc-offers-active .sc-offer-codebox,
+  .sc-drawer.sc-offers-active .sc-offer-action{
+    grid-column:auto !important;
+    justify-self:end !important;
+  }
+  .sc-drawer.sc-offers-active .sc-offer-action{
+    padding:8px 10px !important;
+    font-size:calc(var(--sc-base-font-size) * .94) !important;
+  }
+  .sc-drawer.sc-offers-active .sc-offer-codebox{
+    min-width:104px !important;
+  }
+}
+
+
+/* =========================================================
+   ✅ Offer Tab Clean Layout V2
+   - keeps cart products/progress/footer hidden while Offers tab is active
+   - places offer list directly below the Offers header
+   - clean card rows with dynamic data unchanged
+========================================================= */
+.sc-drawer.sc-offers-active .content-cart-smartcartify,
+.sc-drawer.sc-offers-active .smartcartify-cart-body,
+.sc-drawer.sc-offers-active .sc-footer{
+  display:none !important;
+  visibility:hidden !important;
+  height:0 !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+}
+.sc-drawer.sc-offers-active,
+.smartcartify-cart-drawer.sc-offers-active{
+  background:linear-gradient(145deg, #ff3b2f 0%, #e42cc5 48%, #ffd9cf 100%) !important;
+  overflow:hidden !important;
+}
+.sc-drawer.sc-offers-active .sc-header{
+  flex:0 0 auto !important;
+  padding:26px 22px 18px !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+}
+.sc-drawer.sc-offers-active .sc-title{
+  color:#fff !important;
+  font-size:30px !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+  letter-spacing:-.04em !important;
+  text-shadow:0 2px 10px rgba(15,23,42,.14);
+}
+.sc-drawer.sc-offers-active .sc-title-icon{display:none !important;}
+.sc-drawer.sc-offers-active .sc-close{
+  width:auto !important;
+  min-width:76px !important;
+  height:43px !important;
+  border-radius:999px !important;
+  padding:0 19px !important;
+  background:#fff !important;
+  color:#14245a !important;
+  font-size:0 !important;
+  font-weight:900 !important;
+  box-shadow:0 10px 26px rgba(15,23,42,.16) !important;
+}
+.sc-drawer.sc-offers-active .sc-close::after{
+  content:"Close";
+  font-size:15px;
+  line-height:1;
+}
+.sc-drawer.sc-offers-active .sc-close svg{display:none !important;}
+.sc-drawer.sc-offers-active .sc-offers{
+  position:relative !important;
+  z-index:20 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  width:calc(100% - 28px) !important;
+  height:auto !important;
+  min-height:0 !important;
+  flex:1 1 auto !important;
+  margin:0 14px 14px !important;
+  padding:0 !important;
+  bottom:auto !important;
+  top:auto !important;
+  border:1px solid rgba(255,255,255,.72) !important;
+  border-radius:18px !important;
+  background:rgba(255,255,255,.96) !important;
+  color:var(--sc-drawer-text-color, #102864) !important;
+  box-shadow:0 18px 42px rgba(18,24,40,.18) !important;
+  overflow:auto !important;
+  scrollbar-width:thin;
+}
+.sc-drawer.sc-offers-active .sc-offer-row{
+  display:grid !important;
+  grid-template-columns:68px minmax(0, 1fr) auto !important;
+  gap:13px !important;
+  align-items:center !important;
+  min-height:94px !important;
+  padding:17px 14px !important;
+  border-bottom:1px solid rgba(226,232,240,.95) !important;
+  background:#fff !important;
+  box-shadow:none !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-row:first-child{
+  border-top-left-radius:18px !important;
+  border-top-right-radius:18px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-row:last-child{
+  border-bottom:0 !important;
+  border-bottom-left-radius:18px !important;
+  border-bottom-right-radius:18px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-icon,
+.sc-drawer.sc-offers-active .sc-offer-thumbs{
+  width:58px !important;
+  height:58px !important;
+  min-height:58px !important;
+  border-radius:14px !important;
+  background:linear-gradient(135deg, #f7f9fc 0%, #eef2f7 100%) !important;
+  border:1px solid #edf1f7 !important;
+  box-shadow:0 5px 13px rgba(15,23,42,.07) !important;
+  overflow:hidden !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-icon svg{
+  width:38px !important;
+  height:38px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-thumbs{
+  display:grid !important;
+  grid-template-columns:repeat(2, 1fr) !important;
+  grid-auto-rows:1fr !important;
+  gap:3px !important;
+  padding:4px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-thumb{
+  width:100% !important;
+  height:100% !important;
+  border-radius:9px !important;
+  overflow:hidden !important;
+  background:#eef2f7 !important;
+  border:0 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-thumb img{
+  width:100% !important;
+  height:100% !important;
+  object-fit:cover !important;
+  border-radius:9px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-copy{
+  min-width:0 !important;
+  gap:5px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-title{
+  color:var(--sc-drawer-text-color, #102864) !important;
+  font-size:calc(var(--sc-base-font-size, 16px) * 1.08) !important;
+  font-weight:900 !important;
+  line-height:1.22 !important;
+  max-width:100% !important;
+  white-space:normal !important;
+  display:-webkit-box;
+  -webkit-line-clamp:1;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.sc-drawer.sc-offers-active .sc-offer-subtitle{
+  color:var(--sc-muted, #7a8493) !important;
+  font-size:calc(var(--sc-base-font-size, 16px) * .94) !important;
+  font-weight:700 !important;
+  line-height:1.35 !important;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.sc-drawer.sc-offers-active .sc-offer-codebox{
+  width:128px !important;
+  min-width:128px !important;
+  border:1px solid #e4e8f0 !important;
+  border-radius:12px !important;
+  background:#fff !important;
+  overflow:hidden !important;
+  box-shadow:0 8px 18px rgba(15,23,42,.08) !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-code-copy{
+  min-height:38px !important;
+  padding:7px 10px !important;
+  background:#fff !important;
+  color:var(--sc-drawer-text-color, #102864) !important;
+  justify-content:space-between !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-code{
+  font-size:calc(var(--sc-base-font-size, 16px) * .98) !important;
+  font-weight:900 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-code-apply{
+  min-height:42px !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:var(--sc-checkout-bg, #a83df0) !important;
+  color:var(--sc-checkout-text, #fff) !important;
+  font-size:calc(var(--sc-base-font-size, 16px) * 1.02) !important;
+  font-weight:900 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-action{
+  min-width:118px !important;
+  border:2px solid var(--sc-checkout-bg, #a83df0) !important;
+  border-radius:12px !important;
+  background:#fff !important;
+  color:var(--sc-checkout-bg, #a83df0) !important;
+  padding:10px 13px !important;
+  font-size:calc(var(--sc-base-font-size, 16px) * .98) !important;
+  font-weight:900 !important;
+  box-shadow:0 8px 18px rgba(15,23,42,.07) !important;
+}
+.sc-drawer.sc-offers-active .sc-footer-tabs{
+  flex:0 0 auto !important;
+  width:calc(100% - 28px) !important;
+  margin:0 14px 16px !important;
+  border:1px solid rgba(255,255,255,.72) !important;
+  border-radius:18px !important;
+  background:#fff !important;
+  box-shadow:0 14px 30px rgba(15,23,42,.13) !important;
+  overflow:hidden !important;
+}
+.sc-drawer.sc-offers-active .sc-footer-tab{
+  min-height:60px !important;
+  background:#fff !important;
+  font-weight:900 !important;
+}
+.sc-drawer.sc-offers-active .sc-footer-tab.is-active{
+  color:var(--sc-checkout-bg, #a83df0) !important;
+}
+
+@media (max-width:420px){
+  .sc-drawer.sc-offers-active .sc-header{padding:24px 18px 16px !important;}
+  .sc-drawer.sc-offers-active .sc-title{font-size:28px !important;}
+  .sc-drawer.sc-offers-active .sc-offer-row{
+    grid-template-columns:62px minmax(0, 1fr) auto !important;
+    gap:10px !important;
+    padding:15px 11px !important;
+    min-height:90px !important;
+  }
+  .sc-drawer.sc-offers-active .sc-offer-icon,
+  .sc-drawer.sc-offers-active .sc-offer-thumbs{
+    width:54px !important;
+    height:54px !important;
+    min-height:54px !important;
+  }
+  .sc-drawer.sc-offers-active .sc-offer-codebox{width:116px !important; min-width:116px !important;}
+  .sc-drawer.sc-offers-active .sc-offer-action{min-width:108px !important; padding:9px 10px !important;}
+}
+
+
+/* =========================================================
+   ✅ FINAL FIX: Real Offer tab page layout
+   - Do NOT hide .content-cart-smartcartify because offer panel is inside it
+   - Hide only cart sections while Offers tab is active
+   - Match uploaded reference: header + white offer card + bottom tabs
+========================================================= */
+.sc-drawer.sc-offers-active .content-cart-smartcartify,
+.smartcartify-cart-drawer.sc-offers-active .content-cart-smartcartify{
+  display:flex !important;
+  visibility:visible !important;
+  height:100% !important;
+  min-height:0 !important;
+  flex:1 1 auto !important;
+  flex-direction:column !important;
+  overflow:hidden !important;
+  padding:0 !important;
+  margin:0 !important;
+  background:transparent !important;
+}
+.sc-drawer.sc-offers-active .sc-items,
+.sc-drawer.sc-offers-active .sc-progress,
+.sc-drawer.sc-offers-active .sc-announce,
+.sc-drawer.sc-offers-active .sc-cart-msg,
+.sc-drawer.sc-offers-active .sc-items-list,
+.sc-drawer.sc-offers-active .sc-items-footer,
+.sc-drawer.sc-offers-active .sc-footer,
+.sc-drawer.sc-offers-active .sc-discount,
+.sc-drawer.sc-offers-active .sc-discount-loading-overlay{
+  display:none !important;
+  visibility:hidden !important;
+  height:0 !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+}
+.sc-drawer.sc-offers-active .sc-offers{
+  display:flex !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  position:relative !important;
+  inset:auto !important;
+  z-index:30 !important;
+  width:calc(100% - 28px) !important;
+  max-width:none !important;
+  height:auto !important;
+  min-height:0 !important;
+  flex:1 1 auto !important;
+  margin:0 14px 14px !important;
+  padding:0 !important;
+  border:1px solid rgba(226,232,240,.9) !important;
+  border-radius:14px !important;
+  background:#fff !important;
+  color:var(--sc-drawer-text-color, #102864) !important;
+  box-shadow:0 8px 22px rgba(15,23,42,.13) !important;
+  overflow:auto !important;
+}
+.sc-drawer.sc-offers-active .sc-footer-tabs{
+  display:grid !important;
+  visibility:visible !important;
+  flex:0 0 auto !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-row{
+  grid-template-columns:68px minmax(0, 1fr) auto !important;
+  min-height:92px !important;
+  padding:14px 12px !important;
+  background:#fff !important;
+  border-bottom:1px solid #edf0f4 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-title{
+  color:#102864 !important;
+  font-weight:900 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-subtitle{
+  color:#7b8794 !important;
+  font-weight:600 !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-codebox{
+  border-radius:8px !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-action{
+  border-radius:9px !important;
+  background:#fff !important;
+  color:var(--sc-checkout-bg, #a83df0) !important;
+}
+@media (max-width:420px){
+  .sc-drawer.sc-offers-active .sc-offers{
+    width:calc(100% - 24px) !important;
+    margin:0 12px 12px !important;
+  }
+  .sc-drawer.sc-offers-active .sc-offer-row{
+    grid-template-columns:62px minmax(0, 1fr) auto !important;
+    gap:9px !important;
+    padding:14px 10px !important;
+  }
+}
+
 
 .sc-subtotal-box{
   min-width:0;
@@ -7019,9 +7618,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   // ✅ Announcement bar inside the cart items container
   drawer.innerHTML = `
-    <div class="smartcartify-cart-bg-banner sc-drawer-bg-banner" aria-hidden="true">
-      <div class="smartcartify-cart-bg-gradient sc-drawer-bg-gradient"></div>
-    </div>
     <div class="sc-header smartcartify-cart-header">
       <div class="sc-title-wrap">
         <span class="sc-title-icon" aria-hidden="true">
@@ -7038,9 +7634,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         </svg>
       </button>
     </div>
-    <div class="content-cart-smartcartify">
+    <div class="content-cart-smartcartify smartcartify-cart-body">
     <div class="sc-items">
-      <div class="sc-announce" data-sc-announce hidden></div>
+      <div class="sc-announce smartcartify-announcement-bar" data-sc-announce hidden></div>
       <div class="sc-progress">
         <p class="sc-label">Loading…</p>
 
@@ -7136,9 +7732,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     drawer.classList.remove("sc-offers-active");
     const cartContent = drawer.querySelector(".sc-progress");
     const items = drawer.querySelector(".sc-items");
+    const cartBody = drawer.querySelector(".content-cart-smartcartify");
+    const footer = drawer.querySelector(".sc-footer");
     const footerRow = drawer.querySelector(".sc-footer-row");
     const footerMilestones = drawer.querySelector("[data-footer-milestones]");
     const offers = drawer.querySelector("[data-offers-panel]");
+    if (cartBody) cartBody.hidden = false;
+    if (footer) footer.hidden = false;
     if (cartContent) cartContent.hidden = false;
     if (items) items.hidden = false;
     if (offers) offers.hidden = true;
@@ -7370,27 +7970,30 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (drawerFontFamily) r.setProperty("--sc-font", drawerFontFamily);
 
     const defaults = {
-      baseBg: "linear-gradient(180deg, #9F42EB 0%, #B93B0F 100%)",
-      drawerImage: "/images/campaigns/public.jpeg",
-      topText: "#000000",
-      headerText: "#000000",
-      drawerText: "#111827",
+      baseBg: "linear-gradient(135deg, #ff3b30 0%, #e126b9 48%, #f8dfd0 100%)",
+      drawerImage: "",
+      topText: "#102864",
+      headerText: "#ffffff",
+      drawerText: "#102864",
       border: "#e5e7eb",
       muted: "#6b7280",
-      progress: "#000000",
+      progress: "#a93dea",
       checkoutBg: "#9F42EB",
       checkoutText: "#ffffff",
-      announcementBarBackgroundColor: "#000000",
+      announcementBarBackgroundColor: "linear-gradient(90deg, #102864 0%, #5b2cf4 45%, #e126b9 100%)",
       announcementBarTextColor: "#ffffff",
       buttonLabelColor: "#ffffff",
-      iconColor: "#000000",
+      iconColor: "#102864",
+      offerIconColor: "#111827",
+      tabIconColor: "#102864",
+      tabActiveColor: "#9F42EB",
       footerBg: "transparent",
       applyBtnBg: "#9F42EB",
       applyBtnText: "#ffffff",
       applyBtnBorder: "rgba(17,24,39,.25)",
       subtotalBg: "#ffffff",
-      subtotalText: "#111827",
-      subtotalLabel: "#000000",
+      subtotalText: "#102864",
+      subtotalLabel: "#6b7280",
       discountCodeApply: 1,
     };
 
@@ -7431,74 +8034,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       /^url\(/i.test(String(drawerBackgroundImageRaw))
         ? String(drawerBackgroundImageRaw)
         : buildCssUrl(drawerBackgroundImageRaw);
-
-    const smartcartifyDrawerBgColor = pickColor(
-      style,
-      [
-        "smartcartifyCartDrawerBgColor",
-        "smartcartifyCartBackgroundColor",
-        "smartcartifyDrawerBackgroundColor",
-        "cartDrawerBackgroundColor",
-        "drawerBackgroundColor",
-        "backgroundColor"
-      ],
-      getFirstColorFromBackground(baseBg) || "#fff7ed"
-    );
-    const smartcartifyDrawerBgImageRaw =
-      pick(
-        style,
-        [
-          "smartcartifyCartDrawerBgImage",
-          "smartcartifyCartBackgroundImage",
-          "smartcartifyDrawerBackgroundImage",
-          "cartDrawerBackgroundImage",
-          "cartDrawerImage",
-          "drawerImage",
-          "backgroundImage",
-          "cartBackgroundImage"
-        ],
-        drawerBackgroundImageRaw
-      ) || "";
-    const smartcartifyDrawerBgImage =
-      /^url\(/i.test(String(smartcartifyDrawerBgImageRaw))
-        ? String(smartcartifyDrawerBgImageRaw)
-        : buildCssUrl(smartcartifyDrawerBgImageRaw);
-    const smartcartifyDrawerBgOverlay = pickBackground(
-      style,
-      [
-        "smartcartifyCartDrawerBgOverlay",
-        "smartcartifyDrawerBackgroundOverlay",
-        "cartDrawerBackgroundOverlay",
-        "drawerBackgroundOverlay",
-        "backgroundOverlay"
-      ],
-      "linear-gradient(180deg, rgba(255,247,237,.18) 0%, rgba(255,247,237,.92) 100%)"
-    );
-    const smartcartifyDrawerBannerHeight = normalizeLen(
-      pick(
-        style,
-        [
-          "smartcartifyCartDrawerBannerHeight",
-          "smartcartifyDrawerBannerHeight",
-          "cartDrawerBannerHeight",
-          "drawerBannerHeight",
-          "backgroundImageHeight"
-        ],
-        null
-      ),
-      "240px"
-    );
-    const smartcartifyDrawerCardBg = pickBackground(
-      style,
-      [
-        "smartcartifyCartDrawerCardBg",
-        "smartcartifyDrawerCardBg",
-        "cartDrawerCardBg",
-        "drawerCardBg",
-        "cardBackgroundColor"
-      ],
-      "rgba(255,255,255,.92)"
-    );
 
     let topTextColor = pickColor(
       style,
@@ -7622,19 +8157,39 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     );
     const iconColor = pickColor(
       style,
-      ["iconColor", "drawerIconColor", "cartIconColor", "headerIconColor"],
+      ["iconColor", "drawerIconColor", "cartIconColor", "bodyIconColor"],
       defaults.iconColor
+    );
+    const headerIconColor = pickColor(
+      style,
+      ["headerIconColor", "cartDrawerHeaderIconColor", "titleIconColor"],
+      headerColor || defaults.headerText
+    );
+    const offerIconColor = pickColor(
+      style,
+      ["offerIconColor", "offersIconColor", "rewardIconColor"],
+      defaults.offerIconColor
+    );
+    const tabIconColor = pickColor(
+      style,
+      ["tabIconColor", "footerTabIconColor", "bottomTabIconColor"],
+      defaults.tabIconColor
+    );
+    const tabActiveColor = pickColor(
+      style,
+      ["tabActiveColor", "footerTabActiveColor", "bottomTabActiveColor"],
+      checkoutBg || defaults.tabActiveColor
     );
 
     const badgeBg = pick(style, ["badgeBg", "countBadgeBg"], "rgba(17,24,39,.1)");
     const badgeText = pickColor(style, ["badgeText", "countBadgeText"], checkoutText);
 
-    const closeBg = pick(style, ["closeBg", "closeButtonBg"], "transparent");
-    const closeBorder = pickColor(style, ["closeBorder", "closeButtonBorder"], borderColor);
+    const closeBg = pick(style, ["closeBg", "closeButtonBg"], "#ffffff");
+    const closeBorder = pickColor(style, ["closeBorder", "closeButtonBorder"], "transparent");
     const closeText = pickColor(
       style,
       ["closeText", "closeButtonText"],
-      iconColor || headerColor || "#111827"
+      "#102864"
     );
 
     const hasExplicitFooterBg = ["footerBg", "cartDrawerFooterBg", "drawerFooterBg"].some(
@@ -7644,6 +8199,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       style,
       ["footerBg", "cartDrawerFooterBg", "drawerFooterBg"],
       defaults.footerBg
+    );
+
+    const drawerShellBg = pickBackground(
+      style,
+      ["cartDrawerBodyBg", "drawerBodyBg", "drawerShellBg", "cartDrawerShellBg", "cartDrawerPanelBg"],
+      "#f4f4f7"
     );
 
     const applyBtnBg = pickColor(style, ["applyBtnBg", "discountApplyBg", "applyButtonBg", "buttonColor"], defaults.applyBtnBg);
@@ -7746,11 +8307,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-muted", mutedColor);
     r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
     r.setProperty("--sc-drawer-bg", drawerBackgroundImage ? `${String(baseBg)}, ${drawerBackgroundImage}` : String(baseBg));
-    r.setProperty("--smartcartify-cart-drawer-bg-color", String(smartcartifyDrawerBgColor));
-    r.setProperty("--smartcartify-cart-drawer-bg-image", smartcartifyDrawerBgImage || "none");
-    r.setProperty("--smartcartify-cart-drawer-bg-overlay", String(smartcartifyDrawerBgOverlay));
-    r.setProperty("--smartcartify-cart-drawer-banner-height", smartcartifyDrawerBannerHeight);
-    r.setProperty("--smartcartify-cart-drawer-card-bg", String(smartcartifyDrawerCardBg));
 
     r.setProperty("--sc-text", topTextColor);
     r.setProperty("--sc-drawer-header-color", headerColor);
@@ -7786,6 +8342,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-announce-bg", String(announceBg));
     r.setProperty("--sc-announce-text", announceText);
     r.setProperty("--sc-icon-color", iconColor);
+    r.setProperty("--sc-header-icon-color", headerIconColor);
+    r.setProperty("--sc-offer-icon-color", offerIconColor);
+    r.setProperty("--sc-tab-icon-color", tabIconColor);
+    r.setProperty("--sc-tab-active-color", tabActiveColor);
     r.setProperty("--sc-badge-bg", String(badgeBg));
     r.setProperty("--sc-badge-text", badgeText);
 
@@ -7840,43 +8400,40 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const rawImage =
         pick(
           style,
-          ["cartDrawerBackground", "cartDrawerImage", "drawerImage", "topBgImage", "cartDrawerBackgroundImage"],
+          ["cartDrawerImage", "drawerImage", "topBgImage", "cartDrawerBackgroundImage", "backgroundImage", "cartBackgroundImage"],
           defaults.drawerImage
         ) || "";
       const imgUrl =
         /^url\(/i.test(String(rawImage)) ? String(rawImage) : buildCssUrl(rawImage);
-      const imageOverlay = `linear-gradient(180deg, rgba(159,66,235,.82) 0%, rgba(185,59,15,.82) 100%)`;
+      const imageOverlay = `linear-gradient(135deg, rgba(255,59,48,.86) 0%, rgba(225,38,185,.82) 48%, rgba(248,223,208,.74) 100%)`;
 
       if (imgUrl) {
         r.setProperty("--sc-top-bg-image", `${imageOverlay}, ${imgUrl}`);
       } else {
-        r.setProperty("--sc-top-bg-image", "none");
+        r.setProperty("--sc-top-bg-image", String(baseBg));
       }
       r.setProperty("--sc-top-bg-color", "transparent");
       r.setProperty("--sc-top-bg-color-effective", "transparent");
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
       r.setProperty("--sc-drawer-bg-image", imgUrl || "none");
-      r.setProperty("--sc-drawer-bg", imgUrl ? `${imageOverlay}, ${imgUrl}` : baseBg || "transparent");
-      r.setProperty("--smartcartify-cart-drawer-bg-image", imgUrl || smartcartifyDrawerBgImage || "none");
-      r.setProperty("--smartcartify-cart-drawer-bg-overlay", String(smartcartifyDrawerBgOverlay || imageOverlay));
-      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
+      r.setProperty("--sc-drawer-bg", String(drawerShellBg));
+      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "#ffffff");
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else if (mode === "gradient") {
       const gradientBg = /gradient\(/i.test(String(baseBg))
         ? String(baseBg)
         : `linear-gradient(180deg, ${String(gradientStart)} 0%, ${String(gradientEnd)} 100%)`;
 
+      const heroBg = drawerBackgroundImage ? `${gradientBg}, ${drawerBackgroundImage}` : gradientBg;
       r.setProperty("--sc-top-bg-color", "transparent");
-      r.setProperty("--sc-top-bg-image", gradientBg);
+      r.setProperty("--sc-top-bg-image", heroBg);
       r.setProperty("--sc-top-bg-color-effective", "transparent");
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
       r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
-      r.setProperty("--sc-drawer-bg", drawerBackgroundImage ? `${gradientBg}, ${drawerBackgroundImage}` : gradientBg);
-      r.setProperty("--smartcartify-cart-drawer-bg-image", smartcartifyDrawerBgImage || drawerBackgroundImage || "none");
-      r.setProperty("--smartcartify-cart-drawer-bg-overlay", String(smartcartifyDrawerBgOverlay));
-      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
+      r.setProperty("--sc-drawer-bg", String(drawerShellBg));
+      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "#ffffff");
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else {
       const solidBg =
@@ -7890,11 +8447,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-image-effective", "none");
 
       r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
-      r.setProperty("--sc-drawer-bg", drawerBackgroundImage ? `linear-gradient(180deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.72) 100%), ${drawerBackgroundImage}` : String(solidBg));
-      r.setProperty("--smartcartify-cart-drawer-bg-color", String(smartcartifyDrawerBgColor || solidBg));
-      r.setProperty("--smartcartify-cart-drawer-bg-image", smartcartifyDrawerBgImage || drawerBackgroundImage || "none");
-      r.setProperty("--smartcartify-cart-drawer-bg-overlay", String(smartcartifyDrawerBgOverlay));
-      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", String(solidBg));
+      r.setProperty("--sc-drawer-bg", String(drawerShellBg || solidBg));
+      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "#ffffff");
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", String(solidBg));
     }
 
@@ -9534,8 +10088,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     drawer.classList.toggle("sc-offers-active", isOffers);
     const cartContent = drawer.querySelector(".sc-progress");
     const items = drawer.querySelector(".sc-items");
+    const cartBody = drawer.querySelector(".content-cart-smartcartify");
+    const footer = drawer.querySelector(".sc-footer");
     const footerRow = drawer.querySelector(".sc-footer-row");
     const footerMilestones = drawer.querySelector("[data-footer-milestones]");
+    // Keep the main drawer body visible. The Offers panel lives inside this wrapper,
+    // so hiding .content-cart-smartcartify also hides the full Offers page.
+    if (cartBody) cartBody.hidden = false;
+    if (footer) footer.hidden = isOffers;
     if (cartContent) cartContent.hidden = isOffers;
     if (items) items.hidden = isOffers;
     if (offersPanel) offersPanel.hidden = !isOffers;
