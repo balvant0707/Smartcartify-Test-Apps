@@ -6400,12 +6400,6 @@ position: relative;
   gap:3px !important;
 }
 
-.sc-drawer.sc-offers-active .sc-offer-subtitle{
-  color:var(--sc-muted, #7c8795) !important;
-  font-size:calc(var(--sc-base-font-size) * 1.02) !important;
-  font-weight:600 !important;
-  line-height:1.34 !important;
-}
 .sc-drawer.sc-offers-active .sc-offer-codebox{
   min-width:112px !important;
   border:1px solid #e1e5ec !important;
@@ -6600,10 +6594,11 @@ position: relative;
   overflow:hidden;
 }
 .sc-drawer.sc-offers-active .sc-offer-subtitle{
-  color:var(--sc-muted, #7a8493) !important;
-  font-size:calc(var(--sc-base-font-size, 16px) * .94) !important;
-  font-weight:700 !important;
-  line-height:1.35 !important;
+    margin: 0 !important;
+    color: var(--sc-muted) !important;
+    font-size: cal(var(--sc-base-font-size) * .8) !important;
+    line-height: 1.34 !important;
+    font-weight: 500 !important;
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
@@ -6618,13 +6613,7 @@ position: relative;
   overflow:hidden !important;
   box-shadow:0 8px 18px rgba(15,23,42,.08) !important;
 }
-.sc-drawer.sc-offers-active .sc-offer-code-copy{
-  min-height:38px !important;
-  padding:7px 10px !important;
-  background:#fff !important;
-  color:var(--sc-drawer-text-color, #102864) !important;
-  justify-content:space-between !important;
-}
+
 .sc-drawer.sc-offers-active .sc-offer-code{
   font-size:calc(var(--sc-base-font-size, 16px) * .98) !important;
   font-weight:900 !important;
@@ -6632,15 +6621,7 @@ position: relative;
   text-overflow:ellipsis !important;
   white-space:nowrap !important;
 }
-.sc-drawer.sc-offers-active .sc-offer-code-apply{
-  min-height:42px !important;
-  border:0 !important;
-  border-radius:0 !important;
-  background:var(--sc-checkout-bg, #a83df0) !important;
-  color:var(--sc-checkout-text, #fff) !important;
-  font-size:calc(var(--sc-base-font-size, 16px) * 1.02) !important;
-  font-weight:900 !important;
-}
+
 .sc-drawer.sc-offers-active .sc-offer-action{
   min-width:118px !important;
   border:2px solid var(--sc-checkout-bg, #a83df0) !important;
@@ -6765,10 +6746,7 @@ position: relative;
   color:#102864 !important;
   font-weight:900 !important;
 }
-.sc-drawer.sc-offers-active .sc-offer-subtitle{
-  color:#7b8794 !important;
-  font-weight:600 !important;
-}
+
 .sc-drawer.sc-offers-active .sc-offer-codebox{
   border-radius:8px !important;
 }
@@ -8016,13 +7994,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   line-height:1.16 !important;
   font-weight:900 !important;
 }
-.sc-drawer.sc-offers-active .sc-offer-subtitle{
-  margin:0 !important;
-  color:#6f7a8a !important;
-  font-size:calc(var(--sc-base-font-size,16px) * .98) !important;
-  line-height:1.34 !important;
-  font-weight:500 !important;
-}
+
 .sc-drawer.sc-offers-active .sc-offer-codebox{
   width:128px !important;
   min-width:128px !important;
@@ -8032,14 +8004,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   overflow:hidden !important;
   box-shadow:0 6px 16px rgba(15,23,42,.08) !important;
 }
-.sc-drawer.sc-offers-active .sc-offer-code-copy{
-  min-height:38px !important;
-  padding:7px 9px !important;
-  background:#ffffff !important;
-  color:#5f6673 !important;
-  justify-content:space-between !important;
-  gap:5px !important;
-}
+
 .sc-drawer.sc-offers-active .sc-offer-code{
   font-size:calc(var(--sc-base-font-size,16px) * .98) !important;
   font-weight:900 !important;
@@ -8047,18 +8012,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   text-overflow:ellipsis !important;
   white-space:nowrap !important;
 }
-.sc-drawer.sc-offers-active .sc-offer-code-apply{
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  min-height:42px !important;
-  border:0 !important;
-  border-radius:0 !important;
-  background:var(--sc-checkout-bg,#a83df0) !important;
-  color:var(--sc-checkout-text,#ffffff) !important;
-  font-size:calc(var(--sc-base-font-size,16px) * 1.02) !important;
-  font-weight:900 !important;
-}
+
 .sc-drawer.sc-offers-active .sc-offer-action{
   justify-self:end !important;
   min-width:104px !important;
