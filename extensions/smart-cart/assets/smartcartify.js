@@ -5118,7 +5118,7 @@ color: var(--sc-drawer-text-color);
   margin:4px 0 0;
   font-size:var(--sc-small-font-size);
   line-height:1.3;
-  color:var(--sc-muted);
+  color: var(--sc-drawer-text-color);
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
