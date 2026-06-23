@@ -6638,7 +6638,7 @@ position: relative;
   width:calc(100% - 28px) !important;
   margin: 10px 14px 5px !important;
   border:1px solid rgba(255,255,255,.72) !important;
-  border-radius:18px !important;
+  border-radius:0.75em !important;
   background:#fff !important;
   box-shadow:0 14px 30px rgba(15,23,42,.13) !important;
   overflow:hidden !important;
