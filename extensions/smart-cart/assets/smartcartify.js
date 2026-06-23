@@ -2999,11 +2999,11 @@
    DOM
   ========================================================= */
   const overlay = document.createElement("div");
-  overlay.className = "sc-overlay";
+  overlay.className = "sc-overlay smartcartify-cart-overlay";
   overlay.setAttribute("aria-hidden", "true");
 
   const drawer = document.createElement("div");
-  drawer.className = "sc-drawer";
+  drawer.className = "sc-drawer smartcartify-cart-drawer";
   drawer.setAttribute("role", "dialog");
   drawer.setAttribute("aria-label", "Cart drawer");
 
@@ -3839,6 +3839,12 @@
   --sc-drawer-width: min(540px,94vw);
   --sc-drawer-bg-image: url("/images/campaigns/public.jpeg");
   --sc-drawer-bg: linear-gradient(180deg, rgba(159,66,235,.86) 0%, rgba(185,59,15,.86) 100%), var(--sc-drawer-bg-image);
+  --smartcartify-cart-drawer-bg-color: #fff7ed;
+  --smartcartify-cart-drawer-bg-image: var(--sc-drawer-bg-image);
+  --smartcartify-cart-drawer-bg-overlay: linear-gradient(180deg, rgba(255,247,237,.20) 0%, rgba(255,247,237,.92) 100%);
+  --smartcartify-cart-drawer-banner-height: 240px;
+  --smartcartify-cart-drawer-card-bg: rgba(255,255,255,.92);
+  --smartcartify-cart-drawer-card-blur: 10px;
   --sc-drawer-text-color: #000000;
   --sc-drawer-header-color: #000000;
 
@@ -3938,7 +3944,8 @@
   position:fixed;top:0;right:0;height:100%;
   max-width:435px;
   width:100% !important;
-  background: var(--sc-drawer-bg);
+  background-color: var(--smartcartify-cart-drawer-bg-color);
+  background-image: var(--sc-drawer-bg);
   background-size:cover, cover;
   background-position:center center, center center;
   background-repeat:no-repeat, no-repeat;
@@ -3988,6 +3995,47 @@
 .sc-drawer.sc-position-left.open{transform:none}
 .sc-drawer.sc-mobile-bottom-sheet.open{transform:none}
 .sc-drawer *{box-sizing:border-box;pointer-events:auto !important;text-shadow:none !important;}
+
+.smartcartify-cart-drawer{
+  overflow:hidden;
+}
+.smartcartify-cart-bg-banner{
+  position:absolute;
+  z-index:0;
+  top:0;
+  left:0;
+  right:0;
+  height:var(--smartcartify-cart-drawer-banner-height);
+  pointer-events:none !important;
+  background-color:var(--smartcartify-cart-drawer-bg-color);
+  background-image:var(--smartcartify-cart-drawer-bg-overlay), var(--smartcartify-cart-drawer-bg-image);
+  background-size:cover, cover;
+  background-position:center center, center center;
+  background-repeat:no-repeat, no-repeat;
+}
+.smartcartify-cart-bg-gradient{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:56%;
+  background:linear-gradient(to bottom, rgba(255,255,255,0), var(--smartcartify-cart-drawer-bg-color) 90%);
+}
+.smartcartify-cart-drawer > .sc-header,
+.smartcartify-cart-drawer > .content-cart-smartcartify,
+.smartcartify-cart-drawer > .sc-page-tabs,
+.smartcartify-cart-drawer > .sc-footer{
+  position:relative;
+  z-index:2;
+}
+.smartcartify-cart-drawer .sc-items,
+.smartcartify-cart-drawer .sc-footer,
+.smartcartify-cart-drawer .sc-page-tabs,
+.smartcartify-cart-drawer .sc-offers{
+  background-color:var(--smartcartify-cart-drawer-card-bg);
+  backdrop-filter:blur(var(--smartcartify-cart-drawer-card-blur));
+  -webkit-backdrop-filter:blur(var(--smartcartify-cart-drawer-card-blur));
+}
   .sc-close svg {
     fill: var(--sc-close-icon-color) !important;
     color:var(--sc-close-icon-color);
@@ -4015,6 +4063,7 @@ padding: 5px 10px 0px 10px;
     gap: 0px;
     color: var(--sc-drawer-header-color);
     background-color: var(--sc-top-bg-color-effective);
+    background-image: var(--sc-top-bg-image-effective);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -4147,7 +4196,6 @@ padding: 5px 10px 0px 10px;
   box-sizing:border-box;
   align-items:center;
   overflow:hidden;
-  background:var(--sc-announce-bg);
 }
 .marquee-text .top-info-bar{
   font-size:var(--sc-small-font-size);
@@ -5127,7 +5175,6 @@ color: var(--sc-drawer-text-color);
   margin-top: 6px;
 }
 .sc-upsell-item{
-  background: var(--sc-upsell-bg);
     padding: 10px 12px;
     min-height: 72px;
     display: flex;
@@ -5188,9 +5235,8 @@ color: var(--sc-drawer-text-color);
 .sc-upsell-price{
   display:flex;
   align-items:center;
-  justify-content:flex-end;
   gap:6px;
-  font-weight:500;
+  font-weight:600;
   font-size:var(--sc-small-font-size);
   color: var(--sc-drawer-text-color);
   white-space: nowrap;
@@ -6973,7 +7019,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   // ✅ Announcement bar inside the cart items container
   drawer.innerHTML = `
-    <div class="sc-header">
+    <div class="smartcartify-cart-bg-banner sc-drawer-bg-banner" aria-hidden="true">
+      <div class="smartcartify-cart-bg-gradient sc-drawer-bg-gradient"></div>
+    </div>
+    <div class="sc-header smartcartify-cart-header">
       <div class="sc-title-wrap">
         <span class="sc-title-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -7383,6 +7432,74 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         ? String(drawerBackgroundImageRaw)
         : buildCssUrl(drawerBackgroundImageRaw);
 
+    const smartcartifyDrawerBgColor = pickColor(
+      style,
+      [
+        "smartcartifyCartDrawerBgColor",
+        "smartcartifyCartBackgroundColor",
+        "smartcartifyDrawerBackgroundColor",
+        "cartDrawerBackgroundColor",
+        "drawerBackgroundColor",
+        "backgroundColor"
+      ],
+      getFirstColorFromBackground(baseBg) || "#fff7ed"
+    );
+    const smartcartifyDrawerBgImageRaw =
+      pick(
+        style,
+        [
+          "smartcartifyCartDrawerBgImage",
+          "smartcartifyCartBackgroundImage",
+          "smartcartifyDrawerBackgroundImage",
+          "cartDrawerBackgroundImage",
+          "cartDrawerImage",
+          "drawerImage",
+          "backgroundImage",
+          "cartBackgroundImage"
+        ],
+        drawerBackgroundImageRaw
+      ) || "";
+    const smartcartifyDrawerBgImage =
+      /^url\(/i.test(String(smartcartifyDrawerBgImageRaw))
+        ? String(smartcartifyDrawerBgImageRaw)
+        : buildCssUrl(smartcartifyDrawerBgImageRaw);
+    const smartcartifyDrawerBgOverlay = pickBackground(
+      style,
+      [
+        "smartcartifyCartDrawerBgOverlay",
+        "smartcartifyDrawerBackgroundOverlay",
+        "cartDrawerBackgroundOverlay",
+        "drawerBackgroundOverlay",
+        "backgroundOverlay"
+      ],
+      "linear-gradient(180deg, rgba(255,247,237,.18) 0%, rgba(255,247,237,.92) 100%)"
+    );
+    const smartcartifyDrawerBannerHeight = normalizeLen(
+      pick(
+        style,
+        [
+          "smartcartifyCartDrawerBannerHeight",
+          "smartcartifyDrawerBannerHeight",
+          "cartDrawerBannerHeight",
+          "drawerBannerHeight",
+          "backgroundImageHeight"
+        ],
+        null
+      ),
+      "240px"
+    );
+    const smartcartifyDrawerCardBg = pickBackground(
+      style,
+      [
+        "smartcartifyCartDrawerCardBg",
+        "smartcartifyDrawerCardBg",
+        "cartDrawerCardBg",
+        "drawerCardBg",
+        "cardBackgroundColor"
+      ],
+      "rgba(255,255,255,.92)"
+    );
+
     let topTextColor = pickColor(
       style,
       ["textColor", "topText", "top_text", "topTextColor", "textTop"],
@@ -7629,6 +7746,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-muted", mutedColor);
     r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
     r.setProperty("--sc-drawer-bg", drawerBackgroundImage ? `${String(baseBg)}, ${drawerBackgroundImage}` : String(baseBg));
+    r.setProperty("--smartcartify-cart-drawer-bg-color", String(smartcartifyDrawerBgColor));
+    r.setProperty("--smartcartify-cart-drawer-bg-image", smartcartifyDrawerBgImage || "none");
+    r.setProperty("--smartcartify-cart-drawer-bg-overlay", String(smartcartifyDrawerBgOverlay));
+    r.setProperty("--smartcartify-cart-drawer-banner-height", smartcartifyDrawerBannerHeight);
+    r.setProperty("--smartcartify-cart-drawer-card-bg", String(smartcartifyDrawerCardBg));
 
     r.setProperty("--sc-text", topTextColor);
     r.setProperty("--sc-drawer-header-color", headerColor);
@@ -7736,6 +7858,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       r.setProperty("--sc-drawer-bg-image", imgUrl || "none");
       r.setProperty("--sc-drawer-bg", imgUrl ? `${imageOverlay}, ${imgUrl}` : baseBg || "transparent");
+      r.setProperty("--smartcartify-cart-drawer-bg-image", imgUrl || smartcartifyDrawerBgImage || "none");
+      r.setProperty("--smartcartify-cart-drawer-bg-overlay", String(smartcartifyDrawerBgOverlay || imageOverlay));
       if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else if (mode === "gradient") {
@@ -7750,6 +7874,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
       r.setProperty("--sc-drawer-bg", drawerBackgroundImage ? `${gradientBg}, ${drawerBackgroundImage}` : gradientBg);
+      r.setProperty("--smartcartify-cart-drawer-bg-image", smartcartifyDrawerBgImage || drawerBackgroundImage || "none");
+      r.setProperty("--smartcartify-cart-drawer-bg-overlay", String(smartcartifyDrawerBgOverlay));
       if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else {
@@ -7765,6 +7891,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
       r.setProperty("--sc-drawer-bg", drawerBackgroundImage ? `linear-gradient(180deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.72) 100%), ${drawerBackgroundImage}` : String(solidBg));
+      r.setProperty("--smartcartify-cart-drawer-bg-color", String(smartcartifyDrawerBgColor || solidBg));
+      r.setProperty("--smartcartify-cart-drawer-bg-image", smartcartifyDrawerBgImage || drawerBackgroundImage || "none");
+      r.setProperty("--smartcartify-cart-drawer-bg-overlay", String(smartcartifyDrawerBgOverlay));
       if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", String(solidBg));
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", String(solidBg));
     }
