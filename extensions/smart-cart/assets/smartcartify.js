@@ -1271,8 +1271,8 @@
       selectionType: String(raw.selectionType || raw.selection_type || "").toLowerCase(),
       sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "You'll love these"),
       buttonText: pickTextAny(raw, ["buttonText"], "add"),
-      buttonColor: pickColor(raw, ["buttonColor", "button"], "#111111"),
-      buttonTextColor: pickColor(raw, ["buttonTextColor", "buttonLabelColor", "button_text_color"], "#ffffff"),
+      buttonColor: pickColor(raw, ["buttonColor", "button"], "rgb(246,246,218)"),
+      buttonTextColor: pickColor(raw, ["buttonTextColor", "buttonLabelColor", "button_text_color"], "#000000"),
       backgroundColor: pickBackground(raw, ["backgroundColor", "background"], null),
       textColor: pickColor(raw, ["textColor", "text"], "#e2e8f0"),
       borderColor: pickColor(raw, ["borderColor", "border"], "#e2e8f0"),
@@ -1999,7 +1999,10 @@
     wrap.style.setProperty("--sc-upsell-arrow", settings.arrowColor || "#111827");
 
     const total = items.length;
-    if (UPSELL_INDEX >= total) UPSELL_INDEX = 0;
+    const groupedSlides = [];
+    for (let i = 0; i < items.length; i += 2) groupedSlides.push(items.slice(i, i + 2));
+    const totalSlides = settings.showAsSlider ? Math.max(1, groupedSlides.length) : total;
+    if (UPSELL_INDEX >= totalSlides) UPSELL_INDEX = 0;
     const visibleItems = items;
     const upsellItemMap = new Map();
 
@@ -2094,7 +2097,7 @@
     };
 
     const arrows =
-      settings.showAsSlider && total > 1
+      settings.showAsSlider && totalSlides > 1
         ? `
           <button class="sc-upsell-arrow left" type="button" data-upsell-prev aria-label="Previous">
             <svg width="14" height="14" viewBox="0 0 256 256" xml:space="preserve">
@@ -2121,8 +2124,8 @@
       ? `
         <div class="sc-upsell-viewport">
           <div class="sc-upsell-track" style="transform: translateX(-${UPSELL_INDEX * 100}%);">
-            ${visibleItems
-        .map((item, i) => `<div class="sc-upsell-slide">${renderCard(item, i)}</div>`)
+            ${groupedSlides
+        .map((group, slideIndex) => `<div class="sc-upsell-slide">${group.map((item, i) => renderCard(item, (slideIndex * 2) + i)).join("")}</div>`)
         .join("")}
           </div>
         </div>
@@ -2140,14 +2143,14 @@
     `;
 
     wrap.querySelector("[data-upsell-prev]")?.addEventListener("click", () => {
-      if (total <= 1) return;
-      UPSELL_INDEX = UPSELL_INDEX - 1 < 0 ? total - 1 : UPSELL_INDEX - 1;
+      if (totalSlides <= 1) return;
+      UPSELL_INDEX = UPSELL_INDEX - 1 < 0 ? totalSlides - 1 : UPSELL_INDEX - 1;
       updateUpsellSliderPosition(wrap);
     });
 
     wrap.querySelector("[data-upsell-next]")?.addEventListener("click", () => {
-      if (total <= 1) return;
-      UPSELL_INDEX = UPSELL_INDEX + 1 >= total ? 0 : UPSELL_INDEX + 1;
+      if (totalSlides <= 1) return;
+      UPSELL_INDEX = UPSELL_INDEX + 1 >= totalSlides ? 0 : UPSELL_INDEX + 1;
       updateUpsellSliderPosition(wrap);
     });
 
@@ -3741,7 +3744,7 @@
     s.textContent = `.sc-overlay, .sc-drawer, .sc-progress, .sc-milestone, .sc-track, .sc-fill, .sc-dots{display:block !important;}
 
 :root{
-  --sc-base-font-size: 14px;
+  --sc-base-font-size: 12px;
   --sc-font: inherit;
   --sc-heading-scale: 1.2;
   --sc-heading-font-size: calc(var(--sc-base-font-size) * var(--sc-heading-scale));
@@ -3756,7 +3759,10 @@
   --sc-muted: rgba(107,114,128,1);
 
   --sc-drawer-width: min(540px,94vw);
-  --sc-drawer-bg: #ffffff;
+  --sc-drawer-bg: rgb(246,246,218);
+  --sc-drawer-bg-color: rgb(246,246,218);
+  --sc-drawer-top-bg-image: url("public.jpeg");
+  --sc-drawer-top-bg-height: 30%;
   --sc-drawer-text-color: #000000;
   --sc-drawer-header-color: #000000;
 
@@ -3805,10 +3811,10 @@
   --sc-subtotal-text: #111827;
   --sc-subtotal-label: rgba(107,114,128,1);
 
-  --sc-checkout-bg: rgb(246 246 218);
-  --sc-checkout-text: #ffffff;
-  --sc-announce-bg: var(--sc-checkout-bg);
-  --sc-announce-text: #ffffff;
+  --sc-checkout-bg: rgb(246,246,218);
+  --sc-checkout-text: #000000;
+  --sc-announce-bg: rgb(246,246,218);
+  --sc-announce-text: #000000;
   --sc-badge-bg: rgba(17,24,39,.1);
   --sc-badge-text: #111827;
   --sc-icon-color: var(--sc-drawer-header-color);
@@ -3856,10 +3862,11 @@
   position:fixed;top:0;right:0;height:100%;
   max-width:435px;
   width:100% !important;
-  background: var(--sc-drawer-bg);
+  background: var(--sc-drawer-bg-color, var(--sc-drawer-bg));
   background-size:cover;
   background-position:center;
   background-repeat:no-repeat;
+  overflow:hidden;
   transform:translateX(110%);
   transition:transform .25s ease;
   z-index:2147483647 !important;
@@ -3905,6 +3912,24 @@
 .sc-drawer.open{transform:none;pointer-events:auto !important}
 .sc-drawer.sc-position-left.open{transform:none}
 .sc-drawer.sc-mobile-bottom-sheet.open{transform:none}
+.sc-drawer::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height:var(--sc-drawer-top-bg-height, 30%);
+  background-image:var(--sc-drawer-top-bg-image, none);
+  background-size:cover;
+  background-position:top center;
+  background-repeat:no-repeat;
+  pointer-events:none !important;
+  z-index:0;
+}
+.sc-drawer > *{
+  position:relative;
+  z-index:1;
+}
 .sc-drawer *{box-sizing:border-box;pointer-events:auto !important;text-shadow:none !important;}
   .sc-close svg {
     fill: var(--sc-close-icon-color) !important;
@@ -4071,7 +4096,7 @@ padding: 5px 10px 0px 10px;
   font-size:var(--sc-small-font-size);
   width:200%;
   display:flex;
-  gap:32px;
+  gap:0px;
   animation: marquee 25s linear infinite running;
 }
 .marquee-text .top-info-bar:hover{animation-play-state: paused;}
@@ -5054,6 +5079,9 @@ color: var(--sc-drawer-text-color);
 .sc-upsell-slide{
   flex: 0 0 100%;
   min-width: 100%;
+  display:grid;
+  gap:6px;
+  grid-template-columns:1fr;
 }
 .sc-upsell-row{
   display: grid;
@@ -5456,49 +5484,58 @@ color: var(--sc-drawer-text-color);
 }
 
 .sc-offers{
-position: relative;
-    z-index: 25;
-    max-width: none !important;
-    width: 100% !important;
-    background: var(--sc-drawer-bg);
-    background-size: cover;
-    background-position: center;
-    pointer-events: auto !important;
-    display: flex !important;
-    flex-direction: column;
-    gap: 0;
-    font-size: var(--sc-base-font-size);
-    color: var(--sc-drawer-text-color);
-    flex: 1 1 auto;
-    min-height: 93.3%;
-    overflow: auto;
-    padding: 8px 10px;
-    box-shadow: none !important;
-    height: 100%;
-    bottom: 10%;
-    border-bottom: 1px solid #e9e7e7;
+  position:relative;
+  z-index:25;
+  max-width:none !important;
+  width:100% !important;
+  background:var(--sc-drawer-bg-color, var(--sc-drawer-bg));
+  background-size:cover;
+  background-position:center;
+  pointer-events:auto !important;
+  display:flex !important;
+  flex-direction:column;
+  gap:12px;
+  font-size:var(--sc-base-font-size);
+  color:var(--sc-drawer-text-color);
+  flex:1 1 auto;
+  min-height:0;
+  height:100%;
+  overflow:auto;
+  padding:14px;
+  border-bottom:0;
+  box-shadow:inset 0 8px 18px rgba(15,23,42,.05) !important;
 }
-.sc-drawer.sc-offers-active .content-cart-smartcartify,
+.sc-drawer.sc-offers-active{
+  height:100%;
+}
+.sc-drawer.sc-offers-active .content-cart-smartcartify{
+  flex:1 1 auto;
+  min-height:0;
+  height:100%;
+  background:var(--sc-drawer-bg-color, var(--sc-drawer-bg)) !important;
+}
 .sc-drawer.sc-offers-active .sc-footer{
-  background:var(--sc-drawer-bg) !important;
+  background:var(--sc-drawer-bg-color, var(--sc-drawer-bg)) !important;
 }
 .sc-drawer.sc-offers-active .sc-offers{
-  box-shadow:none;
+  box-shadow:inset 0 8px 18px rgba(15,23,42,.05) !important;
 }
 .sc-offers[hidden]{display:none !important;}
-.sc-offer-row {
+.sc-offer-row{
   display:grid;
   grid-template-columns:64px minmax(0, 1fr) auto;
   gap:12px;
   align-items:center;
   min-height:76px;
-  padding:12px 4px;
-  border-bottom:1px solid var(--sc-border);
-  box-shadow:none !important;
+  padding:12px;
+  border:1px solid rgba(15,23,42,.08);
+  border-radius:14px;
+  background:rgba(255,255,255,.92);
+  box-shadow:0 10px 26px rgba(15,23,42,.12) !important;
   margin:0;
 }
-.sc-offer-row:first-child{border-top:0;}
-.sc-offer-row:last-child{border-bottom:0;}
+.sc-offer-row:first-child{border-top:1px solid rgba(15,23,42,.08);}
+.sc-offer-row:last-child{border-bottom:1px solid rgba(15,23,42,.08);}
 .sc-offer-icon{
   width:56px;
   height:56px;
@@ -5649,6 +5686,34 @@ position: relative;
   white-space:nowrap;
   cursor:pointer;
   font-size:var(--sc-base-font-size);
+}
+@media(max-width:520px){
+  .sc-offers{padding:10px;gap:10px;}
+  .sc-offer-row{
+    grid-template-columns:52px minmax(0,1fr);
+    gap:10px;
+    padding:10px;
+  }
+  .sc-offer-icon,
+  .sc-offer-thumbs{
+    width:48px;
+    min-height:48px;
+  }
+  .sc-offer-icon{
+    height:48px;
+  }
+  .sc-offer-icon svg{
+    width:40px;
+    height:40px;
+  }
+  .sc-offer-codebox,
+  .sc-offer-action{
+    grid-column:1 / -1;
+    width:100%;
+  }
+  .sc-offer-title{
+    white-space:normal;
+  }
 }
 .sc-offers-empty{
   padding:24px;
@@ -6980,7 +7045,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         <span class="sc-footer-tab-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none"><path d="M20 12v8H4v-8M3 8h18v4H3V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 8v12M12 8H8.5A2.5 2.5 0 1 1 11 5.5V8ZM12 8h3.5A2.5 2.5 0 1 0 13 5.5V8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </span>
-        <span>Offers</span>
+        <span>Offer</span>
       </button>
     </div>
     </div>
@@ -7204,7 +7269,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return Number.isFinite(n) && n > 0 ? n : fallback;
     };
 
-    const baseFontSize = parsePositiveNumber(style?.base, 14);
+    const baseFontSize = parsePositiveNumber(style?.base, 12);
     const headingScaleValue = parsePositiveNumber(style?.headingScale, 1.2);
     const headingFontSize = Math.max(
       8,
@@ -7229,22 +7294,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (drawerFontFamily) r.setProperty("--sc-font", drawerFontFamily);
 
     const defaults = {
-      baseBg: "#ffffff",
+      baseBg: "rgb(246,246,218)",
+      drawerImage: "public.jpeg",
       topText: "#000000",
       headerText: "#000000",
       drawerText: "#111827",
       border: "#e5e7eb",
       muted: "#6b7280",
       progress: "#000000",
-      checkoutBg: "#000000",
-      checkoutText: "#ffffff",
-      announcementBarBackgroundColor: "#000000",
-      announcementBarTextColor: "#ffffff",
-      buttonLabelColor: "#ffffff",
+      checkoutBg: "rgb(246,246,218)",
+      checkoutText: "#000000",
+      announcementBarBackgroundColor: "rgb(246,246,218)",
+      announcementBarTextColor: "#000000",
+      buttonLabelColor: "#000000",
       iconColor: "#000000",
-      footerBg: "#ffffff",
-      applyBtnBg: "#000000",
-      applyBtnText: "#ffffff",
+      footerBg: "rgb(246,246,218)",
+      applyBtnBg: "rgb(246,246,218)",
+      applyBtnText: "#000000",
       applyBtnBorder: "rgba(17,24,39,.25)",
       subtotalBg: "#ffffff",
       subtotalText: "#111827",
@@ -7519,6 +7585,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-border", borderColor);
     r.setProperty("--sc-muted", mutedColor);
     r.setProperty("--sc-drawer-bg", String(baseBg));
+    r.setProperty("--sc-drawer-bg-color", getFirstColorFromBackground(baseBg) || String(baseBg));
 
     r.setProperty("--sc-text", topTextColor);
     r.setProperty("--sc-drawer-header-color", headerColor);
@@ -7561,6 +7628,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-close-border", closeBorder);
     r.setProperty("--sc-close-text", closeText);
     r.setProperty("--sc-close-icon-color", closeText);
+
+    const configuredDrawerImage =
+      pick(style, ["cartDrawerImage", "drawerImage", "topBgImage", "cartDrawerBackgroundImage"], defaults.drawerImage) || "";
+    const drawerTopImage =
+      /^url\(/i.test(String(configuredDrawerImage))
+        ? String(configuredDrawerImage)
+        : buildCssUrl(configuredDrawerImage);
+    r.setProperty("--sc-drawer-top-bg-image", drawerTopImage || "none");
+    r.setProperty("--sc-drawer-top-bg-height", normalizeLen(
+      pick(style, ["cartDrawerImageHeight", "drawerImageHeight", "topImageHeight"], null),
+      "30%"
+    ));
 
     r.setProperty("--sc-footer-bg", String(footerBg));
     r.setProperty("--sc-apply-bg", applyBtnBg);
@@ -7612,6 +7691,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       if (imgUrl) {
         r.setProperty("--sc-top-bg-image", `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), ${imgUrl}`);
+        r.setProperty("--sc-drawer-top-bg-image", imgUrl);
       } else {
         r.setProperty("--sc-top-bg-image", "none");
       }
@@ -7619,9 +7699,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-color-effective", "transparent");
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
-      r.setProperty("--sc-drawer-bg", imgUrl || baseBg || "transparent");
-      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
-      if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
+      r.setProperty("--sc-drawer-bg", String(baseBg || defaults.baseBg));
+      r.setProperty("--sc-drawer-bg-color", getFirstColorFromBackground(baseBg) || defaults.baseBg);
+      if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", String(baseBg || defaults.baseBg));
+      if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", String(baseBg || defaults.baseBg));
     } else if (mode === "gradient") {
       const gradientBg = /gradient\(/i.test(String(baseBg))
         ? String(baseBg)
@@ -7633,6 +7714,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
       r.setProperty("--sc-drawer-bg", gradientBg);
+      r.setProperty("--sc-drawer-bg-color", getFirstColorFromBackground(baseBg) || defaults.baseBg);
       if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "transparent");
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else {
@@ -7647,6 +7729,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-image-effective", "none");
 
       r.setProperty("--sc-drawer-bg", String(solidBg));
+      r.setProperty("--sc-drawer-bg-color", String(solidBg));
       if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", String(solidBg));
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", String(solidBg));
     }
