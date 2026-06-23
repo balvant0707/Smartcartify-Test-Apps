@@ -5872,7 +5872,6 @@ position: relative;
 .smartcartify-cart-drawer .sc-offer-icon svg g{
   fill:currentColor !important;
   color:currentColor !important;
-  stroke:currentColor;
 }
 .smartcartify-cart-drawer .sc-close,
 .smartcartify-cart-drawer .sc-close svg,
@@ -6596,13 +6595,14 @@ position: relative;
 .sc-drawer.sc-offers-active .sc-offer-subtitle{
     margin: 0 !important;
     color: var(--sc-muted) !important;
-    font-size: cal(var(--sc-base-font-size) * .8) !important;
+    font-size: calc(var(--sc-base-font-size) * 0.9) !important;
     line-height: 1.34 !important;
     font-weight: 500 !important;
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
   overflow:hidden;
+      letter-spacing: normal;
 }
 .sc-drawer.sc-offers-active .sc-offer-codebox{
   width:128px !important;
@@ -7857,8 +7857,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 }
 .sc-drawer .sc-footer-tab-icon,
 .sc-drawer .sc-footer-tab-icon svg{
-  width:22px !important;
-  height:22px !important;
+  width:18px !important;
+  height:18px !important;
 }
 
 /* Offers tab full page */
@@ -7914,7 +7914,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   height:auto !important;
   min-height:0 !important;
   flex:1 1 auto !important;
-  margin:0 14px 14px 14px !important
+  margin:0 14px 0px 14px !important;
   padding:0 !important;
   border:1px solid rgba(226,232,240,.95) !important;
   border-radius:14px !important;
@@ -10113,11 +10113,32 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (type === "shipping") {
       return `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 5.25c0-.414.336-.75.75-.75h6.991a2.75 2.75 0 0 1 2.644 1.995l.427 1.494a.25.25 0 0 0 .18.173l1.682.421A1.75 1.75 0 0 1 18 10.281V11.5c0 .711-.424 1.323-1.032 1.597.021.131.032.266.032.403a2.5 2.5 0 1 1-4.988-.25H8.988A2.5 2.5 0 1 1 4.208 12.5H3.75a.75.75 0 0 1 0-1.5h2.5c.03 0 .059.002.088.005A2.5 2.5 0 0 1 8.285 11.75h4.43A2.493 2.493 0 0 1 16.283 11.748.25.25 0 0 0 16.5 11.5v-1.219a.25.25 0 0 0-.189-.243l-1.683-.42a1.75 1.75 0 0 1-1.258-1.217l-.427-1.494A1.25 1.25 0 0 0 11.74 6H4.75A.75.75 0 0 1 4 5.25ZM6.5 14.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/><path d="M3.25 8a.75.75 0 0 0 0 1.5h5a.75.75 0 0 0 0-1.5h-5Z"/></svg>`;
     }
+       if (type === "offershipping") {
+      return `<svg xmlns="http://www.w3.org/2000/svg" fill="none" height="80" width="130">
+      <g stroke="#000" stroke-width="5">
+        <g stroke-linecap="round" stroke-linejoin="round">
+          <path d="M43 66h45M10.5 55.5V63a3 3 0 0 0 3 3h7m99-37H104a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h23M10 40.5V6a3 3 0 0 1 3-3h71a3 3 0 0 1 3 3v46a3 3 0 0 1-3 3H48.5"/>
+          <path d="M3 47.5h16.5M3 54.5h7.5m77-36h25.057a3 3 0 0 1 2.738 1.773l11.943 26.642a3 3 0 0 1 .262 1.227V63.5a3 3 0 0 1-3 3h-13"/>
+        </g>
+        <circle cx="32" cy="66" r="11.5" stroke-linejoin="round"/>
+        <circle cx="100" cy="66" r="11.5" stroke-linejoin="round"/>
+      </g>
+      <path d="M63.4 31.263v12.895c0 1.017-.806 1.842-1.8 1.842H36.4c-.994 0-1.8-.825-1.8-1.842V31.263h28.8zM53.5 11c3.479 0 6.3 2.887 6.3 6.447 0 .99-.218 1.927-.607 2.765l6.007-.002c.994 0 1.8.825 1.8 1.842v5.526c0 1.017-.806 1.842-1.8 1.842H32.8c-.994 0-1.8-.825-1.8-1.842v-5.526c0-1.017.806-1.842 1.8-1.842l6.007.002c-.389-.838-.607-1.775-.607-2.765 0-3.561 2.821-6.447 6.3-6.447 1.764 0 3.359.742 4.502 1.938C50.141 11.742 51.736 11 53.5 11zm-9 3.684c-1.491 0-2.7 1.237-2.7 2.763 0 1.436 1.071 2.617 2.44 2.751l.26.013h2.7v-2.763c0-1.436-1.071-2.617-2.44-2.75l-.26-.013zm9 0l-.26.013c-1.284.126-2.305 1.171-2.428 2.484l-.012.266v2.763h2.7l.26-.013c1.369-.134 2.44-1.314 2.44-2.751s-1.071-2.617-2.44-2.75l-.26-.013z" fill="#000"/>
+    </svg>`;
+    }
     if (type === "code") {
       return `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.5 4.5h-11a1 1 0 0 0-1 1v2.043a1.75 1.75 0 0 1 0 3.414V13.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2.543a1.75 1.75 0 0 1 0-3.414V5.5a1 1 0 0 0-1-1ZM4.5 3A2.5 2.5 0 0 0 2 5.5v2.75a.75.75 0 0 0 .75.75.25.25 0 0 1 0 .5.75.75 0 0 0-.75.75v3.25A2.5 2.5 0 0 0 4.5 16h11a2.5 2.5 0 0 0 2.5-2.5v-3.25a.75.75 0 0 0-.75-.75.25.25 0 0 1 0-.5.75.75 0 0 0 .75-.75V5.5A2.5 2.5 0 0 0 15.5 3h-11Z" clip-rule="evenodd"/><path d="M13.28 7.03a.75.75 0 1 0-1.06-1.06l-5.5 5.5a.75.75 0 1 0 1.06 1.06l5.5-5.5ZM8 7.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM13 12.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>`;
     }
     if (type === "discount") {
       return `<svg viewBox="0 0 20 20" fill="currentColor"><path d="M7.5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM12.5 11a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/><path fill-rule="evenodd" d="M14.53 5.47a.75.75 0 0 1 0 1.06l-8 8a.75.75 0 0 1-1.06-1.06l8-8a.75.75 0 0 1 1.06 0ZM3 5.5A2.5 2.5 0 0 1 5.5 3h9A2.5 2.5 0 0 1 17 5.5v9a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 3 14.5v-9ZM5.5 4.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-9Z" clip-rule="evenodd"/></svg>`;
+    }
+    if (type === "offerdiscount") {
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+        <path d="M28 7h-2V6c0-2.757-2.243-5-5-5a4.95 4.95 0 0 0-2 .424A4.95 4.95 0 0 0 17 1c-2.757 0-5 2.243-5 5v1h-2c-1.654 0-3 1.346-3 3v3H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h5v1c0 1.654 1.346 3 3 3h14 4c1.654 0 3-1.346 3-3V10c0-1.654-1.346-3-3-3zm-4-1v1h-2V6c0-1.129-.39-2.16-1.024-2.998.008 0 .016-.002.024-.002 1.654 0 3 1.346 3 3zm-5-2.22c.609.55 1 1.337 1 2.22v1h-2V6c0-.883.391-1.67 1-2.22zM14 6c0-1.654 1.346-3 3-3 .008 0 .016.002.024.002C16.39 3.84 16 4.871 16 6v1h-2V6zM3 15h10.382l2.5 5-2.5 5H3V15zm14.895 4.553L15.618 15h1.764l2.5 5-2.5 5h-1.764l2.276-4.553a1 1 0 0 0 .001-.894zM9 28v-1h5 4a1 1 0 0 0 .895-.553l3-6a1 1 0 0 0 0-.895l-3-6A1 1 0 0 0 18 13h-4-5v-3a1 1 0 0 1 1-1h2v1a1 1 0 1 0 2 0V9h6v1a1 1 0 1 0 2 0V9h2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1zm20 0a1 1 0 0 1-1 1h-1.184c.112-.314.184-.648.184-1V10c0-.352-.072-.686-.184-1H28a1 1 0 0 1 1 1v18z"/>
+        <circle cx="6.5" cy="17.5" r="1.5"/>
+        <circle cx="10.5" cy="22.5" r="1.5"/>
+        <path d="M11.641 16.232a1 1 0 0 0-1.409.128l-5 6a1 1 0 0 0 .128 1.408c.187.156.413.232.639.232.287 0 .571-.123.77-.36l5-6a1 1 0 0 0-.128-1.408z"/>
+      </svg>`;
     }
     if (type === "bxgy" || type === "buyxgety") {
       return `<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h16M8 4v4M16 4v4M6 8v12h12V8" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 13h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
@@ -10824,14 +10845,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         <button class="sc-offer-action" type="button">Show Gifts</button>
       </div>
       <div class="sc-offer-row">
-        <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("shipping")}</span>
+        <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("offershipping")}</span>
         <span class="sc-offer-copy">
           <p class="sc-offer-title">Free Shipping</p>
           <p class="sc-offer-subtitle">Add INR 500 more to get free shipping on this order</p>
         </span>
       </div>
       <div class="sc-offer-row">
-        <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("discount")}</span>
+        <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("offerdiscount")}</span>
         <span class="sc-offer-copy">
           <p class="sc-offer-title">20% Discount!</p>
           <p class="sc-offer-subtitle">Add INR 1,000 more to get a 20% discount on this order</p>
