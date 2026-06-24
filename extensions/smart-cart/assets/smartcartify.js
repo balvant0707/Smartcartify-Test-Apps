@@ -3090,13 +3090,16 @@
   };
 
   const celebrateDiscountApplied = (code) => {
-    firePaperEffect(2200);
-    showCenterCelebratePopup(
-      "Discount Applied",
-      `${String(code || "").toUpperCase()} has been added to your cart.`,
-      2200,
-      "success"
-    );
+    // Apply code success: show only the paper celebration.
+    // No reward/success popup should open after discount apply.
+    void code;
+    firePaperEffect(2800);
+  };
+
+  const suppressAutoRewardPopups = (ms = 3000) => {
+    try {
+      drawer.__sc_suppress_reward_popup_until = Date.now() + Math.max(0, Number(ms) || 0);
+    } catch { }
   };
 
   /* =========================================================
@@ -4315,7 +4318,7 @@ padding: 5px 10px 0px 10px;
   padding:0;
   margin:0;
   overflow:hidden;
-  background:#ffffff;
+  background:var(--sc-line-loader-bg, #ffffff);
   box-shadow:0 1px 0 rgba(15,23,42,.06);
   isolation:isolate;
 }
@@ -4331,7 +4334,7 @@ padding: 5px 10px 0px 10px;
   inset:0;
   width:100%;
   height:100%;
-  background:#ffffff;
+  background:var(--sc-line-loader-bg, #ffffff);
   overflow:hidden;
   border-radius:0;
 }
@@ -4343,7 +4346,7 @@ padding: 5px 10px 0px 10px;
   top:50%;
   height:1px;
   transform:translateY(-50%);
-  background:rgba(15,23,42,.08);
+  background:var(--sc-line-loader-track, rgba(15,23,42,.08));
 }
 .sc-line-loader-runner{
   position:absolute;
@@ -4352,7 +4355,7 @@ padding: 5px 10px 0px 10px;
   width:48%;
   height:100%;
   border-radius:999px;
-  background:linear-gradient(90deg, transparent 0%, rgba(159,66,235,.18) 14%, var(--sc-progress, #9f42eb) 50%, rgba(159,66,235,.18) 86%, transparent 100%);
+  background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 18%, transparent) 14%, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 18%, transparent) 86%, transparent 100%);
   animation:scLineLoader 1.05s cubic-bezier(.42,0,.18,1) infinite !important;
   will-change:left;
 }
@@ -4786,7 +4789,7 @@ color: var(--sc-drawer-text-color);
     border-radius: 999px;
     background: var(--sc-checkout-bg);
     color: var(--sc-checkout-text);
-    font-size: calc(var(--sc-base-font-size) * 1.06) !important;
+    font-size: var(--sc-base-font-size)!important;
     font-weight: 600;
     line-height: 1;
 }
@@ -6711,11 +6714,11 @@ display: flex;
 }
 /* confetti */
 .sc-paper{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3;}
-.sc-paper-piece{position:absolute;border-radius:3px;opacity:1;animation-name:scPaperFall;animation-timing-function:linear;background:linear-gradient(45deg, rgba(255,123,172,1), rgba(255,210,245,1));box-shadow:0 6px 18px rgba(0,0,0,.10);}
+.sc-paper-piece{position:absolute;border-radius:3px;opacity:1;animation-name:scPaperFall;animation-timing-function:linear;background:linear-gradient(45deg, var(--sc-paper-primary, var(--sc-progress)), color-mix(in srgb, var(--sc-paper-primary, var(--sc-progress)) 35%, #ffffff));box-shadow:0 6px 18px rgba(0,0,0,.10);}
 .sc-paper-piece:nth-child(4n){border-radius:50%;}
 .sc-paper-piece:nth-child(4n+1){border-radius:2px;}
-.sc-paper-piece:nth-child(3n){background:linear-gradient(45deg, rgba(255,210,120,.95), rgba(255,245,200,.85))}
-.sc-paper-piece:nth-child(3n+1){background:linear-gradient(45deg, rgba(120,215,255,.95), rgba(190,245,255,.85))}
+.sc-paper-piece:nth-child(3n){background:linear-gradient(45deg, var(--sc-paper-secondary, #ffcf70), color-mix(in srgb, var(--sc-paper-secondary, #ffcf70) 30%, #ffffff))}
+.sc-paper-piece:nth-child(3n+1){background:linear-gradient(45deg, var(--sc-paper-tertiary, #78d7ff), color-mix(in srgb, var(--sc-paper-tertiary, #78d7ff) 30%, #ffffff))}
 .sc-header{position:relative;z-index:4;}
 @keyframes scPaperFall{0%{transform:translate3d(0,0,0) rotate(0deg);opacity:1}100%{transform:translate3d(var(--sc-x),520px,0) rotate(420deg);opacity:1}}
 
@@ -7591,8 +7594,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
 .sc-drawer.sc-offers-active .sc-offer-subtitle{
   margin:0 !important;
-  color:var(--sc-muted,#64748b) !important;
-  font-size:calc(var(--sc-base-font-size,16px) * .9) !important;
+  color:var(--sc-drawer-text-color) !important;
+  font-size:calc(var(--sc-base-font-size) * .9) !important;
   line-height:1.34 !important;
   font-weight:500 !important;
   display:-webkit-box !important;
@@ -7645,7 +7648,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   min-width:128px !important;
   border:1px solid #e4e8f0 !important;
   border-radius:7px !important;
-  background:#ffffff !important;
+  background:var(--sc-line-loader-bg, #ffffff) !important;
   overflow:hidden !important;
   box-shadow:0 6px 16px rgba(15,23,42,.08) !important;
 }
@@ -7727,7 +7730,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   z-index:30;
   margin:0;
   padding:0;
-  background:#ffffff !important;
+  background:var(--sc-line-loader-bg, #ffffff) !important;
   overflow:hidden !important;
   border-radius:0;
   box-shadow:0 1px 0 rgba(15,23,42,.06);
@@ -7743,7 +7746,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   inset:0;
   width:100%;
   height:100%;
-  background:#ffffff !important;
+  background:var(--sc-line-loader-bg, #ffffff) !important;
   overflow:hidden !important;
   border-radius:0;
 }
@@ -7755,7 +7758,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   top:50%;
   height:1px;
   transform:translateY(-50%);
-  background:rgba(15,23,42,.08);
+  background:var(--sc-line-loader-track, rgba(15,23,42,.08));
 }
 .smartcartify-cart-drawer .sc-line-loader-runner{
   position:absolute;
@@ -7763,7 +7766,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   width:100%;
   height:100%;
   border-radius:999px;
-  background:linear-gradient(90deg, transparent 0%, rgba(159,66,235,.12) 20%, var(--sc-progress, #9f42eb) 50%, rgba(159,66,235,.12) 80%, transparent 100%) !important;
+  background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 14%, transparent) 20%, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 14%, transparent) 80%, transparent 100%) !important;
   transform:translate3d(-105%,0,0);
   animation:none !important;
   will-change:transform;
@@ -7783,16 +7786,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   pointer-events:none !important;
 }
 .smartcartify-cart-drawer .sc-freegift-check{
-  width:22px !important;
-  height:22px !important;
-  border-radius:999px !important;
+  width:20px !important;
+  height:20px !important;
+  border-radius:4px !important;
+  position:relative !important;
   display:inline-flex !important;
   align-items:center !important;
   justify-content:center !important;
-  background:#ffffff !important;
-  border:2px solid color-mix(in srgb, var(--sc-freegift-accent, #9f42eb) 42%, #ffffff) !important;
+  justify-self:end !important;
+  overflow:visible !important;
+  background:var(--sc-checkbox-empty-bg, #ffffff) !important;
+  border:2px solid var(--sc-checkbox-empty-border, color-mix(in srgb, var(--sc-drawer-text-color) 45%, #ffffff)) !important;
   color:#ffffff !important;
-  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.4);
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35);
   transform:scale(1);
   transition:background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
@@ -7800,39 +7806,87 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   content:none !important;
 }
 .smartcartify-cart-drawer .sc-freegift-check svg{
-  width:14px !important;
-  height:14px !important;
+  width:18px !important;
+  height:18px !important;
   display:block !important;
   overflow:visible !important;
+  position:relative !important;
+  z-index:2 !important;
 }
 .smartcartify-cart-drawer .sc-freegift-check svg path{
   fill:none !important;
-  stroke:#ffffff !important;
-  stroke-width:3.2 !important;
+  stroke:var(--sc-checkbox-check, #ffffff) !important;
+  stroke-width:3.3 !important;
   stroke-linecap:round !important;
   stroke-linejoin:round !important;
-  stroke-dasharray:26;
-  stroke-dashoffset:26;
+  stroke-dasharray:28;
+  stroke-dashoffset:28;
+  opacity:0;
 }
+.smartcartify-cart-drawer .sc-freegift-check .sc-check-sparks{
+  position:absolute !important;
+  right:-13px !important;
+  top:50% !important;
+  width:15px !important;
+  height:24px !important;
+  transform:translateY(-50%) !important;
+  pointer-events:none !important;
+  overflow:visible !important;
+  z-index:3 !important;
+}
+.smartcartify-cart-drawer .sc-freegift-check .sc-check-sparks i{
+  position:absolute !important;
+  left:1px !important;
+  width:11px !important;
+  height:3px !important;
+  border-radius:999px !important;
+  background:var(--sc-checkbox-spark, var(--sc-freegift-accent, #9f42eb)) !important;
+  opacity:0;
+  transform-origin:left center !important;
+}
+.smartcartify-cart-drawer .sc-freegift-check .sc-check-sparks i:nth-child(1){top:1px;transform:rotate(-38deg) scaleX(.35);}
+.smartcartify-cart-drawer .sc-freegift-check .sc-check-sparks i:nth-child(2){top:10px;transform:rotate(0deg) scaleX(.35);}
+.smartcartify-cart-drawer .sc-freegift-check .sc-check-sparks i:nth-child(3){top:19px;transform:rotate(38deg) scaleX(.35);}
 .smartcartify-cart-drawer .sc-freegift-option.selected .sc-freegift-check,
 .smartcartify-cart-drawer .sc-freegift-check.sc-check-animate{
-  background:var(--sc-freegift-accent, #9f42eb) !important;
-  border-color:var(--sc-freegift-accent, #9f42eb) !important;
-  box-shadow:0 6px 14px rgba(159,66,235,.28);
-  animation:scGiftCheckPop .28s cubic-bezier(.2,.9,.2,1.25) both;
+  background:var(--sc-checkbox-accent, var(--sc-freegift-accent, #9f42eb)) !important;
+  border-color:var(--sc-checkbox-accent, var(--sc-freegift-accent, #9f42eb)) !important;
+  box-shadow:0 7px 16px rgba(159,66,235,.30);
+  animation:scGiftCheckPop .34s cubic-bezier(.2,.9,.2,1.25) both;
 }
 .smartcartify-cart-drawer .sc-freegift-option.selected .sc-freegift-check svg path,
 .smartcartify-cart-drawer .sc-freegift-check.sc-check-animate svg path{
-  animation:scGiftCheckDraw .38s ease .1s forwards;
+  animation:scGiftCheckDraw .42s ease .08s forwards;
 }
+.smartcartify-cart-drawer .sc-freegift-option.selected .sc-freegift-check .sc-check-sparks i,
+.smartcartify-cart-drawer .sc-freegift-check.sc-check-animate .sc-check-sparks i{
+  animation:scGiftCheckSpark .58s ease both;
+}
+.smartcartify-cart-drawer .sc-freegift-option.selected .sc-freegift-check .sc-check-sparks i:nth-child(1),
+.smartcartify-cart-drawer .sc-freegift-check.sc-check-animate .sc-check-sparks i:nth-child(1){animation-delay:.10s;}
+.smartcartify-cart-drawer .sc-freegift-option.selected .sc-freegift-check .sc-check-sparks i:nth-child(2),
+.smartcartify-cart-drawer .sc-freegift-check.sc-check-animate .sc-check-sparks i:nth-child(2){animation-delay:.15s;}
+.smartcartify-cart-drawer .sc-freegift-option.selected .sc-freegift-check .sc-check-sparks i:nth-child(3),
+.smartcartify-cart-drawer .sc-freegift-check.sc-check-animate .sc-check-sparks i:nth-child(3){animation-delay:.20s;}
 @keyframes scGiftCheckPop{
-  0%{transform:scale(.72);}
-  65%{transform:scale(1.16);}
-  100%{transform:scale(1.04);}
+  0%{transform:scale(.62) rotate(-8deg);}
+  58%{transform:scale(1.18) rotate(2deg);}
+  100%{transform:scale(1) rotate(0deg);}
 }
 @keyframes scGiftCheckDraw{
-  to{stroke-dashoffset:0;}
+  0%{stroke-dashoffset:28;opacity:0;}
+  1%{opacity:1;}
+  100%{stroke-dashoffset:0;opacity:1;}
 }
+@keyframes scGiftCheckSpark{
+  0%{opacity:0;transform:translateX(-2px) rotate(var(--sc-spark-rotate, 0deg)) scaleX(.15);}
+  28%{opacity:1;}
+  70%{opacity:1;transform:translateX(2px) rotate(var(--sc-spark-rotate, 0deg)) scaleX(1);}
+  100%{opacity:0;transform:translateX(7px) rotate(var(--sc-spark-rotate, 0deg)) scaleX(.2);}
+}
+.smartcartify-cart-drawer .sc-freegift-check .sc-check-sparks i:nth-child(1){--sc-spark-rotate:-38deg;}
+.smartcartify-cart-drawer .sc-freegift-check .sc-check-sparks i:nth-child(2){--sc-spark-rotate:0deg;}
+.smartcartify-cart-drawer .sc-freegift-check .sc-check-sparks i:nth-child(3){--sc-spark-rotate:38deg;}
 .smartcartify-cart-drawer .sc-progress-check-svg svg{
   width:15px !important;
   height:15px !important;
@@ -7869,6 +7923,35 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 .smartcartify-cart-drawer .sc-celebrate-check-line,
 .smartcartify-cart-drawer .sc-celebrate-x-line{
   fill:none !important;
+}
+
+/* Cart goal completed milestone: keep the same icon and turn it white */
+.smartcartify-cart-drawer .sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble,
+.smartcartify-cart-drawer .sc-dot-wrap.done .sc-dot-bubble{
+  background:var(--sc-progress) !important;
+  border-color:var(--sc-progress) !important;
+  color:#ffffff !important;
+}
+.smartcartify-cart-drawer .sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble .sc-dot-svg,
+.smartcartify-cart-drawer .sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble .sc-dot-html,
+.smartcartify-cart-drawer .sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble svg,
+.smartcartify-cart-drawer .sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble svg *,
+.smartcartify-cart-drawer .sc-dot-wrap.done .sc-dot-bubble .sc-dot-svg,
+.smartcartify-cart-drawer .sc-dot-wrap.done .sc-dot-bubble .sc-dot-html,
+.smartcartify-cart-drawer .sc-dot-wrap.done .sc-dot-bubble svg,
+.smartcartify-cart-drawer .sc-dot-wrap.done .sc-dot-bubble svg *{
+  color:#ffffff !important;
+}
+.smartcartify-cart-drawer .sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble svg [fill]:not([fill="none"]),
+.smartcartify-cart-drawer .sc-dot-wrap.done .sc-dot-bubble svg [fill]:not([fill="none"]){
+  fill:currentColor !important;
+}
+.smartcartify-cart-drawer .sc-progress.sc-cart-goal-progress .sc-dot-wrap.done .sc-dot-bubble svg [stroke],
+.smartcartify-cart-drawer .sc-dot-wrap.done .sc-dot-bubble svg [stroke]{
+  stroke:currentColor !important;
+}
+.smartcartify-cart-drawer .sc-dot-wrap.just-done .sc-dot-bubble{
+  animation:scMilestoneCheckPop .34s cubic-bezier(.2,.9,.2,1.25) both;
 }
 
 
@@ -8249,6 +8332,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       subtotalText: "#102864",
       subtotalLabel: "#6b7280",
       discountCodeApply: 1,
+      lineLoaderBg: "#ffffff",
+      lineLoaderTrack: "rgba(15,23,42,.08)",
+      checkboxEmptyBg: "#ffffff",
+      checkboxCheckColor: "#ffffff",
     };
 
     let mode = String(
@@ -8551,6 +8638,64 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       rewardPopupTitleColor
     );
 
+    // Match the Corner-style loader, checkbox spark and paper celebration with styleSettings colors.
+    // Fallbacks keep the current layout safe when old stores do not have these fields.
+    const lineLoaderBg = pickBackground(
+      style,
+      ["lineLoaderBg", "loadingLineBg", "loaderBg", "loadingBarBg", "cartLoaderBg"],
+      defaults.lineLoaderBg
+    );
+    const lineLoaderTrack = pickBackground(
+      style,
+      ["lineLoaderTrack", "loadingLineTrack", "loaderTrack", "loadingBarTrack"],
+      defaults.lineLoaderTrack
+    );
+    const lineLoaderAccent = pickColor(
+      style,
+      ["lineLoaderColor", "loadingLineColor", "loaderColor", "loadingBarColor", "progress", "buttonColor"],
+      progressFill
+    );
+    const checkboxAccent = pickColor(
+      style,
+      ["freeGiftCheckColor", "checkboxColor", "checkboxSelectedBg", "checkboxBg", "rewardCheckboxColor", "buttonColor"],
+      rewardPopupAccentColor
+    );
+    const checkboxEmptyBg = pickBackground(
+      style,
+      ["freeGiftCheckEmptyBg", "checkboxEmptyBg", "checkboxUncheckedBg"],
+      defaults.checkboxEmptyBg
+    );
+    const checkboxEmptyBorder = pickColor(
+      style,
+      ["freeGiftCheckBorder", "checkboxBorder", "checkboxUncheckedBorder"],
+      mutedColor
+    );
+    const checkboxCheckColor = pickColor(
+      style,
+      ["freeGiftCheckTickColor", "checkboxTickColor", "checkboxCheckColor"],
+      defaults.checkboxCheckColor
+    );
+    const checkboxSparkColor = pickColor(
+      style,
+      ["freeGiftCheckSparkColor", "checkboxSparkColor", "sparkColor"],
+      checkboxAccent
+    );
+    const paperPrimary = pickColor(
+      style,
+      ["paperCelebrationColor", "confettiColor", "celebrationColor", "buttonColor", "progress"],
+      progressFill
+    );
+    const paperSecondary = pickColor(
+      style,
+      ["paperCelebrationSecondColor", "confettiSecondColor", "celebrationSecondColor", "cartDrawerGradientStart"],
+      checkoutBg
+    );
+    const paperTertiary = pickColor(
+      style,
+      ["paperCelebrationThirdColor", "confettiThirdColor", "celebrationThirdColor", "cartDrawerGradientEnd"],
+      gradientEnd
+    );
+
     if (!isValidCssColor(topTextColor)) topTextColor = defaults.topText;
     if (!isValidCssColor(headerColor)) headerColor = defaults.headerText;
 
@@ -8627,6 +8772,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     r.setProperty("--sc-freegift-btn-text", rewardPopupButtonText);
     r.setProperty("--sc-freegift-pill-bg", String(rewardPopupPillBg));
     r.setProperty("--sc-freegift-pill-text", rewardPopupPillText);
+    r.setProperty("--sc-line-loader-bg", String(lineLoaderBg));
+    r.setProperty("--sc-line-loader-track", String(lineLoaderTrack));
+    r.setProperty("--sc-line-loader-accent", lineLoaderAccent);
+    r.setProperty("--sc-checkbox-accent", checkboxAccent);
+    r.setProperty("--sc-checkbox-empty-bg", String(checkboxEmptyBg));
+    r.setProperty("--sc-checkbox-empty-border", checkboxEmptyBorder);
+    r.setProperty("--sc-checkbox-check", checkboxCheckColor);
+    r.setProperty("--sc-checkbox-spark", checkboxSparkColor);
+    r.setProperty("--sc-paper-primary", paperPrimary);
+    r.setProperty("--sc-paper-secondary", paperSecondary);
+    r.setProperty("--sc-paper-tertiary", paperTertiary);
     r.setProperty("--sc-celebrate-backdrop", String(celebrateBackdrop));
     r.setProperty("--sc-celebrate-bg", String(celebrateBg));
     r.setProperty("--sc-celebrate-border", celebrateBorder);
@@ -9383,6 +9539,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
 
       rememberManualDiscountCode(code);
+      suppressAutoRewardPopups(3200);
       await refreshFromNetwork();
       renderAllFromCache();
 
@@ -9831,7 +9988,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         rule.valueType = rule.discountType;
       }
 
-      rule.iconChoice = type === "shipping" ? "shipping" : type === "discount" ? "tag" : "free";
+      // Cart goal progress icons should stay type-based: shipping / order discount / free gift.
+      rule.iconChoice = type === "shipping" ? "shipping" : type === "discount" ? "discount" : "free";
 
       return { type, rule };
     };
@@ -12071,14 +12229,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               if (cur.kind === "free") scStore.del(keyPendingFreeGift(addedGuardKey));
               markPopupShown(cur.kind, addedGuardKey);
             }
+            suppressAutoRewardPopups(3200);
             closeRewardPopup();
             renderAllFromCache();
-            showCenterCelebratePopup(
-              "Reward Added",
-              addedCount > 1 ? `${addedCount} free gifts have been added to your cart.` : "Your free gift has been added to your cart.",
-              2200,
-              "success"
-            );
+            // Free gift added: show only paper celebration, not the reward success popup.
+            setTimeout(() => firePaperEffect(2800), 80);
           } else {
             // Silent failure (variant not resolved, already in cart, etc.) — no throw, just notify
             showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
@@ -12546,6 +12701,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M5 12.5l4.2 4.2L19 7"/>
               </svg>
+              <span class="sc-check-sparks" aria-hidden="true"><i></i><i></i><i></i></span>
             </span>
           </button>
           ${selected ? renderVariantPanel(option) : ""}
@@ -12631,6 +12787,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title, goalMet = true, force = false }) => {
+    if (!force && Number(drawer.__sc_suppress_reward_popup_until || 0) > Date.now()) {
+      return false;
+    }
     if (
       !force &&
       DISABLE_REWARD_SUCCESS_POPUPS &&
@@ -13517,8 +13676,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const justDone = !priming && isDone && i >= previousDoneCount && i < doneCount;
         const cls = `${isDone ? "done" : isActive ? "active" : ""}${justDone ? " just-done" : ""}`.trim();
         const belowText = trimToNull(ss.progressTextBelow) || trimToNull(ss.title);
-        const checkIcon = `<span class="sc-dot-svg sc-progress-check-svg"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>`;
-        const iconHtml = isDone ? checkIcon : renderMilestoneIcon(ss.icon);
+        // Keep the original reward icon after completion (shipping / order discount / free gift).
+        // Completion only changes the bubble + icon color to white; it never swaps to a checkmark.
+        const iconHtml = renderMilestoneIcon(ss.icon);
 
         return `
           <div class="sc-dot-wrap ${cls} ${isLast ? "last" : ""}" style="left:${leftPct}%">
