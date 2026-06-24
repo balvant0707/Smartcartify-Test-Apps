@@ -6290,490 +6290,7 @@ position: relative;
   }
 }
 
-/* =========================================================
-   ✅ Requested UI Update: Offer tab design + border radius
-   - Dynamic data remains untouched.
-   - Uses existing dynamic CSS variables for colors/font where possible.
-========================================================= */
-.sc-drawer .sc-img,
-.sc-drawer .sc-img img,
-.sc-drawer .sc-item.sc-item-reward .sc-img,
-.sc-drawer .sc-item.sc-item-reward .sc-img img,
-.sc-drawer .sc-upsell-img,
-.sc-drawer .sc-upsell-img img{
-  border-radius:0.75em !important;
-}
-
-.sc-drawer .sc-qty{
-  gap:7px;
-}
-.sc-drawer .sc-qty button{
-  border-radius:10px !important;
-  min-width:34px;
-  height:26px;
-  box-shadow:0 1px 2px rgba(15,23,42,.06);
-}
-.sc-drawer .sc-qty input{
-  border-radius:8px !important;
-}
-
-.sc-drawer .sc-upsell-card,
-.sc-drawer .sc-upsell-inner,
-.sc-drawer .sc-upsell-item{
-  border-radius:14px !important;
-}
-.sc-drawer .sc-upsell-select{
-  border-radius:3px !important;
-}
-
-/* Offer tab shell like reference image */
-.sc-drawer.sc-offers-active,
-.smartcartify-cart-drawer.sc-offers-active{
-  background:linear-gradient(135deg, #ff3b30 0%, #df2dc6 45%, #ffe1d6 100%) !important;
-}
-.sc-drawer.sc-offers-active::before{
-  height:170px;
-  background:linear-gradient(135deg, #ff3b30 0%, #df2dc6 45%, #ffe1d6 100%) !important;
-}
-
-.sc-drawer.sc-offers-active .sc-title{
-    margin: 0 !important;
-    color: var(--sc-drawer-header-color) !important;
-    font-size: var(--sc-heading-font-size) !important;
-    line-height: 1 !important;
-    font-weight: 700 !important;
-    text-shadow: 0 2px 12px rgba(15, 23, 42, .15) !important;
-    letter-spacing: normal !important;
-}
-
-.sc-drawer.sc-offers-active .content-cart-smartcartify,
-.sc-drawer.sc-offers-active .sc-footer{
-  background:transparent !important;
-}
-.sc-drawer.sc-offers-active .sc-offers{
-  width:calc(100% - 24px) !important;
-  min-height:0 !important;
-  height:auto !important;
-  flex:1 1 auto !important;
-  bottom:auto !important;
-  margin:0 12px 14px !important;
-  padding:0 !important;
-  border:1px solid rgba(226,232,240,.9) !important;
-  border-radius:.75em !important;
-  background:rgba(255,255,255,.96) !important;
-  box-shadow:0 8px 24px rgba(15,23,42,.13) !important;
-  overflow:auto !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-row{
-  grid-template-columns:68px minmax(0, 1fr) auto !important;
-  gap:12px !important;
-  min-height:98px !important;
-  padding:16px 12px !important;
-  border-bottom:1px solid #edf0f4 !important;
-  background:transparent !important;
-  align-items:center !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-row:last-child{
-  border-bottom:0 !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-icon{
-  width:56px !important;
-  height:56px !important;
-  border:0 !important;
-  border-radius:12px !important;
-  background:transparent !important;
-  color:var(--sc-offer-icon-color, #111827) !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-icon svg{
-  width:54px !important;
-  height:54px !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-thumbs{
-  width:58px !important;
-  min-height:58px !important;
-  grid-template-columns:repeat(2, 27px) !important;
-  grid-auto-rows:27px !important;
-  gap:4px !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-thumb{
-  width:27px !important;
-  height:27px !important;
-  border-radius:8px !important;
-  background:#eef1f4 !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-copy{
-  gap:3px !important;
-}
-
-.sc-drawer.sc-offers-active .sc-offer-codebox{
-  min-width:112px !important;
-  border:1px solid #e1e5ec !important;
-  border-radius:9px !important;
-  background:#ffffff !important;
-  overflow:hidden !important;
-  box-shadow:0 4px 10px rgba(15,23,42,.06);
-}
-.sc-drawer.sc-offers-active .sc-offer-code-copy{
-  min-height:34px !important;
-  padding:6px 8px !important;
-  background:#ffffff !important;
-  color:var(--sc-drawer-text-color, #102864) !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-code{
-  font-size:calc(var(--sc-base-font-size) * 1.05) !important;
-  font-weight:900 !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-code-apply{
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  min-height:38px !important;
-  border-radius:0 !important;
-  background:var(--sc-checkout-bg, #a93dea) !important;
-  color:var(--sc-checkout-text, #ffffff) !important;
-  font-size:calc(var(--sc-base-font-size) * 1.05) !important;
-  font-weight:700 !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-action{
-  border:2px solid var(--sc-checkout-bg, #a93dea) !important;
-  border-radius:10px !important;
-  background:#ffffff !important;
-  color:var(--sc-checkout-bg, #a93dea) !important;
-  padding:9px 12px !important;
-  font-weight:700 !important;
-  box-shadow:0 4px 10px rgba(15,23,42,.05);
-}
-.sc-drawer.sc-offers-active .sc-footer-tabs{
-  margin:0 12px 12px !important;
-  border:1px solid rgba(226,232,240,.9) !important;
-  border-radius:14px !important;
-  background:#ffffff !important;
-  overflow:hidden !important;
-  box-shadow:0 8px 22px rgba(15,23,42,.12) !important;
-}
-
-@media (max-width: 420px){
-  .sc-drawer.sc-offers-active .sc-offer-row{
-    grid-template-columns:64px minmax(0, 1fr) auto !important;
-    padding:15px 10px !important;
-  }
-  .sc-drawer.sc-offers-active .sc-offer-codebox,
-  .sc-drawer.sc-offers-active .sc-offer-action{
-    grid-column:auto !important;
-    justify-self:end !important;
-  }
-  .sc-drawer.sc-offers-active .sc-offer-action{
-    padding:8px 10px !important;
-    font-size:calc(var(--sc-base-font-size) * .94) !important;
-  }
-  .sc-drawer.sc-offers-active .sc-offer-codebox{
-    min-width:104px !important;
-  }
-}
-
-
-/* =========================================================
-   ✅ Offer Tab Clean Layout V2
-   - keeps cart products/progress/footer hidden while Offers tab is active
-   - places offer list directly below the Offers header
-   - clean card rows with dynamic data unchanged
-========================================================= */
-.sc-drawer.sc-offers-active .content-cart-smartcartify,
-.sc-drawer.sc-offers-active .smartcartify-cart-body,
-.sc-drawer.sc-offers-active .sc-footer{
-  display:none !important;
-  visibility:hidden !important;
-  height:0 !important;
-  min-height:0 !important;
-  overflow:hidden !important;
-  padding:0 !important;
-  margin:0 !important;
-  border:0 !important;
-}
-.sc-drawer.sc-offers-active,
-.smartcartify-cart-drawer.sc-offers-active{
-  background:linear-gradient(145deg, #ff3b2f 0%, #e42cc5 48%, #ffd9cf 100%) !important;
-  overflow:hidden !important;
-}
-.sc-drawer.sc-offers-active .sc-header {
-    flex: 0 0 auto !important;
-    padding: 18px 20px 17px !important;
-}
-
-.sc-drawer.sc-offers-active .sc-title-icon{display:none !important;}
-
-
-.sc-drawer.sc-offers-active .sc-offers{
-  position:relative !important;
-  z-index:20 !important;
-  display:flex !important;
-  flex-direction:column !important;
-  width:calc(100% - 28px) !important;
-  height:auto !important;
-  min-height:0 !important;
-  flex:1 1 auto !important;
-  margin:0 14px 14px !important;
-  padding:0 !important;
-  bottom:auto !important;
-  top:auto !important;
-  border:1px solid rgba(255,255,255,.72) !important;
-  border-radius:0.75em !important;
-  background:rgba(255,255,255,.96) !important;
-  color:var(--sc-drawer-text-color, #102864) !important;
-  box-shadow:0 18px 42px rgba(18,24,40,.18) !important;
-  overflow:auto !important;
-  scrollbar-width:thin;
-}
-.sc-drawer.sc-offers-active .sc-offer-row{
-  display:grid !important;
-  grid-template-columns:68px minmax(0, 1fr) auto !important;
-  gap:13px !important;
-  align-items:center !important;
-  min-height:94px !important;
-  padding:17px 14px !important;
-  border-bottom:1px solid rgba(226,232,240,.95) !important;
-  background:#fff !important;
-  box-shadow:none !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-row:first-child{
-  border-top-left-radius:18px !important;
-  border-top-right-radius:18px !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-row:last-child{
-  border-bottom:0 !important;
-  border-bottom-left-radius:18px !important;
-  border-bottom-right-radius:18px !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-icon,
-.sc-drawer.sc-offers-active .sc-offer-thumbs{
-  width:58px !important;
-  height:58px !important;
-  min-height:58px !important;
-  border-radius:14px !important;
-  background:linear-gradient(135deg, #f7f9fc 0%, #eef2f7 100%) !important;
-  border:1px solid #edf1f7 !important;
-  box-shadow:0 5px 13px rgba(15,23,42,.07) !important;
-  overflow:hidden !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-icon svg{
-  width:38px !important;
-  height:38px !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-thumbs{
-  display:grid !important;
-  grid-template-columns:repeat(2, 1fr) !important;
-  grid-auto-rows:1fr !important;
-  gap:3px !important;
-  padding:4px !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-thumb{
-  width:100% !important;
-  height:100% !important;
-  border-radius:9px !important;
-  overflow:hidden !important;
-  background:#eef2f7 !important;
-  border:0 !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-thumb img{
-  width:100% !important;
-  height:100% !important;
-  object-fit:cover !important;
-  border-radius:9px !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-copy{
-  min-width:0 !important;
-  gap:5px !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-title{
-    margin: 0 !important;
-    color: var(--sc-drawer-text-color) !important;
-    font-size: var(--sc-base-font-size) !important;
-    line-height: 1.16 !important;
-    font-weight: 700 !important;
-    letter-spacing: normal;
-  max-width:100% !important;
-  white-space:normal !important;
-  display:-webkit-box;
-  -webkit-line-clamp:1;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
-}
-.sc-drawer.sc-offers-active .sc-offer-subtitle{
-    margin: 0 !important;
-    color: var(--sc-muted) !important;
-    font-size: calc(var(--sc-base-font-size) * 0.9) !important;
-    line-height: 1.34 !important;
-    font-weight: 500 !important;
-  display:-webkit-box;
-  -webkit-line-clamp:2;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
-      letter-spacing: normal;
-}
-.sc-drawer.sc-offers-active .sc-offer-codebox{
-  width:128px !important;
-  min-width:128px !important;
-  border:1px solid #e4e8f0 !important;
-  border-radius:12px !important;
-  background:#fff !important;
-  overflow:hidden !important;
-  box-shadow:0 8px 18px rgba(15,23,42,.08) !important;
-}
-
-.sc-drawer.sc-offers-active .sc-offer-code{
-  font-size:calc(var(--sc-base-font-size, 16px) * .98) !important;
-  font-weight:900 !important;
-  overflow:hidden !important;
-  text-overflow:ellipsis !important;
-  white-space:nowrap !important;
-}
-
-.sc-drawer.sc-offers-active .sc-offer-action{
-  min-width:118px !important;
-  border:2px solid var(--sc-checkout-bg, #a83df0) !important;
-  border-radius:12px !important;
-  background:#fff !important;
-  color:var(--sc-checkout-bg, #a83df0) !important;
-  padding:10px 13px !important;
-  font-size:calc(var(--sc-base-font-size, 16px) * .98) !important;
-  font-weight:900 !important;
-  box-shadow:0 8px 18px rgba(15,23,42,.07) !important;
-}
-.sc-drawer.sc-offers-active .sc-footer-tabs{
-  flex:0 0 auto !important;
-  width:calc(100% - 28px) !important;
-  margin: 10px 14px 5px !important;
-  border:1px solid rgba(255,255,255,.72) !important;
-  border-radius:0.75em !important;
-  background:#fff !important;
-  box-shadow:0 14px 30px rgba(15,23,42,.13) !important;
-  overflow:hidden !important;
-}
-.sc-drawer.sc-offers-active .sc-footer-tab{
-  min-height:50px !important;
-  background:#fff !important;
-  font-weight:700 !important;
-}
-.sc-drawer.sc-offers-active .sc-footer-tab.is-active{
-  color:var(--sc-checkout-bg, #a83df0) !important;
-}
-
-@media (max-width:420px){
-  .sc-drawer.sc-offers-active .sc-header{padding:24px 18px 16px !important;}
-  .sc-drawer.sc-offers-active .sc-title{font-size:28px !important;}
-  .sc-drawer.sc-offers-active .sc-offer-row{
-    grid-template-columns:62px minmax(0, 1fr) auto !important;
-    gap:10px !important;
-    padding:15px 11px !important;
-    min-height:90px !important;
-  }
-  .sc-drawer.sc-offers-active .sc-offer-icon,
-  .sc-drawer.sc-offers-active .sc-offer-thumbs{
-    width:54px !important;
-    height:54px !important;
-    min-height:54px !important;
-  }
-  .sc-drawer.sc-offers-active .sc-offer-codebox{width:116px !important; min-width:116px !important;}
-  .sc-drawer.sc-offers-active .sc-offer-action{min-width:108px !important; padding:9px 10px !important;}
-}
-
-
-/* =========================================================
-   ✅ FINAL FIX: Real Offer tab page layout
-   - Do NOT hide .content-cart-smartcartify because offer panel is inside it
-   - Hide only cart sections while Offers tab is active
-   - Match uploaded reference: header + white offer card + bottom tabs
-========================================================= */
-.sc-drawer.sc-offers-active .content-cart-smartcartify,
-.smartcartify-cart-drawer.sc-offers-active .content-cart-smartcartify{
-  display:flex !important;
-  visibility:visible !important;
-  height:100% !important;
-  min-height:0 !important;
-  flex:1 1 auto !important;
-  flex-direction:column !important;
-  overflow:hidden !important;
-  padding:0 !important;
-  margin:0 !important;
-  background:transparent !important;
-}
-.sc-drawer.sc-offers-active .sc-items,
-.sc-drawer.sc-offers-active .sc-progress,
-.sc-drawer.sc-offers-active .sc-announce,
-.sc-drawer.sc-offers-active .sc-cart-msg,
-.sc-drawer.sc-offers-active .sc-items-list,
-.sc-drawer.sc-offers-active .sc-items-footer,
-.sc-drawer.sc-offers-active .sc-footer,
-.sc-drawer.sc-offers-active .sc-discount,
-.sc-drawer.sc-offers-active .sc-discount-loading-overlay{
-  display:none !important;
-  visibility:hidden !important;
-  height:0 !important;
-  min-height:0 !important;
-  overflow:hidden !important;
-  padding:0 !important;
-  margin:0 !important;
-  border:0 !important;
-}
-.sc-drawer.sc-offers-active .sc-offers{
-  display:flex !important;
-  visibility:visible !important;
-  opacity:1 !important;
-  position:relative !important;
-  inset:auto !important;
-  z-index:30 !important;
-  width:calc(100% - 28px) !important;
-  max-width:none !important;
-  height:auto !important;
-  min-height:0 !important;
-  flex:1 1 auto !important;
-  margin:0 14px 0px 14px !important;
-  padding:0 !important;
-  border:1px solid rgba(226,232,240,.9) !important;
-  border-radius:0.75 !important;
-  background:#fff !important;
-  color:var(--sc-drawer-text-color, #102864) !important;
-  box-shadow:0 8px 22px rgba(15,23,42,.13) !important;
-  overflow:auto !important;
-}
-.sc-drawer.sc-offers-active .sc-footer-tabs{
-  display:grid !important;
-  visibility:visible !important;
-  flex:0 0 auto !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-row{
-  grid-template-columns:68px minmax(0, 1fr) auto !important;
-  min-height:92px !important;
-  padding:14px 12px !important;
-  background:#fff !important;
-  border-bottom:1px solid #edf0f4 !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-title{
-  color:#102864 !important;
-  font-weight:900 !important;
-}
-
-.sc-drawer.sc-offers-active .sc-offer-codebox{
-  border-radius:8px !important;
-}
-.sc-drawer.sc-offers-active .sc-offer-action{
-  border-radius:9px !important;
-  background:#fff !important;
-  color:var(--sc-checkout-bg, #a83df0) !important;
-}
-@media (max-width:420px){
-  .sc-drawer.sc-offers-active .sc-offers{
-    width:calc(100% - 24px) !important;
-    margin:0 12px 12px 12px !important;
-  }
-  .sc-drawer.sc-offers-active .sc-offer-row{
-    grid-template-columns:62px minmax(0, 1fr) auto !important;
-    gap:9px !important;
-    padding:14px 10px !important;
-  }
-}
-
-
+/* ✅ Removed duplicate old offer-tab CSS blocks. Final consolidated offer-tab CSS is below. */
 .sc-subtotal-box{
   min-width:0;
   border:none;
@@ -7550,7 +7067,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
    ✅ FINAL Cart + Offers Tab Redesign (matches supplied screenshots)
    - Announcement bar is kept inside cart body and only hidden when [hidden].
    - Dynamic cart, upsell, discount, free gift and offer data remains unchanged.
-   - This block intentionally overrides old duplicate offer-tab CSS above.
+   - Old duplicate offer-tab CSS blocks were removed; this is the single final source.
 ========================================================= */
 .sc-drawer,
 .smartcartify-cart-drawer{
@@ -7710,8 +7227,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 }
 
 .sc-drawer:not(.sc-offers-active) .sc-img,
-.sc-drawer:not(.sc-offers-active) .sc-upsell-img,
-{
+.sc-drawer:not(.sc-offers-active) .sc-upsell-img{
   width:60px !important;
   height:50px !important;
   border-radius:0.75em !important;
@@ -8002,6 +7518,56 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   font-size:calc(var(--sc-base-font-size,16px) * 1.02) !important;
   line-height:1.16 !important;
   font-weight:900 !important;
+}
+
+.sc-drawer.sc-offers-active .sc-offer-subtitle{
+  margin:0 !important;
+  color:var(--sc-muted,#64748b) !important;
+  font-size:calc(var(--sc-base-font-size,16px) * .9) !important;
+  line-height:1.34 !important;
+  font-weight:500 !important;
+  display:-webkit-box !important;
+  -webkit-line-clamp:2 !important;
+  -webkit-box-orient:vertical !important;
+  overflow:hidden !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-code-copy{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:5px !important;
+  min-height:34px !important;
+  padding:6px 8px !important;
+  border:0 !important;
+  background:#ffffff !important;
+  color:var(--sc-drawer-text-color,#102864) !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-copy-icon,
+.sc-drawer.sc-offers-active .sc-offer-copy-icon svg{
+  width:14px !important;
+  height:14px !important;
+  color:currentColor !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-copied-text{
+  background:var(--sc-checkout-bg,#a83df0) !important;
+  color:var(--sc-checkout-text,#ffffff) !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-code-apply{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  min-height:36px !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:var(--sc-checkout-bg,#a83df0) !important;
+  color:var(--sc-checkout-text,#ffffff) !important;
+  font-size:calc(var(--sc-base-font-size,16px) * .92) !important;
+  font-weight:800 !important;
+  cursor:pointer !important;
+}
+.sc-drawer.sc-offers-active .sc-offer-code-apply:disabled{
+  opacity:.72 !important;
+  cursor:default !important;
 }
 
 .sc-drawer.sc-offers-active .sc-offer-codebox{
@@ -10119,36 +9685,54 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const offerIconSvg = (type) => {
+    const normalized = String(type || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
 
-    if (type === "offershipping") {
-      return `<svg xmlns="http://www.w3.org/2000/svg" fill="none" height="80" width="130">
-      <g stroke="#000" stroke-width="5">
-        <g stroke-linecap="round" stroke-linejoin="round">
-          <path d="M43 66h45M10.5 55.5V63a3 3 0 0 0 3 3h7m99-37H104a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h23M10 40.5V6a3 3 0 0 1 3-3h71a3 3 0 0 1 3 3v46a3 3 0 0 1-3 3H48.5"/>
-          <path d="M3 47.5h16.5M3 54.5h7.5m77-36h25.057a3 3 0 0 1 2.738 1.773l11.943 26.642a3 3 0 0 1 .262 1.227V63.5a3 3 0 0 1-3 3h-13"/>
-        </g>
-        <circle cx="32" cy="66" r="11.5" stroke-linejoin="round"/>
-        <circle cx="100" cy="66" r="11.5" stroke-linejoin="round"/>
-      </g>
-      <path d="M63.4 31.263v12.895c0 1.017-.806 1.842-1.8 1.842H36.4c-.994 0-1.8-.825-1.8-1.842V31.263h28.8zM53.5 11c3.479 0 6.3 2.887 6.3 6.447 0 .99-.218 1.927-.607 2.765l6.007-.002c.994 0 1.8.825 1.8 1.842v5.526c0 1.017-.806 1.842-1.8 1.842H32.8c-.994 0-1.8-.825-1.8-1.842v-5.526c0-1.017.806-1.842 1.8-1.842l6.007.002c-.389-.838-.607-1.775-.607-2.765 0-3.561 2.821-6.447 6.3-6.447 1.764 0 3.359.742 4.502 1.938C50.141 11.742 51.736 11 53.5 11zm-9 3.684c-1.491 0-2.7 1.237-2.7 2.763 0 1.436 1.071 2.617 2.44 2.751l.26.013h2.7v-2.763c0-1.436-1.071-2.617-2.44-2.75l-.26-.013zm9 0l-.26.013c-1.284.126-2.305 1.171-2.428 2.484l-.012.266v2.763h2.7l.26-.013c1.369-.134 2.44-1.314 2.44-2.751s-1.071-2.617-2.44-2.75l-.26-.013z" fill="#000"/>
-    </svg>`;
-    }
-    if (type === "code") {
-      return `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.5 4.5h-11a1 1 0 0 0-1 1v2.043a1.75 1.75 0 0 1 0 3.414V13.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2.543a1.75 1.75 0 0 1 0-3.414V5.5a1 1 0 0 0-1-1ZM4.5 3A2.5 2.5 0 0 0 2 5.5v2.75a.75.75 0 0 0 .75.75.25.25 0 0 1 0 .5.75.75 0 0 0-.75.75v3.25A2.5 2.5 0 0 0 4.5 16h11a2.5 2.5 0 0 0 2.5-2.5v-3.25a.75.75 0 0 0-.75-.75.25.25 0 0 1 0-.5.75.75 0 0 0 .75-.75V5.5A2.5 2.5 0 0 0 15.5 3h-11Z" clip-rule="evenodd"/><path d="M13.28 7.03a.75.75 0 1 0-1.06-1.06l-5.5 5.5a.75.75 0 1 0 1.06 1.06l5.5-5.5ZM8 7.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM13 12.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>`;
-    }
-
-    if (type === "offerdiscount") {
-      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-        <path d="M28 7h-2V6c0-2.757-2.243-5-5-5a4.95 4.95 0 0 0-2 .424A4.95 4.95 0 0 0 17 1c-2.757 0-5 2.243-5 5v1h-2c-1.654 0-3 1.346-3 3v3H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h5v1c0 1.654 1.346 3 3 3h14 4c1.654 0 3-1.346 3-3V10c0-1.654-1.346-3-3-3zm-4-1v1h-2V6c0-1.129-.39-2.16-1.024-2.998.008 0 .016-.002.024-.002 1.654 0 3 1.346 3 3zm-5-2.22c.609.55 1 1.337 1 2.22v1h-2V6c0-.883.391-1.67 1-2.22zM14 6c0-1.654 1.346-3 3-3 .008 0 .016.002.024.002C16.39 3.84 16 4.871 16 6v1h-2V6zM3 15h10.382l2.5 5-2.5 5H3V15zm14.895 4.553L15.618 15h1.764l2.5 5-2.5 5h-1.764l2.276-4.553a1 1 0 0 0 .001-.894zM9 28v-1h5 4a1 1 0 0 0 .895-.553l3-6a1 1 0 0 0 0-.895l-3-6A1 1 0 0 0 18 13h-4-5v-3a1 1 0 0 1 1-1h2v1a1 1 0 1 0 2 0V9h6v1a1 1 0 1 0 2 0V9h2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1zm20 0a1 1 0 0 1-1 1h-1.184c.112-.314.184-.648.184-1V10c0-.352-.072-.686-.184-1H28a1 1 0 0 1 1 1v18z"/>
-        <circle cx="6.5" cy="17.5" r="1.5"/>
-        <circle cx="10.5" cy="22.5" r="1.5"/>
-        <path d="M11.641 16.232a1 1 0 0 0-1.409.128l-5 6a1 1 0 0 0 .128 1.408c.187.156.413.232.639.232.287 0 .571-.123.77-.36l5-6a1 1 0 0 0-.128-1.408z"/>
+    // ✅ Proper Offer Tab Icons: shipping / order discount / code discount
+    if (["shipping", "freeshipping", "offershipping"].includes(normalized)) {
+      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 7.75C3 6.784 3.784 6 4.75 6H14v9.5H7.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M14 9h3.05c.55 0 1.064.273 1.372.73L21 13.55v1.95h-2.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M3 11h5M2.5 14h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="7.75" cy="17" r="1.75" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="18.75" cy="17" r="1.75" stroke="currentColor" stroke-width="1.8"/>
       </svg>`;
     }
-    if (type === "bxgy" || type === "buyxgety") {
-      return `<svg viewBox="0 0 24 24" fill="none"><path d="M4 8h16M8 4v4M16 4v4M6 8v12h12V8" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 13h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+    if (["code", "codediscount", "discountcode", "coupon", "couponcode"].includes(normalized)) {
+      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4.75 6.5h14.5c.69 0 1.25.56 1.25 1.25v2.1a2.15 2.15 0 0 0 0 4.3v2.1c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.1a2.15 2.15 0 0 0 0-4.3v-2.1c0-.69.56-1.25 1.25-1.25Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M9 15l6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="9" cy="9" r="1.1" fill="currentColor"/>
+        <circle cx="15" cy="15" r="1.1" fill="currentColor"/>
+      </svg>`;
     }
-    return `<svg viewBox="0 0 24 24" fill="none"><path d="M20 12v8H4v-8M3 8h18v4H3V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 8v12M12 8H8.5A2.5 2.5 0 1 1 11 5.5V8ZM12 8h3.5A2.5 2.5 0 1 0 13 5.5V8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+    if (["discount", "orderdiscount", "offerdiscount", "automaticdiscount", "orderoffer"].includes(normalized)) {
+      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4.75 5.5h8.1c.398 0 .78.158 1.061.44l5.15 5.149a1.5 1.5 0 0 1 0 2.122l-5.85 5.85a1.5 1.5 0 0 1-2.122 0l-6.15-6.15A1.5 1.5 0 0 1 4.5 11.85v-6.1c0-.138.112-.25.25-.25Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <circle cx="8.25" cy="8.25" r="1.25" fill="currentColor"/>
+        <path d="M10 15l5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="10.5" cy="10.5" r=".95" fill="currentColor"/>
+        <circle cx="14.5" cy="14.5" r=".95" fill="currentColor"/>
+      </svg>`;
+    }
+
+    if (["bxgy", "buyxgety", "buyxgetydiscount", "buyget"].includes(normalized)) {
+      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 9h14v10.25c0 .414-.336.75-.75.75H5.75a.75.75 0 0 1-.75-.75V9Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M4 6.75C4 5.784 4.784 5 5.75 5h12.5c.966 0 1.75.784 1.75 1.75V9H4V6.75Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M12 5v15M8.5 13h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>`;
+    }
+
+    return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4.75 8.75h14.5v10.5c0 .414-.336.75-.75.75h-13a.75.75 0 0 1-.75-.75V8.75Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M3.75 6.25h16.5v2.5H3.75v-2.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M12 6.25V20M12 6.25H9.25A2.25 2.25 0 1 1 11.5 4v2.25ZM12 6.25h2.75A2.25 2.25 0 1 0 12.5 4v2.25Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
   };
 
   const getOfferStepTitle = (step) => {
