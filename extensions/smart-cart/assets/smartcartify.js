@@ -8,6 +8,14 @@
   const root = document.getElementById("smart-embed-root");
   if (!root) return;// (C) BuyXGetY (bxgyrule)
 
+  /* =========================================================
+   ✅ ADDED/VERIFIED REWARD FEATURES
+   - Cart Goals Campaign free-product slider inside cart drawer
+   - Cart Goals free-product goal popup using selectable reward products
+   - Buy X Get Y / BXGY free-product popup with correct reward kind
+   - Reward add uses Shopify AJAX items payload with reward line properties
+  ========================================================= */
+
   // ✅ Requested DB table logs only
   const DEBUG_TABLES = true;
 
@@ -8603,6 +8611,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
     }
   });
+  document.addEventListener("keydown", (e) => {
+    const el = e.target;
+    if (!(el instanceof Element)) return;
+    if (e.key !== "Enter" && e.key !== " ") return;
+
+    const cartGoalBonusOpen = el.closest("[data-cartgoal-bonus-open]");
+    if (cartGoalBonusOpen) {
+      e.preventDefault();
+      cartGoalBonusOpen.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    }
+  });
+
   document.addEventListener(
     "click",
     (e) => {
@@ -10171,7 +10191,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (!isRuleEnabled(r)) return;
       const t = normType(r);
       const hasMsgs = trimToNull(r?.beforeOfferUnlockMessage) || trimToNull(r?.afterOfferUnlockMessage);
-      const looksLikeBxgy = t === "bxgy" || t === "buyxgety" || hasMsgs;
+      const hasX = Number(r?.xQty ?? r?.x_qty ?? r?.x ?? r?.buyQty ?? r?.buy_qty ?? r?.buy ?? 0) > 0;
+      const hasY = Number(r?.yQty ?? r?.y_qty ?? r?.y ?? r?.getQty ?? r?.get_qty ?? r?.get ?? 0) > 0;
+      const hasScope = !!trimToNull(r?.scope || r?.scopeName);
+      const looksLikeBuyXGetY = t === "buyxgety" || (hasX && hasY && hasScope);
+      const looksLikeBxgy = !looksLikeBuyXGetY && (t === "bxgy" || hasMsgs);
       if (looksLikeBxgy) BXGY_RULES.push(r);
     });
 
@@ -10860,30 +10884,32 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
 
     const seenBxgy = new Set();
-    [...(Array.isArray(BXGY_RULES) ? BXGY_RULES : []), ...(Array.isArray(BUYXGETY_RULES) ? BUYXGETY_RULES : [])]
-      .forEach((rule, index) => {
-        const key = String(rule?.id || rule?.buyxgetyId || rule?.campaignName || index);
-        if (seenBxgy.has(key)) return;
-        seenBxgy.add(key);
-        const x = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy);
-        const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
-        const fallback = Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0
-          ? `Buy ${x} and get ${y} free`
-          : "";
-        const ruleKey = getRuleKey(rule, "bxgy");
-        pushRow({
-          key: `bxgy:${ruleKey || key}`,
-          identity: `bxgy:${ruleKey || key}`,
-          ruleKey,
-          type: "bxgy",
-          title: getOfferRuleTitle("bxgy", rule, "Buy X Get Y Discount"),
-          subtitle: getOfferRuleSubtitle("bxgy", rule, fallback),
-          action: "Show Gifts",
-          goalMet: isRewardOfferGoalMet("bxgy", rule),
-          rule,
-          thumbs: getOfferProductThumbs("bxgy", rule),
-        });
+    [
+      ...(Array.isArray(BXGY_RULES) ? BXGY_RULES.map((rule) => ({ rule, type: "bxgy" })) : []),
+      ...(Array.isArray(BUYXGETY_RULES) ? BUYXGETY_RULES.map((rule) => ({ rule, type: "buyxgety" })) : []),
+    ].forEach(({ rule, type: rewardType }, index) => {
+      const key = `${rewardType}:${String(rule?.id || rule?.buyxgetyId || rule?.campaignName || index)}`;
+      if (seenBxgy.has(key)) return;
+      seenBxgy.add(key);
+      const x = Number(rule?.xQty ?? rule?.x_qty ?? rule?.x ?? rule?.buyQty ?? rule?.buy_qty ?? rule?.buy);
+      const y = Number(rule?.yQty ?? rule?.y_qty ?? rule?.y ?? rule?.getQty ?? rule?.get_qty ?? rule?.get);
+      const fallback = Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0
+        ? `Buy ${x} and get ${y} free`
+        : "";
+      const ruleKey = getRuleKey(rule, rewardType);
+      pushRow({
+        key: `${rewardType}:${ruleKey || key}`,
+        identity: `${rewardType}:${ruleKey || key}`,
+        ruleKey,
+        type: rewardType,
+        title: getOfferRuleTitle(rewardType, rule, "Buy X Get Y Discount"),
+        subtitle: getOfferRuleSubtitle(rewardType, rule, fallback),
+        action: "Show Gifts",
+        goalMet: isRewardOfferGoalMet(rewardType, rule),
+        rule,
+        thumbs: getOfferProductThumbs(rewardType, rule),
       });
+    });
 
     (Array.isArray(steps) ? steps : []).forEach((step, index) => {
       if (!step?.rule) return;
