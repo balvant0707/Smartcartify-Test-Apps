@@ -1164,6 +1164,88 @@
     return [];
   };
 
+  const productRefsFromUnknown = (value) => {
+    if (value == null || value === "") return [];
+
+    if (Array.isArray(value)) {
+      return value.flatMap((item) => productRefsFromUnknown(item));
+    }
+
+    if (typeof value === "object") {
+      const nested = [
+        value.products,
+        value.productIds,
+        value.product_ids,
+        value.selectedProducts,
+        value.selected_products,
+        value.bonusProducts,
+        value.bonus_products,
+        value.bonusProductIds,
+        value.bonus_product_ids,
+        value.freeProducts,
+        value.free_products,
+        value.freeProductIds,
+        value.free_product_ids,
+        value.giftProducts,
+        value.gift_products,
+        value.giftProductIds,
+        value.gift_product_ids,
+        value.rewardProducts,
+        value.reward_products,
+        value.rewardProductIds,
+        value.reward_product_ids,
+        value.getProducts,
+        value.get_products,
+        value.getProductIds,
+        value.get_product_ids,
+        value.yProducts,
+        value.y_products,
+        value.yProductIds,
+        value.y_product_ids,
+      ].flatMap((item) => productRefsFromUnknown(item));
+
+      const direct = trimToNull(
+        value.id ??
+        value.productId ??
+        value.product_id ??
+        value.legacyResourceId ??
+        value.legacy_resource_id ??
+        value.admin_graphql_api_id ??
+        value.adminGraphqlApiId ??
+        value.handle ??
+        ""
+      );
+
+      return direct ? [direct, ...nested] : nested;
+    }
+
+    const raw = String(value).trim();
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed !== raw) return productRefsFromUnknown(parsed);
+    } catch { }
+
+    return raw
+      .split(/[,\n|;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const uniqueProductRefs = (values) => {
+    const seen = new Set();
+    return (Array.isArray(values) ? values : [])
+      .flatMap((value) => productRefsFromUnknown(value))
+      .map((id) => normalizeResourceId(id) || trimToNull(id))
+      .filter(Boolean)
+      .filter((id) => {
+        const key = String(normalizeProductNumericId(id) || gidToId(id) || id).trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  };
+
   const normalizeCartGoalRewardType = (goal) => {
     const type = String(goal?.type ?? goal?.Type ?? goal?.rewardType ?? "").trim().toLowerCase();
     if (["gift", "free", "free_product", "free-product", "product"].includes(type)) return "free";
@@ -1194,54 +1276,132 @@
     return !title || title === "free shipping" || title === "free shipping!";
   };
 
+  const getCartGoalBonusProductEntries = (goal) => [
+    ...parseArrayish(goal?.bonusProducts),
+    ...parseArrayish(goal?.bonus_products),
+    ...parseArrayish(goal?.freeProducts),
+    ...parseArrayish(goal?.free_products),
+    ...parseArrayish(goal?.giftProducts),
+    ...parseArrayish(goal?.gift_products),
+    ...parseArrayish(goal?.rewardProducts),
+    ...parseArrayish(goal?.reward_products),
+    ...parseArrayish(goal?.products),
+    ...parseArrayish(goal?.selectedProducts),
+    ...parseArrayish(goal?.selected_products),
+    ...parseArrayish(goal?.items),
+    ...parseArrayish(goal?.rewardItems),
+    ...parseArrayish(goal?.reward_items),
+    ...parseArrayish(goal?.giftItems),
+    ...parseArrayish(goal?.gift_items),
+    ...parseArrayish(goal?.freeGiftProducts),
+    ...parseArrayish(goal?.free_gift_products),
+    ...parseArrayish(goal?.freeProductGoals),
+    ...parseArrayish(goal?.free_product_goals),
+    ...parseArrayish(goal?.giftSku),
+  ];
+
   const getCartGoalBonusProductIds = (goal) => {
-    const products = Array.isArray(goal?.bonusProducts)
-      ? goal.bonusProducts
-      : parseArrayish(goal?.bonusProducts);
-    const rawIds =
-      goal?.bonusProductIds ??
-      goal?.bonus_product_ids ??
-      goal?.bonusProductIDs ??
-      goal?.productIds ??
-      [];
-    const parsed = Array.isArray(rawIds)
-      ? rawIds
-      : parseArrayish(rawIds);
-    const stringFallbackIds =
-      !parsed.length && typeof rawIds === "string" && trimToNull(rawIds)
-        ? [rawIds]
-        : [];
-    const fallback =
-      trimToNull(goal?.bonusProductId) ||
-      trimToNull(goal?.bonus_product_id) ||
-      trimToNull(goal?.bonus) ||
-      null;
-    const productIds = products
-      .map((product) => trimToNull(product?.id || product?.productId))
-      .filter(Boolean);
-    return [...new Set([...parsed, ...stringFallbackIds, ...productIds, fallback].map(trimToNull).filter(Boolean))];
+    const products = getCartGoalBonusProductEntries(goal);
+    const idSources = [
+      goal?.bonusProductIds,
+      goal?.bonus_product_ids,
+      goal?.bonusProductIDs,
+      goal?.freeProductIds,
+      goal?.free_product_ids,
+      goal?.giftProductIds,
+      goal?.gift_product_ids,
+      goal?.rewardProductIds,
+      goal?.reward_product_ids,
+      goal?.productIds,
+      goal?.product_ids,
+      goal?.selectedProductIds,
+      goal?.selected_product_ids,
+      goal?.itemIds,
+      goal?.item_ids,
+      goal?.rewardItemIds,
+      goal?.reward_item_ids,
+      goal?.giftItemIds,
+      goal?.gift_item_ids,
+      goal?.freeGiftProductIds,
+      goal?.free_gift_product_ids,
+      goal?.products,
+      goal?.selectedProducts,
+      goal?.selected_products,
+      goal?.items,
+      goal?.rewardItems,
+      goal?.reward_items,
+      goal?.giftItems,
+      goal?.gift_items,
+      products,
+      goal?.bonusProductId,
+      goal?.bonus_product_id,
+      goal?.bonus,
+      goal?.freeProductId,
+      goal?.free_product_id,
+      goal?.giftProductId,
+      goal?.gift_product_id,
+      goal?.rewardProductId,
+      goal?.reward_product_id,
+    ];
+    return uniqueProductRefs(idSources);
   };
 
   const getCartGoalBonusProducts = (goal) => {
-    const products = Array.isArray(goal?.bonusProducts)
-      ? goal.bonusProducts
-      : parseArrayish(goal?.bonusProducts);
+    const products = getCartGoalBonusProductEntries(goal);
     const normalizedProducts = products
       .map((product) => {
-        const id = trimToNull(product?.id || product?.productId);
+        const id = trimToNull(
+          product?.id ||
+          product?.productId ||
+          product?.product_id ||
+          product?.legacyResourceId ||
+          product?.legacy_resource_id ||
+          product?.admin_graphql_api_id ||
+          product?.adminGraphqlApiId ||
+          product?.handle
+        );
         if (!id) return null;
+        const image =
+          (typeof product?.image === "string" ? trimToNull(product.image) : null) ||
+          trimToNull(product?.image?.src) ||
+          trimToNull(product?.image?.url) ||
+          trimToNull(product?.featuredImage?.url) ||
+          trimToNull(product?.featuredImage) ||
+          trimToNull(product?.productImage) ||
+          trimToNull(product?.product_image) ||
+          trimToNull(product?.imageUrl) ||
+          trimToNull(product?.image_url) ||
+          "";
         return {
           ...product,
           id,
           productId: id,
-          title: trimToNull(product?.title) || "",
-          image: trimToNull(product?.image) || trimToNull(product?.featuredImage?.url) || "",
-          variantId: trimToNull(product?.variantId) || trimToNull(product?.variant_id) || "",
+          product_id: id,
+          title:
+            trimToNull(product?.title) ||
+            trimToNull(product?.name) ||
+            trimToNull(product?.productTitle) ||
+            trimToNull(product?.product_title) ||
+            "",
+          image,
+          variantId:
+            trimToNull(product?.variantId) ||
+            trimToNull(product?.variant_id) ||
+            trimToNull(product?.selectedVariantId) ||
+            trimToNull(product?.selected_variant_id) ||
+            "",
           variantTitle: trimToNull(product?.variantTitle) || trimToNull(product?.variant_title) || "",
         };
       })
       .filter(Boolean);
-    return normalizedProducts;
+
+    const seen = new Set();
+    return normalizedProducts.filter((product) => {
+      const key = String(normalizeProductNumericId(product.id) || gidToId(product.id) || product.id).trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   };
 
   const parseIdArray = (value) => {
@@ -3028,40 +3188,46 @@
     return { xPercent: x, yPx: y };
   };
 
-  const firePaperEffect = (durationMs = 2600) => {
+  const firePaperEffect = (durationMs = 2800) => {
     const host = drawer;
-    if (!host || host.__sc_paper_running) return;
+    if (!host) return;
 
-    host.__sc_paper_running = true;
     host.querySelector(".sc-paper")?.remove();
 
     const wrap = document.createElement("div");
     wrap.className = "sc-paper is-active";
     host.appendChild(wrap);
 
-    const origin = getConfettiOrigin();
-    const pieces = 96;
+    const colors = [
+      "var(--sc-progress, #4343d0)",
+      "#ffcf70",
+      "#78d7ff",
+      "#ff6b9d",
+      "#57c011",
+      "#ffffff",
+    ];
+    const pieces = 280;
     for (let i = 0; i < pieces; i++) {
       const p = document.createElement("i");
       p.className = "sc-paper-piece";
-      const spread = (Math.random() * 52) - 26;
-      const startX = Math.max(4, Math.min(96, origin.xPercent + spread));
-      p.style.left = `${startX}%`;
-      p.style.top = `${origin.yPx}px`;
-      p.style.setProperty("--sc-x", `${(Math.random() * 280 - 140).toFixed(1)}px`);
-      p.style.setProperty("--sc-y", `${(360 + Math.random() * 240).toFixed(1)}px`);
-      p.style.animationDelay = `${Math.random() * 0.35}s`;
-      p.style.animationDuration = `${1.9 + Math.random() * 0.8}s`;
-      p.style.width = `${4 + Math.random() * 5}px`;
-      p.style.height = `${5 + Math.random() * 7}px`;
-      p.style.transform = `rotate(${Math.random() * 360}deg)`;
+      p.style.left = `${Math.random() * 100}%`;
+      p.style.top = `${-20 - Math.random() * 140}px`;
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = `${Math.random() * 0.9}s`;
+      p.style.animationDuration = `${1.9 + Math.random() * 1.25}s`;
+      // Smaller paper pieces requested. Keep the same celebration density,
+      // but reduce each piece size so it feels cleaner inside the drawer.
+      p.style.width = `${2 + Math.random() * 4}px`;
+      p.style.height = `${3 + Math.random() * 5}px`;
+      p.style.opacity = `${0.72 + Math.random() * 0.28}`;
+      p.style.setProperty("--sc-x", `${Math.random() * 180 - 90}px`);
+      p.style.setProperty("--sc-r", `${360 + Math.random() * 720}deg`);
       wrap.appendChild(p);
     }
 
     setTimeout(() => {
       try { wrap.remove(); } catch { }
-      host.__sc_paper_running = false;
-    }, Math.max(1200, Number(durationMs) || 2600) + 450);
+    }, Math.max(1600, Number(durationMs) || 2800) + 900);
   };
 
   const showCenterCelebratePopup = (title, subtitle, ms = 5000, tone = "success") => {
@@ -3100,7 +3266,7 @@
     // Apply code success: show only the paper celebration.
     // No reward/success popup should open after discount apply.
     void code;
-    firePaperEffect(2400);
+    firePaperEffect(2800);
   };
 
   const suppressAutoRewardPopups = (ms = 3000) => {
@@ -6423,6 +6589,18 @@ position: relative;
   line-height:1;
   color:var(--sc-freegift-text);
 }
+
+.sc-freegift-close{
+  z-index:5;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:800;
+  box-shadow:0 4px 12px rgba(15,23,42,.16);
+}
+.sc-freegift-close:hover{
+  transform:scale(1.04);
+}
 .sc-freegift-header{
 display: flex;
     flex-direction: column;
@@ -6729,15 +6907,13 @@ display: flex;
 }
 /* confetti */
 .sc-paper{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3;}
-.sc-paper-piece{position:absolute;border-radius:3px;opacity:0;animation-name:scPaperFall;animation-timing-function:cubic-bezier(.16,.74,.24,1);animation-fill-mode:both;background:linear-gradient(45deg, var(--sc-paper-primary, var(--sc-progress)), color-mix(in srgb, var(--sc-paper-primary, var(--sc-progress)) 35%, #ffffff));box-shadow:0 6px 18px rgba(0,0,0,.10);will-change:transform,opacity;}
+.sc-paper-piece{position:absolute;border-radius:3px;animation:scPaperFall linear both;box-shadow:0 5px 12px rgba(0,0,0,.10);will-change:transform,opacity;}
 .sc-paper-piece:nth-child(4n){border-radius:50%;}
 .sc-paper-piece:nth-child(4n+1){border-radius:2px;}
-.sc-paper-piece:nth-child(3n){background:linear-gradient(45deg, var(--sc-paper-secondary, #ffcf70), color-mix(in srgb, var(--sc-paper-secondary, #ffcf70) 30%, #ffffff))}
-.sc-paper-piece:nth-child(3n+1){background:linear-gradient(45deg, var(--sc-paper-tertiary, #78d7ff), color-mix(in srgb, var(--sc-paper-tertiary, #78d7ff) 30%, #ffffff))}
 .sc-header{position:relative;z-index:4;}
 .sc-freegift-overlay.sc-freegift-shake .sc-freegift-card{animation:scGiftShake .24s ease both;}
 @keyframes scGiftShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}70%{transform:translateX(6px)}}
-@keyframes scPaperFall{0%{transform:translate3d(0,-18px,0) rotate(0deg) scale(.82);opacity:0}12%{opacity:1}78%{opacity:.92}100%{transform:translate3d(var(--sc-x),var(--sc-y),0) rotate(560deg) scale(1);opacity:0}}
+@keyframes scPaperFall{0%{transform:translate3d(0,-20px,0) rotate(0deg);opacity:1}82%{opacity:1}100%{transform:translate3d(var(--sc-x),calc(100vh + 120px),0) rotate(var(--sc-r));opacity:0}}
 
 .sc-celebrate-backdrop{
   position:absolute;inset:0;z-index:2147483006;
@@ -8000,8 +8176,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     <div class="sc-items">
       <div class="sc-announce smartcartify-announcement-bar" data-sc-announce hidden></div>
       <div class="sc-progress corner-covey-cart-undefined-loading-bar-wrapper">
-        <p class="sc-label">Loading…</p>
-
+      
         <div class="sc-milestone">
           <div class="sc-track">
             <div class="sc-fill"></div>
@@ -8010,13 +8185,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         </div>
 
         <div class="sc-legends"></div>
-
-        <div id="corner-cowi-cart-indeterminate-loading-bar-wrapper" class="sc-line-loader corner-covey-cart-undefined-loading-bar-wrapper" data-sc-line-loader hidden aria-hidden="true">
+      </div>
+      <div id="corner-cowi-cart-indeterminate-loading-bar-wrapper" class="sc-line-loader corner-covey-cart-undefined-loading-bar-wrapper" data-sc-line-loader hidden aria-hidden="true">
           <div id="corner-cowi-cart-indeterminate-loading-bar-bg" class="sc-line-loader-bg">
             <div id="corner-cowi-cart-indeterminate-loading-bar-runner" class="sc-line-loader-runner">&nbsp;</div>
           </div>
         </div>
-      </div>
       <div class="sc-cart-msg" data-sc-cart-msg hidden>
         <p class="sc-cart-msg-text" data-sc-cart-msg-text></p>
         <button class="sc-cart-msg-close" type="button" data-sc-cart-msg-close aria-label="Close">&times;</button>
@@ -11991,22 +12165,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
 
   const firstGiftSkuProductId = (value) => {
-    if (Array.isArray(value)) return normalizeResourceId(value[0]);
-    if (value && typeof value === "object") {
-      if (Array.isArray(value.products)) return normalizeResourceId(value.products[0]);
-      if (Array.isArray(value.productIds)) return normalizeResourceId(value.productIds[0]);
-      return normalizeResourceId(value);
-    }
-    const raw = trimToNull(value);
-    if (!raw) return null;
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return normalizeResourceId(parsed[0]);
-      if (Array.isArray(parsed?.products)) return normalizeResourceId(parsed.products[0]);
-      if (Array.isArray(parsed?.productIds)) return normalizeResourceId(parsed.productIds[0]);
-      return normalizeResourceId(parsed);
-    } catch (_) { }
-    return normalizeResourceId(raw);
+    return productRefsFromUnknown(value)[0] || null;
   };
 
   const resolveRewardVariantForAdd = async (rule, variant, kind = "free") => {
@@ -12200,6 +12359,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     overlayEl.className = "sc-freegift-overlay";
     overlayEl.innerHTML = `
       <div class="sc-freegift-card">
+        <button class="sc-freegift-close" type="button" aria-label="Close reward popup">&times;</button>
         <div class="sc-freegift-header">
           <div class="sc-freegift-icon">${ICONS.gift || "🎁"}</div>
           <div class="sc-freegift-heading">
@@ -12290,7 +12450,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const selectedCount = nextIds.length;
       const goalMet = rewardPopupCache.current.goalMet !== false;
       if (rewardPopupCache.headerSubEl) {
-        rewardPopupCache.headerSubEl.innerHTML = `Choose one free gift <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
+        rewardPopupCache.headerSubEl.innerHTML = `All free products are shown below. Choose one <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
       }
       if (rewardPopupCache.addButton) rewardPopupCache.addButton.disabled = selectedCount < selectionLimit || !goalMet;
       if (rewardPopupCache.messageEl) {
@@ -12410,8 +12570,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             const ok = await addRewardToCart({
               kind: cur.kind,
               rule: target?.rule || cur.rule,
-              ruleKey: cur.ruleKey,
-              slot: cur.slot,
+              ruleKey: target?.ruleKey || cur.ruleKey,
+              slot: target?.slot || cur.slot,
               variant: target?.variant || cur.variant,
               qty: selectionLimit > 1 ? 1 : (target?.qty || cur.qty),
               markAutoAdded: false,
@@ -12430,7 +12590,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             closeRewardPopup({ force: true, reason: "added" });
             renderAllFromCache();
             // Reward added after a completed goal: show only the paper celebration, not the reward success popup.
-            if (cur.goalMet !== false) setTimeout(() => firePaperEffect(2400), 80);
+            if (cur.goalMet !== false) setTimeout(() => firePaperEffect(2800), 80);
           } else {
             // Keep the popup open and show an inline error instead of the large red reward modal.
             if (rewardPopupCache.messageEl) {
@@ -12517,108 +12677,185 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     scStore.del(keyShown(kind, guardKey));
   };
 
+  const getRewardProductEntriesForKind = (rule, kind = "free") => {
+    const normalizedKind = String(kind || "free").toLowerCase();
+    const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
+    const genericProducts = [
+      ...parseArrayish(rule?.products),
+      ...parseArrayish(rule?.selectedProducts),
+      ...parseArrayish(rule?.selected_products),
+      ...parseArrayish(rule?.items),
+      ...parseArrayish(rule?.productItems),
+      ...parseArrayish(rule?.product_items),
+    ];
+
+    if (isBxgyReward) {
+      const rewardSpecific = [
+        ...parseArrayish(rule?.rewardProducts),
+        ...parseArrayish(rule?.reward_products),
+        ...parseArrayish(rule?.getProducts),
+        ...parseArrayish(rule?.get_products),
+        ...parseArrayish(rule?.getYProducts),
+        ...parseArrayish(rule?.get_y_products),
+        ...parseArrayish(rule?.yProducts),
+        ...parseArrayish(rule?.y_products),
+        ...parseArrayish(rule?.giftProducts),
+        ...parseArrayish(rule?.gift_products),
+        ...parseArrayish(rule?.freeProducts),
+        ...parseArrayish(rule?.free_products),
+        ...parseArrayish(rule?.freeGiftProducts),
+        ...parseArrayish(rule?.free_gift_products),
+        ...parseArrayish(rule?.rewardItems),
+        ...parseArrayish(rule?.reward_items),
+        ...parseArrayish(rule?.giftItems),
+        ...parseArrayish(rule?.gift_items),
+        ...parseArrayish(rule?.getItems),
+        ...parseArrayish(rule?.get_items),
+        ...parseArrayish(rule?.yItems),
+        ...parseArrayish(rule?.y_items),
+        ...parseArrayish(rule?.giftSku),
+      ];
+      // Use generic products only as a fallback for older BXGY payloads where
+      // the Y/free products were saved in `products`/`items`.
+      return rewardSpecific.length ? rewardSpecific : genericProducts;
+    }
+
+    return [
+      ...parseArrayish(rule?.bonusProducts),
+      ...parseArrayish(rule?.bonus_products),
+      ...parseArrayish(rule?.freeProducts),
+      ...parseArrayish(rule?.free_products),
+      ...parseArrayish(rule?.giftProducts),
+      ...parseArrayish(rule?.gift_products),
+      ...parseArrayish(rule?.rewardProducts),
+      ...parseArrayish(rule?.reward_products),
+      ...parseArrayish(rule?.freeGiftProducts),
+      ...parseArrayish(rule?.free_gift_products),
+      ...parseArrayish(rule?.rewardItems),
+      ...parseArrayish(rule?.reward_items),
+      ...parseArrayish(rule?.giftItems),
+      ...parseArrayish(rule?.gift_items),
+      ...parseArrayish(rule?.giftSku),
+      ...genericProducts,
+    ];
+  };
+
   const getFreeGiftProductIds = (rule, kind = "free") => {
     const normalizedKind = String(kind || "free").toLowerCase();
     const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
 
-    // Keep reward sources separated. Buy X Get Y must never fall back to
-    // Free Gift/Cart Goal bonus fields, otherwise every free gift can appear
-    // inside the BXGY popup.
-    const products = isBxgyReward
-      ? [
-        ...parseArrayish(rule?.rewardProducts),
-        ...parseArrayish(rule?.reward_products),
-        ...parseArrayish(rule?.getProducts),
-        ...parseArrayish(rule?.get_products),
-        ...parseArrayish(rule?.yProducts),
-        ...parseArrayish(rule?.y_products),
-      ]
-      : [
-        ...parseArrayish(rule?.bonusProducts),
-        ...parseArrayish(rule?.bonus_products),
-        ...parseArrayish(rule?.freeProducts),
-        ...parseArrayish(rule?.free_products),
-        ...parseArrayish(rule?.giftProducts),
-        ...parseArrayish(rule?.gift_products),
-      ];
+    // Keep reward sources separated as much as possible, but include all
+    // supported Y/free-product field shapes so the popup displays every
+    // configured reward product instead of only the first one.
+    const products = getRewardProductEntriesForKind(rule, kind);
+    const genericIdSources = [
+      rule?.productIds,
+      rule?.product_ids,
+      rule?.selectedProductIds,
+      rule?.selected_product_ids,
+      rule?.itemIds,
+      rule?.item_ids,
+      rule?.products,
+      rule?.selectedProducts,
+      rule?.selected_products,
+      rule?.items,
+    ];
 
-    const ids = isBxgyReward
-      ? [
-        ...refsFromValue(rule?.rewardProductIds),
-        ...refsFromValue(rule?.reward_product_ids),
-        ...refsFromValue(rule?.getProductIds),
-        ...refsFromValue(rule?.get_product_ids),
-        ...refsFromValue(rule?.yProductIds),
-        ...refsFromValue(rule?.y_product_ids),
-        ...refsFromValue(rule?.giftSku),
-        trimToNull(rule?.rewardProductId),
-        trimToNull(rule?.reward_product_id),
-        trimToNull(rule?.getProductId),
-        trimToNull(rule?.get_product_id),
-        trimToNull(rule?.yProductId),
-        trimToNull(rule?.y_product_id),
-      ]
-      : [
-        ...refsFromValue(rule?.bonusProductIds),
-        ...refsFromValue(rule?.bonus_product_ids),
-        ...refsFromValue(rule?.freeProductIds),
-        ...refsFromValue(rule?.free_product_ids),
-        ...refsFromValue(rule?.giftProductIds),
-        ...refsFromValue(rule?.gift_product_ids),
-        trimToNull(rule?.bonusProductId),
-        trimToNull(rule?.bonus_product_id),
-        trimToNull(rule?.bonus),
-        trimToNull(rule?.freeProductId),
-        trimToNull(rule?.free_product_id),
-        trimToNull(rule?.giftProductId),
-        trimToNull(rule?.gift_product_id),
-      ];
+    const bxgyRewardSources = [
+      rule?.rewardProductIds,
+      rule?.reward_product_ids,
+      rule?.getProductIds,
+      rule?.get_product_ids,
+      rule?.getYProductIds,
+      rule?.get_y_product_ids,
+      rule?.yProductIds,
+      rule?.y_product_ids,
+      rule?.giftProductIds,
+      rule?.gift_product_ids,
+      rule?.freeProductIds,
+      rule?.free_product_ids,
+      rule?.freeGiftProductIds,
+      rule?.free_gift_product_ids,
+      rule?.rewardItemIds,
+      rule?.reward_item_ids,
+      rule?.giftItemIds,
+      rule?.gift_item_ids,
+      rule?.getItemIds,
+      rule?.get_item_ids,
+      rule?.yItemIds,
+      rule?.y_item_ids,
+      rule?.giftSku,
+      products,
+      rule?.rewardProductId,
+      rule?.reward_product_id,
+      rule?.getProductId,
+      rule?.get_product_id,
+      rule?.getYProductId,
+      rule?.get_y_product_id,
+      rule?.yProductId,
+      rule?.y_product_id,
+      rule?.giftProductId,
+      rule?.gift_product_id,
+      rule?.freeProductId,
+      rule?.free_product_id,
+      rule?.freeGiftProductId,
+      rule?.free_gift_product_id,
+    ];
 
-    const productIds = products
-      .map((product) => trimToNull(product?.id || product?.productId || product?.product_id))
-      .filter(Boolean);
+    const freeRewardSources = [
+      rule?.bonusProductIds,
+      rule?.bonus_product_ids,
+      rule?.freeProductIds,
+      rule?.free_product_ids,
+      rule?.giftProductIds,
+      rule?.gift_product_ids,
+      rule?.rewardProductIds,
+      rule?.reward_product_ids,
+      rule?.freeGiftProductIds,
+      rule?.free_gift_product_ids,
+      rule?.rewardItemIds,
+      rule?.reward_item_ids,
+      rule?.giftItemIds,
+      rule?.gift_item_ids,
+      products,
+      ...genericIdSources,
+      rule?.bonusProductId,
+      rule?.bonus_product_id,
+      rule?.bonus,
+      rule?.freeProductId,
+      rule?.free_product_id,
+      rule?.giftProductId,
+      rule?.gift_product_id,
+      rule?.rewardProductId,
+      rule?.reward_product_id,
+      rule?.freeGiftProductId,
+      rule?.free_gift_product_id,
+      rule?.giftSku,
+    ];
 
-    const allIds = [...ids, ...productIds]
-      .map((id) => normalizeResourceId(id) || trimToNull(id))
-      .filter(Boolean);
+    const ids = isBxgyReward ? bxgyRewardSources : freeRewardSources;
+    const rewardIds = uniqueProductRefs(ids);
 
-    const seen = new Set();
-    return allIds.filter((id) => {
-      const key = String(normalizeProductNumericId(id) || gidToId(id) || id).trim();
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // Older Buy X Get Y rows sometimes store the Y/free products only in a
+    // generic `products`/`items` field. Use it only when no explicit reward
+    // source exists, so Buy-side products are not mixed when reward fields exist.
+    if (isBxgyReward && !rewardIds.length) return uniqueProductRefs(genericIdSources);
+    return rewardIds;
   };
 
   const getFreeGiftProductMeta = (rule, productId, index, kind = "free") => {
-    const normalizedKind = String(kind || "free").toLowerCase();
-    const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
-    const products = isBxgyReward
-      ? [
-        ...parseArrayish(rule?.rewardProducts),
-        ...parseArrayish(rule?.reward_products),
-        ...parseArrayish(rule?.getProducts),
-        ...parseArrayish(rule?.get_products),
-        ...parseArrayish(rule?.yProducts),
-        ...parseArrayish(rule?.y_products),
-      ]
-      : [
-        ...parseArrayish(rule?.bonusProducts),
-        ...parseArrayish(rule?.bonus_products),
-        ...parseArrayish(rule?.freeProducts),
-        ...parseArrayish(rule?.free_products),
-        ...parseArrayish(rule?.giftProducts),
-        ...parseArrayish(rule?.gift_products),
-      ];
+    const products = getRewardProductEntriesForKind(rule, kind);
 
-    const byId = products.find((product) => {
-      const id = trimToNull(product?.id || product?.productId || product?.product_id);
+    const normalizedProductId = normalizeProductNumericId(productId) || gidToId(productId) || productId;
+    const productMatches = (product) => {
+      const id = trimToNull(product?.id || product?.productId || product?.product_id || product?.legacyResourceId || product?.legacy_resource_id || product?.handle);
       const normalizedId = normalizeProductNumericId(id) || gidToId(id) || id;
-      const normalizedProductId = normalizeProductNumericId(productId) || gidToId(productId) || productId;
       return id && productId && String(normalizedId) === String(normalizedProductId);
-    });
-    return byId || products[index] || null;
+    };
+    const indexed = products[index];
+    if (indexed && productMatches(indexed)) return indexed;
+    const byId = products.find(productMatches);
+    return byId || indexed || null;
   };
 
   const getFreeGiftVariantFromRule = (rule, productId, index, kind = "free") => {
@@ -12728,6 +12965,59 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     };
   };
 
+  const buildUnlockedCartGoalFreePopupRule = (baseRule) => {
+    if (!baseRule?.isCartGoal) return baseRule;
+    const campaign = getSelectedCartGoalCampaign();
+    if (!campaign) return baseRule;
+
+    const unlockedRules = buildCartGoalFreeProductRules(campaign)
+      .filter((rule) => isRuleEnabled(rule) && isRewardOfferGoalMet("free", rule));
+    if (!unlockedRules.length) return baseRule;
+
+    const combinedProducts = [];
+    const combinedIds = [];
+    const seen = new Set();
+
+    unlockedRules.forEach((sourceRule) => {
+      const sourceRuleKey = getRuleKey(sourceRule, "cartgoal");
+      const sourceSlot = normalizeStepSlotFromAny(sourceRule) || sourceRule?.cartStepName || "";
+      getFreeGiftProductIds(sourceRule, "free").forEach((productId, index) => {
+        const key = String(normalizeProductNumericId(productId) || gidToId(productId) || productId).trim();
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        combinedIds.push(productId);
+        const meta = getFreeGiftProductMeta(sourceRule, productId, index, "free") || { id: productId, productId };
+        combinedProducts.push({
+          ...meta,
+          id: trimToNull(meta?.id || meta?.productId || meta?.product_id || productId) || productId,
+          productId: trimToNull(meta?.productId || meta?.id || productId) || productId,
+          product_id: trimToNull(meta?.product_id || meta?.id || productId) || productId,
+          __sc_source_rule: sourceRule,
+          __sc_source_rule_key: sourceRuleKey,
+          __sc_source_slot: sourceSlot,
+        });
+      });
+    });
+
+    if (!combinedIds.length) return baseRule;
+
+    return {
+      ...baseRule,
+      id: `cartgoal:${campaign?.id ?? "campaign"}:unlocked-free-products`,
+      campaignName: trimToNull(campaign?.campaignName) || trimToNull(baseRule?.campaignName) || "Cart Goal",
+      cartGoalTitle: trimToNull(baseRule?.cartGoalTitle) || "Free gifts unlocked",
+      goalTitle: trimToNull(baseRule?.goalTitle) || "Free gifts unlocked",
+      bonusProductId: combinedIds[0],
+      bonus: combinedIds[0],
+      bonusProductIds: combinedIds,
+      bonusProducts: combinedProducts,
+      freeProductIds: combinedIds,
+      freeProducts: combinedProducts,
+      minPurchase: null,
+      minQuantity: null,
+    };
+  };
+
   const buildFreeGiftOption = ({ rule, productId, variant, product, index, kind = "free" }) => {
     const variants = Array.isArray(product?.variants) && product.variants.length
       ? product.variants
@@ -12742,6 +13032,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!selectedVariant || !getVariantLegacyId(selectedVariant) || isRewardVariantUnavailable(selectedVariant)) return null;
     const normalizedKind = String(kind || "free").toLowerCase();
     const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
+    const sourceRule = !isBxgyReward && product?.__sc_source_rule ? product.__sc_source_rule : rule;
     const optionRule = isBxgyReward
       ? {
         ...rule,
@@ -12751,11 +13042,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         getProductIds: [productId],
       }
       : {
-        ...rule,
+        ...sourceRule,
         bonusProductId: productId,
         bonus: productId,
         bonusProductIds: [productId],
       };
+    const optionRuleKey = !isBxgyReward
+      ? (trimToNull(product?.__sc_source_rule_key) || getRuleKey(optionRule, "cartgoal"))
+      : getRuleKey(optionRule, "buyxgety");
+    const optionSlot = !isBxgyReward
+      ? (trimToNull(product?.__sc_source_slot) || normalizeStepSlotFromAny(optionRule) || optionRule?.cartStepName || "")
+      : "";
     const productName =
       trimToNull(product?.title) ||
       trimToNull(selectedVariant?.product?.title) ||
@@ -12782,6 +13079,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return {
       optionId: `${productId || getVariantLegacyId(selectedVariant)}:${index}`,
       rule: optionRule,
+      ruleKey: optionRuleKey,
+      slot: optionSlot,
       variant: selectedVariant,
       variants,
       variantOptions,
@@ -12901,7 +13200,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     state.current.selectedOptionId = defaultSelected?.optionId || null;
     const selectedCount = state.current.selectedOptionIds.length;
     if (state.headerSubEl) {
-      state.headerSubEl.innerHTML = `Choose one free gift <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
+      state.headerSubEl.innerHTML = `All free products are shown below. Choose one <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
     }
     if (state.messageEl) {
       state.messageEl.hidden = false;
@@ -13064,6 +13363,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     ) {
       return false;
     }
+    const normalizedPopupKind = String(kind || "").toLowerCase();
+    if (normalizedPopupKind === "free" && rule?.isCartGoal) {
+      rule = buildUnlockedCartGoalFreePopupRule(rule);
+    }
+
     const variant = getRewardVariantFromRule(kind, rule);
 
     // For cart goal free products with multiple options, variant will be null
@@ -13110,7 +13414,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (state.headerSubEl) {
       state.headerSubEl.innerHTML =
         kind === "free"
-          ? `Choose one free gift <span class="sc-freegift-count">0/1</span>`
+          ? `All free products are shown below. Choose one <span class="sc-freegift-count">0/1</span>`
           : addItemGoalMet
             ? "Click Add to add it in your cart"
             : getRewardGoalPendingMessage(kind);
@@ -13705,7 +14009,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ),
         });
 
-        if (popupShown && celebrate) firePaperEffect(2400);
+        if (popupShown && celebrate) firePaperEffect(2800);
         return popupShown;
       }
 
@@ -13724,7 +14028,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ),
         });
 
-        if (popupShown && celebrate) firePaperEffect(2400);
+        if (popupShown && celebrate) firePaperEffect(2800);
         return popupShown;
       }
 
@@ -13868,7 +14172,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         });
 
         if (popupShown) {
-          firePaperEffect(2400);
+          // Reward popup opened. Paper effect will run after the customer
+          // selects the reward and the item is added to the cart.
           rewardPopupShown = true;
         }
       } else if (bxgyCompleteNow && !LAST_BXGY_DONE) {
@@ -13888,7 +14193,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           });
 
           if (popupShown) {
-            firePaperEffect(2400);
+            // Reward popup opened. Paper effect will run after the customer
+            // selects the reward and the item is added to the cart.
             rewardPopupShown = true;
           }
         }
@@ -13916,14 +14222,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
 
       if (popupShown) {
-        firePaperEffect(2400);
+        // Reward popup opened. Paper effect will run after the customer
+        // selects the reward and the item is added to the cart.
         rewardPopupShown = true;
       }
     }
 
     const stepCompletedNow = !priming && doneCount > LAST_DONE;
     if (stepCompletedNow && !rewardPopupShown) {
-      firePaperEffect(2400);
+      firePaperEffect(2800);
       if (!isDrawerOpen) openDrawer();
     }
 
