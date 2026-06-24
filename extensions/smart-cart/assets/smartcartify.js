@@ -3028,34 +3028,41 @@
     return { xPercent: x, yPx: y };
   };
 
-  const firePaperEffect = (durationMs = 3000) => {
+  const firePaperEffect = (durationMs = 2600) => {
     const host = drawer;
-    if (!host) return;
+    if (!host || host.__sc_paper_running) return;
 
+    host.__sc_paper_running = true;
     host.querySelector(".sc-paper")?.remove();
 
     const wrap = document.createElement("div");
-    wrap.className = "sc-paper";
+    wrap.className = "sc-paper is-active";
     host.appendChild(wrap);
 
-    const pieces = 320;
+    const origin = getConfettiOrigin();
+    const pieces = 96;
     for (let i = 0; i < pieces; i++) {
       const p = document.createElement("i");
       p.className = "sc-paper-piece";
-      p.style.left = `${Math.random() * 100}%`;
-      p.style.top = `${Math.random() * 100}%`;
-      p.style.setProperty("--sc-x", `${(Math.random() * 360 - 180).toFixed(1)}px`);
-      p.style.animationDelay = `${Math.random() * 0.2}s`;
-      p.style.animationDuration = `${2.6 + Math.random() * 0.5}s`;
-      p.style.width = `${3 + Math.random() * 4}px`;
-      p.style.height = `${4 + Math.random() * 5}px`;
+      const spread = (Math.random() * 52) - 26;
+      const startX = Math.max(4, Math.min(96, origin.xPercent + spread));
+      p.style.left = `${startX}%`;
+      p.style.top = `${origin.yPx}px`;
+      p.style.setProperty("--sc-x", `${(Math.random() * 280 - 140).toFixed(1)}px`);
+      p.style.setProperty("--sc-y", `${(360 + Math.random() * 240).toFixed(1)}px`);
+      p.style.animationDelay = `${Math.random() * 0.35}s`;
+      p.style.animationDuration = `${1.9 + Math.random() * 0.8}s`;
+      p.style.width = `${4 + Math.random() * 5}px`;
+      p.style.height = `${5 + Math.random() * 7}px`;
       p.style.transform = `rotate(${Math.random() * 360}deg)`;
       wrap.appendChild(p);
     }
 
-    setTimeout(() => wrap.remove(), durationMs + 300);
+    setTimeout(() => {
+      try { wrap.remove(); } catch { }
+      host.__sc_paper_running = false;
+    }, Math.max(1200, Number(durationMs) || 2600) + 450);
   };
-
 
   const showCenterCelebratePopup = (title, subtitle, ms = 5000, tone = "success") => {
     if (!drawer) return false;
@@ -3093,7 +3100,7 @@
     // Apply code success: show only the paper celebration.
     // No reward/success popup should open after discount apply.
     void code;
-    firePaperEffect(2800);
+    firePaperEffect(2400);
   };
 
   const suppressAutoRewardPopups = (ms = 3000) => {
@@ -6722,13 +6729,15 @@ display: flex;
 }
 /* confetti */
 .sc-paper{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3;}
-.sc-paper-piece{position:absolute;border-radius:3px;opacity:1;animation-name:scPaperFall;animation-timing-function:linear;background:linear-gradient(45deg, var(--sc-paper-primary, var(--sc-progress)), color-mix(in srgb, var(--sc-paper-primary, var(--sc-progress)) 35%, #ffffff));box-shadow:0 6px 18px rgba(0,0,0,.10);}
+.sc-paper-piece{position:absolute;border-radius:3px;opacity:0;animation-name:scPaperFall;animation-timing-function:cubic-bezier(.16,.74,.24,1);animation-fill-mode:both;background:linear-gradient(45deg, var(--sc-paper-primary, var(--sc-progress)), color-mix(in srgb, var(--sc-paper-primary, var(--sc-progress)) 35%, #ffffff));box-shadow:0 6px 18px rgba(0,0,0,.10);will-change:transform,opacity;}
 .sc-paper-piece:nth-child(4n){border-radius:50%;}
 .sc-paper-piece:nth-child(4n+1){border-radius:2px;}
 .sc-paper-piece:nth-child(3n){background:linear-gradient(45deg, var(--sc-paper-secondary, #ffcf70), color-mix(in srgb, var(--sc-paper-secondary, #ffcf70) 30%, #ffffff))}
 .sc-paper-piece:nth-child(3n+1){background:linear-gradient(45deg, var(--sc-paper-tertiary, #78d7ff), color-mix(in srgb, var(--sc-paper-tertiary, #78d7ff) 30%, #ffffff))}
 .sc-header{position:relative;z-index:4;}
-@keyframes scPaperFall{0%{transform:translate3d(0,0,0) rotate(0deg);opacity:1}100%{transform:translate3d(var(--sc-x),520px,0) rotate(420deg);opacity:1}}
+.sc-freegift-overlay.sc-freegift-shake .sc-freegift-card{animation:scGiftShake .24s ease both;}
+@keyframes scGiftShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}70%{transform:translateX(6px)}}
+@keyframes scPaperFall{0%{transform:translate3d(0,-18px,0) rotate(0deg) scale(.82);opacity:0}12%{opacity:1}78%{opacity:.92}100%{transform:translate3d(var(--sc-x),var(--sc-y),0) rotate(560deg) scale(1);opacity:0}}
 
 .sc-celebrate-backdrop{
   position:absolute;inset:0;z-index:2147483006;
@@ -7990,7 +7999,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     <div class="content-cart-smartcartify smartcartify-cart-body">
     <div class="sc-items">
       <div class="sc-announce smartcartify-announcement-bar" data-sc-announce hidden></div>
-      <div class="sc-progress">
+      <div class="sc-progress corner-covey-cart-undefined-loading-bar-wrapper">
         <p class="sc-label">Loading…</p>
 
         <div class="sc-milestone">
@@ -8002,7 +8011,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
         <div class="sc-legends"></div>
 
-        <div id="corner-cowi-cart-indeterminate-loading-bar-wrapper" class="sc-line-loader" data-sc-line-loader hidden aria-hidden="true">
+        <div id="corner-cowi-cart-indeterminate-loading-bar-wrapper" class="sc-line-loader corner-covey-cart-undefined-loading-bar-wrapper" data-sc-line-loader hidden aria-hidden="true">
           <div id="corner-cowi-cart-indeterminate-loading-bar-bg" class="sc-line-loader-bg">
             <div id="corner-cowi-cart-indeterminate-loading-bar-runner" class="sc-line-loader-runner">&nbsp;</div>
           </div>
@@ -11449,6 +11458,36 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       null
     );
 
+  const isRewardVariantUnavailable = (variant) => {
+    if (!variant) return true;
+    const direct =
+      variant.available ??
+      variant.available_for_sale ??
+      variant.availableForSale ??
+      variant.isAvailable;
+    if (direct === false) return true;
+
+    const inventory =
+      variant.inventory_quantity ??
+      variant.inventoryQuantity ??
+      variant.qtyAvailable ??
+      variant.quantityAvailable;
+    if (inventory != null && Number.isFinite(Number(inventory)) && Number(inventory) <= 0) {
+      const policy = String(
+        variant.inventory_policy ??
+        variant.inventoryPolicy ??
+        variant.inventoryManagementPolicy ??
+        "deny"
+      ).trim().toLowerCase();
+      if (!policy || policy === "deny" || policy === "shopify") return true;
+    }
+
+    return false;
+  };
+
+  const getRewardAddUnavailableMessage = () =>
+    "This reward product/variant is currently unavailable or sold out. Please select another reward product.";
+
   const addRewardToCart = async ({ kind, rule, ruleKey, slot, variant, qty, markAutoAdded, skipExistingCheck = false }) => {
     const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
 
@@ -11460,12 +11499,22 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const variantToAdd = await resolveRewardVariantForAdd(rule, variant);
     const legacyId = getVariantLegacyId(variantToAdd);
+
     // Guard: /cart/add.js needs a numeric VARIANT ID, not a Product ID/GID.
     if (!legacyId || !/^\d+$/.test(String(legacyId))) {
       const err = new Error(
         "Reward product variant not found. Please check the reward product/variant settings."
       );
       err.code = "SC_REWARD_VARIANT_MISSING";
+      err.httpStatus = 422;
+      throw err;
+    }
+
+    // Prevent the Shopify 422 request when we already know the chosen reward variant is unavailable.
+    if (isRewardVariantUnavailable(variantToAdd)) {
+      const err = new Error(getRewardAddUnavailableMessage());
+      err.code = "SC_REWARD_VARIANT_UNAVAILABLE";
+      err.httpStatus = 422;
       throw err;
     }
 
@@ -11499,13 +11548,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
 
       if (!res.ok) {
-        // Read Shopify's error body so we know the real reason (out of stock, invalid, etc.)
+        // Read Shopify's error body so we know the real reason (out of stock, invalid, etc.).
         let shopifyMsg = "";
         try {
           const errBody = await res.json();
           shopifyMsg = errBody?.description || errBody?.message || JSON.stringify(errBody);
         } catch { /* non-JSON body — ignore */ }
-        const err = new Error(shopifyMsg || "Reward add failed");
+        const err = new Error(shopifyMsg || getRewardAddUnavailableMessage());
         err.httpStatus = res.status;
         throw err;
       }
@@ -11518,7 +11567,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     } catch (err) {
       err._httpStatus = err._httpStatus || err.httpStatus || 0;
       const st = Number(err._httpStatus);
-      // 422 / 404 are expected (out of stock, deleted variant) — warn, not error
+      // 422 / 404 are expected (out of stock, deleted variant) — warn, not error.
       if (st === 422 || st === 404) {
         console.warn(`[SmartCartify] reward not added (HTTP ${st}):`, err.message);
       } else {
@@ -11530,8 +11579,50 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
   };
 
-  const closeRewardPopup = () => {
-    if (!rewardPopupCache) return;
+  const getRewardPopupSelectedCount = () => {
+    const active = rewardPopupCache?.current;
+    if (!active) return 0;
+    if (Array.isArray(active.selectedOptionIds)) return active.selectedOptionIds.length;
+    if (Array.isArray(active.selectedOptions)) return active.selectedOptions.length;
+    return active.selectedOption ? 1 : 0;
+  };
+
+  const rewardPopupRequiresSelection = () => {
+    const active = rewardPopupCache?.current;
+    if (!active || active.goalMet === false) return false;
+    const kind = String(active.kind || "").toLowerCase();
+    if (!["free", "bxgy", "buyxgety"].includes(kind)) return false;
+    return !!active.requiresSelection || (Array.isArray(active.options) && active.options.length > 0);
+  };
+
+  const canCloseRewardPopup = () => {
+    if (!rewardPopupRequiresSelection()) return true;
+    const active = rewardPopupCache?.current;
+    const limit = getRewardSelectionLimit(active?.kind, active?.rule, active?.options);
+    return getRewardPopupSelectedCount() >= limit;
+  };
+
+  const closeRewardPopup = (opts = {}) => {
+    if (!rewardPopupCache) return true;
+    const force = !!opts.force;
+    const reason = String(opts.reason || "");
+
+    if (!force && reason === "outside" && !canCloseRewardPopup()) {
+      if (rewardPopupCache.messageEl) {
+        rewardPopupCache.messageEl.hidden = false;
+        rewardPopupCache.messageEl.classList.add("is-error");
+        const active = rewardPopupCache.current;
+        const limit = getRewardSelectionLimit(active?.kind, active?.rule, active?.options);
+        rewardPopupCache.messageEl.textContent =
+          limit === 1
+            ? "Please select one reward product before closing this popup."
+            : `Please select ${limit} reward products before closing this popup.`;
+      }
+      rewardPopupCache.overlay.classList.add("sc-freegift-shake");
+      setTimeout(() => rewardPopupCache?.overlay?.classList.remove("sc-freegift-shake"), 260);
+      return false;
+    }
+
     if (rewardPopupTimer) {
       clearTimeout(rewardPopupTimer);
       rewardPopupTimer = null;
@@ -11539,6 +11630,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     rewardPopupCache.overlay.classList.remove("open");
     rewardPopupCache.current = null;
     drawer.__sc_reward_popup_for = null;
+    return true;
   };
 
   const getVariantLegacyId = (variant) => {
@@ -11661,10 +11753,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
 
       const variants = Array.isArray(product?.variants) ? product.variants : [];
-      const firstVariant = variants[0] || null;
+      const firstAvailableVariant = variants.find((item) => isVariantAvailable(item, product));
+      const firstVariant = firstAvailableVariant || variants[0] || null;
       const legacyId = trimToNull(firstVariant?.id);
-      if (!legacyId) {
-        // Product exists but has no variants — cache null so we don't hammer the API.
+      if (!legacyId || !firstAvailableVariant) {
+        // Product exists but has no available variants — cache null so we don't hammer /cart/add.js with 422s.
         rewardVariantByProductCache.set(cacheKey, null);
         return null;
       }
@@ -11684,6 +11777,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         title: trimToNull(firstVariant?.title) || "",
         price: firstVariant?.price,
         compareAtPrice: firstVariant?.compare_at_price,
+        available: isVariantAvailable(firstVariant, product),
         product: {
           title: trimToNull(product?.title) || "",
           image: imageUrl,
@@ -11741,6 +11835,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       price: variant?.price ?? variant?.variantPrice ?? null,
       compareAtPrice: variant?.compare_at_price ?? variant?.compareAtPrice ?? null,
       image: imageUrl,
+      available: isVariantAvailable(variant, product),
+      inventory_quantity: variant?.inventory_quantity ?? variant?.inventoryQuantity,
+      inventory_policy: variant?.inventory_policy ?? variant?.inventoryPolicy,
       option1: variant?.option1 ?? rawOptions?.[0]?.value,
       option2: variant?.option2 ?? rawOptions?.[1]?.value,
       option3: variant?.option3 ?? rawOptions?.[2]?.value,
@@ -12079,9 +12176,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const addBtn = overlayEl.querySelector(".sc-freegift-add");
 
     overlayEl.addEventListener("click", (event) => {
-      if (event.target === overlayEl) closeRewardPopup();
+      if (event.target === overlayEl) closeRewardPopup({ reason: "outside" });
     });
-    if (closeBtn) closeBtn.addEventListener("click", closeRewardPopup);
+    if (closeBtn) closeBtn.addEventListener("click", () => closeRewardPopup({ force: true, reason: "close-button" }));
 
     rewardPopupCache = {
       overlay: overlayEl,
@@ -12276,10 +12373,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               markPopupShown(cur.kind, addedGuardKey);
             }
             suppressAutoRewardPopups(3200);
-            closeRewardPopup();
+            closeRewardPopup({ force: true, reason: "added" });
             renderAllFromCache();
-            // Free gift added: show only paper celebration, not the reward success popup.
-            setTimeout(() => firePaperEffect(2800), 80);
+            // Reward added after a completed goal: show only the paper celebration, not the reward success popup.
+            if (cur.goalMet !== false) setTimeout(() => firePaperEffect(2400), 80);
           } else {
             // Keep the popup open and show an inline error instead of the large red reward modal.
             if (rewardPopupCache.messageEl) {
@@ -12517,7 +12614,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         return !wanted || String(variant?.[def.key] || "") === String(wanted);
       })
     );
-    return matched || variants.find((variant) => isVariantAvailable(variant)) || variants[0] || option?.variant || null;
+    if (matched && isVariantAvailable(matched)) return matched;
+    const available = variants.find((variant) => isVariantAvailable(variant));
+    return available || option?.variant || null;
   };
 
   const setRewardOptionSelection = (option, key, value) => {
@@ -12544,13 +12643,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       : variant
         ? [variant]
         : [];
+    const exactVariant = variants.find((item) => getVariantLegacyId(item) === getVariantLegacyId(variant));
     const selectedVariant =
-      variants.find((item) => getVariantLegacyId(item) === getVariantLegacyId(variant)) ||
+      (exactVariant && isVariantAvailable(exactVariant) ? exactVariant : null) ||
       variants.find((item) => isVariantAvailable(item)) ||
-      variants[0] ||
-      variant ||
       null;
-    if (!selectedVariant || !getVariantLegacyId(selectedVariant)) return null;
+    if (!selectedVariant || !getVariantLegacyId(selectedVariant) || isRewardVariantUnavailable(selectedVariant)) return null;
     const optionRule = {
       ...rule,
       bonusProductId: productId,
@@ -12956,7 +13054,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (state.addButton) state.addButton.textContent = kind === "free" ? "✓ Add Free Gift" : `Add Item`;
 
-    state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, options: [], selectedOption: null, selectedOptionId: null, selectedOptionIds: [], selectedOptions: [] };
+    state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, requiresSelection: isMultiOptionReward, options: [], selectedOption: null, selectedOptionId: null, selectedOptionIds: [], selectedOptions: [] };
     state.overlay.classList.add("open");
 
     drawer.__sc_reward_popup_for = `${kind}:${guardKey || ""}`;
@@ -13478,7 +13576,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const anyBuyCompletedNow = buyStatuses.some((x) => x.complete);
     const isDrawerOpen = drawer.classList.contains("open");
 
-    const showCompletedBxgyRewardPopup = () => {
+    const showCompletedBxgyRewardPopup = ({ celebrate = false } = {}) => {
       const firstCompleted = buyStatuses.find((x) => x.complete);
       if (firstCompleted) {
         const popupShown = openRewardPopupFor({
@@ -13495,7 +13593,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ),
         });
 
-        if (popupShown) firePaperEffect(2800);
+        if (popupShown && celebrate) firePaperEffect(2400);
         return popupShown;
       }
 
@@ -13514,7 +13612,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ),
         });
 
-        if (popupShown) firePaperEffect(2800);
+        if (popupShown && celebrate) firePaperEffect(2400);
         return popupShown;
       }
 
@@ -13556,7 +13654,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         LAST_BXGY_DONE = bxgyCompleteNow;
         drawer.__sc_buy_completed_before = anyBuyCompletedNow;
         __SC_PRIMED_POPUPS__ = true;
-        showCompletedBxgyRewardPopup();
+        showCompletedBxgyRewardPopup({ celebrate: false });
       }
       return;
     }
@@ -13582,7 +13680,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         LAST_BXGY_DONE = bxgyCompleteNow;
         drawer.__sc_buy_completed_before = anyBuyCompletedNow;
         __SC_PRIMED_POPUPS__ = true;
-        showCompletedBxgyRewardPopup();
+        showCompletedBxgyRewardPopup({ celebrate: false });
       }
       return;
     }
@@ -13634,7 +13732,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       drawer.__sc_buy_completed_before = anyBuyCompletedNow;
       __SC_PRIMED_POPUPS__ = true;
 
-      rewardPopupShown = showCompletedBxgyRewardPopup();
+      rewardPopupShown = showCompletedBxgyRewardPopup({ celebrate: false });
     }
 
     if (isDrawerOpen && !priming) {
@@ -13658,7 +13756,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         });
 
         if (popupShown) {
-          firePaperEffect(2800);
+          firePaperEffect(2400);
           rewardPopupShown = true;
         }
       } else if (bxgyCompleteNow && !LAST_BXGY_DONE) {
@@ -13678,7 +13776,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           });
 
           if (popupShown) {
-            firePaperEffect(2800);
+            firePaperEffect(2400);
             rewardPopupShown = true;
           }
         }
@@ -13706,14 +13804,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       });
 
       if (popupShown) {
-        firePaperEffect(2800);
+        firePaperEffect(2400);
         rewardPopupShown = true;
       }
     }
 
     const stepCompletedNow = !priming && doneCount > LAST_DONE;
     if (stepCompletedNow && !rewardPopupShown) {
-      firePaperEffect(2800);
+      firePaperEffect(2400);
       if (!isDrawerOpen) openDrawer();
     }
 
