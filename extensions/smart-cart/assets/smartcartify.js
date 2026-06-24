@@ -1185,8 +1185,12 @@
 
       const preferredKeys = [
         "goals",
+        "Goals",
         "bonusProducts",
+        "BonusProducts",
         "bonus_products",
+        "Bonus_products",
+        "Bonus_Products",
         "rewardProducts",
         "reward_products",
         "freeProducts",
@@ -1252,25 +1256,42 @@
     if (typeof value === "object") {
       const nested = [
         value.products,
+        value.Products,
         value.productIds,
+        value.ProductIds,
+        value.ProductIDs,
         value.product_ids,
         value.selectedProducts,
         value.selected_products,
         value.bonusProducts,
+        value.BonusProducts,
         value.bonus_products,
+        value.Bonus_products,
+        value.Bonus_Products,
         value.bonusProductIds,
+        value.BonusProductIds,
+        value.BonusProductIDs,
         value.bonus_product_ids,
         value.freeProducts,
+        value.FreeProducts,
         value.free_products,
+        value.Free_products,
         value.freeProductIds,
+        value.FreeProductIds,
         value.free_product_ids,
         value.giftProducts,
+        value.GiftProducts,
         value.gift_products,
+        value.Gift_products,
         value.giftProductIds,
+        value.GiftProductIds,
         value.gift_product_ids,
         value.rewardProducts,
+        value.RewardProducts,
         value.reward_products,
+        value.Reward_products,
         value.rewardProductIds,
+        value.RewardProductIds,
         value.reward_product_ids,
         value.getProducts,
         value.get_products,
@@ -1284,8 +1305,11 @@
 
       const direct = trimToNull(
         value.productId ??
+        value.ProductId ??
+        value.ProductID ??
         value.product_id ??
         value.product?.id ??
+        value.Product?.id ??
         value.product?.legacyResourceId ??
         value.product?.legacy_resource_id ??
         value.product?.admin_graphql_api_id ??
@@ -1295,6 +1319,8 @@
         value.legacyResourceId ??
         value.legacy_resource_id ??
         value.adminGraphqlApiId ??
+        value.AdminGraphqlApiId ??
+        value.Handle ??
         value.handle ??
         ""
       );
@@ -1361,14 +1387,24 @@
 
   const getCartGoalBonusProductEntries = (goal) => [
     ...parseArrayish(goal?.bonusProducts),
+    ...parseArrayish(goal?.BonusProducts),
     ...parseArrayish(goal?.bonus_products),
+    ...parseArrayish(goal?.Bonus_products),
+    ...parseArrayish(goal?.Bonus_Products),
     ...parseArrayish(goal?.freeProducts),
+    ...parseArrayish(goal?.FreeProducts),
     ...parseArrayish(goal?.free_products),
+    ...parseArrayish(goal?.Free_products),
     ...parseArrayish(goal?.giftProducts),
+    ...parseArrayish(goal?.GiftProducts),
     ...parseArrayish(goal?.gift_products),
+    ...parseArrayish(goal?.Gift_products),
     ...parseArrayish(goal?.rewardProducts),
+    ...parseArrayish(goal?.RewardProducts),
     ...parseArrayish(goal?.reward_products),
+    ...parseArrayish(goal?.Reward_products),
     ...parseArrayish(goal?.products),
+    ...parseArrayish(goal?.Products),
     ...parseArrayish(goal?.selectedProducts),
     ...parseArrayish(goal?.selected_products),
     ...parseArrayish(goal?.items),
@@ -1387,7 +1423,10 @@
     const products = getCartGoalBonusProductEntries(goal);
     const idSources = [
       goal?.bonusProductIds,
+      goal?.BonusProductIds,
+      goal?.BonusProductIDs,
       goal?.bonus_product_ids,
+      goal?.Bonus_product_ids,
       goal?.bonusProductIDs,
       goal?.freeProductIds,
       goal?.free_product_ids,
@@ -1408,7 +1447,10 @@
       goal?.freeGiftProductIds,
       goal?.free_gift_product_ids,
       goal?.products,
+      goal?.Products,
+      goal?.BonusProducts,
       goal?.selectedProducts,
+      goal?.SelectedProducts,
       goal?.selected_products,
       goal?.items,
       goal?.rewardItems,
@@ -1417,8 +1459,12 @@
       goal?.gift_items,
       products,
       goal?.bonusProductId,
+      goal?.BonusProductId,
+      goal?.BonusProductID,
       goal?.bonus_product_id,
+      goal?.Bonus_product_id,
       goal?.bonus,
+      goal?.Bonus,
       goal?.freeProductId,
       goal?.free_product_id,
       goal?.giftProductId,
@@ -1435,8 +1481,12 @@
       .map((product) => {
         const id = trimToNull(
           product?.productId ||
+          product?.ProductId ||
+          product?.ProductID ||
           product?.product_id ||
+          product?.Product_id ||
           product?.product?.id ||
+          product?.Product?.id ||
           product?.product?.legacyResourceId ||
           product?.product?.legacy_resource_id ||
           product?.product?.admin_graphql_api_id ||
@@ -1446,15 +1496,21 @@
           product?.legacy_resource_id ||
           (String(product?.admin_graphql_api_id || "").includes("ProductVariant") ? null : product?.admin_graphql_api_id) ||
           product?.adminGraphqlApiId ||
-          product?.handle
+          product?.AdminGraphqlApiId ||
+          product?.handle ||
+          product?.Handle
         );
         if (!id) return null;
         const image =
           (typeof product?.image === "string" ? trimToNull(product.image) : null) ||
           trimToNull(product?.image?.src) ||
+          trimToNull(product?.Image?.src) ||
           trimToNull(product?.image?.url) ||
+          trimToNull(product?.Image?.url) ||
           trimToNull(product?.featuredImage?.url) ||
+          trimToNull(product?.FeaturedImage?.url) ||
           trimToNull(product?.featuredImage) ||
+          trimToNull(product?.FeaturedImage) ||
           trimToNull(product?.productImage) ||
           trimToNull(product?.product_image) ||
           trimToNull(product?.imageUrl) ||
@@ -1467,18 +1523,24 @@
           product_id: id,
           title:
             trimToNull(product?.title) ||
+            trimToNull(product?.Title) ||
             trimToNull(product?.name) ||
+            trimToNull(product?.Name) ||
             trimToNull(product?.productTitle) ||
+            trimToNull(product?.ProductTitle) ||
             trimToNull(product?.product_title) ||
             "",
           image,
           variantId:
             trimToNull(product?.variantId) ||
+            trimToNull(product?.VariantId) ||
+            trimToNull(product?.VariantID) ||
             trimToNull(product?.variant_id) ||
+            trimToNull(product?.Variant_id) ||
             trimToNull(product?.selectedVariantId) ||
             trimToNull(product?.selected_variant_id) ||
             "",
-          variantTitle: trimToNull(product?.variantTitle) || trimToNull(product?.variant_title) || "",
+          variantTitle: trimToNull(product?.variantTitle) || trimToNull(product?.VariantTitle) || trimToNull(product?.variant_title) || "",
         };
       })
       .filter(Boolean);
@@ -2669,12 +2731,12 @@
   const buildCartGoalFreeProductRules = (campaign) => {
     if (!campaign) return [];
     const trackBy = String(campaign?.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
-    const goals = parseArrayish(campaign?.goals);
+    const goals = parseArrayish(campaign?.goals ?? campaign?.Goals);
     return goals
       .map((goal, index) => {
         const type = normalizeCartGoalRewardType(goal);
         if (type !== "free") return null;
-        const threshold = Number(goal?.goal);
+        const threshold = Number(goal?.goal ?? goal?.Goal ?? goal?.amount ?? goal?.Amount);
         const goalDisplayTitle =
           trimToNull(goal?.cartGoalTitle) ||
           trimToNull(goal?.goalTitle) ||
@@ -2688,7 +2750,10 @@
         const bonusProducts = getCartGoalBonusProducts(goal);
         const bonusProductId =
           trimToNull(goal?.bonusProductId) ||
+          trimToNull(goal?.BonusProductId) ||
+          trimToNull(goal?.BonusProductID) ||
           trimToNull(goal?.bonus) ||
+          trimToNull(goal?.Bonus) ||
           trimToNull(productIds[0]) ||
           "";
         const rule = {
@@ -3815,6 +3880,10 @@
       const code = getDiscountApplicationCode(entry);
       if (code && isDiscountAppliedInCart(code)) out.push(code);
     });
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const attrCode = trimToNull(CART?.attributes?.discount_code) || trimToNull(CART?.attributes?.discountCode);
+    if (manualCode) out.push(manualCode);
+    if (attrCode) out.push(attrCode);
     const seen = new Set();
     return out.filter((c) => {
       const key = String(c).trim().toLowerCase();
@@ -9251,7 +9320,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const waitForDiscountApplied = async (code, attempts = 8) => {
     for (let i = 0; i < attempts; i += 1) {
       CART = await fetchCart({ force: true });
-      if (isDiscountAppliedInCart(code)) return true;
+      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) return true;
       await new Promise((resolve) => setTimeout(resolve, 250 + i * 100));
     }
     return false;
@@ -9735,17 +9804,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       console.warn("[SmartCartify] discount fetch apply failed, retrying with iframe:", err?.message || err);
     }
 
-    if (!endpointTouched) {
-      endpointTouched = await loadDiscountUrlInIframe(target);
-    }
+    // Shopify's /discount endpoint may not expose the code in cart.js until
+    // checkout. Touch it through a same-origin iframe as well, then persist the
+    // entered code in cart attributes so the drawer can render the applied state
+    // immediately and the checkout button can carry the same code.
+    const iframeTouched = await loadDiscountUrlInIframe(target);
+    endpointTouched = endpointTouched || iframeTouched;
 
+    rememberManualDiscountCode(normalized);
     await persistDiscountCodeToCartAttributes(normalized);
 
     invalidateCartCache();
     const confirmed = await waitForDiscountApplied(normalized, 10);
     if (confirmed) return true;
 
-    return endpointTouched;
+    return endpointTouched || isManualDiscountCodeRemembered(normalized);
   };
 
 
@@ -10335,16 +10408,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const buildCartGoalRule = (campaign, goal, index) => {
       const trackBy = String(campaign?.trackBy || "").toLowerCase() === "quantity" ? "quantity" : "value";
       const type = normalizeCartGoalRewardType(goal);
-      const threshold = Number(goal?.goal);
+      const threshold = Number(goal?.goal ?? goal?.Goal ?? goal?.amount ?? goal?.Amount);
       const texts = parseObjectish(goal?.texts || {});
       const goalDisplayTitle =
         trimToNull(goal?.cartGoalTitle) ||
+        trimToNull(goal?.CartGoalTitle) ||
         trimToNull(goal?.goalTitle) ||
+        trimToNull(goal?.GoalTitle) ||
         trimToNull(goal?.title) ||
+        trimToNull(goal?.Title) ||
         trimToNull(goal?.name) ||
+        trimToNull(goal?.Name) ||
         trimToNull(goal?.label) ||
+        trimToNull(goal?.Label) ||
         trimToNull(goal?.stepTitle) ||
+        trimToNull(goal?.StepTitle) ||
         trimToNull(goal?.stepName) ||
+        trimToNull(goal?.StepName) ||
         `Cart Goal ${index + 1}`;
       const productIds = getCartGoalBonusProductIds(goal);
       const bonusProducts = getCartGoalBonusProducts(goal);
@@ -10420,9 +10500,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const cartGoalCandidates = selectedCartGoalCampaign
       ? [selectedCartGoalCampaign]
         .flatMap((campaign) => {
-          const goals = parseArrayish(campaign?.goals);
+          const goals = parseArrayish(campaign?.goals ?? campaign?.Goals);
           return goals
-            .filter((goal) => goal && Number(goal?.goal) > 0)
+            .filter((goal) => goal && Number(goal?.goal ?? goal?.Goal ?? goal?.amount ?? goal?.Amount) > 0)
             .filter((goal) => !isDefaultCartGoalShippingGoal(goal))
             .map((goal, index) => buildCartGoalRule(campaign, goal, index));
         })
@@ -12227,7 +12307,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!variant) return null;
     const rawVariantId = trimToNull(
       variant?.id ||
+      variant?.Id ||
       variant?.variantId ||
+      variant?.VariantId ||
+      variant?.VariantID ||
       variant?.admin_graphql_api_id ||
       variant?.adminGraphqlApiId ||
       variant?.legacyResourceId ||
@@ -12237,16 +12320,25 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!legacyId) return null;
     const productImage =
       trimToNull(product?.image?.src) ||
+      trimToNull(product?.Image?.src) ||
       trimToNull(product?.image?.url) ||
+      trimToNull(product?.Image?.url) ||
       (typeof product?.image === "string" ? trimToNull(product.image) : null) ||
+      (typeof product?.Image === "string" ? trimToNull(product.Image) : null) ||
       trimToNull(product?.featuredImage?.url) ||
+      trimToNull(product?.FeaturedImage?.url) ||
       (typeof product?.featuredImage === "string" ? trimToNull(product.featuredImage) : null) ||
       (Array.isArray(product?.images) && trimToNull(product.images[0]?.src || product.images[0]?.url || product.images[0])) ||
       "";
     const imageUrl =
       trimToNull(variant?.featured_image?.src) ||
+      trimToNull(variant?.Featured_image?.src) ||
+      trimToNull(variant?.featuredImage?.url) ||
+      trimToNull(variant?.FeaturedImage?.url) ||
       trimToNull(variant?.image?.src) ||
+      trimToNull(variant?.Image?.src) ||
       trimToNull(variant?.image?.url) ||
+      trimToNull(variant?.Image?.url) ||
       (typeof variant?.image === "string" ? trimToNull(variant.image) : null) ||
       productImage;
     const rawOptions = Array.isArray(variant?.variantOptions) ? variant.variantOptions : [];
@@ -12254,9 +12346,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       ...variant,
       id: `gid://shopify/ProductVariant/${legacyId}`,
       legacyResourceId: String(legacyId),
-      productId: String(productId || product?.id || ""),
-      title: trimToNull(variant?.title) || "",
-      price: variant?.price ?? variant?.variantPrice ?? null,
+      productId: String(productId || product?.id || product?.Id || product?.productId || product?.ProductId || ""),
+      title: trimToNull(variant?.title) || trimToNull(variant?.Title) || trimToNull(variant?.name) || trimToNull(variant?.Name) || "",
+      price: variant?.price ?? variant?.Price ?? variant?.variantPrice ?? variant?.VariantPrice ?? null,
       compareAtPrice: variant?.compare_at_price ?? variant?.compareAtPrice ?? null,
       image: imageUrl,
       available: isVariantAvailable(variant, product),
@@ -12266,7 +12358,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       option2: variant?.option2 ?? rawOptions?.[1]?.value,
       option3: variant?.option3 ?? rawOptions?.[2]?.value,
       product: {
-        title: trimToNull(product?.title) || "",
+        title: trimToNull(product?.title) || trimToNull(product?.Title) || trimToNull(product?.name) || trimToNull(product?.Name) || "",
         image: productImage || imageUrl,
       },
     };
@@ -12276,27 +12368,35 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!product || typeof product !== "object") return null;
     const productId =
       normalizeProductNumericId(product?.productId) ||
+      normalizeProductNumericId(product?.ProductId) ||
+      normalizeProductNumericId(product?.ProductID) ||
       normalizeProductNumericId(product?.product_id) ||
+      normalizeProductNumericId(product?.Product_id) ||
       normalizeProductNumericId(product?.product?.id) ||
+      normalizeProductNumericId(product?.Product?.id) ||
       normalizeProductNumericId(requestedProductId) ||
       (String(product?.id || "").includes("ProductVariant") ? null : normalizeProductNumericId(product?.id)) ||
       gidToId(product?.productId) ||
+      gidToId(product?.ProductId) ||
+      gidToId(product?.ProductID) ||
       gidToId(product?.product_id) ||
+      gidToId(product?.Product_id) ||
       gidToId(product?.product?.id) ||
+      gidToId(product?.Product?.id) ||
       gidToId(requestedProductId) ||
       (String(product?.id || "").includes("ProductVariant") ? null : gidToId(product?.id)) ||
-      trimToNull(product?.productId || product?.product_id || product?.product?.id || requestedProductId || (String(product?.id || "").includes("ProductVariant") ? null : product?.id));
+      trimToNull(product?.productId || product?.ProductId || product?.ProductID || product?.product_id || product?.Product_id || product?.product?.id || product?.Product?.id || requestedProductId || (String(product?.id || product?.Id || "").includes("ProductVariant") ? null : (product?.id || product?.Id)));
     if (!productId) return null;
-    const variants = parseArrayish(product?.variants)
+    const variants = [...parseArrayish(product?.variants), ...parseArrayish(product?.Variants)]
       .map((variant) => normalizeRewardProductVariant(product, variant, productId))
       .filter(Boolean);
-    const fallbackVariant = !variants.length && (product?.variantId || product?.variant_id)
+    const fallbackVariant = !variants.length && (product?.variantId || product?.VariantId || product?.VariantID || product?.variant_id)
       ? normalizeRewardProductVariant(product, {
-        id: product.variantId || product.variant_id,
-        title: product.variantTitle || product.variant_title,
-        price: product.variantPrice ?? product.price,
-        variantOptions: product.variantOptions,
-        image: product.image,
+        id: product.variantId || product.VariantId || product.VariantID || product.variant_id,
+        title: product.variantTitle || product.VariantTitle || product.variant_title,
+        price: product.variantPrice ?? product.VariantPrice ?? product.price ?? product.Price,
+        variantOptions: product.variantOptions || product.VariantOptions,
+        image: product.image || product.Image,
       }, productId)
       : null;
     const normalizedVariants = fallbackVariant ? [fallbackVariant] : variants;
@@ -12311,7 +12411,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return {
       ...product,
       id: String(productId),
-      title: trimToNull(product?.title) || trimToNull(product?.name) || "Free gift",
+      title: trimToNull(product?.title) || trimToNull(product?.Title) || trimToNull(product?.name) || trimToNull(product?.Name) || "Free gift",
       image,
       options: getRewardProductOptionDefs(product, normalizedVariants),
       variants: normalizedVariants,
@@ -12319,7 +12419,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const getRewardProductOptionDefs = (product, variants) => {
-    const productOptions = parseArrayish(product?.options);
+    const productOptions = [...parseArrayish(product?.options), ...parseArrayish(product?.Options)];
     return [0, 1, 2]
       .map((idx) => {
         const key = `option${idx + 1}`;
@@ -12917,6 +13017,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
     const genericProducts = [
       ...parseArrayish(rule?.products),
+      ...parseArrayish(rule?.Products),
       ...parseArrayish(rule?.selectedProducts),
       ...parseArrayish(rule?.selected_products),
       ...parseArrayish(rule?.items),
@@ -12926,6 +13027,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (isBxgyReward) {
       const rewardSpecific = [
+        ...parseArrayish(rule?.bonusProducts),
+        ...parseArrayish(rule?.BonusProducts),
+        ...parseArrayish(rule?.bonus_products),
+        ...parseArrayish(rule?.Bonus_products),
+        ...parseArrayish(rule?.Bonus_Products),
         ...parseArrayish(rule?.rewardProducts),
         ...parseArrayish(rule?.reward_products),
         ...parseArrayish(rule?.getProducts),
@@ -12957,7 +13063,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     return [
       ...parseArrayish(rule?.bonusProducts),
+      ...parseArrayish(rule?.BonusProducts),
       ...parseArrayish(rule?.bonus_products),
+      ...parseArrayish(rule?.Bonus_products),
+      ...parseArrayish(rule?.Bonus_Products),
       ...parseArrayish(rule?.freeProducts),
       ...parseArrayish(rule?.free_products),
       ...parseArrayish(rule?.giftProducts),
@@ -12985,7 +13094,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const products = getRewardProductEntriesForKind(rule, kind);
     const genericIdSources = [
       rule?.productIds,
+      rule?.ProductIds,
+      rule?.ProductIDs,
       rule?.product_ids,
+      rule?.Products,
       rule?.selectedProductIds,
       rule?.selected_product_ids,
       rule?.itemIds,
@@ -12997,6 +13109,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     ];
 
     const bxgyRewardSources = [
+      rule?.bonusProductIds,
+      rule?.BonusProductIds,
+      rule?.BonusProductIDs,
+      rule?.bonus_product_ids,
+      rule?.Bonus_product_ids,
+      rule?.bonusProducts,
+      rule?.BonusProducts,
+      rule?.bonus_products,
+      rule?.Bonus_products,
+      rule?.Bonus_Products,
       rule?.rewardProductIds,
       rule?.reward_product_ids,
       rule?.getProductIds,
@@ -13021,6 +13143,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       rule?.y_item_ids,
       rule?.giftSku,
       products,
+      rule?.bonusProductId,
+      rule?.BonusProductId,
+      rule?.BonusProductID,
+      rule?.bonus_product_id,
+      rule?.Bonus_product_id,
+      rule?.bonus,
+      rule?.Bonus,
       rule?.rewardProductId,
       rule?.reward_product_id,
       rule?.getProductId,
@@ -13039,7 +13168,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const freeRewardSources = [
       rule?.bonusProductIds,
+      rule?.BonusProductIds,
+      rule?.BonusProductIDs,
       rule?.bonus_product_ids,
+      rule?.Bonus_product_ids,
       rule?.freeProductIds,
       rule?.free_product_ids,
       rule?.giftProductIds,
@@ -13083,7 +13215,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const normalizedProductId = normalizeProductNumericId(productId) || gidToId(productId) || productId;
     const productMatches = (product) => {
-      const id = trimToNull(product?.id || product?.productId || product?.product_id || product?.legacyResourceId || product?.legacy_resource_id || product?.handle);
+      const id = trimToNull(product?.id || product?.Id || product?.productId || product?.ProductId || product?.ProductID || product?.product_id || product?.Product_id || product?.legacyResourceId || product?.LegacyResourceId || product?.legacy_resource_id || product?.handle || product?.Handle);
       const normalizedId = normalizeProductNumericId(id) || gidToId(id) || id;
       return id && productId && String(normalizedId) === String(normalizedProductId);
     };
@@ -13269,7 +13401,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const buildFreeGiftOption = ({ rule, productId, variant, product, index, kind = "free" }) => {
-    const parsedProductVariants = parseArrayish(product?.variants);
+    const parsedProductVariants = [...parseArrayish(product?.variants), ...parseArrayish(product?.Variants)];
     const variants = parsedProductVariants.length
       ? parsedProductVariants
       : variant
@@ -13306,6 +13438,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       : "";
     const baseProductName =
       trimToNull(product?.title) ||
+      trimToNull(product?.Title) ||
+      trimToNull(product?.name) ||
+      trimToNull(product?.Name) ||
       trimToNull(selectedVariant?.product?.title) ||
       trimToNull(selectedVariant?.productTitle) ||
       (isBxgyReward
@@ -13318,7 +13453,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       variantLabel && !/^default title$/i.test(variantLabel) && variantLabel !== baseProductName
         ? `${baseProductName} – ${variantLabel}`
         : baseProductName;
-    const variantOptions = (Array.isArray(product?.options) ? product.options : [])
+    const variantOptions = ([...parseArrayish(product?.options), ...parseArrayish(product?.Options)])
       .map((def, optionIndex) => {
         const key = trimToNull(def?.key) || `option${optionIndex + 1}`;
         const values = Array.isArray(def?.values) ? def.values.map(trimToNull).filter(Boolean) : [];
@@ -13343,7 +13478,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       selectedOptions,
       qty: getRewardQtyFromRule(kind, optionRule),
       title: productName,
-      image: trimToNull(product?.image) || trimToNull(selectedVariant?.image) || trimToNull(selectedVariant?.product?.image) || (isBxgyReward ? trimToNull(rule?.rewardProductImage) || trimToNull(rule?.getProductImage) || trimToNull(rule?.yProductImage) : trimToNull(rule?.bonusProductImage) || trimToNull(rule?.freeProductImage) || trimToNull(rule?.giftProductImage)) || "",
+      image: trimToNull(product?.image) || trimToNull(product?.Image) || trimToNull(product?.image?.url) || trimToNull(product?.Image?.url) || trimToNull(selectedVariant?.image) || trimToNull(selectedVariant?.Image) || trimToNull(selectedVariant?.product?.image) || (isBxgyReward ? trimToNull(rule?.rewardProductImage) || trimToNull(rule?.getProductImage) || trimToNull(rule?.yProductImage) : trimToNull(rule?.bonusProductImage) || trimToNull(rule?.freeProductImage) || trimToNull(rule?.giftProductImage)) || "",
       priceCents: centsFromDecimalPrice(selectedVariant?.price),
     };
   };
@@ -13351,8 +13486,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getRewardEntryProductId = (entry, fallback = null) => {
     const raw = trimToNull(
       entry?.productId ||
+      entry?.ProductId ||
+      entry?.ProductID ||
       entry?.product_id ||
+      entry?.Product_id ||
       entry?.product?.id ||
+      entry?.Product?.id ||
       entry?.product?.legacyResourceId ||
       entry?.product?.legacy_resource_id ||
       entry?.product?.admin_graphql_api_id ||
@@ -13363,7 +13502,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       entry?.legacy_resource_id ||
       (String(entry?.admin_graphql_api_id || "").includes("ProductVariant") ? null : entry?.admin_graphql_api_id) ||
       entry?.adminGraphqlApiId ||
+      entry?.AdminGraphqlApiId ||
       entry?.handle ||
+      entry?.Handle ||
       null
     );
     return raw ? String(normalizeProductNumericId(raw) || gidToId(raw) || raw) : null;
@@ -13372,10 +13513,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getRewardEntryVariantId = (entry) => {
     const raw = trimToNull(
       entry?.variantId ||
+      entry?.VariantId ||
+      entry?.VariantID ||
       entry?.variant_id ||
+      entry?.Variant_id ||
       entry?.selectedVariantId ||
+      entry?.SelectedVariantId ||
       entry?.selected_variant_id ||
       entry?.variant?.id ||
+      entry?.Variant?.id ||
       entry?.variant?.legacyResourceId ||
       entry?.variant?.legacy_resource_id ||
       entry?.variant?.admin_graphql_api_id ||
