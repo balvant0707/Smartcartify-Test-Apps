@@ -3057,12 +3057,24 @@
   };
 
 
-  const showCenterCelebratePopup = (title, subtitle, ms = 5000) => {
+  const showCenterCelebratePopup = (title, subtitle, ms = 5000, tone = "success") => {
     if (!drawer) return false;
+    const isErrorTone =
+      String(tone || "").toLowerCase() === "error" ||
+      /could not|failed|error|try again/i.test(`${title || ""} ${subtitle || ""}`);
     const backdrop = document.createElement("div");
-    backdrop.className = "sc-celebrate-backdrop";
+    backdrop.className = `sc-celebrate-backdrop ${isErrorTone ? "is-error" : "is-success"}`;
+    const iconPath = isErrorTone
+      ? `<path class="sc-celebrate-x-line sc-celebrate-x-line-1" d="M25 25L47 47"/><path class="sc-celebrate-x-line sc-celebrate-x-line-2" d="M47 25L25 47"/>`
+      : `<path class="sc-celebrate-check-line" d="M20.5 36.5L31 47L52 25"/>`;
     backdrop.innerHTML = `
-      <div class="sc-celebrate-modal">
+      <div class="sc-celebrate-modal" role="status" aria-live="polite">
+        <span class="sc-celebrate-check" aria-hidden="true">
+          <svg class="sc-celebrate-check-svg" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle class="sc-celebrate-check-circle" cx="36" cy="36" r="30"/>
+            ${iconPath}
+          </svg>
+        </span>
         <p class="sc-celebrate-h">${safe(String(title || ""))}</p>
         ${subtitle ? `<p class="sc-celebrate-p">${safe(String(subtitle || ""))}</p>` : ""}
       </div>`;
@@ -3096,10 +3108,15 @@
   let progressLoadingMaxTimer = null;
 
   const applyProgressLoadingState = (isLoading) => {
-    drawer.classList.toggle("sc-refreshing", !!isLoading);
-    syncItemsLoading(!!isLoading);
-    const itemsLoading = drawer.querySelector(".sc-items-loading");
-    if (itemsLoading) itemsLoading.setAttribute("aria-hidden", isLoading ? "false" : "true");
+    const active = !!isLoading;
+    drawer.classList.toggle("sc-refreshing", active);
+    drawer.classList.remove("sc-loading-items");
+    const lineLoader = drawer.querySelector("[data-sc-line-loader]");
+    if (lineLoader) {
+      const shouldShowLine = active || drawer.classList.contains("sc-applying-discount");
+      lineLoader.hidden = !shouldShowLine;
+      lineLoader.setAttribute("aria-hidden", shouldShowLine ? "false" : "true");
+    }
   };
 
   const setProgressLoading = (isLoading, opts = {}) => {
@@ -3142,8 +3159,8 @@
     }, delay);
   };
 
-  const syncItemsLoading = (isLoading) => {
-    drawer.classList.toggle("sc-loading-items", !!isLoading);
+  const syncItemsLoading = () => {
+    drawer.classList.remove("sc-loading-items");
   };
 
   const isQuantityLimitMessage = (message) => {
@@ -4244,27 +4261,38 @@ padding: 5px 10px 0px 10px;
     overflow: hidden;
     top:0px;
 }
-.sc-label{
-  font-size:var(--sc-base-font-size) !important;
-  font-weight:700;
-  margin:0 0 12px;
-  text-align:center;
-  min-height:22px;
-  padding:0 28px;
-  color: var(--sc-progress-text);
-}
 
-.sc-progress-loading{
-  position:absolute;left:0;right:0;bottom:0;height:3px;overflow:hidden;
-  opacity:0;transform:translateY(6px);
-  transition:opacity .15s ease, transform .15s ease;
+.sc-line-loader{
+  width:100%;
+  display:none;
+  flex:0 0 auto;
+  position:relative;
+  z-index:5;
+  padding:0;
+  margin:0;
 }
-.sc-refreshing .sc-progress-loading{opacity:1;transform:translateY(0);}
-.sc-progress-loading::before{
-  content:"";position:absolute;left:-40%;top:0;height:100%;width:40%;
-  background:rgba(255,255,255,.75);animation:scLine .9s linear infinite;
+.sc-refreshing .sc-line-loader,
+.sc-drawer.sc-applying-discount .sc-line-loader{
+  display:block;
 }
-@keyframes scLine{0%{left:-40%}100%{left:110%}}
+.sc-line-loader-bg{
+  width:100%;
+  height:4px;
+  background:rgba(15,23,42,.08);
+  overflow:hidden;
+  border-radius:999px;
+}
+.sc-line-loader-runner{
+  width:40%;
+  height:100%;
+  border-radius:999px;
+  background:var(--sc-progress, #9f42eb);
+  animation:scLineLoader .9s ease-in-out infinite;
+}
+@keyframes scLineLoader{
+  0%{transform:translateX(-120%);}
+  100%{transform:translateX(260%);}
+}
 @keyframes scSpin{to{transform:rotate(360deg)}}
 
 .sc-milestone{width:min(100%, var(--sc-milestone-width));margin:0 auto;padding: 0 10px;}
@@ -4531,92 +4559,10 @@ padding: 5px 10px 0px 10px;
 }
 .sc-items-footer:empty{display:none !important;}
 .sc-items-loading{
-  position:absolute;
-  inset:0;
-  display:none;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  background:rgba(255,255,255,.76);
-  z-index:20;
-  pointer-events:auto;
-}
-.sc-loading-items .sc-items-loading{
-  display:flex;
-}
-.sc-layered-loader{
-  position:relative;
-  width:112px;
-  height:112px;
-  display:grid;
-  place-items:center;
-  color:#111827;
-}
-.sc-layered-loader-ring{
-  position:absolute;
-  border:3px solid var(--sc-button, #d6336c);
-  border-left-color:transparent;
-  border-right-color:transparent;
-  border-radius:50%;
-  animation:sc-loader-rotate 2s cubic-bezier(.26,1.36,.74,-.29) infinite;
-}
-.sc-layered-loader-ring:nth-child(1){width:62px;height:62px;}
-.sc-layered-loader-ring:nth-child(2){
-  width:76px;
-  height:76px;
-  border-color:var(--sc-icon, #3bc9db);
-  border-left-color:transparent;
-  border-right-color:transparent;
-  animation-name:sc-loader-rotate-reverse;
-}
-.sc-layered-loader-ring:nth-child(3){width:90px;height:90px;}
-.sc-layered-loader-ring:nth-child(4){
-  width:104px;
-  height:104px;
-  border-color:var(--sc-icon, #3bc9db);
-  border-left-color:transparent;
-  border-right-color:transparent;
-  animation-name:sc-loader-rotate-reverse;
-}
-.sc-layered-loader-label{
-  position:relative;
-  z-index:1;
-  font-size:10px;
-  font-weight:700;
-  letter-spacing:.08em;
-  color:currentColor;
-}
-@keyframes sc-loader-rotate{
-  from{transform:rotate(-360deg);}
-  to{transform:rotate(0deg);}
-}
-@keyframes sc-loader-rotate-reverse{
-  from{transform:rotate(360deg);}
-  to{transform:rotate(0deg);}
-}
-@media (prefers-reduced-motion:reduce){
-  .sc-layered-loader-ring{animation-duration:6s;}
-}
-.sc-items-loading-text{
-  font-size:var(--sc-small-font-size);
-  color:#111827;
-  font-weight:600;
+  display:none !important;
 }
 .sc-discount-loading-overlay{
-  position:absolute;
-  inset:0;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  background:rgba(255,255,255,.62);
-  backdrop-filter:none;
-  -webkit-backdrop-filter:none;
-  z-index:90;
-  pointer-events:auto;
-}
-.sc-drawer.sc-applying-discount .sc-discount-loading-overlay{
-  display:flex;
+  display:none !important;
 }
 .sc-discount-loading-overlay[hidden]{
   display:none !important;
@@ -4658,21 +4604,7 @@ padding: 5px 10px 0px 10px;
 .sc-item:last-child{
   border-bottom:0;
 }
-.sc-img{
-  width:60px;
-  height:50px;
-  overflow:hidden;
-  background:var(--sc-image-bg);
-  border-radius:0.75em;
-  flex:0 0 auto;
-}
-.sc-img img{
-width:100%;
-height:100%;
-object-fit:cover;
-object-position:top;
-display:block;
-}
+
 .sc-mid,.sc-item.sc-item-reward .sc-mid{
   min-width:0;
   display:flex;
@@ -4708,9 +4640,6 @@ display:block;
   line-height:1.25 !important;
   opacity:1;
 }
-.sc-progress-loading {
-    display: none !important;
-}
 .sc-mid-bottom{
   display:flex;
   align-items:flex-end;
@@ -4735,10 +4664,10 @@ display:block;
 }
 .sc-item.sc-item-reward .sc-img{
   position:relative;
-  width:56px;
-  height:56px;
+  width:60px;
+  height:50px;
   overflow:hidden;
-  border-radius:0.75em;
+  border-radius:0.75em !important;
 }
 .sc-item.sc-item-reward .sc-img img{
   border-radius:0.75em;
@@ -5111,7 +5040,7 @@ color: var(--sc-drawer-text-color);
 }
 .sc-cartgoal-bonus-product{
   margin:0;
-  font-size:var(--sc-base-font-size));
+  font-size:var(--sc-base-font-size);
   font-weight:700;
   color:var(--sc-drawer-text-color);
   line-height:1.22;
@@ -5252,7 +5181,7 @@ color: var(--sc-drawer-text-color);
   align-items:center;
   gap:6px;
   font-weight:600;
-  font-size:var(--sc-small-font-size);
+  font-size: var(--sc-base-font-size);
   color: var(--sc-drawer-text-color);
   white-space: nowrap;
 }
@@ -5874,10 +5803,14 @@ position: relative;
   color:currentColor !important;
 }
 .smartcartify-cart-drawer .sc-offer-icon svg,
-.smartcartify-cart-drawer .sc-offer-icon svg path,
-.smartcartify-cart-drawer .sc-offer-icon svg g{
-  fill:currentColor !important;
+.smartcartify-cart-drawer .sc-offer-icon svg *{
   color:currentColor !important;
+}
+.smartcartify-cart-drawer .sc-offer-icon svg [stroke]{
+  stroke:currentColor !important;
+}
+.smartcartify-cart-drawer .sc-offer-icon svg [fill]:not([fill="none"]){
+  fill:currentColor !important;
 }
 .smartcartify-cart-drawer .sc-close,
 .smartcartify-cart-drawer .sc-close svg,
@@ -5954,8 +5887,8 @@ position: relative;
 }
 .sc-static-design .sc-label{
   margin:0 0 13px;
-  color:var(--sc-static-progress-text, #56669d) !important;
-  font-size:var(--sc-base-font-size, 16px) !important;
+  color:var(--sc-static-progress-text) !important;
+  font-size:var(--sc-base-font-size) !important;
   line-height:22px;
   font-weight:700;
 }
@@ -6706,8 +6639,8 @@ display: flex;
 .sc-celebrate-backdrop{
   position:absolute;inset:0;z-index:2147483006;
   display:flex;align-items:center;justify-content:center;
-  color: var(--sc-drawer-header-color);
-  background-color: var(--sc-celebrate-backdrop);
+  color:var(--sc-drawer-header-color);
+  background-color:var(--sc-celebrate-backdrop);
   opacity:0;transform:scale(1.01);
   transition:opacity .18s ease, transform .18s ease;
   backdrop-filter:none;
@@ -6715,20 +6648,69 @@ display: flex;
 .sc-celebrate-backdrop.open{opacity:1;transform:scale(1);}
 .sc-celebrate-modal{
   width:min(360px, 86%);
-  color: var(--sc-drawer-header-color);
-  background-color: var(--sc-top-bg-color-effective);
+  color:var(--sc-drawer-header-color);
+  background-color:var(--sc-top-bg-color-effective);
   border:1px solid var(--sc-celebrate-border);
-  border-radius:18px;box-shadow:0 18px 42px rgba(0,0,0,.22);
-  padding:18px 16px;text-align:center;
+  border-radius:18px;
+  box-shadow:0 18px 42px rgba(0,0,0,.22);
+  padding:20px 16px 18px;
+  text-align:center;
+  transform:translateY(8px) scale(.96);
+  transition:transform .22s cubic-bezier(.2,.9,.2,1.1);
 }
-.sc-celebrate-badge{
-  width:54px;height:54px;margin:0 auto 10px;border-radius:16px;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--sc-celebrate-badge-bg);
-  font-size:var(--sc-celebrate-title-size);
+.sc-celebrate-backdrop.open .sc-celebrate-modal{
+  transform:translateY(0) scale(1);
 }
+.sc-celebrate-check{
+  width:62px;
+  height:62px;
+  margin:0 auto 11px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(34,197,94,.12);
+  color:#16a34a;
+}
+.sc-celebrate-backdrop.is-error .sc-celebrate-check{
+  background:rgba(239,68,68,.12);
+  color:#dc2626;
+}
+.sc-celebrate-check-svg{
+  width:62px;
+  height:62px;
+  display:block;
+  overflow:visible;
+}
+.sc-celebrate-check-circle,
+.sc-celebrate-check-line,
+.sc-celebrate-x-line{
+  stroke:currentColor;
+  stroke-width:5;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  fill:none;
+}
+.sc-celebrate-check-circle{
+  stroke-dasharray:190;
+  stroke-dashoffset:190;
+  animation:scCheckCircle .52s ease forwards;
+}
+.sc-celebrate-check-line{
+  stroke-dasharray:54;
+  stroke-dashoffset:54;
+  animation:scCheckLine .38s ease .38s forwards;
+}
+.sc-celebrate-x-line{
+  stroke-dasharray:34;
+  stroke-dashoffset:34;
+}
+.sc-celebrate-x-line-1{animation:scCheckLine .32s ease .38s forwards;}
+.sc-celebrate-x-line-2{animation:scCheckLine .32s ease .52s forwards;}
 .sc-celebrate-h{font-weight:900;color:var(--sc-progress-text);font-size:var(--sc-heading-font-size);line-height:1.2;}
 .sc-celebrate-p{margin-top:6px;color:var(--sc-drawer-text-color);font-size:var(--sc-base-font-size);line-height:1.35;}
+@keyframes scCheckCircle{to{stroke-dashoffset:0;}}
+@keyframes scCheckLine{to{stroke-dashoffset:0;}}
 [data-smart-cartify-open]{
   position:relative;
 }
@@ -7187,7 +7169,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     padding: 0 !important;
     font-size: var(--sc-base-font-size) !important;
     font-weight: 500 !important;
-    letter-spacing: .03em !important;
+    letter-spacing: normal !important;
     color: var(--sc-progress-text) !important;
 }
 .sc-drawer:not(.sc-offers-active) .sc-progress.sc-cart-goal-progress .sc-milestone{
@@ -7530,6 +7512,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   -webkit-line-clamp:2 !important;
   -webkit-box-orient:vertical !important;
   overflow:hidden !important;
+  letter-spacing: normal;
 }
 .sc-drawer.sc-offers-active .sc-offer-code-copy{
   display:flex !important;
@@ -7685,7 +7668,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         </div>
 
         <div class="sc-legends"></div>
-        <div class="sc-progress-loading" aria-hidden="true"></div>
+      </div>
+      <div class="sc-line-loader" data-sc-line-loader hidden aria-hidden="true">
+        <div class="sc-line-loader-bg">
+          <div class="sc-line-loader-runner"></div>
+        </div>
       </div>
       <div class="sc-cart-msg" data-sc-cart-msg hidden>
         <p class="sc-cart-msg-text" data-sc-cart-msg-text></p>
@@ -7694,15 +7681,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       <div class="sc-items-list">
         <div class="sc-empty">Loading cart…</div>
       </div>
-      <div class="sc-items-loading" aria-hidden="true">
-        <div class="sc-layered-loader" role="status" aria-label="Loading cart">
-          <span class="sc-layered-loader-ring" aria-hidden="true"></span>
-          <span class="sc-layered-loader-ring" aria-hidden="true"></span>
-          <span class="sc-layered-loader-ring" aria-hidden="true"></span>
-          <span class="sc-layered-loader-ring" aria-hidden="true"></span>
-          <span class="sc-layered-loader-label" aria-hidden="true">LOADING...</span>
-        </div>
-      </div>
       <div class="sc-items-footer">
         <div class="sc-cartgoal-bonus" hidden></div>
         <div class="sc-upsell" hidden></div>
@@ -7710,16 +7688,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     </div>
 
     <div class="sc-offers" data-offers-panel hidden></div>
-    <div class="sc-discount-loading-overlay" data-discount-loading hidden aria-live="polite" aria-label="Applying discount code">
-      <div class="sc-layered-loader" role="status" aria-label="Applying discount code">
-        <span class="sc-layered-loader-ring" aria-hidden="true"></span>
-        <span class="sc-layered-loader-ring" aria-hidden="true"></span>
-        <span class="sc-layered-loader-ring" aria-hidden="true"></span>
-        <span class="sc-layered-loader-ring" aria-hidden="true"></span>
-        <span class="sc-layered-loader-label" aria-hidden="true">LOADING...</span>
-      </div>
-    </div>
-
     <div class="sc-footer">
       <div class="sc-footer-milestones" data-footer-milestones hidden></div>
       <div class="sc-discount" data-discount-panel hidden>
@@ -8541,6 +8509,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const applyDiscountApplyLoadingState = (isLoading) => {
     const active = !!isLoading;
     drawer.classList.toggle("sc-applying-discount", active);
+    const lineLoader = drawer.querySelector("[data-sc-line-loader]");
+    if (lineLoader) {
+      const shouldShowLine = active || drawer.classList.contains("sc-refreshing");
+      lineLoader.hidden = !shouldShowLine;
+      lineLoader.setAttribute("aria-hidden", shouldShowLine ? "false" : "true");
+    }
     if (discountLoadingOverlay) discountLoadingOverlay.hidden = !active;
     if (discountButton) discountButton.disabled = active;
     if (discountInput) discountInput.disabled = active;
@@ -9692,15 +9666,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     // ✅ Proper Offer Tab Icons: shipping / order discount / code discount
     if (["shipping", "freeshipping", "offershipping"].includes(normalized)) {
-      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-        <path d="M3 7.75C3 6.784 3.784 6 4.75 6H14v9.5H7.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M14 9h3.05c.55 0 1.064.273 1.372.73L21 13.55v1.95h-2.25" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M3 11h5M2.5 14h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        <circle cx="7.75" cy="17" r="1.75" stroke="currentColor" stroke-width="1.8"/>
-        <circle cx="18.75" cy="17" r="1.75" stroke="currentColor" stroke-width="1.8"/>
+      return `<svg class="sc-offer-shipping-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 80" fill="none" aria-hidden="true" focusable="false">
+        <g stroke="currentColor" stroke-width="5" style="fill:none !important;stroke:currentColor !important;">
+          <g stroke-linecap="round" stroke-linejoin="round" style="fill:none !important;stroke:currentColor !important;">
+            <path d="M43 66h45M10.5 55.5V63a3 3 0 0 0 3 3h7m99-37H104a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h23M10 40.5V6a3 3 0 0 1 3-3h71a3 3 0 0 1 3 3v46a3 3 0 0 1-3 3H48.5" style="fill:none !important;stroke:currentColor !important;"/>
+            <path d="M3 47.5h16.5M3 54.5h7.5m77-36h25.057a3 3 0 0 1 2.738 1.773l11.943 26.642a3 3 0 0 1 .262 1.227V63.5a3 3 0 0 1-3 3h-13" style="fill:none !important;stroke:currentColor !important;"/>
+          </g>
+          <circle cx="32" cy="66" r="11.5" stroke-linejoin="round" style="fill:none !important;stroke:currentColor !important;"/>
+          <circle cx="100" cy="66" r="11.5" stroke-linejoin="round" style="fill:none !important;stroke:currentColor !important;"/>
+        </g>
+        <path d="M63.4 31.263v12.895c0 1.017-.806 1.842-1.8 1.842H36.4c-.994 0-1.8-.825-1.8-1.842V31.263h28.8zM53.5 11c3.479 0 6.3 2.887 6.3 6.447 0 .99-.218 1.927-.607 2.765l6.007-.002c.994 0 1.8.825 1.8 1.842v5.526c0 1.017-.806 1.842-1.8 1.842H32.8c-.994 0-1.8-.825-1.8-1.842v-5.526c0-1.017.806-1.842 1.8-1.842l6.007.002c-.389-.838-.607-1.775-.607-2.765 0-3.561 2.821-6.447 6.3-6.447 1.764 0 3.359.742 4.502 1.938C50.141 11.742 51.736 11 53.5 11zm-9 3.684c-1.491 0-2.7 1.237-2.7 2.763 0 1.436 1.071 2.617 2.44 2.751l.26.013h2.7v-2.763c0-1.436-1.071-2.617-2.44-2.75l-.26-.013zm9 0l-.26.013c-1.284.126-2.305 1.171-2.428 2.484l-.012.266v2.763h2.7l.26-.013c1.369-.134 2.44-1.314 2.44-2.751s-1.071-2.617-2.44-2.75l-.26-.013z" fill="currentColor" style="fill:currentColor !important;stroke:none !important;"/>
       </svg>`;
     }
-
     if (["code", "codediscount", "discountcode", "coupon", "couponcode"].includes(normalized)) {
       return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
         <path d="M4.75 6.5h14.5c.69 0 1.25.56 1.25 1.25v2.1a2.15 2.15 0 0 0 0 4.3v2.1c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.1a2.15 2.15 0 0 0 0-4.3v-2.1c0-.69.56-1.25 1.25-1.25Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
@@ -9711,15 +9688,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
 
     if (["discount", "orderdiscount", "offerdiscount", "automaticdiscount", "orderoffer"].includes(normalized)) {
-      return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4.75 5.5h8.1c.398 0 .78.158 1.061.44l5.15 5.149a1.5 1.5 0 0 1 0 2.122l-5.85 5.85a1.5 1.5 0 0 1-2.122 0l-6.15-6.15A1.5 1.5 0 0 1 4.5 11.85v-6.1c0-.138.112-.25.25-.25Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-        <circle cx="8.25" cy="8.25" r="1.25" fill="currentColor"/>
-        <path d="M10 15l5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        <circle cx="10.5" cy="10.5" r=".95" fill="currentColor"/>
-        <circle cx="14.5" cy="14.5" r=".95" fill="currentColor"/>
+      return `<svg class="sc-offer-order-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true" focusable="false">
+        <path d="M28 7h-2V6c0-2.757-2.243-5-5-5a4.95 4.95 0 0 0-2 .424A4.95 4.95 0 0 0 17 1c-2.757 0-5 2.243-5 5v1h-2c-1.654 0-3 1.346-3 3v3H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h5v1c0 1.654 1.346 3 3 3h14 4c1.654 0 3-1.346 3-3V10c0-1.654-1.346-3-3-3zm-4-1v1h-2V6c0-1.129-.39-2.16-1.024-2.998.008 0 .016-.002.024-.002 1.654 0 3 1.346 3 3zm-5-2.22c.609.55 1 1.337 1 2.22v1h-2V6c0-.883.391-1.67 1-2.22zM14 6c0-1.654 1.346-3 3-3 .008 0 .016.002.024.002C16.39 3.84 16 4.871 16 6v1h-2V6zM3 15h10.382l2.5 5-2.5 5H3V15zm14.895 4.553L15.618 15h1.764l2.5 5-2.5 5h-1.764l2.276-4.553a1 1 0 0 0 .001-.894zM9 28v-1h5 4a1 1 0 0 0 .895-.553l3-6a1 1 0 0 0 0-.895l-3-6A1 1 0 0 0 18 13h-4-5v-3a1 1 0 0 1 1-1h2v1a1 1 0 1 0 2 0V9h6v1a1 1 0 1 0 2 0V9h2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1zm20 0a1 1 0 0 1-1 1h-1.184c.112-.314.184-.648.184-1V10c0-.352-.072-.686-.184-1H28a1 1 0 0 1 1 1v18z"/>
+        <circle cx="6.5" cy="17.5" r="1.5"/>
+        <circle cx="10.5" cy="22.5" r="1.5"/>
+        <path d="M11.641 16.232a1 1 0 0 0-1.409.128l-5 6a1 1 0 0 0 .128 1.408c.187.156.413.232.639.232.287 0 .571-.123.77-.36l5-6a1 1 0 0 0-.128-1.408z"/>
       </svg>`;
     }
-
     if (["bxgy", "buyxgety", "buyxgetydiscount", "buyget"].includes(normalized)) {
       return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
         <path d="M5 9h14v10.25c0 .414-.336.75-.75.75H5.75a.75.75 0 0 1-.75-.75V9Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
@@ -10204,7 +10179,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     DISCOUNT_PANEL_STYLE_ENABLED = style?.discountCodeApply === true || style?.discountCodeApply === 1;
     const r = document.documentElement.style;
 
-    const baseFontSize = Math.max(10, Number(style?.base) || 16);
+    const baseFontSize = Math.max(10, Number(style?.base) || 14);
     const headingScaleValue = Math.max(1, Number(style?.headingScale) || 1.25);
     const radius = Math.max(0, Number(style?.radius) || 10);
     const cardBg = pickColor(style, ["bg"], "#ffffff");
