@@ -10290,19 +10290,33 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const getOfferProductThumbs = (type, rule) => {
-    const products = [
-      ...parseArrayish(rule?.bonusProducts),
-      ...parseArrayish(rule?.rewardProducts),
-      ...parseArrayish(rule?.products),
-    ];
-    const ids = [
-      ...parseArrayish(rule?.bonusProductIds),
-      ...parseArrayish(rule?.rewardProductIds),
-      ...parseArrayish(rule?.giftSku),
-      trimToNull(rule?.bonusProductId),
-      trimToNull(rule?.bonus),
-    ].filter(Boolean);
+    const normalizedType = String(type || "").toLowerCase();
+    const isRewardType = normalizedType === "free" || normalizedType === "bxgy" || normalizedType === "buyxgety";
     const out = [];
+
+    if (isRewardType) {
+      const productIds = getFreeGiftProductIds(rule, normalizedType === "free" ? "free" : "buyxgety");
+      productIds.slice(0, 4).forEach((id, index) => {
+        const meta = getFreeGiftProductMeta(rule, id, index, normalizedType === "free" ? "free" : "buyxgety");
+        const title =
+          trimToNull(meta?.title) ||
+          trimToNull(meta?.name) ||
+          trimToNull(meta?.productTitle) ||
+          String(id).split("/").pop() ||
+          (normalizedType === "free" ? "Gift" : "Offer");
+        const image =
+          trimToNull(meta?.image) ||
+          trimToNull(meta?.featuredImage?.url) ||
+          trimToNull(meta?.featuredImage) ||
+          trimToNull(meta?.productImage) ||
+          "";
+        out.push({ title, image });
+      });
+      if (!out.length) out.push({ title: normalizedType === "free" ? "Gift" : "Offer", image: "" });
+      return out.slice(0, 4);
+    }
+
+    const products = [...parseArrayish(rule?.products)];
     products.forEach((product) => {
       const title =
         trimToNull(product?.title) ||
@@ -10317,13 +10331,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         "";
       out.push({ title, image });
     });
-    ids.forEach((id) => {
-      if (out.length >= 4) return;
-      out.push({ title: String(id).split("/").pop() || "Gift", image: "" });
-    });
-    if (!out.length && (type === "bxgy" || type === "buyxgety" || type === "free")) {
-      out.push({ title: type === "free" ? "Gift" : "Offer", image: "" });
-    }
+
     return out.slice(0, 4);
   };
 
@@ -11497,7 +11505,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return true;
     }
 
-    const variantToAdd = await resolveRewardVariantForAdd(rule, variant);
+    const variantToAdd = await resolveRewardVariantForAdd(rule, variant, kind);
     const legacyId = getVariantLegacyId(variantToAdd);
 
     // Guard: /cart/add.js needs a numeric VARIANT ID, not a Product ID/GID.
@@ -11521,30 +11529,44 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     try {
       setProgressLoading(true);
 
-      const body = new URLSearchParams();
-      body.set("id", legacyId);
-      body.set("quantity", String(Math.max(1, Number(qty || 1))));
+      const properties = {};
 
       if (kind === "free") {
-        body.set(`properties[${FREE_GIFT_PROPERTY}]`, "true");
-        if (slot) body.set(`properties[${FREE_GIFT_RULE_PROPERTY}]`, String(slot));
-        if (variantToAdd?.id) body.set(`properties[${FREE_GIFT_VARIANT_PROPERTY}]`, String(variantToAdd.id));
+        properties[FREE_GIFT_PROPERTY] = "true";
+        if (slot) properties[FREE_GIFT_RULE_PROPERTY] = String(slot);
+        if (variantToAdd?.id) properties[FREE_GIFT_VARIANT_PROPERTY] = String(variantToAdd.id);
         const freeRuleKey = getRuleKey(rule, "free");
-        if (freeRuleKey) body.set(`properties[${FREE_GIFT_RULE_KEY_PROPERTY}]`, freeRuleKey);
+        if (freeRuleKey) properties[FREE_GIFT_RULE_KEY_PROPERTY] = freeRuleKey;
         const freeDiscountId = getFreeGiftDiscountId(rule);
-        if (freeDiscountId) body.set(`properties[${FREE_GIFT_DISCOUNT_PROPERTY}]`, freeDiscountId);
+        if (freeDiscountId) properties[FREE_GIFT_DISCOUNT_PROPERTY] = freeDiscountId;
       } else {
-        body.set(`properties[${BXGY_GIFT_PROPERTY}]`, "true");
-        body.set(`properties[${BXGY_GIFT_KIND_PROPERTY}]`, String(kind || "bxgy"));
-        if (ruleKey) body.set(`properties[${BXGY_GIFT_RULE_PROPERTY}]`, String(ruleKey));
-        if (variantToAdd?.id) body.set(`properties[${BXGY_GIFT_VARIANT_PROPERTY}]`, String(variantToAdd.id));
+        properties[BXGY_GIFT_PROPERTY] = "true";
+        properties[BXGY_GIFT_KIND_PROPERTY] = String(kind || "bxgy");
+        if (ruleKey) properties[BXGY_GIFT_RULE_PROPERTY] = String(ruleKey);
+        if (variantToAdd?.id) properties[BXGY_GIFT_VARIANT_PROPERTY] = String(variantToAdd.id);
       }
+
+      // Shopify can return { items: missing } when a JSON add request does not
+      // include the `items` array. Always use the canonical AJAX Cart payload
+      // for reward products so Free Gift and Buy X Get Y adds are accepted.
+      const payload = {
+        items: [
+          {
+            id: Number(legacyId),
+            quantity: Math.max(1, Number(qty || 1)),
+            properties,
+          },
+        ],
+      };
 
       const res = await fetch("/cart/add.js", {
         method: "POST",
-        headers: { Accept: "application/json" },
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
         credentials: "same-origin",
-        body,
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -11987,18 +12009,39 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return normalizeResourceId(raw);
   };
 
-  const resolveRewardVariantForAdd = async (rule, variant) => {
+  const resolveRewardVariantForAdd = async (rule, variant, kind = "free") => {
     if (getVariantLegacyId(variant)) return variant;
+    const normalizedKind = String(kind || "free").toLowerCase();
+    const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
     const giftType = String(rule?.giftType || "").toLowerCase();
     const giftSkuRaw = firstGiftSkuProductId(rule?.giftSku);
-    const productIdCandidate =
-      trimToNull(variant?.productId) ||
-      trimToNull(rule?.bonusProductId) ||
-      trimToNull(rule?.bonus) ||
-      (giftType === "specific" && giftSkuRaw
-        ? normalizeProductNumericId(giftSkuRaw) || gidToId(giftSkuRaw) || giftSkuRaw
-        : null) ||
-      null;
+
+    const productIdCandidate = isBxgyReward
+      ? (
+        trimToNull(variant?.productId) ||
+        trimToNull(rule?.rewardProductId) ||
+        trimToNull(rule?.reward_product_id) ||
+        trimToNull(rule?.getProductId) ||
+        trimToNull(rule?.get_product_id) ||
+        trimToNull(rule?.yProductId) ||
+        trimToNull(rule?.y_product_id) ||
+        (giftSkuRaw ? normalizeProductNumericId(giftSkuRaw) || gidToId(giftSkuRaw) || giftSkuRaw : null) ||
+        null
+      )
+      : (
+        trimToNull(variant?.productId) ||
+        trimToNull(rule?.bonusProductId) ||
+        trimToNull(rule?.bonus) ||
+        trimToNull(rule?.freeProductId) ||
+        trimToNull(rule?.free_product_id) ||
+        trimToNull(rule?.giftProductId) ||
+        trimToNull(rule?.gift_product_id) ||
+        (giftType === "specific" && giftSkuRaw
+          ? normalizeProductNumericId(giftSkuRaw) || gidToId(giftSkuRaw) || giftSkuRaw
+          : null) ||
+        null
+      );
+
     if (!productIdCandidate) return variant;
     const resolved = await resolveVariantFromProductId(productIdCandidate);
     return resolved || variant;
@@ -12050,20 +12093,31 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       );
     }
 
-    // Standard variant fields (FreeGiftRule / legacy BXGY formats)
+    // Standard BXGY reward fields. Do not use bonusProductId/bonus here;
+    // those belong to Free Gift/Cart Goal rules and caused free gifts to show
+    // inside Buy X Get Y.
     const fromStandard =
-      rule?.bonusProductVariant ||
       rule?.yProductVariant ||
       rule?.getProductVariant ||
-      rule?.giftProductVariant ||
-      rule?.freeProductVariant ||
+      rule?.rewardProductVariant ||
       rule?.rewardVariant ||
       rule?.variant ||
       rule?.productVariant ||
-      rule?.freeVariant ||
-      fromBonusId() ||
       null;
     if (fromStandard) return fromStandard;
+
+    const rewardProductId =
+      trimToNull(rule?.rewardProductId) ||
+      trimToNull(rule?.reward_product_id) ||
+      trimToNull(rule?.getProductId) ||
+      trimToNull(rule?.get_product_id) ||
+      trimToNull(rule?.yProductId) ||
+      trimToNull(rule?.y_product_id) ||
+      null;
+    if (rewardProductId) {
+      const productId = normalizeProductNumericId(rewardProductId) || gidToId(rewardProductId) || rewardProductId;
+      return { productId: String(productId) };
+    }
 
     // BxgyRule: giftType "specific" — giftSku stores the reward product ID
     const giftType = String(rule?.giftType || "same").toLowerCase();
@@ -12466,47 +12520,68 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const getFreeGiftProductIds = (rule, kind = "free") => {
     const normalizedKind = String(kind || "free").toLowerCase();
     const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
+
+    // Keep reward sources separated. Buy X Get Y must never fall back to
+    // Free Gift/Cart Goal bonus fields, otherwise every free gift can appear
+    // inside the BXGY popup.
     const products = isBxgyReward
       ? [
         ...parseArrayish(rule?.rewardProducts),
         ...parseArrayish(rule?.reward_products),
         ...parseArrayish(rule?.getProducts),
         ...parseArrayish(rule?.get_products),
+        ...parseArrayish(rule?.yProducts),
+        ...parseArrayish(rule?.y_products),
       ]
       : [
         ...parseArrayish(rule?.bonusProducts),
         ...parseArrayish(rule?.bonus_products),
+        ...parseArrayish(rule?.freeProducts),
+        ...parseArrayish(rule?.free_products),
+        ...parseArrayish(rule?.giftProducts),
+        ...parseArrayish(rule?.gift_products),
       ];
-    const bonusIds = refsFromValue(rule?.bonusProductIds).map(normalizeResourceId).filter(Boolean);
-    const rewardIds = [
-      ...refsFromValue(rule?.rewardProductIds),
-      ...refsFromValue(rule?.reward_product_ids),
-    ].map(normalizeResourceId).filter(Boolean);
-    const getProductIds = refsFromValue(rule?.getProductIds || rule?.yProductIds).map(normalizeResourceId).filter(Boolean);
-    const giftSkuIds = refsFromValue(rule?.giftSku).map(normalizeResourceId).filter(Boolean);
-    const ids = isBxgyReward
-      ? (rewardIds.length > 0 ? rewardIds : getProductIds.length > 0 ? getProductIds : giftSkuIds)
-      : (bonusIds.length > 0 ? bonusIds : rewardIds.length > 0 ? rewardIds : giftSkuIds);
 
-    const stringFallbackIds =
-      !ids.length && typeof rule?.bonusProductIds === "string" && trimToNull(rule.bonusProductIds)
-        ? [rule.bonusProductIds]
-        : [];
-    const fallback = isBxgyReward
-      ? (
-        trimToNull(rule?.rewardProductId) ||
-        trimToNull(rule?.getProductId) ||
-        trimToNull(rule?.yProductId) ||
-        trimToNull(rule?.bonusProductId) ||
-        trimToNull(rule?.bonus)
-      )
-      : (trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus));
+    const ids = isBxgyReward
+      ? [
+        ...refsFromValue(rule?.rewardProductIds),
+        ...refsFromValue(rule?.reward_product_ids),
+        ...refsFromValue(rule?.getProductIds),
+        ...refsFromValue(rule?.get_product_ids),
+        ...refsFromValue(rule?.yProductIds),
+        ...refsFromValue(rule?.y_product_ids),
+        ...refsFromValue(rule?.giftSku),
+        trimToNull(rule?.rewardProductId),
+        trimToNull(rule?.reward_product_id),
+        trimToNull(rule?.getProductId),
+        trimToNull(rule?.get_product_id),
+        trimToNull(rule?.yProductId),
+        trimToNull(rule?.y_product_id),
+      ]
+      : [
+        ...refsFromValue(rule?.bonusProductIds),
+        ...refsFromValue(rule?.bonus_product_ids),
+        ...refsFromValue(rule?.freeProductIds),
+        ...refsFromValue(rule?.free_product_ids),
+        ...refsFromValue(rule?.giftProductIds),
+        ...refsFromValue(rule?.gift_product_ids),
+        trimToNull(rule?.bonusProductId),
+        trimToNull(rule?.bonus_product_id),
+        trimToNull(rule?.bonus),
+        trimToNull(rule?.freeProductId),
+        trimToNull(rule?.free_product_id),
+        trimToNull(rule?.giftProductId),
+        trimToNull(rule?.gift_product_id),
+      ];
+
     const productIds = products
       .map((product) => trimToNull(product?.id || product?.productId || product?.product_id))
       .filter(Boolean);
-    const allIds = [...ids, ...stringFallbackIds, ...productIds, fallback]
+
+    const allIds = [...ids, ...productIds]
       .map((id) => normalizeResourceId(id) || trimToNull(id))
       .filter(Boolean);
+
     const seen = new Set();
     return allIds.filter((id) => {
       const key = String(normalizeProductNumericId(id) || gidToId(id) || id).trim();
@@ -12516,16 +12591,27 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
   };
 
-  const getFreeGiftProductMeta = (rule, productId, index) => {
-    const products = [
-      ...parseArrayish(rule?.bonusProducts),
-      ...parseArrayish(rule?.bonus_products),
-      ...parseArrayish(rule?.rewardProducts),
-      ...parseArrayish(rule?.reward_products),
-      ...parseArrayish(rule?.getProducts),
-      ...parseArrayish(rule?.get_products),
-      ...parseArrayish(rule?.products),
-    ];
+  const getFreeGiftProductMeta = (rule, productId, index, kind = "free") => {
+    const normalizedKind = String(kind || "free").toLowerCase();
+    const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
+    const products = isBxgyReward
+      ? [
+        ...parseArrayish(rule?.rewardProducts),
+        ...parseArrayish(rule?.reward_products),
+        ...parseArrayish(rule?.getProducts),
+        ...parseArrayish(rule?.get_products),
+        ...parseArrayish(rule?.yProducts),
+        ...parseArrayish(rule?.y_products),
+      ]
+      : [
+        ...parseArrayish(rule?.bonusProducts),
+        ...parseArrayish(rule?.bonus_products),
+        ...parseArrayish(rule?.freeProducts),
+        ...parseArrayish(rule?.free_products),
+        ...parseArrayish(rule?.giftProducts),
+        ...parseArrayish(rule?.gift_products),
+      ];
+
     const byId = products.find((product) => {
       const id = trimToNull(product?.id || product?.productId || product?.product_id);
       const normalizedId = normalizeProductNumericId(id) || gidToId(id) || id;
@@ -12536,7 +12622,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const getFreeGiftVariantFromRule = (rule, productId, index, kind = "free") => {
-    const productMeta = getFreeGiftProductMeta(rule, productId, index);
+    const productMeta = getFreeGiftProductMeta(rule, productId, index, kind);
     const normalizedKind = String(kind || "free").toLowerCase();
     const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
     const hasProductMetaVariant = !!(
@@ -12553,13 +12639,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           trimToNull(rule?.getProductVariantId) ||
           trimToNull(rule?.get_product_variant_id) ||
           trimToNull(rule?.yProductVariantId) ||
-          trimToNull(rule?.y_product_variant_id)
+          trimToNull(rule?.y_product_variant_id) ||
+          trimToNull(rule?.giftSkuVariantId) ||
+          trimToNull(rule?.gift_sku_variant_id)
         )
-        : null) ||
-      trimToNull(rule?.bonusProductVariantId) ||
-      trimToNull(rule?.bonus_product_variant_id) ||
-      trimToNull(rule?.freeProductVariantId) ||
-      trimToNull(rule?.giftProductVariantId) ||
+        : (
+          trimToNull(rule?.bonusProductVariantId) ||
+          trimToNull(rule?.bonus_product_variant_id) ||
+          trimToNull(rule?.freeProductVariantId) ||
+          trimToNull(rule?.free_product_variant_id) ||
+          trimToNull(rule?.giftProductVariantId) ||
+          trimToNull(rule?.gift_product_variant_id)
+        )) ||
       null;
     if (!rawVariantId) return null;
 
@@ -12590,11 +12681,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       legacyResourceId: gidToId(variantGid),
       productId: normalizeProductNumericId(productId || firstProductId),
       product: {
-        title: trimToNull(productMeta?.title) || trimToNull(rule?.rewardProductTitle) || trimToNull(rule?.bonusProductTitle) || trimToNull(rule?.productTitle) || "",
-        image: trimToNull(productMeta?.image) || trimToNull(rule?.rewardProductImage) || trimToNull(rule?.bonusProductImage) || trimToNull(rule?.productImage) || "",
+        title: trimToNull(productMeta?.title) || (isBxgyReward ? trimToNull(rule?.rewardProductTitle) || trimToNull(rule?.getProductTitle) || trimToNull(rule?.yProductTitle) : trimToNull(rule?.bonusProductTitle) || trimToNull(rule?.freeProductTitle) || trimToNull(rule?.giftProductTitle)) || trimToNull(rule?.productTitle) || "",
+        image: trimToNull(productMeta?.image) || (isBxgyReward ? trimToNull(rule?.rewardProductImage) || trimToNull(rule?.getProductImage) || trimToNull(rule?.yProductImage) : trimToNull(rule?.bonusProductImage) || trimToNull(rule?.freeProductImage) || trimToNull(rule?.giftProductImage)) || trimToNull(rule?.productImage) || "",
       },
-      title: trimToNull(productMeta?.variantTitle) || trimToNull(rule?.rewardProductVariantTitle) || trimToNull(rule?.bonusProductVariantTitle) || "",
-      image: trimToNull(productMeta?.image) || trimToNull(rule?.rewardProductImage) || trimToNull(rule?.bonusProductImage) || trimToNull(rule?.productImage) || "",
+      title: trimToNull(productMeta?.variantTitle) || (isBxgyReward ? trimToNull(rule?.rewardProductVariantTitle) || trimToNull(rule?.getProductVariantTitle) || trimToNull(rule?.yProductVariantTitle) : trimToNull(rule?.bonusProductVariantTitle) || trimToNull(rule?.freeProductVariantTitle) || trimToNull(rule?.giftProductVariantTitle)) || "",
+      image: trimToNull(productMeta?.image) || (isBxgyReward ? trimToNull(rule?.rewardProductImage) || trimToNull(rule?.getProductImage) || trimToNull(rule?.yProductImage) : trimToNull(rule?.bonusProductImage) || trimToNull(rule?.freeProductImage) || trimToNull(rule?.giftProductImage)) || trimToNull(rule?.productImage) || "",
     };
   };
 
@@ -12649,18 +12740,29 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       variants.find((item) => isVariantAvailable(item)) ||
       null;
     if (!selectedVariant || !getVariantLegacyId(selectedVariant) || isRewardVariantUnavailable(selectedVariant)) return null;
-    const optionRule = {
-      ...rule,
-      bonusProductId: productId,
-      bonus: productId,
-      bonusProductIds: [productId],
-    };
+    const normalizedKind = String(kind || "free").toLowerCase();
+    const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
+    const optionRule = isBxgyReward
+      ? {
+        ...rule,
+        rewardProductId: productId,
+        rewardProductIds: [productId],
+        getProductId: productId,
+        getProductIds: [productId],
+      }
+      : {
+        ...rule,
+        bonusProductId: productId,
+        bonus: productId,
+        bonusProductIds: [productId],
+      };
     const productName =
       trimToNull(product?.title) ||
       trimToNull(selectedVariant?.product?.title) ||
       trimToNull(selectedVariant?.productTitle) ||
-      trimToNull(rule?.rewardProductTitle) ||
-      trimToNull(rule?.bonusProductTitle) ||
+      (isBxgyReward
+        ? trimToNull(rule?.rewardProductTitle) || trimToNull(rule?.getProductTitle) || trimToNull(rule?.yProductTitle)
+        : trimToNull(rule?.bonusProductTitle) || trimToNull(rule?.freeProductTitle) || trimToNull(rule?.giftProductTitle)) ||
       trimToNull(rule?.productTitle) ||
       "Free gift";
     const variantOptions = (Array.isArray(product?.options) ? product.options : [])
@@ -12686,20 +12788,20 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       selectedOptions,
       qty: getRewardQtyFromRule(kind, optionRule),
       title: productName,
-      image: trimToNull(product?.image) || trimToNull(selectedVariant?.image) || trimToNull(selectedVariant?.product?.image) || trimToNull(rule?.rewardProductImage) || trimToNull(rule?.bonusProductImage) || "",
+      image: trimToNull(product?.image) || trimToNull(selectedVariant?.image) || trimToNull(selectedVariant?.product?.image) || (isBxgyReward ? trimToNull(rule?.rewardProductImage) || trimToNull(rule?.getProductImage) || trimToNull(rule?.yProductImage) : trimToNull(rule?.bonusProductImage) || trimToNull(rule?.freeProductImage) || trimToNull(rule?.giftProductImage)) || "",
       priceCents: centsFromDecimalPrice(selectedVariant?.price),
     };
   };
 
   const getImmediateFreeGiftOptions = (rule, kind = "free") => {
     const productIds = getFreeGiftProductIds(rule, kind);
-    const rawOptions = productIds.length ? productIds : [trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus)].filter(Boolean);
+    const rawOptions = productIds;
     const options = rawOptions
       .map((productId, index) => buildFreeGiftOption({
         rule,
         productId,
         variant: getFreeGiftVariantFromRule(rule, productId, index, kind),
-        product: normalizeStoredRewardProduct(getFreeGiftProductMeta(rule, productId, index), productId),
+        product: normalizeStoredRewardProduct(getFreeGiftProductMeta(rule, productId, index, kind), productId),
         index,
         kind,
       }))
@@ -12709,22 +12811,32 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const resolveFreeGiftOptions = async (rule, kind = "free") => {
     const productIds = getFreeGiftProductIds(rule, kind);
-    const rawOptions = productIds.length ? productIds : [trimToNull(rule?.bonusProductId) || trimToNull(rule?.bonus)].filter(Boolean);
+    const rawOptions = productIds;
     const options = [];
 
     for (let index = 0; index < rawOptions.length; index += 1) {
       const productId = rawOptions[index];
-      const optionRule = {
-        ...rule,
-        bonusProductId: productId,
-        bonus: productId,
-        bonusProductIds: [productId],
-      };
+      const normalizedKind = String(kind || "free").toLowerCase();
+      const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
+      const optionRule = isBxgyReward
+        ? {
+          ...rule,
+          rewardProductId: productId,
+          rewardProductIds: [productId],
+          getProductId: productId,
+          getProductIds: [productId],
+        }
+        : {
+          ...rule,
+          bonusProductId: productId,
+          bonus: productId,
+          bonusProductIds: [productId],
+        };
       const directVariant = getFreeGiftVariantFromRule(rule, productId, index, kind);
       const product =
-        normalizeStoredRewardProduct(getFreeGiftProductMeta(rule, productId, index), productId) ||
+        normalizeStoredRewardProduct(getFreeGiftProductMeta(rule, productId, index, kind), productId) ||
         await resolveRewardProductForOptions(productId);
-      const variant = directVariant || product?.variants?.[0] || await resolveRewardVariantForAdd(optionRule, { productId });
+      const variant = directVariant || product?.variants?.[0] || await resolveRewardVariantForAdd(optionRule, { productId }, kind);
       const option = buildFreeGiftOption({ rule, productId, variant, product, index, kind });
       if (!option) {
         console.warn(`[SmartCartify] skipping option ${index}: variant resolution failed`);
