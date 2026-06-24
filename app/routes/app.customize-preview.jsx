@@ -40,28 +40,28 @@ const DEFAULT_STYLE = {
   font: "",
   base: "12",
   headingScale: "1.25",
-  radius: "0",
-  textColor: "#000000",
-  bg: "#ffffff",
-  progress: "#000000",
+  radius: "12",
+  textColor: "#102864",
+  bg: "#f4f4f7",
+  progress: "#A93DEA",
   progressBg: "#ffffff",
-  buttonColor: "#000000",
+  buttonColor: "#A93DEA",
   buttonLabelColor: "#ffffff",
   borderColor: "#E1E5ED",
-  iconColor: "#000000",
-  announcementBarBackgroundColor: "#000000",
+  iconColor: "#102864",
+  announcementBarBackgroundColor: "#102864",
   announcementBarTextColor: "#ffffff",
-  cartDrawerBackgroundMode: "color",
-  cartDrawerBackground: "#ffffff",
+  cartDrawerBackgroundMode: "gradient",
+  cartDrawerBackground: "#f4f4f7",
   cartDrawerImage: "",
-  cartDrawerGradientStart: "#ffffff",
-  cartDrawerGradientEnd: "#f9f9f9",
-  cartDrawerTextColor: "#000000",
-  cartDrawerHeaderColor: "#000000",
+  cartDrawerGradientStart: "#ff3b30",
+  cartDrawerGradientEnd: "#f8dfd0",
+  cartDrawerTextColor: "#102864",
+  cartDrawerHeaderColor: "#ffffff",
   cartIconType: "default",
   cartDefaultIcon: "cart",
   cartIconUrl: "",
-  discountCodeApply: false,
+  discountCodeApply: true,
   checkoutButtonText: "Checkout",
   drawerAutoOpen: true,
   drawerPosition: "right",
@@ -714,7 +714,7 @@ export const action = async ({ request }) => {
 function SectionCard({ icon, title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "12px", overflow: "hidden" }}>
+    <div style={{ background: "#fff", border: "1px solid #e1e3e5", borderRadius: "0.75em", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: open ? "1px solid #e1e3e5" : "none" }}>
         <InlineStack gap="200" blockAlign="center">
           <Icon source={icon} />
@@ -797,7 +797,7 @@ function ColorField({ label, value, onChange }) {
         type="color"
         value={toColorInputValue(value)}
         onChange={(e) => onChange(e.target.value)}
-        style={{ width: 36, height: 36, padding: 2, border: "1px solid #e1e3e5", borderRadius: 6, cursor: "pointer", flexShrink: 0 }}
+        style={{ width: 36, height: 36, padding: 2, border: "1px solid #e1e3e5", borderRadius: "0.75em", cursor: "pointer", flexShrink: 0 }}
         title={label}
       />
       <div style={{ flex: 1, minWidth: 90 }}>
@@ -1131,6 +1131,7 @@ function CartDrawerPreview({
   shopCurrencyCode = DEFAULT_CURRENCY_CODE,
 }) {
   const r = Math.max(Number(radius) || 12, 12);
+  const previewRadius = "0.75em";
   const fs = Math.max(Number(base) || 12, 10);
   const headingFs = Math.max(20, Number((fs * (Number(headingScale) || 1.25)).toFixed(2)));
   const fontFamily = font || DEFAULT_STYLE.font;
@@ -1471,11 +1472,11 @@ function CartDrawerPreview({
   const headerCartIcon = CART_DEFAULT_ICON_MAP[normalizeDefaultCartIcon(cartDefaultIcon)] || CartIcon;
   const isBottomSheetPreview = mobileLayout === "bottom_sheet";
   const previewHeight = isBottomSheetPreview ? 620 : 680;
-  const cartPreviewCount = Math.max(3, freeProducts.length + 2);
+  const cartPreviewCount = 1;
   const totalPrice = formatCurrencyAmount(331.14, shopCurrencyCode);
   const discountPrice = `-${formatCurrencyAmount(82.78, shopCurrencyCode)}`;
 
-  const ProductImage = ({ src, alt, size = 58, radiusPx = 10 }) => (
+  const ProductImage = ({ src, alt, size = 58, radiusPx = previewRadius }) => (
     <img
       src={normalizePreviewImage(src)}
       alt={alt || "Product"}
@@ -1567,7 +1568,7 @@ function CartDrawerPreview({
         alignItems: "center",
         gap: 5,
         minHeight: 24,
-        borderRadius: 6,
+        borderRadius: previewRadius,
         padding: "4px 9px",
         background: withAlpha(pc, 0.12),
         color: ic,
@@ -1590,7 +1591,7 @@ function CartDrawerPreview({
         gap: 12,
         alignItems: "center",
         padding: "15px 14px",
-        borderBottom: index === 2 ? "none" : `1px solid ${brc}`,
+        borderBottom: index === cartRows.length - 1 ? "none" : `1px solid ${brc}`,
         background: "#ffffff",
       }}
     >
@@ -1604,9 +1605,9 @@ function CartDrawerPreview({
         </div>
         {item.qty && (
           <InlineStack gap="200" blockAlign="center" wrap={false}>
-            <button type="button" style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${brc}`, background: "#fff", color: ic, cursor: "pointer", fontWeight: 800 }}>-</button>
+            <button type="button" style={{ width: 34, height: 34, borderRadius: previewRadius, border: `1px solid ${brc}`, background: "#fff", color: ic, cursor: "pointer", fontWeight: 800 }}>-</button>
             <span style={{ minWidth: 18, textAlign: "center", color: drawerText, fontWeight: 800, fontSize: Math.max(fs + 2, 14) }}>{item.qty}</span>
-            <button type="button" style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${brc}`, background: "#fff", color: ic, cursor: "pointer", fontWeight: 800 }}>+</button>
+            <button type="button" style={{ width: 34, height: 34, borderRadius: previewRadius, border: `1px solid ${brc}`, background: "#fff", color: ic, cursor: "pointer", fontWeight: 800 }}>+</button>
           </InlineStack>
         )}
       </div>
@@ -1660,30 +1661,12 @@ function CartDrawerPreview({
 
   const cartRows = [
     {
-      title: freeProducts[0]?.title || "Bottle Soda",
-      tag: freeProducts[0]?.tag || "Free",
-      tagIcon: DiscountIcon,
-      image: freeProducts[0]?.image || fallbackFreeProducts[0].image,
-      compare: freeProducts[0]?.compare || formatCurrencyAmount(4, shopCurrencyCode),
-      price: "Free",
-      free: true,
-    },
-    {
-      title: freeProducts[1]?.title || activeFreeProduct?.title || "Couple Gift Box",
-      tag: freeProducts[1]?.tag || "BuyXGetY",
-      tagIcon: DiscountIcon,
-      image: freeProducts[1]?.image || activeFreeProduct?.image || fallbackFreeProducts[1].image,
-      compare: freeProducts[1]?.compare || formatCurrencyAmount(93.98, shopCurrencyCode),
-      price: "Free",
-      free: true,
-    },
-    {
       title: mainProduct.title || "Casual Sneakers",
       tag: mainProduct.tag || "Buy X Get Y",
       tagIcon: DiscountIcon,
       image: mainProduct.image,
       price: mainProduct.price || formatCurrencyAmount(199.95, shopCurrencyCode),
-      qty: 5,
+      qty: 1,
       free: false,
     },
   ];
@@ -1696,7 +1679,7 @@ function CartDrawerPreview({
           style={{
             width: 64,
             height: 58,
-            borderRadius: 12,
+            borderRadius: previewRadius,
             display: "grid",
             placeItems: "center",
             background: "#ffffff",
@@ -1729,7 +1712,7 @@ function CartDrawerPreview({
             style={{
               width: 28,
               height: 28,
-              borderRadius: 8,
+              borderRadius: previewRadius,
               objectFit: "cover",
               border: `1px solid ${brc}`,
               background: "#F7F7F7",
@@ -1783,8 +1766,8 @@ function CartDrawerPreview({
         .cp-preview-discount-code .Polaris-TextField,
         .cp-preview-discount-code .Polaris-TextField__Input,
         .cp-preview-discount-code .Polaris-TextField__Backdrop {
-          border-radius: ${Math.max(r, 8)}px !important;
-          --pc-shadow-bevel-border-radius: ${Math.max(r, 8)}px !important;
+          border-radius: 0.75em !important;
+          --pc-shadow-bevel-border-radius: 0.75em !important;
         }
         @media (prefers-reduced-motion: reduce) {
           .cp-announcementTrack { animation: none; }
@@ -1800,7 +1783,7 @@ function CartDrawerPreview({
           flexDirection: "column",
           overflow: "hidden",
           border: `1px solid ${brc}`,
-          borderRadius: isBottomSheetPreview ? "24px 24px 0 0" : 0,
+          borderRadius: isBottomSheetPreview ? "0.75em 0.75em 0 0" : 0,
           color: drawerText,
           fontSize: fs,
           fontFamily,
@@ -1840,7 +1823,7 @@ function CartDrawerPreview({
                 height: 38,
                 borderRadius: 999,
                 border: 0,
-                background: "#ffffff",
+                background: surface,
                 color: ic,
                 display: "grid",
                 placeItems: "center",
@@ -1856,7 +1839,7 @@ function CartDrawerPreview({
             <div
               style={{
                 marginTop: 20,
-                borderRadius: `${Math.max(r, 12)}px ${Math.max(r, 12)}px 0 0`,
+                borderRadius: `${previewRadius} ${previewRadius} 0 0`,
                 overflow: "hidden",
                 background: announcementBg || "#102864",
                 color: announcementText || "#ffffff",
@@ -1897,7 +1880,7 @@ function CartDrawerPreview({
               style={{
                 margin: "-1px 18px 0",
                 background: progressSurface,
-                borderRadius: `0 0 ${Math.max(r, 12)}px ${Math.max(r, 12)}px`,
+                borderRadius: `0 0 ${previewRadius} ${previewRadius}`,
                 boxShadow: "0 2px 8px rgba(15,23,42,.08)",
                 color: ptc,
                 overflow: "hidden",
@@ -1935,7 +1918,7 @@ function CartDrawerPreview({
                 minHeight: 0,
                 overflow: "auto",
                 margin: "10px 18px 0",
-                borderRadius: Math.max(r, 14),
+                borderRadius: previewRadius,
                 background: "#ffffff",
                 boxShadow: "0 2px 8px rgba(15,23,42,.12)",
               }}
@@ -1987,7 +1970,7 @@ function CartDrawerPreview({
                           flex: 1,
                           padding: "9px 10px",
                           border: `1px solid ${upsellBorderColor}`,
-                          borderRadius: Math.max(r, 10),
+                          borderRadius: previewRadius,
                           background: upsellSurface,
                         }}
                       >
@@ -2006,7 +1989,7 @@ function CartDrawerPreview({
                             background: upsellButtonBg,
                             color: upsellButtonTextColor,
                             border: "none",
-                            borderRadius: Math.max(r, 8),
+                            borderRadius: previewRadius,
                             padding: "8px 12px",
                             fontWeight: 800,
                             fontSize: Math.max(fs - 1, 11),
@@ -2057,7 +2040,7 @@ function CartDrawerPreview({
               flex: 1,
               minHeight: 0,
               margin: "10px 18px 0",
-              borderRadius: Math.max(r, 14),
+              borderRadius: previewRadius,
               background: "#ffffff",
               overflow: "auto",
               boxShadow: "0 2px 8px rgba(15,23,42,.12)",
@@ -2083,7 +2066,7 @@ function CartDrawerPreview({
                       style={{
                         width: 64,
                         height: 58,
-                        borderRadius: 12,
+                        borderRadius: previewRadius,
                         display: "grid",
                         placeItems: "center",
                         background: "#F8F8FA",
@@ -2107,7 +2090,7 @@ function CartDrawerPreview({
                       style={{
                         minWidth: 108,
                         border: `1px solid ${ic}`,
-                        borderRadius: 10,
+                        borderRadius: previewRadius,
                         textAlign: "center",
                         background: "#ffffff",
                         padding: "8px 10px",
@@ -2124,7 +2107,7 @@ function CartDrawerPreview({
                         border: 0,
                         background: bc,
                         color: blc,
-                        borderRadius: Math.max(r, 8),
+                        borderRadius: previewRadius,
                         padding: "11px 13px",
                         fontWeight: 800,
                         whiteSpace: "nowrap",
@@ -2148,7 +2131,7 @@ function CartDrawerPreview({
           <div
             style={{
               margin: "10px 18px 0",
-              borderRadius: Math.max(r, 14),
+              borderRadius: previewRadius,
               overflow: "hidden",
               background: "#ffffff",
               boxShadow: stickyCheckout ? "0 -8px 18px rgba(15,23,42,.08)" : "0 2px 8px rgba(15,23,42,.10)",
@@ -2182,7 +2165,7 @@ function CartDrawerPreview({
                       type="button"
                       style={{
                         border: `1px solid ${ic}`,
-                        borderRadius: Math.max(r, 10),
+                        borderRadius: previewRadius,
                         background: "#ffffff",
                         color: ic,
                         padding: "0 16px",
@@ -2245,7 +2228,7 @@ function CartDrawerPreview({
               gap: 0,
               margin: "12px 18px 12px",
               border: 0,
-              borderRadius: Math.max(r, 14),
+              borderRadius: previewRadius,
               background: "#ffffff",
               overflow: "hidden",
               boxShadow: "0 2px 8px rgba(15,23,42,.10)",
@@ -2391,7 +2374,7 @@ export default function CustomizePreview() {
     }, { method: "post", encType: "application/json" });
   };
 
-  const previewBg = drawerBgMode === "color" ? (drawerBg || bg || "#fff") : drawerBgMode === "gradient" ? `linear-gradient(90deg, ${drawerGradientStart}  0%, ${drawerGradientEnd} 100%))` : "#fff";
+  const previewBg = drawerBgMode === "color" ? (drawerBg || bg || "#fff") : drawerBgMode === "gradient" ? `linear-gradient(90deg, ${drawerGradientStart} 0%, ${drawerGradientEnd} 100%)` : "#fff";
 
   return (
     <Page
@@ -2538,7 +2521,7 @@ export default function CustomizePreview() {
                         onChange={setCartDefaultIcon}
                       />
                     </div>
-                    <div style={{ width: 44, height: 44, border: "1px solid #dcdfe4", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", color: iconColor || "#000000", flexShrink: 0 }}>
+                    <div style={{ width: 44, height: 44, border: "1px solid #dcdfe4", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", color: iconColor || DEFAULT_STYLE.iconColor, flexShrink: 0 }}>
                       <PreviewIcon source={CART_DEFAULT_ICON_MAP[cartDefaultIcon] || CartIcon} size={24} color="currentColor" />
                     </div>
                   </InlineStack>
@@ -2562,7 +2545,7 @@ export default function CustomizePreview() {
                           <img
                             src={cartIconUrl}
                             alt="Cart icon"
-                            style={{ width: 48, height: 48, objectFit: "contain", border: "1px solid #dcdfe4", borderRadius: 6, padding: 6, background: "#fff" }}
+                            style={{ width: 48, height: 48, objectFit: "contain", border: "1px solid #dcdfe4", borderRadius: "0.75em", padding: 6, background: "#fff" }}
                           />
                           <BlockStack gap="100">
                             <Text variant="bodySm" as="p">Current cart icon</Text>

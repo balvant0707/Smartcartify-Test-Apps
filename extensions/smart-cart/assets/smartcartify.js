@@ -7757,7 +7757,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   left:0;
   right:0;
   top:50%;
-  height:1px;
+  height:0px;
   transform:translateY(-50%);
   background:var(--sc-line-loader-track, rgba(15,23,42,.08));
 }
