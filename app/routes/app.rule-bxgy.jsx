@@ -232,6 +232,7 @@ export const action = async ({ request }) => {
     minQuantity,
     minSpend,
     rewardProductIds,
+    giftsToSelect,
     maxUsesEnabled,
     maxGifts,
     beforeTitle,
@@ -252,7 +253,13 @@ export const action = async ({ request }) => {
   const selectedBuyProducts = parseJsonArray(buyProductIds);
   const selectedBuyCollections = parseJsonArray(buyCollectionIds);
   const selectedRewards = parseJsonArray(rewardProductIds);
-  const selectedRewardQty = String(Math.max(1, selectedRewards.length || 1));
+  const selectedRewardQty = String(Math.max(
+    1,
+    Math.min(
+      parseInt(giftsToSelect || "1", 10) || 1,
+      Math.max(1, selectedRewards.length)
+    )
+  ));
   const scope =
     normalizedCondition === CONDITION_TYPES.BUY_PRODUCT
       ? "specific_products"
@@ -646,15 +653,20 @@ function SectionCard({ id, icon, title, children, open, onOpenChange }) {
   );
 }
 
-function QuantityStepper({ value, onChange }) {
+function QuantityStepper({ value, onChange, max }) {
   const numeric = Math.max(1, parseInt(value || "1", 10) || 1);
+  const maximum = Number.isFinite(Number(max)) ? Math.max(1, Number(max)) : null;
   return (
     <div className="bxgy-stepper">
       <Button size="slim" onClick={() => onChange(String(Math.max(1, numeric - 1)))}>
         -
       </Button>
       <span>{numeric}</span>
-      <Button size="slim" onClick={() => onChange(String(numeric + 1))}>
+      <Button
+        size="slim"
+        disabled={maximum !== null && numeric >= maximum}
+        onClick={() => onChange(String(maximum === null ? numeric + 1 : Math.min(maximum, numeric + 1)))}
+      >
         +
       </Button>
     </div>
@@ -856,10 +868,16 @@ export default function RuleBxgy() {
     (initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? r?.xQty ?? "" : "")
   );
   const [rewardProductIds, setRewardProductIds] = useState(storedRewardProductIds);
+  const [giftsToSelect, setGiftsToSelect] = useState(r?.yQty ?? "1");
   const [maxUsesEnabled, setMaxUsesEnabled] = useState(Boolean(storedMaxUsesPerOrder));
   const [maxGifts, setMaxGifts] = useState(storedMaxUsesPerOrder ?? "1");
   const [translations, setTranslations] = useState(storedTranslations);
   const [openSection, setOpenSection] = useState("rewards");
+
+  useEffect(() => {
+    const maximum = Math.max(1, rewardProductIds.length);
+    setGiftsToSelect((current) => String(Math.min(Math.max(1, parseInt(current || "1", 10) || 1), maximum)));
+  }, [rewardProductIds.length]);
 
   const today = new Date().toISOString().split("T")[0];
   const [startDate, setStartDate] = useState(
@@ -1047,6 +1065,7 @@ export default function RuleBxgy() {
         minQuantity,
         minSpend,
         rewardProductIds: JSON.stringify(rewardProductIds),
+        giftsToSelect,
         maxUsesEnabled,
         maxGifts,
         beforeTitle: englishContent.beforeTitle,
@@ -1292,6 +1311,17 @@ export default function RuleBxgy() {
                     onRemove={(id) =>
                       setRewardProductIds((prev) => prev.filter((item) => item !== id))
                     }
+                  />
+                </BlockStack>
+
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">
+                    How many gifts can they select from this list?
+                  </Text>
+                  <QuantityStepper
+                    value={giftsToSelect}
+                    onChange={setGiftsToSelect}
+                    max={Math.max(1, rewardProductIds.length)}
                   />
                 </BlockStack>
 

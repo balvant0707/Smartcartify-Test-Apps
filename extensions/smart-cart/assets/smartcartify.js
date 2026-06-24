@@ -12870,7 +12870,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return Math.max(1, Number.isFinite(n) ? n : 1);
   };
 
-  const getRewardSelectionLimit = () => 1;
+  const getRewardSelectionLimit = (kind, rule, options) => {
+    const normalizedKind = String(kind || "").trim().toLowerCase();
+    if (normalizedKind !== "bxgy" && normalizedKind !== "buyxgety") return 1;
+
+    const configuredLimit = getRewardQtyFromRule(kind, rule);
+    const availableOptions = Array.isArray(options) ? options.length : 0;
+    return availableOptions > 0 ? Math.min(configuredLimit, availableOptions) : configuredLimit;
+  };
 
   const ensureRewardPopup = () => {
     if (rewardPopupCache) return rewardPopupCache;
@@ -15197,11 +15204,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         drawer.__sc_buy_completed_before = anyBuyCompletedNow;
         __SC_PRIMED_POPUPS__ = true;
         showCompletedBxgyRewardPopup({ celebrate: false });
-      } else if (isDrawerOpen) {
+      } else {
         const firstCompleted = buyStatuses.find((x) => x.complete);
         const wasBuyCompletedBefore = !!drawer.__sc_buy_completed_before;
         if (firstCompleted && !wasBuyCompletedBefore) {
           drawer.__sc_buy_completed_before = true;
+          if (!drawer.classList.contains("open")) openDrawer();
           openRewardPopupFor({
             kind: "buyxgety",
             rule: firstCompleted.rule,
@@ -15216,6 +15224,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             ),
           });
         } else if (bxgyCompleteNow && !LAST_BXGY_DONE && bxgyNow) {
+          if (!drawer.classList.contains("open")) openDrawer();
           openRewardPopupFor({
             kind: "bxgy",
             rule: bxgyNow.rule,
@@ -15258,11 +15267,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         drawer.__sc_buy_completed_before = anyBuyCompletedNow;
         __SC_PRIMED_POPUPS__ = true;
         showCompletedBxgyRewardPopup({ celebrate: false });
-      } else if (isDrawerOpen) {
+      } else {
         const firstCompleted = buyStatuses.find((x) => x.complete);
         const wasBuyCompletedBefore = !!drawer.__sc_buy_completed_before;
         if (firstCompleted && !wasBuyCompletedBefore) {
           drawer.__sc_buy_completed_before = true;
+          if (!drawer.classList.contains("open")) openDrawer();
           openRewardPopupFor({
             kind: "buyxgety",
             rule: firstCompleted.rule,
@@ -15277,6 +15287,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             ),
           });
         } else if (bxgyCompleteNow && !LAST_BXGY_DONE && bxgyNow) {
+          if (!drawer.classList.contains("open")) openDrawer();
           openRewardPopupFor({
             kind: "bxgy",
             rule: bxgyNow.rule,
@@ -15347,12 +15358,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       rewardPopupShown = showCompletedBxgyRewardPopup({ celebrate: false });
     }
 
-    if (isDrawerOpen && !priming) {
+    if (!priming) {
       const firstCompleted = buyStatuses.find((x) => x.complete);
       const wasBuyCompletedBefore = !!drawer.__sc_buy_completed_before;
 
       if (firstCompleted && !wasBuyCompletedBefore) {
         drawer.__sc_buy_completed_before = true;
+        if (!drawer.classList.contains("open")) openDrawer();
         const popupShown = openRewardPopupFor({
           kind: "buyxgety",
           rule: firstCompleted.rule,
@@ -15376,6 +15388,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         }
       } else if (bxgyCompleteNow && !LAST_BXGY_DONE) {
         if (bxgyNow) {
+          if (!drawer.classList.contains("open")) openDrawer();
           const popupShown = openRewardPopupFor({
             kind: "bxgy",
             rule: bxgyNow.rule,
@@ -15409,7 +15422,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const newlyCompletedGiftStep = newlyCompletedSteps.find(
       (step) => String(step?.type || "").toLowerCase() === "free" && step?.rule?.isCartGoal
     );
-    if (isDrawerOpen && newlyCompletedGiftStep && !rewardPopupShown) {
+    if (newlyCompletedGiftStep && !rewardPopupShown) {
+      if (!drawer.classList.contains("open")) openDrawer();
       const popupShown = openRewardPopupFor({
         kind: "free",
         rule: newlyCompletedGiftStep.rule,
@@ -15683,6 +15697,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const getAtcVariantPriceCents = (variant) => {
     if (variant?.priceCents != null) return normalizeCents(variant.priceCents);
+    // Shopify's storefront product JSON and ShopifyAnalytics expose integer
+    // prices in minor currency units. Treating e.g. `100` as $100.00 here
+    // multiplied a $1.00 product price by 100 in the sticky add-to-cart bar.
+    if (variant?.priceIsCents) return normalizeCents(variant?.price ?? variant?.variantPrice ?? variant?.price_amount);
     return priceToCents(variant?.price ?? variant?.variantPrice ?? variant?.price_amount);
   };
 
@@ -15692,6 +15710,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       variant?.compareAtPrice ??
       variant?.compareAtPriceAmount ??
       variant?.compare_at_price_amount;
+    if (variant?.priceIsCents) return normalizeCents(raw);
     return priceToCents(raw);
   };
 
@@ -15794,6 +15813,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           public_title: variant.public_title,
           price: variant.price,
           compare_at_price: variant.compare_at_price,
+          // `/products/<handle>.js` and ShopifyAnalytics both use minor units.
+          priceIsCents: true,
           option1: variant.option1,
           option2: variant.option2,
           option3: variant.option3,

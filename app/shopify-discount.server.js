@@ -856,7 +856,8 @@ export async function upsertBxgy(admin, {
       },
     },
     ...(Number.isFinite(parsedUsesPerOrderLimit) && parsedUsesPerOrderLimit > 0
-      ? { usesPerOrderLimit: parsedUsesPerOrderLimit }
+      // Shopify's UnsignedInt64 GraphQL scalar is transported as a string.
+      ? { usesPerOrderLimit: String(parsedUsesPerOrderLimit) }
       : {}),
     combinesWith: COMBINES_WITH_ORDER_DISCOUNTS,
   };
