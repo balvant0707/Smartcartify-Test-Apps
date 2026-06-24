@@ -220,7 +220,7 @@
 
   let __SC_PRIMED_POPUPS__ = false;
   // Free product rewards use the selectable gift popup when a milestone completes.
-  const DISABLE_FREE_REWARD_POPUP = true;
+  const DISABLE_FREE_REWARD_POPUP = false;
   const DISABLE_REWARD_SUCCESS_POPUPS = false;
 
   // Auto-add guard + per-key cooldown (prevents retry spam on 429/422)
@@ -1142,10 +1142,11 @@
     });
   };
 
-  const getProxyArray = (proxy, keys) => {
-    for (const k of keys) {
-      const v = proxy?.[k];
-      if (Array.isArray(v)) return v;
+  const unwrapGraphqlNodes = (value) => {
+    if (Array.isArray(value)) return value;
+    if (value && typeof value === "object") {
+      if (Array.isArray(value.nodes)) return value.nodes;
+      if (Array.isArray(value.edges)) return value.edges.map((edge) => edge?.node ?? edge).filter(Boolean);
     }
     return [];
   };
@@ -1154,15 +1155,92 @@
     if (Array.isArray(value)) return value;
     if (!value) return [];
     if (typeof value === "string") {
+      const raw = value.trim();
+      if (!raw) return [];
       try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [];
+        const parsed = JSON.parse(raw);
+        return parseArrayish(parsed);
       } catch {
         return [];
       }
     }
+    if (typeof value === "object") {
+      const nodes = unwrapGraphqlNodes(value);
+      if (nodes.length) return nodes;
+
+      const hasRewardIdentity =
+        trimToNull(value?.id) ||
+        trimToNull(value?.productId) ||
+        trimToNull(value?.product_id) ||
+        trimToNull(value?.handle) ||
+        trimToNull(value?.variantId) ||
+        trimToNull(value?.variant_id) ||
+        trimToNull(value?.title) ||
+        trimToNull(value?.name);
+
+      // Product / goal objects may contain nested variants/products. Keep the
+      // object itself so the popup can show the product and then render its
+      // variants through the variant selector.
+      if (hasRewardIdentity) return [value];
+
+      const preferredKeys = [
+        "goals",
+        "bonusProducts",
+        "bonus_products",
+        "rewardProducts",
+        "reward_products",
+        "freeProducts",
+        "free_products",
+        "giftProducts",
+        "gift_products",
+        "selectedProducts",
+        "selected_products",
+        "products",
+        "items",
+        "variants",
+      ];
+
+      for (const key of preferredKeys) {
+        const nested = parseArrayish(value?.[key]);
+        if (nested.length) return nested;
+      }
+
+      return [];
+    }
     return [];
   };
+
+  const getProxyArray = (proxy, keys) => {
+    for (const k of keys) {
+      const v = proxy?.[k];
+      if (Array.isArray(v)) return v;
+      if (typeof v === "string") {
+        const raw = v.trim();
+        if (!raw) continue;
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+          if (parsed && typeof parsed === "object") return [parsed];
+        } catch { }
+        continue;
+      }
+      if (v && typeof v === "object") {
+        const nodes = unwrapGraphqlNodes(v);
+        return nodes.length ? nodes : [v];
+      }
+    }
+    return [];
+  };
+
+  const CART_GOAL_PROXY_KEYS = [
+    "cartGoalRules",
+    "cartGoalRule",
+    "cartgoalrule",
+    "cartGoals",
+    "cartGoal",
+    "cartgoal",
+    "cartgoals",
+  ];
 
   const productRefsFromUnknown = (value) => {
     if (value == null || value === "") return [];
@@ -1205,12 +1283,17 @@
       ].flatMap((item) => productRefsFromUnknown(item));
 
       const direct = trimToNull(
-        value.id ??
         value.productId ??
         value.product_id ??
+        value.product?.id ??
+        value.product?.legacyResourceId ??
+        value.product?.legacy_resource_id ??
+        value.product?.admin_graphql_api_id ??
+        value.product?.adminGraphqlApiId ??
+        (String(value.id || "").includes("ProductVariant") ? null : value.id) ??
+        (String(value.admin_graphql_api_id || "").includes("ProductVariant") ? null : value.admin_graphql_api_id) ??
         value.legacyResourceId ??
         value.legacy_resource_id ??
-        value.admin_graphql_api_id ??
         value.adminGraphqlApiId ??
         value.handle ??
         ""
@@ -1351,12 +1434,17 @@
     const normalizedProducts = products
       .map((product) => {
         const id = trimToNull(
-          product?.id ||
           product?.productId ||
           product?.product_id ||
+          product?.product?.id ||
+          product?.product?.legacyResourceId ||
+          product?.product?.legacy_resource_id ||
+          product?.product?.admin_graphql_api_id ||
+          product?.product?.adminGraphqlApiId ||
+          (String(product?.id || "").includes("ProductVariant") ? null : product?.id) ||
           product?.legacyResourceId ||
           product?.legacy_resource_id ||
-          product?.admin_graphql_api_id ||
+          (String(product?.admin_graphql_api_id || "").includes("ProductVariant") ? null : product?.admin_graphql_api_id) ||
           product?.adminGraphqlApiId ||
           product?.handle
         );
@@ -1397,8 +1485,17 @@
 
     const seen = new Set();
     return normalizedProducts.filter((product) => {
-      const key = String(normalizeProductNumericId(product.id) || gidToId(product.id) || product.id).trim();
-      if (!key || seen.has(key)) return false;
+      const productKey = String(normalizeProductNumericId(product.id) || gidToId(product.id) || product.id).trim();
+      const variantKey = String(
+        getVariantLegacyId(product) ||
+        normalizeVariantId(product?.variantId) ||
+        normalizeVariantId(product?.variant_id) ||
+        normalizeVariantId(product?.selectedVariantId) ||
+        normalizeVariantId(product?.selected_variant_id) ||
+        ""
+      ).trim();
+      const key = `${productKey}::${variantKey || "product"}`;
+      if (!productKey || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
@@ -2049,10 +2146,7 @@
         trimToNull(rule?.stepTitle) ||
         trimToNull(rule?.stepName) ||
         `Cart Goal ${ruleIndex + 1}`;
-      const products = [
-        ...parseArrayish(rule?.bonusProducts),
-        ...parseArrayish(rule?.bonus_products),
-      ];
+      const products = getCartGoalBonusProducts(rule);
       const fallbackProducts = products.length
         ? []
         : getFreeGiftProductIds(rule, "free").map((id) => ({
@@ -2497,11 +2591,7 @@
       );
     });
     const tables = {
-      CartGoalRule: getProxyArray(proxy, [
-        "cartGoalRules",
-        "cartGoalRule",
-        "cartgoalrule",
-      ]),
+      CartGoalRule: getProxyArray(proxy, CART_GOAL_PROXY_KEYS),
       cartgoals: getProxyArray(proxy, ["cartGoals", "cartGoal", "cartgoal", "cartgoals"]),
       codediscount: codeDiscountRows,
       buyxgety: getProxyArray(proxy, [
@@ -2570,11 +2660,7 @@
   };
 
   const getSelectedCartGoalCampaign = () => {
-    const cartGoalList = getProxyArray(PROXY, [
-      "cartGoalRules",
-      "cartGoalRule",
-      "cartgoalrule",
-    ]);
+    const cartGoalList = getProxyArray(PROXY, CART_GOAL_PROXY_KEYS);
     return (Array.isArray(cartGoalList) ? cartGoalList : [])
       .filter((campaign) => isRuleEnabled(campaign))
       .sort(compareRulesByCustomerPriority)[0] || null;
@@ -2750,11 +2836,14 @@
 
   const normalizeResourceId = (value) => {
     const raw = trimToNull(
-      value?.id ||
       value?.productId ||
       value?.product_id ||
+      value?.product?.id ||
+      value?.product?.legacyResourceId ||
+      value?.product?.legacy_resource_id ||
       value?.collectionId ||
       value?.collection_id ||
+      (String(value?.id || "").includes("ProductVariant") ? null : value?.id) ||
       value?.legacyResourceId ||
       value?.legacy_resource_id ||
       value
@@ -3962,7 +4051,19 @@
   };
 
   const getDiscountRuleCode = (rule) =>
-    trimToNull(rule?.discountCode ?? rule?.discount_code ?? rule?.code ?? "");
+    trimToNull(
+      rule?.discountCode ??
+      rule?.discount_code ??
+      rule?.code ??
+      rule?.couponCode ??
+      rule?.coupon_code ??
+      rule?.promoCode ??
+      rule?.promo_code ??
+      rule?.discount?.code ??
+      rule?.shopifyDiscountCode ??
+      rule?.shopify_discount_code ??
+      ""
+    );
 
   const getDiscountRuleMinPurchase = (rule) => {
     const n = Number(
@@ -3992,11 +4093,7 @@
   };
 
   const findAppliedDiscountCodeRule = () => {
-    const list = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
-
-    for (const rule of list) {
-      if (!isRuleEnabled(rule)) continue;
-
+    for (const rule of getAllCodeDiscountRules()) {
       const code = getDiscountRuleCode(rule);
       if (!code) continue;
 
@@ -8176,7 +8273,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     <div class="sc-items">
       <div class="sc-announce smartcartify-announcement-bar" data-sc-announce hidden></div>
       <div class="sc-progress corner-covey-cart-undefined-loading-bar-wrapper">
-      
+        <p class="sc-label">Loading…</p>
+
         <div class="sc-milestone">
           <div class="sc-track">
             <div class="sc-fill"></div>
@@ -8186,15 +8284,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
         <div class="sc-legends"></div>
       </div>
+      <div class="sc-cart-msg" data-sc-cart-msg hidden>
+        <p class="sc-cart-msg-text" data-sc-cart-msg-text></p>
+        <button class="sc-cart-msg-close" type="button" data-sc-cart-msg-close aria-label="Close">&times;</button>
+      </div>
       <div id="corner-cowi-cart-indeterminate-loading-bar-wrapper" class="sc-line-loader corner-covey-cart-undefined-loading-bar-wrapper" data-sc-line-loader hidden aria-hidden="true">
           <div id="corner-cowi-cart-indeterminate-loading-bar-bg" class="sc-line-loader-bg">
             <div id="corner-cowi-cart-indeterminate-loading-bar-runner" class="sc-line-loader-runner">&nbsp;</div>
           </div>
         </div>
-      <div class="sc-cart-msg" data-sc-cart-msg hidden>
-        <p class="sc-cart-msg-text" data-sc-cart-msg-text></p>
-        <button class="sc-cart-msg-close" type="button" data-sc-cart-msg-close aria-label="Close">&times;</button>
-      </div>
       <div class="sc-items-list">
         <div class="sc-empty">Loading cart…</div>
       </div>
@@ -9275,28 +9373,42 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       ? getCartGoalProgressSubtotalCents(rule)
       : getCartOriginalSubtotalCents();
 
+  const getAllCodeDiscountRules = () => {
+    const rows = [];
+    const addRule = (rule) => {
+      if (!rule || !isRuleEnabled(rule)) return;
+      const code = getDiscountRuleCode(rule);
+      if (!code) return;
+      rows.push(rule);
+    };
+
+    (Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : []).forEach(addRule);
+    getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule", "codeDiscountRules", "codeDiscountRule", "codediscountrule"]).forEach(addRule);
+
+    const seen = new Set();
+    return rows.filter((rule) => {
+      const key = String(getDiscountRuleCode(rule)).trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).sort(compareRulesByCustomerPriority);
+  };
+
   const findCodeDiscountRuleByCode = (code) => {
     const needle = String(code || "").trim().toLowerCase();
     if (!needle) return null;
-    const list = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
-    return (
-      list.find((r) => {
-        const c = String(r?.discountCode ?? r?.discount_code ?? r?.code ?? "")
-          .trim()
-          .toLowerCase();
-        return c && c === needle;
-      }) || null
-    );
+    return getAllCodeDiscountRules().find((r) => {
+      const c = String(getDiscountRuleCode(r)).trim().toLowerCase();
+      return c && c === needle;
+    }) || null;
   };
 
   const getAppliedDiscountRules = () => {
-    const list = Array.isArray(CODE_DISCOUNT_RULES) ? CODE_DISCOUNT_RULES : [];
     const applied = [];
-    list.forEach((rule) => {
-      if (!isRuleEnabled(rule)) return;
+    getAllCodeDiscountRules().forEach((rule) => {
       const code = getDiscountRuleCode(rule);
       if (!code) return;
-      if (isDiscountAppliedInCart(code)) {
+      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) {
         applied.push({ rule, code });
       }
     });
@@ -9350,6 +9462,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const appliedCodes = getAppliedDiscountCodes();
     if (!appliedCodes.length) {
+      const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+      const manualRule = manualCode ? findCodeDiscountRuleByCode(manualCode) : null;
+      if (manualCode && manualRule) {
+        const validation = validateCodeDiscountRule(manualRule, getCartSubtotalCents());
+        if (validation.ok) return;
+      }
       scStore.del(MANUAL_DISCOUNT_CODE_KEY);
       return;
     }
@@ -9498,7 +9616,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!manualCode) return null;
 
     const rule = findCodeDiscountRuleByCode(manualCode);
-    if (!rule) return null;
+    if (!rule) return manualCode;
 
     const validation = validateCodeDiscountRule(rule, getCartSubtotalCents());
     return validation.ok ? manualCode : null;
@@ -9526,19 +9644,110 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return `${storefrontPath(`discount/${encodeURIComponent(code)}`)}?redirect=${encodeURIComponent(redirect)}`;
   };
 
-  const applyCodeThroughShopify = async (code) => {
-    const target = buildDiscountUrl(code, "/cart");
-    const res = await fetch(target, {
-      credentials: "same-origin",
-      redirect: "follow",
+  const persistDiscountCodeToCartAttributes = async (code) => {
+    const normalized = trimToNull(code);
+    if (!normalized) return false;
+    try {
+      const res = await fetch("/cart/update.js", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          attributes: {
+            discount_code: normalized,
+            discountCode: normalized,
+          },
+        }),
+      });
+      if (res.ok) {
+        invalidateCartCache();
+        return true;
+      }
+    } catch (err) {
+      console.warn("[SmartCartify] discount attribute persist failed:", err?.message || err);
+    }
+    return false;
+  };
+
+  const loadDiscountUrlInIframe = (url) =>
+    new Promise((resolve) => {
+      let done = false;
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        try { iframe.remove(); } catch { }
+        resolve(!!ok);
+      };
+      const iframe = document.createElement("iframe");
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.tabIndex = -1;
+      iframe.style.cssText = "position:absolute;width:1px;height:1px;left:-9999px;top:-9999px;border:0;opacity:0;pointer-events:none;";
+      iframe.onload = () => setTimeout(() => finish(true), 250);
+      iframe.onerror = () => finish(false);
+      document.body.appendChild(iframe);
+      setTimeout(() => finish(false), 3500);
+      iframe.src = url;
     });
 
-    if (!res || (!res.ok && res.type !== "opaqueredirect")) {
-      throw new Error(`Discount endpoint failed (${res?.status || "unknown"})`);
+  const applyCodeThroughShopify = async (code) => {
+    const normalized = trimToNull(code);
+    if (!normalized) return false;
+
+    const target = buildDiscountUrl(normalized, "/cart");
+    const localRule = findCodeDiscountRuleByCode(normalized);
+
+    // For app-created Code Discount rules, apply instantly inside this cart
+    // drawer even when Shopify does not expose the code in /cart.js until
+    // checkout. The checkout button still carries the same code via /discount/.
+    if (localRule) {
+      rememberManualDiscountCode(normalized);
+      await persistDiscountCodeToCartAttributes(normalized);
+      invalidateCartCache();
+
+      // Touch Shopify's discount endpoint in the background so checkout has the
+      // discount cookie/session too. Drawer rendering does not wait for this.
+      try {
+        fetch(target, {
+          credentials: "same-origin",
+          redirect: "follow",
+          cache: "no-store",
+        }).catch(() => loadDiscountUrlInIframe(target).catch?.(() => {}));
+      } catch {
+        loadDiscountUrlInIframe(target).catch?.(() => {});
+      }
+
+      return true;
     }
 
-    return true;
+    let endpointTouched = false;
+
+    try {
+      const res = await fetch(target, {
+        credentials: "same-origin",
+        redirect: "follow",
+        cache: "no-store",
+      });
+      endpointTouched = !!res && (res.ok || res.redirected || res.type === "opaqueredirect");
+    } catch (err) {
+      console.warn("[SmartCartify] discount fetch apply failed, retrying with iframe:", err?.message || err);
+    }
+
+    if (!endpointTouched) {
+      endpointTouched = await loadDiscountUrlInIframe(target);
+    }
+
+    await persistDiscountCodeToCartAttributes(normalized);
+
+    invalidateCartCache();
+    const confirmed = await waitForDiscountApplied(normalized, 10);
+    if (confirmed) return true;
+
+    return endpointTouched;
   };
+
 
   const isCartGoalRewardSelectionMandatory = (campaign) => {
     const raw =
@@ -9845,11 +10054,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const shippingList = getProxyArray(PROXY, ["shippingRules", "shippingRule", "shippingrule"]);
     const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
     const freeList = getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]);
-    const cartGoalList = getProxyArray(PROXY, [
-      "cartGoalRules",
-      "cartGoalRule",
-      "cartgoalrule",
-    ]);
+    const cartGoalList = getProxyArray(PROXY, CART_GOAL_PROXY_KEYS);
 
     const buyxgetyList = getProxyArray(PROXY, [
       "buyxgetyRules",
@@ -9863,10 +10068,30 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const normType = (r) => String(r?.type ?? r?.ruleType ?? r?.rule_type ?? "").trim().toLowerCase();
 
+    const isCodeDiscountRuleShape = (r) => {
+      const normalizedType = String(r?.type ?? r?.ruleType ?? r?.rule_type ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[_\s-]+/g, "");
+      const code = trimToNull(
+        r?.discountCode ??
+        r?.discount_code ??
+        r?.code ??
+        r?.couponCode ??
+        r?.coupon_code ??
+        r?.promoCode ??
+        r?.promo_code ??
+        r?.discount?.code ??
+        r?.shopifyDiscountCode ??
+        r?.shopify_discount_code ??
+        ""
+      );
+      return ["code", "codediscount", "discountcode", "coupon", "couponcode", "promocode"].includes(normalizedType) || !!code;
+    };
+
     (Array.isArray(discountList) ? discountList : []).forEach((r) => {
       if (!isRuleEnabled(r)) return;
-      const t = normType(r);
-      if (t === "code") CODE_DISCOUNT_RULES.push(r);
+      if (isCodeDiscountRuleShape(r)) CODE_DISCOUNT_RULES.push(r);
     });
 
     (Array.isArray(discountList) ? discountList : []).forEach((r) => {
@@ -10391,7 +10616,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   const isCodeDiscountRuleApplied = (rule) => {
     const code = getDiscountRuleCode(rule);
-    return Boolean(code && isDiscountAppliedInCart(code));
+    return Boolean(code && (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)));
   };
 
   const getRuleThresholdState = (type, rule) => {
@@ -11961,7 +12186,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const imageUrl =
         trimToNull(firstVariant?.featured_image?.src) ||
         trimToNull(firstVariant?.image?.src) ||
-        (Array.isArray(product?.images) && trimToNull(product.images[0]?.src)) ||
+        (Array.isArray(product?.images) && trimToNull(product.images[0]?.src || product.images[0]?.url || product.images[0])) ||
+        trimToNull(product?.featuredImage?.url) ||
+        (typeof product?.featuredImage === "string" ? trimToNull(product.featuredImage) : null) ||
         trimToNull(product?.image?.src) ||
         "";
 
@@ -12013,7 +12240,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       trimToNull(product?.image?.url) ||
       (typeof product?.image === "string" ? trimToNull(product.image) : null) ||
       trimToNull(product?.featuredImage?.url) ||
-      (Array.isArray(product?.images) && trimToNull(product.images[0]?.src)) ||
+      (typeof product?.featuredImage === "string" ? trimToNull(product.featuredImage) : null) ||
+      (Array.isArray(product?.images) && trimToNull(product.images[0]?.src || product.images[0]?.url || product.images[0])) ||
       "";
     const imageUrl =
       trimToNull(variant?.featured_image?.src) ||
@@ -12047,16 +12275,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const normalizeStoredRewardProduct = (product, requestedProductId = null) => {
     if (!product || typeof product !== "object") return null;
     const productId =
-      normalizeProductNumericId(product?.id) ||
       normalizeProductNumericId(product?.productId) ||
       normalizeProductNumericId(product?.product_id) ||
+      normalizeProductNumericId(product?.product?.id) ||
       normalizeProductNumericId(requestedProductId) ||
-      gidToId(product?.id) ||
+      (String(product?.id || "").includes("ProductVariant") ? null : normalizeProductNumericId(product?.id)) ||
       gidToId(product?.productId) ||
       gidToId(product?.product_id) ||
-      trimToNull(product?.id || product?.productId || product?.product_id || requestedProductId);
+      gidToId(product?.product?.id) ||
+      gidToId(requestedProductId) ||
+      (String(product?.id || "").includes("ProductVariant") ? null : gidToId(product?.id)) ||
+      trimToNull(product?.productId || product?.product_id || product?.product?.id || requestedProductId || (String(product?.id || "").includes("ProductVariant") ? null : product?.id));
     if (!productId) return null;
-    const variants = (Array.isArray(product?.variants) ? product.variants : [])
+    const variants = parseArrayish(product?.variants)
       .map((variant) => normalizeRewardProductVariant(product, variant, productId))
       .filter(Boolean);
     const fallbackVariant = !variants.length && (product?.variantId || product?.variant_id)
@@ -12088,7 +12319,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const getRewardProductOptionDefs = (product, variants) => {
-    const productOptions = Array.isArray(product?.options) ? product.options : [];
+    const productOptions = parseArrayish(product?.options);
     return [0, 1, 2]
       .map((idx) => {
         const key = `option${idx + 1}`;
@@ -12144,12 +12375,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
 
     const productId = String(numericId || product?.id || rawProductId || "");
-    const variants = (Array.isArray(product?.variants) ? product.variants : [])
+    const variants = parseArrayish(product?.variants)
       .map((variant) => normalizeRewardProductVariant(product, variant, productId))
       .filter(Boolean);
     const image =
       trimToNull(product?.image?.src) ||
-      (Array.isArray(product?.images) && trimToNull(product.images[0]?.src)) ||
+      trimToNull(product?.image?.url) ||
+      (typeof product?.image === "string" ? trimToNull(product.image) : null) ||
+      trimToNull(product?.featuredImage?.url) ||
+      (typeof product?.featuredImage === "string" ? trimToNull(product.featuredImage) : null) ||
+      (Array.isArray(product?.images) && trimToNull(product.images[0]?.src || product.images[0]?.url || product.images[0])) ||
       trimToNull(variants[0]?.image) ||
       "";
     const normalized = {
@@ -12981,17 +13216,32 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     unlockedRules.forEach((sourceRule) => {
       const sourceRuleKey = getRuleKey(sourceRule, "cartgoal");
       const sourceSlot = normalizeStepSlotFromAny(sourceRule) || sourceRule?.cartStepName || "";
-      getFreeGiftProductIds(sourceRule, "free").forEach((productId, index) => {
-        const key = String(normalizeProductNumericId(productId) || gidToId(productId) || productId).trim();
-        if (!key || seen.has(key)) return;
+      const entries = getRewardProductEntriesForKind(sourceRule, "free");
+      const rows = entries.length
+        ? entries.map((entry, index) => ({
+          productId: getRewardEntryProductId(entry, getFreeGiftProductIds(sourceRule, "free")[index]),
+          meta: entry,
+          index,
+        }))
+        : getFreeGiftProductIds(sourceRule, "free").map((productId, index) => ({
+          productId,
+          meta: getFreeGiftProductMeta(sourceRule, productId, index, "free") || { id: productId, productId },
+          index,
+        }));
+
+      rows.forEach(({ productId, meta, index }) => {
+        if (!productId) return;
+        const productKey = String(normalizeProductNumericId(productId) || gidToId(productId) || productId).trim();
+        const variantKey = String(getRewardEntryVariantId(meta) || "").trim();
+        const key = `${productKey}::${variantKey || `entry-${index}`}`;
+        if (!productKey || seen.has(key)) return;
         seen.add(key);
         combinedIds.push(productId);
-        const meta = getFreeGiftProductMeta(sourceRule, productId, index, "free") || { id: productId, productId };
         combinedProducts.push({
           ...meta,
-          id: trimToNull(meta?.id || meta?.productId || meta?.product_id || productId) || productId,
-          productId: trimToNull(meta?.productId || meta?.id || productId) || productId,
-          product_id: trimToNull(meta?.product_id || meta?.id || productId) || productId,
+          id: trimToNull(meta?.id && !String(meta.id).includes("ProductVariant") ? meta.id : productId) || productId,
+          productId: trimToNull(meta?.productId || meta?.product_id || productId) || productId,
+          product_id: trimToNull(meta?.product_id || meta?.productId || productId) || productId,
           __sc_source_rule: sourceRule,
           __sc_source_rule_key: sourceRuleKey,
           __sc_source_slot: sourceSlot,
@@ -13019,8 +13269,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   const buildFreeGiftOption = ({ rule, productId, variant, product, index, kind = "free" }) => {
-    const variants = Array.isArray(product?.variants) && product.variants.length
-      ? product.variants
+    const parsedProductVariants = parseArrayish(product?.variants);
+    const variants = parsedProductVariants.length
+      ? parsedProductVariants
       : variant
         ? [variant]
         : [];
@@ -13053,7 +13304,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const optionSlot = !isBxgyReward
       ? (trimToNull(product?.__sc_source_slot) || normalizeStepSlotFromAny(optionRule) || optionRule?.cartStepName || "")
       : "";
-    const productName =
+    const baseProductName =
       trimToNull(product?.title) ||
       trimToNull(selectedVariant?.product?.title) ||
       trimToNull(selectedVariant?.productTitle) ||
@@ -13062,6 +13313,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         : trimToNull(rule?.bonusProductTitle) || trimToNull(rule?.freeProductTitle) || trimToNull(rule?.giftProductTitle)) ||
       trimToNull(rule?.productTitle) ||
       "Free gift";
+    const variantLabel = trimToNull(selectedVariant?.title || selectedVariant?.name || selectedVariant?.variantTitle);
+    const productName =
+      variantLabel && !/^default title$/i.test(variantLabel) && variantLabel !== baseProductName
+        ? `${baseProductName} – ${variantLabel}`
+        : baseProductName;
     const variantOptions = (Array.isArray(product?.options) ? product.options : [])
       .map((def, optionIndex) => {
         const key = trimToNull(def?.key) || `option${optionIndex + 1}`;
@@ -13092,56 +13348,232 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     };
   };
 
-  const getImmediateFreeGiftOptions = (rule, kind = "free") => {
-    const productIds = getFreeGiftProductIds(rule, kind);
-    const rawOptions = productIds;
-    const options = rawOptions
-      .map((productId, index) => buildFreeGiftOption({
-        rule,
+  const getRewardEntryProductId = (entry, fallback = null) => {
+    const raw = trimToNull(
+      entry?.productId ||
+      entry?.product_id ||
+      entry?.product?.id ||
+      entry?.product?.legacyResourceId ||
+      entry?.product?.legacy_resource_id ||
+      entry?.product?.admin_graphql_api_id ||
+      entry?.product?.adminGraphqlApiId ||
+      fallback ||
+      (String(entry?.id || "").includes("ProductVariant") ? null : entry?.id) ||
+      entry?.legacyResourceId ||
+      entry?.legacy_resource_id ||
+      (String(entry?.admin_graphql_api_id || "").includes("ProductVariant") ? null : entry?.admin_graphql_api_id) ||
+      entry?.adminGraphqlApiId ||
+      entry?.handle ||
+      null
+    );
+    return raw ? String(normalizeProductNumericId(raw) || gidToId(raw) || raw) : null;
+  };
+
+  const getRewardEntryVariantId = (entry) => {
+    const raw = trimToNull(
+      entry?.variantId ||
+      entry?.variant_id ||
+      entry?.selectedVariantId ||
+      entry?.selected_variant_id ||
+      entry?.variant?.id ||
+      entry?.variant?.legacyResourceId ||
+      entry?.variant?.legacy_resource_id ||
+      entry?.variant?.admin_graphql_api_id ||
+      entry?.variant?.adminGraphqlApiId ||
+      (String(entry?.id || "").includes("ProductVariant") ? entry?.id : null) ||
+      (String(entry?.admin_graphql_api_id || "").includes("ProductVariant") ? entry?.admin_graphql_api_id : null) ||
+      null
+    );
+    return raw ? String(gidToId(raw) || normalizeVariantId(raw) || raw) : null;
+  };
+
+  const getRewardVariantFromProductById = (product, variantId) => {
+    const wanted = trimToNull(variantId);
+    if (!product || !wanted) return null;
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    return variants.find((variant) => {
+      const legacy = String(getVariantLegacyId(variant) || "");
+      const raw = String(variant?.id || variant?.variantId || variant?.variant_id || "");
+      return legacy === String(wanted) || raw === String(wanted) || gidToId(raw) === String(wanted);
+    }) || null;
+  };
+
+  const createRewardOptionRuleForProduct = (rule, productId, kind = "free") => {
+    const normalizedKind = String(kind || "free").toLowerCase();
+    const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
+    return isBxgyReward
+      ? {
+        ...rule,
+        rewardProductId: productId,
+        rewardProductIds: [productId],
+        getProductId: productId,
+        getProductIds: [productId],
+        yProductId: productId,
+        yProductIds: [productId],
+      }
+      : {
+        ...rule,
+        bonusProductId: productId,
+        bonus: productId,
+        bonusProductIds: [productId],
+        freeProductId: productId,
+        freeProductIds: [productId],
+      };
+  };
+
+  const getRewardOptionSeedsFromStoredEntries = (rule, kind = "free") => {
+    const entries = getRewardProductEntriesForKind(rule, kind);
+    const seeds = [];
+
+    entries.forEach((entry, entryIndex) => {
+      if (!entry || typeof entry !== "object") return;
+
+      const productId = getRewardEntryProductId(entry, null);
+      if (!productId) return;
+
+      const product = normalizeStoredRewardProduct(entry, productId) || {
+        ...entry,
+        id: productId,
         productId,
-        variant: getFreeGiftVariantFromRule(rule, productId, index, kind),
+        product_id: productId,
+        variants: [],
+      };
+
+      const explicitVariantId = getRewardEntryVariantId(entry);
+      const explicitVariant = explicitVariantId ? getRewardVariantFromProductById(product, explicitVariantId) : null;
+
+      if (explicitVariant) {
+        seeds.push({ productId, product, variant: explicitVariant, sourceIndex: entryIndex });
+        return;
+      }
+
+      const variants = Array.isArray(product?.variants) ? product.variants.filter(Boolean) : [];
+      if (variants.length) {
+        variants.forEach((variant, variantIndex) => {
+          seeds.push({ productId, product, variant, sourceIndex: `${entryIndex}:${variantIndex}` });
+        });
+        return;
+      }
+
+      seeds.push({
+        productId,
+        product,
+        variant: getFreeGiftVariantFromRule(rule, productId, entryIndex, kind),
+        sourceIndex: entryIndex,
+      });
+    });
+
+    return seeds;
+  };
+
+  const dedupeRewardOptionSeeds = (seeds) => {
+    const seen = new Set();
+    return (Array.isArray(seeds) ? seeds : []).filter((seed, index) => {
+      const productKey = String(normalizeProductNumericId(seed?.productId) || gidToId(seed?.productId) || seed?.productId || "").trim();
+      const variantKey = String(getVariantLegacyId(seed?.variant) || getRewardEntryVariantId(seed?.variant) || "").trim();
+      const key = `${productKey || "product"}::${variantKey || `entry-${index}`}`;
+      if (!productKey || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const getRewardOptionSeedCount = (rule, kind = "free") => {
+    const storedSeeds = dedupeRewardOptionSeeds(getRewardOptionSeedsFromStoredEntries(rule, kind));
+    if (storedSeeds.length) return storedSeeds.length;
+    return getFreeGiftProductIds(rule, kind).length;
+  };
+
+  const buildRewardOptionFromSeed = ({ rule, kind, seed, index }) => {
+    const productId = seed?.productId;
+    const optionRule = createRewardOptionRuleForProduct(rule, productId, kind);
+    const variant = seed?.variant || getFreeGiftVariantFromRule(optionRule, productId, index, kind);
+    return buildFreeGiftOption({
+      rule: optionRule,
+      productId,
+      variant,
+      product: seed?.product,
+      index,
+      kind,
+    });
+  };
+
+  const getImmediateFreeGiftOptions = (rule, kind = "free") => {
+    const storedSeeds = dedupeRewardOptionSeeds(getRewardOptionSeedsFromStoredEntries(rule, kind));
+    const seeds = storedSeeds.length
+      ? storedSeeds
+      : getFreeGiftProductIds(rule, kind).map((productId, index) => ({
+        productId,
         product: normalizeStoredRewardProduct(getFreeGiftProductMeta(rule, productId, index, kind), productId),
-        index,
-        kind,
-      }))
+        variant: getFreeGiftVariantFromRule(rule, productId, index, kind),
+        sourceIndex: index,
+      }));
+
+    return seeds
+      .map((seed, index) => buildRewardOptionFromSeed({ rule, kind, seed, index }))
       .filter(Boolean);
-    return options;
   };
 
   const resolveFreeGiftOptions = async (rule, kind = "free") => {
-    const productIds = getFreeGiftProductIds(rule, kind);
-    const rawOptions = productIds;
-    const options = [];
+    const storedSeeds = dedupeRewardOptionSeeds(getRewardOptionSeedsFromStoredEntries(rule, kind));
+    const fallbackProductIds = getFreeGiftProductIds(rule, kind);
+    const baseSeeds = storedSeeds.length
+      ? storedSeeds
+      : fallbackProductIds.map((productId, index) => ({
+        productId,
+        product: normalizeStoredRewardProduct(getFreeGiftProductMeta(rule, productId, index, kind), productId),
+        variant: getFreeGiftVariantFromRule(rule, productId, index, kind),
+        sourceIndex: index,
+      }));
 
-    for (let index = 0; index < rawOptions.length; index += 1) {
-      const productId = rawOptions[index];
-      const normalizedKind = String(kind || "free").toLowerCase();
-      const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
-      const optionRule = isBxgyReward
-        ? {
-          ...rule,
-          rewardProductId: productId,
-          rewardProductIds: [productId],
-          getProductId: productId,
-          getProductIds: [productId],
-        }
-        : {
-          ...rule,
-          bonusProductId: productId,
-          bonus: productId,
-          bonusProductIds: [productId],
-        };
-      const directVariant = getFreeGiftVariantFromRule(rule, productId, index, kind);
-      const product =
-        normalizeStoredRewardProduct(getFreeGiftProductMeta(rule, productId, index, kind), productId) ||
-        await resolveRewardProductForOptions(productId);
-      const variant = directVariant || product?.variants?.[0] || await resolveRewardVariantForAdd(optionRule, { productId }, kind);
-      const option = buildFreeGiftOption({ rule, productId, variant, product, index, kind });
-      if (!option) {
-        console.warn(`[SmartCartify] skipping option ${index}: variant resolution failed`);
+    const expandedSeeds = [];
+
+    for (let index = 0; index < baseSeeds.length; index += 1) {
+      const seed = baseSeeds[index];
+      const productId = seed?.productId;
+      if (!productId) continue;
+
+      let product = seed.product || null;
+      if (!product || !Array.isArray(product?.variants) || !product.variants.length) {
+        product = await resolveRewardProductForOptions(productId) || product;
+      }
+
+      const explicitVariantId = getRewardEntryVariantId(seed?.variant) || getVariantLegacyId(seed?.variant);
+      const explicitVariant = explicitVariantId ? getRewardVariantFromProductById(product, explicitVariantId) : null;
+      if (explicitVariant) {
+        expandedSeeds.push({ ...seed, product, variant: explicitVariant });
         continue;
       }
-      options.push(option);
+
+      if (seed.variant && getVariantLegacyId(seed.variant)) {
+        expandedSeeds.push({ ...seed, product });
+        continue;
+      }
+
+      const variants = Array.isArray(product?.variants) ? product.variants.filter(Boolean) : [];
+      if (variants.length) {
+        variants.forEach((variant, variantIndex) => {
+          expandedSeeds.push({
+            ...seed,
+            product,
+            variant,
+            sourceIndex: `${seed.sourceIndex ?? index}:${variantIndex}`,
+          });
+        });
+        continue;
+      }
+
+      const optionRule = createRewardOptionRuleForProduct(rule, productId, kind);
+      const variant = await resolveRewardVariantForAdd(optionRule, { productId }, kind);
+      expandedSeeds.push({ ...seed, product, variant });
+    }
+
+    const options = dedupeRewardOptionSeeds(expandedSeeds)
+      .map((seed, index) => buildRewardOptionFromSeed({ rule, kind, seed, index }))
+      .filter(Boolean);
+
+    if (!options.length) {
+      console.warn("[SmartCartify] no available reward options resolved", { kind, rule });
     }
 
     return options;
@@ -13372,7 +13804,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     // For cart goal free products with multiple options, variant will be null
     // Allow the popup to open so options can be resolved asynchronously
-    const hasBonusProductIds = getFreeGiftProductIds(rule, kind).length > 0;
+    const hasBonusProductIds = getRewardOptionSeedCount(rule, kind) > 0;
     const isMultiOptionReward = (kind === "free" || kind === "bxgy" || kind === "buyxgety") && hasBonusProductIds;
     const hasBxgyReferences = false;
 
@@ -13684,11 +14116,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
       const discountList = getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]);
       const freeList = getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]);
-      const cartGoalList = getProxyArray(PROXY, [
-        "cartGoalRules",
-        "cartGoalRule",
-        "cartgoalrule",
-      ]);
+      const cartGoalList = getProxyArray(PROXY, CART_GOAL_PROXY_KEYS);
       const buyxgetyList = getProxyArray(PROXY, [
         "buyxgetyRules",
         "buyxgetyRule",
@@ -15077,11 +15505,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (pendingDiscountCode && isDiscountAppliedInCart(pendingDiscountCode)) {
         openDrawer();
 
-        const r = (CODE_DISCOUNT_RULES || []).find(
-          (x) =>
-            String(x?.discountCode || x?.discount_code || x?.code || "").toLowerCase() ===
-            String(pendingDiscountCode).toLowerCase()
-        );
+        const r = findCodeDiscountRuleByCode(pendingDiscountCode);
 
         const txt = r
           ? replaceProgressText({
