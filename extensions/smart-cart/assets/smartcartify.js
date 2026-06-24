@@ -3108,16 +3108,48 @@
   let progressLoadingHideTimer = null;
   let progressLoadingMaxTimer = null;
 
+  const restartLineLoaderAnimation = (lineLoader) => {
+    if (!lineLoader) return;
+    const runner = lineLoader.querySelector(".sc-line-loader-runner");
+    if (!(runner instanceof HTMLElement)) return;
+
+    // Same behavior as Corner indeterminate bar: reset class + reflow,
+    // then start the moving runner again every time cart changes.
+    runner.classList.remove("is-running");
+    runner.style.animation = "none";
+    void runner.offsetWidth;
+    runner.style.animation = "";
+    requestAnimationFrame(() => {
+      runner.classList.add("is-running");
+    });
+  };
+
+  const setLineLoaderVisible = (isVisible) => {
+    const lineLoader = drawer.querySelector("[data-sc-line-loader]");
+    if (!lineLoader) return;
+    const show = !!isVisible;
+
+    lineLoader.hidden = !show;
+    lineLoader.classList.toggle("is-active", show);
+    lineLoader.style.display = show ? "block" : "none";
+    lineLoader.setAttribute("aria-hidden", show ? "false" : "true");
+
+    if (show) {
+      restartLineLoaderAnimation(lineLoader);
+    } else {
+      const runner = lineLoader.querySelector(".sc-line-loader-runner");
+      if (runner instanceof HTMLElement) {
+        runner.classList.remove("is-running");
+        runner.style.animation = "none";
+      }
+    }
+  };
+
   const applyProgressLoadingState = (isLoading) => {
     const active = !!isLoading;
     drawer.classList.toggle("sc-refreshing", active);
     drawer.classList.remove("sc-loading-items");
-    const lineLoader = drawer.querySelector("[data-sc-line-loader]");
-    if (lineLoader) {
-      const shouldShowLine = active || drawer.classList.contains("sc-applying-discount");
-      lineLoader.hidden = !shouldShowLine;
-      lineLoader.setAttribute("aria-hidden", shouldShowLine ? "false" : "true");
-    }
+    setLineLoaderVisible(active || drawer.classList.contains("sc-applying-discount"));
   };
 
   const setProgressLoading = (isLoading, opts = {}) => {
@@ -3162,6 +3194,16 @@
 
   const syncItemsLoading = () => {
     drawer.classList.remove("sc-loading-items");
+  };
+
+  const triggerFreeGiftCheckAnimations = (scope = drawer) => {
+    if (!scope?.querySelectorAll) return;
+    scope.querySelectorAll(".sc-freegift-option.selected .sc-freegift-check").forEach((check) => {
+      if (!(check instanceof HTMLElement)) return;
+      check.classList.remove("sc-check-animate");
+      void check.offsetWidth;
+      requestAnimationFrame(() => check.classList.add("sc-check-animate"));
+    });
   };
 
   const isQuantityLimitMessage = (message) => {
@@ -4275,6 +4317,7 @@ padding: 5px 10px 0px 10px;
   overflow:hidden;
   background:#ffffff;
   box-shadow:0 1px 0 rgba(15,23,42,.06);
+  isolation:isolate;
 }
 .sc-line-loader[hidden]{
   display:none !important;
@@ -4292,20 +4335,30 @@ padding: 5px 10px 0px 10px;
   overflow:hidden;
   border-radius:0;
 }
+.sc-line-loader-bg::before{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:50%;
+  height:1px;
+  transform:translateY(-50%);
+  background:rgba(15,23,42,.08);
+}
 .sc-line-loader-runner{
   position:absolute;
   top:0;
-  left:0;
-  width:42%;
+  left:-48%;
+  width:48%;
   height:100%;
   border-radius:999px;
-  background:linear-gradient(90deg, transparent 0%, var(--sc-progress, #9f42eb) 35%, var(--sc-progress, #9f42eb) 65%, transparent 100%);
-  animation:scLineLoader .85s ease-in-out infinite;
-  will-change:transform;
+  background:linear-gradient(90deg, transparent 0%, rgba(159,66,235,.18) 14%, var(--sc-progress, #9f42eb) 50%, rgba(159,66,235,.18) 86%, transparent 100%);
+  animation:scLineLoader 1.05s cubic-bezier(.42,0,.18,1) infinite !important;
+  will-change:left;
 }
 @keyframes scLineLoader{
-  0%{transform:translateX(-130%);}
-  100%{transform:translateX(260%);}
+  0%{left:-48%;}
+  100%{left:112%;}
 }
 @keyframes scSpin{to{transform:rotate(360deg)}}
 
@@ -7664,12 +7717,63 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     margin:12px 14px 14px !important;
   }
 }
-/* SmartCartify loader/check final overrides */
+/* SmartCartify Corner-style dynamic loader + checkbox effect */
 .smartcartify-cart-drawer .sc-line-loader{
+  display:none;
+  width:100%;
+  height:4px;
+  flex:0 0 4px;
+  position:relative;
+  z-index:30;
+  margin:0;
+  padding:0;
   background:#ffffff !important;
+  overflow:hidden !important;
+  border-radius:0;
+  box-shadow:0 1px 0 rgba(15,23,42,.06);
+  isolation:isolate;
+}
+.smartcartify-cart-drawer .sc-line-loader.is-active:not([hidden]),
+.smartcartify-cart-drawer.sc-refreshing .sc-line-loader:not([hidden]),
+.smartcartify-cart-drawer.sc-applying-discount .sc-line-loader:not([hidden]){
+  display:block !important;
 }
 .smartcartify-cart-drawer .sc-line-loader-bg{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
   background:#ffffff !important;
+  overflow:hidden !important;
+  border-radius:0;
+}
+.smartcartify-cart-drawer .sc-line-loader-bg::before{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:50%;
+  height:1px;
+  transform:translateY(-50%);
+  background:rgba(15,23,42,.08);
+}
+.smartcartify-cart-drawer .sc-line-loader-runner{
+  position:absolute;
+  inset:0 auto 0 0;
+  width:100%;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg, transparent 0%, rgba(159,66,235,.12) 20%, var(--sc-progress, #9f42eb) 50%, rgba(159,66,235,.12) 80%, transparent 100%) !important;
+  transform:translate3d(-105%,0,0);
+  animation:none !important;
+  will-change:transform;
+}
+.smartcartify-cart-drawer .sc-line-loader.is-active .sc-line-loader-runner.is-running{
+  animation:scCornerIndeterminateLine 1.08s cubic-bezier(.42,0,.18,1) infinite !important;
+}
+@keyframes scCornerIndeterminateLine{
+  0%{transform:translate3d(-105%,0,0);}
+  100%{transform:translate3d(105%,0,0);}
 }
 .smartcartify-cart-drawer .sc-items-loading,
 .smartcartify-cart-drawer .sc-discount-loading-overlay{
@@ -7677,6 +7781,84 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   visibility:hidden !important;
   opacity:0 !important;
   pointer-events:none !important;
+}
+.smartcartify-cart-drawer .sc-freegift-check{
+  width:22px !important;
+  height:22px !important;
+  border-radius:999px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  background:#ffffff !important;
+  border:2px solid color-mix(in srgb, var(--sc-freegift-accent, #9f42eb) 42%, #ffffff) !important;
+  color:#ffffff !important;
+  box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.4);
+  transform:scale(1);
+  transition:background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.smartcartify-cart-drawer .sc-freegift-check::before{
+  content:none !important;
+}
+.smartcartify-cart-drawer .sc-freegift-check svg{
+  width:14px !important;
+  height:14px !important;
+  display:block !important;
+  overflow:visible !important;
+}
+.smartcartify-cart-drawer .sc-freegift-check svg path{
+  fill:none !important;
+  stroke:#ffffff !important;
+  stroke-width:3.2 !important;
+  stroke-linecap:round !important;
+  stroke-linejoin:round !important;
+  stroke-dasharray:26;
+  stroke-dashoffset:26;
+}
+.smartcartify-cart-drawer .sc-freegift-option.selected .sc-freegift-check,
+.smartcartify-cart-drawer .sc-freegift-check.sc-check-animate{
+  background:var(--sc-freegift-accent, #9f42eb) !important;
+  border-color:var(--sc-freegift-accent, #9f42eb) !important;
+  box-shadow:0 6px 14px rgba(159,66,235,.28);
+  animation:scGiftCheckPop .28s cubic-bezier(.2,.9,.2,1.25) both;
+}
+.smartcartify-cart-drawer .sc-freegift-option.selected .sc-freegift-check svg path,
+.smartcartify-cart-drawer .sc-freegift-check.sc-check-animate svg path{
+  animation:scGiftCheckDraw .38s ease .1s forwards;
+}
+@keyframes scGiftCheckPop{
+  0%{transform:scale(.72);}
+  65%{transform:scale(1.16);}
+  100%{transform:scale(1.04);}
+}
+@keyframes scGiftCheckDraw{
+  to{stroke-dashoffset:0;}
+}
+.smartcartify-cart-drawer .sc-progress-check-svg svg{
+  width:15px !important;
+  height:15px !important;
+  display:block !important;
+  overflow:visible !important;
+}
+.smartcartify-cart-drawer .sc-progress-check-svg svg path{
+  fill:none !important;
+  stroke:currentColor !important;
+  stroke-width:3.2 !important;
+  stroke-linecap:round !important;
+  stroke-linejoin:round !important;
+  stroke-dasharray:26;
+  stroke-dashoffset:0;
+}
+.smartcartify-cart-drawer .sc-dot-wrap.just-done .sc-dot-bubble{
+  animation:scMilestoneCheckPop .34s cubic-bezier(.2,.9,.2,1.25) both;
+}
+.smartcartify-cart-drawer .sc-dot-wrap.just-done .sc-progress-check-svg svg path{
+  stroke-dashoffset:26;
+  animation:scGiftCheckDraw .38s ease .08s forwards;
+}
+@keyframes scMilestoneCheckPop{
+  0%{transform:scale(.72);}
+  65%{transform:scale(1.2);}
+  100%{transform:scale(1);}
 }
 .smartcartify-cart-drawer .sc-celebrate-modal{
   background:#ffffff !important;
@@ -7728,9 +7910,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
         <div class="sc-legends"></div>
       </div>
-      <div class="sc-line-loader" data-sc-line-loader hidden aria-hidden="true">
-        <div class="sc-line-loader-bg">
-          <div class="sc-line-loader-runner"></div>
+      <div id="corner-cowi-cart-indeterminate-loading-bar-wrapper" class="sc-line-loader" data-sc-line-loader hidden aria-hidden="true">
+        <div id="corner-cowi-cart-indeterminate-loading-bar-bg" class="sc-line-loader-bg">
+          <div id="corner-cowi-cart-indeterminate-loading-bar-runner" class="sc-line-loader-runner">&nbsp;</div>
         </div>
       </div>
       <div class="sc-cart-msg" data-sc-cart-msg hidden>
@@ -8568,12 +8750,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const applyDiscountApplyLoadingState = (isLoading) => {
     const active = !!isLoading;
     drawer.classList.toggle("sc-applying-discount", active);
-    const lineLoader = drawer.querySelector("[data-sc-line-loader]");
-    if (lineLoader) {
-      const shouldShowLine = active || drawer.classList.contains("sc-refreshing");
-      lineLoader.hidden = !shouldShowLine;
-      lineLoader.setAttribute("aria-hidden", shouldShowLine ? "false" : "true");
-    }
+    setLineLoaderVisible(active || drawer.classList.contains("sc-refreshing"));
     if (discountLoadingOverlay) {
       discountLoadingOverlay.hidden = true;
       discountLoadingOverlay.style.display = "none";
@@ -12365,7 +12542,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               <span class="sc-freegift-option-title">${safe(option.title)}</span>
               <span class="sc-freegift-option-price">${priceHtml}<span class="sc-freegift-free-pill">Free</span></span>
             </span>
-            <span class="sc-freegift-check" role="checkbox" aria-checked="${selected ? "true" : "false"}" aria-hidden="true"></span>
+            <span class="sc-freegift-check" role="checkbox" aria-checked="${selected ? "true" : "false"}" aria-hidden="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M5 12.5l4.2 4.2L19 7"/>
+              </svg>
+            </span>
           </button>
           ${selected ? renderVariantPanel(option) : ""}
         </div>
@@ -12373,6 +12554,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }).join("");
 
     optionsEl.innerHTML = rowsHtml;
+    requestAnimationFrame(() => triggerFreeGiftCheckAnimations(optionsEl));
 
     if (state.addButton) state.addButton.disabled = state.current.goalMet === false || selectedCount < selectionLimit;
   };
@@ -13202,6 +13384,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const doneSteps = stepsAll.filter((ss) => isProgressStepDone(ss, subtotal));
     const doneCount = doneSteps.length;
+    const previousDoneCount = LAST_DONE;
     const nextPending = stepsAll.find(
       (ss) => isProgressStepConfigured(ss) && !isProgressStepDone(ss, subtotal)
     );
@@ -13331,12 +13514,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const leftPct = isLast ? 100 : ((i + 1) / stepCount) * 100;
         const isDone = isProgressStepDone(ss, subtotal);
         const isActive = !isDone && nextPending?.slot === ss.slot;
-        const cls = isDone ? "done" : isActive ? "active" : "";
+        const justDone = !priming && isDone && i >= previousDoneCount && i < doneCount;
+        const cls = `${isDone ? "done" : isActive ? "active" : ""}${justDone ? " just-done" : ""}`.trim();
         const belowText = trimToNull(ss.progressTextBelow) || trimToNull(ss.title);
+        const checkIcon = `<span class="sc-dot-svg sc-progress-check-svg"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span>`;
+        const iconHtml = isDone ? checkIcon : renderMilestoneIcon(ss.icon);
 
         return `
           <div class="sc-dot-wrap ${cls} ${isLast ? "last" : ""}" style="left:${leftPct}%">
-            <div class="sc-dot-bubble">${renderMilestoneIcon(ss.icon)}</div>
+            <div class="sc-dot-bubble">${iconHtml}</div>
             <div class="sc-dot-text">${safe(belowText)}</div>
           </div>
         `;
