@@ -6491,9 +6491,9 @@ display: flex;
   min-height:22px;
 }
 .sc-freegift-price{
-  color:#6f625b;
-  text-decoration:line-through;
-  font-size:15px;
+     color: var(--sc-drawer-text-color);
+    text-decoration: line-through;
+    font-size: var(--sc-base-font-size);
 }
 .sc-freegift-free-pill{
     display: inline-flex;
@@ -6569,22 +6569,21 @@ display: flex;
   font-size:13px;
   line-height:1.1;
   font-weight:900;
-  color:var(--sc-freegift-option-title-color);
+   color: var(--sc-drawer-text-color);
 }
 .sc-freegift-variant-select-wrap{
   position:relative;
 }
 .sc-freegift-variant-select{
-  width:100%;
-  min-height:43px;
-  border:0;
-  border-radius:3px;
-  background:#ffffff;
-  color:var(--sc-freegift-option-title-color);
-  font-size:calc(var(--sc-freegift-font-size) * 1.06);
-  padding:0 40px 0 14px;
-  appearance:none;
-  box-shadow:0 0 0 1px rgba(15,23,42,.04);
+  width: 100%;
+    min-height: 40px;
+    border: 0;
+    border-radius: 3px;
+    background: #ffffff;
+    color: var(--sc-drawer-text-color);
+    font-size: var(--sc-badge-bg);
+    padding: 0 40px 0 14px;
+    appearance: none;
 }
 .sc-freegift-variant-select-wrap::after{
   content:"⌄";
