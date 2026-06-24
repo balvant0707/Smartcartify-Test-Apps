@@ -18,7 +18,14 @@
     proxyPath = `/${proxyPath}`;
   }
   if (proxyPath.endsWith("/")) proxyPath = proxyPath.slice(0, -1);
-  const directProxyPath = "https://smartcartify-test-apps.vercel.app/proxy/smart";
+  // Optional only: set data-direct-proxy-path on the embed root for debugging.
+  // Do NOT hardcode a production app URL here; multiple Shopify stores must use their own /apps/smart proxy.
+  let directProxyPath = root.dataset.directProxyPath || "";
+  directProxyPath = String(directProxyPath || "").trim();
+  if (directProxyPath && !/^https?:\/\//i.test(directProxyPath) && !directProxyPath.startsWith("/")) {
+    directProxyPath = `/${directProxyPath}`;
+  }
+  if (directProxyPath.endsWith("/")) directProxyPath = directProxyPath.slice(0, -1);
   const shopDomain = String(window.Shopify?.shop || root.dataset.shop || "").trim();
   const customerLoggedIn = String(root.dataset.customerLoggedIn || "false") === "true";
   const customerTags = String(root.dataset.customerTags || "");
@@ -3294,9 +3301,12 @@
   };
 
   const fetchProxy = async (cart = CART) => {
-    const urls = shopDomain
-      ? [buildProxyUrl(cart, directProxyPath), buildProxyUrl(cart)]
-      : [buildProxyUrl(cart)];
+    // Same-origin Shopify app proxy must be first. This keeps each store using
+    // its own proxy/session/config and avoids different frontend output across stores.
+    const urls = [buildProxyUrl(cart)];
+    if (directProxyPath && shopDomain) {
+      urls.push(buildProxyUrl(cart, directProxyPath));
+    }
     let lastError = null;
 
     for (const url of urls) {
@@ -12146,7 +12156,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     "This reward product/variant is currently unavailable or sold out. Please select another reward product.";
 
   const addRewardToCart = async ({ kind, rule, ruleKey, slot, variant, qty, markAutoAdded, skipExistingCheck = false }) => {
-    const guardKey = normalizedPopupKind === "free" ? slot || ruleKey : ruleKey;
+    const normalizedRewardKind = String(kind || "free").toLowerCase();
+    const guardKey = normalizedRewardKind === "free" ? slot || ruleKey : ruleKey;
 
     // If the reward is already in cart, treat it as success.
     // Previously this returned false and opened the red "Could not add" popup.
@@ -13097,6 +13108,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             }
             suppressAutoRewardPopups(3200);
             closeRewardPopup({ force: true, reason: "added" });
+            invalidateCartCache();
+            await refreshFromNetwork();
+            openDrawer();
             renderAllFromCache();
             // Reward added after a completed goal: show only the paper celebration, not the reward success popup.
             if (cur.goalMet !== false) setTimeout(() => firePaperEffect(2800), 80);
@@ -14497,7 +14511,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (variant && !getVariantLegacyId(variant) && !canResolveByProductId && !isMultiOptionReward && !hasBxgyReferences) return false;
     if (!variant && !isMultiOptionReward && !canResolveByProductId && !hasBxgyReferences) return false;
 
-    const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
+    const guardKey = normalizedPopupKind === "free" ? slot || ruleKey : ruleKey;
     const addItemGoalMet = goalMet !== false;
 
     // already shown in this session storage (page refresh safe)
