@@ -134,7 +134,7 @@
     lock: `<i data-lucide="lock" aria-hidden="true"></i>`,
     cart: `<i data-lucide="shopping-cart" aria-hidden="true"></i>`,
     shipping: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 5.25C4 4.83579 4.33579 4.5 4.75 4.5H11.7414C12.9692 4.5 14.0483 5.31394 14.3856 6.49452L14.8125 7.98862C14.837 8.07452 14.9055 8.1408 14.9922 8.16247L16.6744 8.58303C17.4535 8.77779 18 9.47776 18 10.2808V11.5C18 12.2108 17.5763 12.8226 16.9676 13.0966C16.9889 13.2279 17 13.3627 17 13.5C17 14.8807 15.8807 16 14.5 16C13.1193 16 12 14.8807 12 13.5C12 13.4156 12.0042 13.3322 12.0123 13.25H8.98766C8.99582 13.3322 9 13.4156 9 13.5C9 14.8807 7.88071 16 6.5 16C5.11929 16 4 14.8807 4 13.5C4 13.1444 4.07422 12.8062 4.20802 12.5H3.75C3.33579 12.5 3 12.1642 3 11.75C3 11.3358 3.33579 11 3.75 11H6.25C6.27988 11 6.30935 11.0017 6.33831 11.0051C6.39177 11.0017 6.44568 11 6.5 11C7.19935 11 7.83163 11.2872 8.28536 11.75H12.7146C13.1684 11.2872 13.8007 11 14.5 11C15.1982 11 15.8296 11.2863 16.2832 11.7478C16.4056 11.7316 16.5 11.6268 16.5 11.5V10.2808C16.5 10.1661 16.4219 10.0661 16.3106 10.0382L14.6284 9.61769C14.0217 9.466 13.542 9.00205 13.3702 8.4007L12.9433 6.9066C12.79 6.36997 12.2995 6 11.7414 6H4.75C4.33579 6 4 5.66421 4 5.25ZM6.5 14.5C7.05228 14.5 7.5 14.0523 7.5 13.5C7.5 12.9477 7.05228 12.5 6.5 12.5C5.94772 12.5 5.5 12.9477 5.5 13.5C5.5 14.0523 5.94772 14.5 6.5 14.5ZM14.5 14.5C15.0523 14.5 15.5 14.0523 15.5 13.5C15.5 12.9477 15.0523 12.5 14.5 12.5C13.9477 12.5 13.5 12.9477 13.5 13.5C13.5 14.0523 13.9477 14.5 14.5 14.5Z"></path><path d="M3.25 8C2.83579 8 2.5 8.33579 2.5 8.75C2.5 9.16421 2.83579 9.5 3.25 9.5H8.25C8.66421 9.5 9 9.16421 9 8.75C9 8.33579 8.66421 8 8.25 8H3.25Z"></path></svg>`,
-    discount: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 12" ><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H8V2.25C8 2.66421 7.66421 3 7.25 3C6.83579 3 6.5 2.66421 6.5 2.25V1.5H2.5C2.22386 1.5 2 1.72386 2 2V5.04268C2.2913 5.14564 2.5 5.42345 2.5 5.75C2.5 6.07655 2.2913 6.35436 2 6.45732V10C2 10.2761 2.22386 10.5 2.5 10.5H6.5V9.5C6.5 9.08579 6.83579 8.75 7.25 8.75C7.66421 8.75 8 9.08579 8 9.5V10.5H13.5C13.7761 10.5 14 10.2761 14 10V6.5H12.75C12.3358 6.5 12 6.16421 12 5.75C12 5.33579 12.3358 5 12.75 5H14V2C14 1.72386 13.7761 1.5 13.5 1.5ZM15.5 5.75V2C15.5 0.895431 14.6046 0 13.5 0H7.25H2.5C1.39543 0 0.5 0.895431 0.5 2V10C0.5 11.1046 1.39543 12 2.5 12H13.5C14.6046 12 15.5 11.1046 15.5 10V5.75ZM6.79746 3.99197C6.45366 3.23561 5.69951 2.75 4.86868 2.75C3.69632 2.75 2.75 3.70396 2.75 4.87184C2.75 6.04319 3.69915 7 4.875 7H5.73284C5.13766 7.50971 4.47708 7.92423 3.89394 8.00754C3.48389 8.06612 3.19896 8.44602 3.25754 8.85607C3.31612 9.26612 3.69602 9.55104 4.10607 9.49246C5.21669 9.3338 6.23422 8.57331 6.90944 7.9624C7.03044 7.85293 7.14433 7.74463 7.25 7.64032C7.35567 7.74463 7.46956 7.85293 7.59056 7.9624C8.26578 8.57331 9.28331 9.3338 10.3939 9.49246C10.804 9.55104 11.1839 9.26612 11.2425 8.85607C11.301 8.44602 11.0161 8.06612 10.6061 8.00754C10.0229 7.92423 9.36234 7.50971 8.76716 7H9.625C10.8009 7 11.75 6.04319 11.75 4.87184C11.75 3.70396 10.8037 2.75 9.63132 2.75C8.80049 2.75 8.04634 3.23561 7.70254 3.99197L7.25 4.98755L6.79746 3.99197ZM5.83524 5.5H4.875C4.53206 5.5 4.25 5.21926 4.25 4.87184C4.25 4.5279 4.52923 4.25 4.86868 4.25C5.1113 4.25 5.33152 4.3918 5.43191 4.61267L5.83524 5.5ZM9.625 5.5H8.66476L9.06809 4.61267C9.16848 4.3918 9.3887 4.25 9.63132 4.25C9.97077 4.25 10.25 4.5279 10.25 4.87184C10.25 5.21926 9.96794 5.5 9.625 5.5Z"></path></svg>`,
+    discount: `<svg viewBox="0 0 20 20" class="Polaris-Icon__Svg" focusable="false" aria-hidden="true"><path d="M12.78 8.28a.75.75 0 0 0-1.06-1.06l-4.5 4.5a.75.75 0 1 0 1.06 1.06l4.5-4.5Z"></path><path d="M9 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path><path d="M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path><path fill-rule="evenodd" d="M12.094 3.514c-.822-1.79-3.366-1.79-4.188 0a.804.804 0 0 1-1.011.42c-1.848-.686-3.647 1.113-2.962 2.96a.804.804 0 0 1-.419 1.012c-1.79.822-1.79 3.366 0 4.188a.805.805 0 0 1 .42 1.011c-.686 1.848 1.113 3.647 2.96 2.962a.805.805 0 0 1 1.012.419c.822 1.79 3.366 1.79 4.188 0a.805.805 0 0 1 1.011-.42c1.848.686 3.647-1.113 2.962-2.96a.805.805 0 0 1 .419-1.012c1.79-.822 1.79-3.366 0-4.188a.805.805 0 0 1-.42-1.011c.686-1.848-1.113-3.647-2.96-2.962a.805.805 0 0 1-1.012-.419Zm-2.825.626a.804.804 0 0 1 1.462 0 2.304 2.304 0 0 0 2.896 1.2.804.804 0 0 1 1.034 1.034 2.304 2.304 0 0 0 1.199 2.895.804.804 0 0 1 0 1.462 2.304 2.304 0 0 0-1.2 2.896.805.805 0 0 1-1.034 1.034 2.304 2.304 0 0 0-2.895 1.199.804.804 0 0 1-1.462 0 2.304 2.304 0 0 0-2.896-1.2.804.804 0 0 1-1.033-1.034 2.305 2.305 0 0 0-1.2-2.895.804.804 0 0 1 0-1.462 2.304 2.304 0 0 0 1.2-2.896.804.804 0 0 1 1.033-1.033 2.304 2.304 0 0 0 2.896-1.2Z"></path></svg>`,
     free: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 12"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H8V2.25C8 2.66421 7.66421 3 7.25 3C6.83579 3 6.5 2.66421 6.5 2.25V1.5H2.5C2.22386 1.5 2 1.72386 2 2V5.04268C2.2913 5.14564 2.5 5.42345 2.5 5.75C2.5 6.07655 2.2913 6.35436 2 6.45732V10C2 10.2761 2.22386 10.5 2.5 10.5H6.5V9.5C6.5 9.08579 6.83579 8.75 7.25 8.75C7.66421 8.75 8 9.08579 8 9.5V10.5H13.5C13.7761 10.5 14 10.2761 14 10V6.5H12.75C12.3358 6.5 12 6.16421 12 5.75C12 5.33579 12.3358 5 12.75 5H14V2C14 1.72386 13.7761 1.5 13.5 1.5ZM15.5 5.75V2C15.5 0.895431 14.6046 0 13.5 0H7.25H2.5C1.39543 0 0.5 0.895431 0.5 2V10C0.5 11.1046 1.39543 12 2.5 12H13.5C14.6046 12 15.5 11.1046 15.5 10V5.75ZM6.79746 3.99197C6.45366 3.23561 5.69951 2.75 4.86868 2.75C3.69632 2.75 2.75 3.70396 2.75 4.87184C2.75 6.04319 3.69915 7 4.875 7H5.73284C5.13766 7.50971 4.47708 7.92423 3.89394 8.00754C3.48389 8.06612 3.19896 8.44602 3.25754 8.85607C3.31612 9.26612 3.69602 9.55104 4.10607 9.49246C5.21669 9.3338 6.23422 8.57331 6.90944 7.9624C7.03044 7.85293 7.14433 7.74463 7.25 7.64032C7.35567 7.74463 7.46956 7.85293 7.59056 7.9624C8.26578 8.57331 9.28331 9.3338 10.3939 9.49246C10.804 9.55104 11.1839 9.26612 11.2425 8.85607C11.301 8.44602 11.0161 8.06612 10.6061 8.00754C10.0229 7.92423 9.36234 7.50971 8.76716 7H9.625C10.8009 7 11.75 6.04319 11.75 4.87184C11.75 3.70396 10.8037 2.75 9.63132 2.75C8.80049 2.75 8.04634 3.23561 7.70254 3.99197L7.25 4.98755L6.79746 3.99197ZM5.83524 5.5H4.875C4.53206 5.5 4.25 5.21926 4.25 4.87184C4.25 4.5279 4.52923 4.25 4.86868 4.25C5.1113 4.25 5.33152 4.3918 5.43191 4.61267L5.83524 5.5ZM9.625 5.5H8.66476L9.06809 4.61267C9.16848 4.3918 9.3887 4.25 9.63132 4.25C9.97077 4.25 10.25 4.5279 10.25 4.87184C10.25 5.21926 9.96794 5.5 9.625 5.5Z"></path></svg>`,
     bxgy: `<i data-lucide="shopping-bag" aria-hidden="true"></i>`,
   };
@@ -3885,7 +3885,7 @@
     s.textContent = `.sc-overlay, .sc-drawer, .sc-progress, .sc-milestone, .sc-track, .sc-fill, .sc-dots{display:block !important;}
 
 :root{
-  --sc-base-font-size: 10px;
+  --sc-base-font-size: 12px;
   --sc-font: inherit;
   --sc-heading-scale: 1.2;
   --sc-heading-font-size: calc(var(--sc-base-font-size) * var(--sc-heading-scale));
@@ -4493,8 +4493,8 @@ padding: 5px 10px 0px 10px;
   box-shadow:0 1px 4px rgba(15,23,42,.18);
 }
 .sc-progress.sc-cart-goal-progress .sc-dot-bubble svg{
-  width:17px;
-  height:17px;
+  width:15px;
+  height:15px;
   display:block;
   fill:currentColor;
   stroke:none;
@@ -6065,7 +6065,7 @@ position: relative;
 .sc-static-product-title{
   margin:0 0 12px;
   color:var(--sc-static-text, #102864);
-  font-size:calc(var(--sc-base-font-size, 16px) + 2px);
+  font-size:calc(var(--sc-base-font-size, 12px) + 2px);
   line-height:23px;
   font-weight:900;
 }
@@ -6088,7 +6088,7 @@ position: relative;
 .sc-static-qty strong{
   min-width:16px;
   color:var(--sc-static-text, #0f2a6f);
-  font-size:calc(var(--sc-base-font-size, 16px) + 2px);
+  font-size:calc(var(--sc-base-font-size, 12px) + 2px);
   line-height:22px;
   text-align:center;
 }
@@ -6097,7 +6097,7 @@ position: relative;
   align-items:baseline;
   gap:8px;
   color:var(--sc-static-text, #102864);
-  font-size:calc(var(--sc-base-font-size, 16px) + 1px);
+  font-size:calc(var(--sc-base-font-size, 12px) + 1px);
   font-weight:900;
   white-space:nowrap;
 }
@@ -6123,7 +6123,7 @@ position: relative;
   margin:0 0 20px;
   text-align:center;
   color:var(--sc-static-upsell-muted, var(--sc-static-muted, #6f7a8a));
-  font-size:var(--sc-base-font-size, 16px);
+  font-size:var(--sc-base-font-size, 12px);
   line-height:20px;
   font-weight:900;
 }
@@ -6139,13 +6139,13 @@ position: relative;
 .sc-static-upsell-name{
   margin:0 0 4px;
   color:var(--sc-static-upsell-text, #102864);
-  font-size:calc(var(--sc-base-font-size, 16px) - 2px);
+  font-size:calc(var(--sc-base-font-size, 12px) - 2px);
   line-height:18px;
   font-weight:900;
 }
 .sc-static-upsell-price{
   color:var(--sc-static-upsell-muted, #667180);
-  font-size:calc(var(--sc-base-font-size, 16px) - 3px);
+  font-size:calc(var(--sc-base-font-size, 12px) - 3px);
   font-weight:900;
 }
 .sc-static-upsell-price s{
@@ -6183,7 +6183,7 @@ position: relative;
   border-radius:calc(var(--sc-static-radius, 10px) - 4px);
   background:var(--sc-static-card-bg, #ffffff);
   color:var(--sc-static-muted, #6f7684);
-  font-size:var(--sc-base-font-size, 16px);
+  font-size:var(--sc-base-font-size, 12px);
 }
 .sc-static-design .sc-discount button{
   min-width:78px;
@@ -6192,7 +6192,7 @@ position: relative;
   border-radius:calc(var(--sc-static-radius, 10px) - 3px);
   background:var(--sc-static-card-bg, #ffffff);
   color:var(--sc-static-text, #102864);
-  font-size:var(--sc-base-font-size, 16px);
+  font-size:var(--sc-base-font-size, 12px);
   font-weight:900;
 }
 .sc-static-design .sc-discount-msg{
@@ -6222,12 +6222,12 @@ position: relative;
 }
 .sc-static-design .sc-sub-label{
   color:var(--sc-static-muted, #8a92a0) !important;
-  font-size:calc(var(--sc-base-font-size, 16px) - 2px) !important;
+  font-size:calc(var(--sc-base-font-size, 12px) - 2px) !important;
   font-weight:700;
 }
 .sc-static-design .sc-sub-value{
   color:var(--sc-static-text, #102864) !important;
-  font-size:calc(var(--sc-base-font-size, 16px) + 2px) !important;
+  font-size:calc(var(--sc-base-font-size, 12px) + 2px) !important;
   line-height:1.15;
   font-weight:900;
 }
@@ -6235,7 +6235,7 @@ position: relative;
   min-height:56px;
   background:var(--sc-static-button-bg, #4343d0) !important;
   color:var(--sc-static-button-text, #ffffff) !important;
-  font-size:calc(var(--sc-base-font-size, 16px) + 4px) !important;
+  font-size:calc(var(--sc-base-font-size, 12px) + 4px) !important;
   font-weight:900;
 }
 .sc-static-design .sc-footer-tabs{
@@ -7323,7 +7323,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 }
 .sc-drawer:not(.sc-offers-active) .sc-price{
   color:var(--sc-drawer-text-color,#102864) !important;
-  font-size:var(--sc-base-font-size,16px) !important;
+  font-size:var(--sc-base-font-size,12px) !important;
   font-weight:900 !important;
 }
 .sc-drawer:not(.sc-offers-active) .sc-qty button{
@@ -7397,7 +7397,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   border-radius:7px !important;
   background:#ffffff !important;
   color:var(--sc-input-text,#102864) !important;
-  font-size:calc(var(--sc-base-font-size,16px) * .95) !important;
+  font-size:calc(var(--sc-base-font-size,12px) * .95) !important;
 }
 .sc-drawer:not(.sc-offers-active) .sc-discount button{
   min-width:78px !important;
@@ -7419,7 +7419,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 }
 .sc-drawer:not(.sc-offers-active) .sc-sub-label{
   color:#6f7a8a !important;
-  font-size:calc(var(--sc-base-font-size,16px) * .92) !important;
+  font-size:calc(var(--sc-base-font-size,12px) * .92) !important;
   font-weight:500 !important;
 }
 
@@ -7427,7 +7427,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   border-radius:0 !important;
   background:var(--sc-checkout-bg,#a83df0) !important;
   color:var(--sc-checkout-text,#ffffff) !important;
-  font-size:calc(var(--sc-base-font-size,16px) * 1.08) !important;
+  font-size:calc(var(--sc-base-font-size,12px) * 1.08) !important;
   font-weight:900 !important;
 }
 
@@ -7453,7 +7453,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   border-bottom:3px solid transparent !important;
   background:#ffffff !important;
   color:var(--sc-tab-icon-color,#102864) !important;
-  font-size:calc(var(--sc-base-font-size,16px) * 1.08) !important;
+  font-size:calc(var(--sc-base-font-size,12px) * 1.08) !important;
   font-weight:700 !important;
   gap:8px !important;
 }
@@ -7596,7 +7596,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 .sc-drawer.sc-offers-active .sc-offer-title{
   margin:0 !important;
   color:var(--sc-drawer-text-color,#102864) !important;
-  font-size:calc(var(--sc-base-font-size,16px) * 1.02) !important;
+  font-size:calc(var(--sc-base-font-size,12px) * 1.02) !important;
   line-height:1.16 !important;
   font-weight:900 !important;
 }
@@ -7643,7 +7643,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   border-radius:0 !important;
   background:var(--sc-checkout-bg,#a83df0) !important;
   color:var(--sc-checkout-text,#ffffff) !important;
-  font-size:calc(var(--sc-base-font-size,16px) * .92) !important;
+  font-size:calc(var(--sc-base-font-size,12px) * .92) !important;
   font-weight:800 !important;
   cursor:pointer !important;
 }
@@ -7663,7 +7663,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 }
 
 .sc-drawer.sc-offers-active .sc-offer-code{
-  font-size:calc(var(--sc-base-font-size,16px) * .98) !important;
+  font-size:calc(var(--sc-base-font-size,12px) * .98) !important;
   font-weight:900 !important;
   overflow:hidden !important;
   text-overflow:ellipsis !important;
@@ -7678,7 +7678,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   background:#ffffff !important;
   color:var(--sc-checkout-bg,#a83df0) !important;
   padding:9px 12px !important;
-  font-size:calc(var(--sc-base-font-size,16px) * .96) !important;
+  font-size:calc(var(--sc-base-font-size,12px) * .96) !important;
   font-weight:900 !important;
   box-shadow:0 4px 10px rgba(15,23,42,.04) !important;
 }
@@ -7722,7 +7722,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   .sc-drawer.sc-offers-active .sc-offer-action{
     min-width:auto !important;
     padding:8px 10px !important;
-    font-size:calc(var(--sc-base-font-size,16px) * .88) !important;
+    font-size:calc(var(--sc-base-font-size,12px) * .88) !important;
   }
   .sc-drawer .sc-footer-tabs{
     min-height:70px !important;
@@ -8293,7 +8293,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       return Number.isFinite(n) && n > 0 ? n : fallback;
     };
 
-    const baseFontSize = parsePositiveNumber(style?.base, 14);
+    const baseFontSize = parsePositiveNumber(style?.base, 13);
     const headingScaleValue = parsePositiveNumber(style?.headingScale, 1.2);
     const headingFontSize = Math.max(
       8,
@@ -10589,7 +10589,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     DISCOUNT_PANEL_STYLE_ENABLED = style?.discountCodeApply === true || style?.discountCodeApply === 1;
     const r = document.documentElement.style;
 
-    const baseFontSize = Math.max(10, Number(style?.base) || 14);
+    const baseFontSize = Math.max(10, Number(style?.base) || 12);
     const headingScaleValue = Math.max(1, Number(style?.headingScale) || 1.25);
     const radius = Math.max(0, Number(style?.radius) || 10);
     const cardBg = pickColor(style, ["bg"], "#ffffff");
@@ -11450,13 +11450,24 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     );
 
   const addRewardToCart = async ({ kind, rule, ruleKey, slot, variant, qty, markAutoAdded, skipExistingCheck = false }) => {
+    const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
+
+    // If the reward is already in cart, treat it as success.
+    // Previously this returned false and opened the red "Could not add" popup.
+    if (!skipExistingCheck && guardKey && cartHasRewardForKey(kind, guardKey)) {
+      return true;
+    }
+
     const variantToAdd = await resolveRewardVariantForAdd(rule, variant);
     const legacyId = getVariantLegacyId(variantToAdd);
-    // Guard: legacyId must be a pure numeric string — GIDs or empty strings will 422 immediately
-    if (!legacyId || !/^\d+$/.test(String(legacyId))) return false;
-
-    const guardKey = kind === "free" ? slot || ruleKey : ruleKey;
-    if (!skipExistingCheck && guardKey && cartHasRewardForKey(kind, guardKey)) return false;
+    // Guard: /cart/add.js needs a numeric VARIANT ID, not a Product ID/GID.
+    if (!legacyId || !/^\d+$/.test(String(legacyId))) {
+      const err = new Error(
+        "Reward product variant not found. Please check the reward product/variant settings."
+      );
+      err.code = "SC_REWARD_VARIANT_MISSING";
+      throw err;
+    }
 
     try {
       setProgressLoading(true);
@@ -11900,16 +11911,35 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const fromBonusId = () => {
       const raw = trimToNull(rule?.bonusProductId ?? rule?.bonus ?? null);
       if (!raw) return null;
-      const variantGid = normalizeVariantGid(raw);
-      if (variantGid) {
+
+      // Explicit variant fields are variant IDs.
+      const explicitVariantRaw = trimToNull(
+        rule?.bonusProductVariantId ??
+        rule?.bonus_product_variant_id ??
+        rule?.freeProductVariantId ??
+        rule?.giftProductVariantId ??
+        null
+      );
+      const explicitVariantGid = normalizeVariantGid(explicitVariantRaw);
+      if (explicitVariantGid) {
         return {
-          id: variantGid,
-          legacyResourceId: gidToId(variantGid),
-          productId: normalizeProductNumericId(raw),
+          id: explicitVariantGid,
+          legacyResourceId: gidToId(explicitVariantGid),
+          productId: normalizeProductNumericId(raw) || gidToId(raw) || null,
         };
       }
-      const productId = normalizeProductNumericId(raw);
-      return productId ? { productId } : null;
+
+      // bonusProductId/bonus normally stores a PRODUCT id/handle, not a variant id.
+      // Keep it as productId so resolveRewardVariantForAdd can fetch the first available variant.
+      if (/^gid:\/\/shopify\/ProductVariant\/\d+$/i.test(raw)) {
+        return {
+          id: raw,
+          legacyResourceId: gidToId(raw),
+          productId: null,
+        };
+      }
+      const productId = normalizeProductNumericId(raw) || gidToId(raw) || raw;
+      return productId ? { productId: String(productId) } : null;
     };
 
     if (kind === "free") {
@@ -12251,12 +12281,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             // Free gift added: show only paper celebration, not the reward success popup.
             setTimeout(() => firePaperEffect(2800), 80);
           } else {
-            // Silent failure (variant not resolved, already in cart, etc.) — no throw, just notify
-            showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
+            // Keep the popup open and show an inline error instead of the large red reward modal.
+            if (rewardPopupCache.messageEl) {
+              rewardPopupCache.messageEl.classList.add("is-error");
+              rewardPopupCache.messageEl.textContent = "Could not add the product. Please check the reward product/variant.";
+            } else {
+              showCenterCelebratePopup("Reward", "Could not add the product. Please check the reward product/variant.", 4000, "error");
+            }
           }
         } catch (err) {
-          // addRewardToCart already logged this — show user-facing message only
-          showCenterCelebratePopup("Reward", "Could not add the product. Please try again.", 4000);
+          // Show the actual Shopify/app reason inline when available.
+          const msg = trimToNull(err?.message) || "Could not add the product. Please check the reward product/variant.";
+          if (rewardPopupCache.messageEl) {
+            rewardPopupCache.messageEl.classList.add("is-error");
+            rewardPopupCache.messageEl.textContent = msg;
+          } else {
+            showCenterCelebratePopup("Reward", msg, 4000, "error");
+          }
         } finally {
           const active = rewardPopupCache?.current;
           const requiresSelection =

@@ -1200,11 +1200,36 @@ function CartDrawerPreview({
     }));
 
   const stepCount = displaySteps.length;
-  const stepPosition = (index) => {
-    if (stepCount <= 1) return 50;
-    return index === stepCount - 1 ? 100 : ((index + 1) / stepCount) * 100;
+
+  const getRuleGoalValue = (rule) => {
+    if (!rule) return 0;
+    if (rule.triggerType === "quantity") return Number(rule.minQuantity || rule.goal || 0);
+    if (rule._ruleType === "shipping") return Number(rule.minSubtotal || rule.goal || 0);
+    return Number(rule.minPurchase || rule.goal || 0);
   };
-  const progressFill = stepCount ? 100 : 0;
+
+  const sortedDisplaySteps = [...displaySteps].sort((a, b) =>
+    getRuleGoalValue(a.rule) - getRuleGoalValue(b.rule)
+  );
+
+  // Preview sample same as cart drawer screenshot: $10 cart subtotal / 1 qty.
+  // Storefront cart drawer uses real cart subtotal; this is only admin Customize & Preview.
+  const previewCartSubtotal = 10;
+  const previewCartQty = 1;
+  const previewTrackBy = sortedDisplaySteps[0]?.rule?.triggerType === "quantity" ? "quantity" : "amount";
+  const previewProgressValue = previewTrackBy === "quantity" ? previewCartQty : previewCartSubtotal;
+  const maxGoalValue = Math.max(...sortedDisplaySteps.map((step) => getRuleGoalValue(step.rule)), 1);
+
+  const stepPosition = (stepOrIndex) => {
+    if (stepCount <= 1) return 50;
+    if (typeof stepOrIndex === "number") {
+      return stepOrIndex === stepCount - 1 ? 100 : ((stepOrIndex + 1) / stepCount) * 100;
+    }
+    const goal = getRuleGoalValue(stepOrIndex?.rule);
+    return Math.min(100, Math.max(0, (goal / maxGoalValue) * 100));
+  };
+
+  const progressFill = Math.min(100, Math.max(0, (previewProgressValue / maxGoalValue) * 100));
 
   const resolveStepLabel = (step) => {
     if (step.fallbackLabel) return step.fallbackLabel;
@@ -1224,24 +1249,42 @@ function CartDrawerPreview({
     return resolveStepText(rule.progressTextBelow, amount, discountOpts) || ruleStepLabel(rule, shopCurrencyCode);
   };
 
-  const firstPending = displaySteps[displaySteps.length - 1]?.rule || displaySteps[0]?.rule;
-  const nextGoalParts = (() => {
-    if (!firstPending) return [{ text: "Congratulations! You have unlocked Free Gift!" }];
+  const firstPending = sortedDisplaySteps.find((step) =>
+    getRuleGoalValue(step.rule) > previewProgressValue
+  )?.rule || sortedDisplaySteps[0]?.rule;
 
-    const amount = firstPending.triggerType === "quantity"
-      ? firstPending.minQuantity
-      : firstPending._ruleType === "shipping"
-        ? firstPending.minSubtotal
-        : firstPending.minPurchase;
+  const nextGoalParts = (() => {
+    if (!firstPending) return [{ text: "Add more to unlock your reward" }];
+
+    const goalAmount = getRuleGoalValue(firstPending);
+    const remainingAmount = Math.max(goalAmount - previewProgressValue, 0);
 
     const discountOpts = firstPending._ruleType === "discount"
-      ? { value: firstPending.value, valueType: firstPending.valueType, goal: amount, trackBy: firstPending.triggerType, currencyCode: shopCurrencyCode }
-      : { goal: amount, trackBy: firstPending.triggerType, currencyCode: shopCurrencyCode };
+      ? {
+          value: firstPending.value,
+          valueType: firstPending.valueType,
+          goal: goalAmount,
+          trackBy: firstPending.triggerType,
+          currencyCode: shopCurrencyCode,
+        }
+      : {
+          goal: goalAmount,
+          trackBy: firstPending.triggerType,
+          currencyCode: shopCurrencyCode,
+        };
 
-    const resolvedParts = resolveStepTextParts(firstPending.progressTextAfter || firstPending.progressTextBefore, amount, discountOpts);
+    const sourceText = remainingAmount > 0
+      ? (firstPending.progressTextBefore || buildDefaultProgressBefore(firstPending, shopCurrencyCode))
+      : (firstPending.progressTextAfter || buildDefaultProgressAfter(firstPending, shopCurrencyCode));
+
+    const resolvedParts = resolveStepTextParts(sourceText, remainingAmount, discountOpts);
     return resolvedParts.length
       ? resolvedParts
-      : [{ text: buildDefaultProgressAfter(firstPending, shopCurrencyCode) || "Congratulations! You have unlocked Free Gift!" }];
+      : [{
+          text: remainingAmount > 0
+            ? `Add ${previewTrackBy === "quantity" ? remainingAmount : fmtAmount(remainingAmount, shopCurrencyCode)} more to unlock ${ruleStepLabel(firstPending, shopCurrencyCode)}`
+            : buildDefaultProgressAfter(firstPending, shopCurrencyCode),
+        }];
   })();
 
   const cartGoalFreeProducts = cartGoalPreviewRules
@@ -1505,9 +1548,9 @@ function CartDrawerPreview({
           <div style={{ position: "absolute", top: 13, left: 0, right: 0, height: 8, borderRadius: 999, background: withAlpha(pc, 0.24) }} />
           <div style={{ position: "absolute", top: 13, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc, transition: "width .25s ease" }} />
 
-          {displaySteps.map((step, index) => {
-            const pct = stepPosition(index);
-            const done = pct <= progressFill;
+          {sortedDisplaySteps.map((step, index) => {
+            const pct = stepPosition(step);
+            const done = previewProgressValue >= getRuleGoalValue(step.rule);
             const iconSrc = iconForChoice(step.rule?.iconChoice, step.rule?._defaultIcon || GiftCardIcon);
             return (
               <div
