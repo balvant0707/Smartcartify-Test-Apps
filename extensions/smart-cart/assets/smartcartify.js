@@ -4310,17 +4310,21 @@ padding: 5px 10px 0px 10px;
 
 .sc-line-loader{
   width:100%;
-  height:4px;
+  height:3px;
   display:none;
-  flex:0 0 4px;
-  position:relative;
+  flex:0 0 auto;
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
   z-index:20;
   padding:0;
   margin:0;
   overflow:hidden;
-  background:var(--sc-line-loader-bg, #ffffff);
-  box-shadow:0 1px 0 rgba(15,23,42,.06);
+  background:transparent;
+  box-shadow:none;
   isolation:isolate;
+  pointer-events:none;
 }
 .sc-line-loader[hidden]{
   display:none !important;
@@ -4334,7 +4338,7 @@ padding: 5px 10px 0px 10px;
   inset:0;
   width:100%;
   height:100%;
-  background:var(--sc-line-loader-bg, #ffffff);
+  background:transparent;
   overflow:hidden;
   border-radius:0;
 }
@@ -4346,7 +4350,7 @@ padding: 5px 10px 0px 10px;
   top:50%;
   height:1px;
   transform:translateY(-50%);
-  background:var(--sc-line-loader-track, rgba(15,23,42,.08));
+  background:transparent;
 }
 .sc-line-loader-runner{
   position:absolute;
@@ -4637,8 +4641,12 @@ padding: 5px 10px 0px 10px;
 .sc-discount-loading-overlay[hidden]{
   display:none !important;
 }
-.sc-drawer.sc-empty-state .sc-items-footer,
-.sc-drawer.sc-empty-state .sc-footer{
+.sc-drawer.sc-empty-state .sc-items-footer{
+  display:none !important;
+}
+.sc-drawer.sc-empty-state .sc-footer-row,
+.sc-drawer.sc-empty-state .sc-subtotal-box,
+.sc-drawer.sc-empty-state .sc-checkout{
   display:none !important;
 }
 .sc-empty{
@@ -7993,10 +8001,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         </div>
 
         <div class="sc-legends"></div>
-      </div>
-      <div id="corner-cowi-cart-indeterminate-loading-bar-wrapper" class="sc-line-loader" data-sc-line-loader hidden aria-hidden="true">
-        <div id="corner-cowi-cart-indeterminate-loading-bar-bg" class="sc-line-loader-bg">
-          <div id="corner-cowi-cart-indeterminate-loading-bar-runner" class="sc-line-loader-runner">&nbsp;</div>
+
+        <div id="corner-cowi-cart-indeterminate-loading-bar-wrapper" class="sc-line-loader" data-sc-line-loader hidden aria-hidden="true">
+          <div id="corner-cowi-cart-indeterminate-loading-bar-bg" class="sc-line-loader-bg">
+            <div id="corner-cowi-cart-indeterminate-loading-bar-runner" class="sc-line-loader-runner">&nbsp;</div>
+          </div>
         </div>
       </div>
       <div class="sc-cart-msg" data-sc-cart-msg hidden>
@@ -8072,8 +8081,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (cartContent) cartContent.hidden = false;
     if (items) items.hidden = false;
     if (offers) offers.hidden = true;
-    if (footerRow) footerRow.hidden = false;
-    if (footerMilestones) footerMilestones.hidden = !footerMilestones.innerHTML.trim();
+    const isEmptyCartNow = !(Array.isArray(CART?.items) && CART.items.length);
+    if (footerRow) footerRow.hidden = isEmptyCartNow;
+    if (footerMilestones) footerMilestones.hidden = isEmptyCartNow || !footerMilestones.innerHTML.trim();
     const title = drawer.querySelector(".sc-title");
     const count = drawer.querySelector("[data-cart-title-count]");
     if (title) {
@@ -10549,12 +10559,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     // Keep the main drawer body visible. The Offers panel lives inside this wrapper,
     // so hiding .content-cart-smartcartify also hides the full Offers page.
     if (cartBody) cartBody.hidden = false;
+    const isEmptyCartNow = drawer.classList.contains("sc-empty-state") || !(Array.isArray(CART?.items) && CART.items.length);
     if (footer) footer.hidden = isOffers;
     if (cartContent) cartContent.hidden = isOffers;
     if (items) items.hidden = isOffers;
     if (offersPanel) offersPanel.hidden = !isOffers;
-    if (footerRow) footerRow.hidden = isOffers;
-    if (footerMilestones) footerMilestones.hidden = isOffers || !footerMilestones.innerHTML.trim();
+    if (footerRow) footerRow.hidden = isOffers || isEmptyCartNow;
+    if (footerMilestones) footerMilestones.hidden = isOffers || isEmptyCartNow || !footerMilestones.innerHTML.trim();
     drawer.querySelectorAll("[data-drawer-tab]").forEach((button) => {
       const selected = button.getAttribute("data-drawer-tab") === ACTIVE_DRAWER_TAB;
       button.classList.toggle("is-active", selected);
@@ -11284,13 +11295,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     });
 
     const checkoutButton = drawer.querySelector("[data-checkout]");
+    const subtotalBox = drawer.querySelector(".sc-subtotal-box");
+    const footerRow = drawer.querySelector(".sc-footer-row");
     const itemsFooter = drawer.querySelector(".sc-items-footer");
     const footerEl = drawer.querySelector(".sc-footer");
     const isEmpty = !items.length;
     updateDiscountPanelVisibility({ isEmpty });
     if (checkoutButton) checkoutButton.hidden = isEmpty;
+    if (subtotalBox) subtotalBox.hidden = isEmpty;
+    if (footerRow) footerRow.hidden = isEmpty;
     if (itemsFooter) itemsFooter.hidden = isEmpty;
-    if (footerEl) footerEl.hidden = isEmpty && !OFFER_TABS_ENABLED;
+    if (footerEl) footerEl.hidden = false;
     if (offerTabs) offerTabs.hidden = !OFFER_TABS_ENABLED;
     drawer.classList.toggle("sc-empty-state", isEmpty);
     setDrawerTab(ACTIVE_DRAWER_TAB);
@@ -13409,14 +13424,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     refreshAnnouncementFromRules();
 
     if (isEmptyCart) {
-      setAnnouncementMessages([]);
-      setProgressVisible(false);
-      label.innerHTML = "";
-      fill.style.width = "0%";
-      dotsWrap.innerHTML = "";
-      legends.innerHTML = "";
-      document.documentElement.style.removeProperty("--sc-stepcount");
-      return;
+      // Keep the announcement bar, progress bar, and milestone offers visible
+      // even when there are no cart items. The subtotal remains 0, so the
+      // existing progress logic below shows all configured unlock steps from
+      // the beginning instead of hiding the whole rewards area.
     }
 
     const bxgyNow = getBxgyStatus();
