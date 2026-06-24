@@ -1271,7 +1271,7 @@
       selectionType: String(raw.selectionType || raw.selection_type || "").toLowerCase(),
       sectionTitle: pickTextAny(raw, ["sectionTitle", "title"], "You'll love these"),
       buttonText: pickTextAny(raw, ["buttonText"], "add"),
-      buttonColor: pickColor(raw, ["buttonColor", "button"], "#9F42EB"),
+      buttonColor: pickColor(raw, ["buttonColor", "button"], "#4343d0"),
       buttonTextColor: pickColor(raw, ["buttonTextColor", "buttonLabelColor", "button_text_color"], "#ffffff"),
       backgroundColor: pickBackground(raw, ["backgroundColor", "background"], null),
       textColor: pickColor(raw, ["textColor", "text"], "#e2e8f0"),
@@ -2061,7 +2061,7 @@
     wrap.hidden = false;
     wrap.style.setProperty("--sc-upsell-bg", settings.backgroundColor || "var(--sc-drawer-bg, #ffffff)");
     wrap.style.setProperty("--sc-upsell-text", settings.textColor || "#111827");
-    wrap.style.setProperty("--sc-upsell-button-bg", settings.buttonColor || "#9F42EB");
+    wrap.style.setProperty("--sc-upsell-button-bg", settings.buttonColor || "#4343d0");
     wrap.style.setProperty("--sc-upsell-button-text", settings.buttonTextColor || "#ffffff");
     wrap.style.setProperty("--sc-border", settings.borderColor || "#e2e8f0");
     wrap.style.setProperty("--sc-upsell-arrow", settings.arrowColor || "#111827");
@@ -2155,7 +2155,7 @@
                 <div class="${controlsClass}">
                   ${selectMarkup}
                   <div class="sc-upsell-action">
-                    <button class="sc-upsell-btn" type="button" data-upsell-add="${addVariantId}" data-upsell-key="${safeKey}" ${available ? "" : "disabled hidden"} style="${available ? `background-color:${safe(settings.buttonColor || "#9F42EB")};color:${safe(settings.buttonTextColor || "#ffffff")};` : "display:none"}">
+                    <button class="sc-upsell-btn" type="button" data-upsell-add="${addVariantId}" data-upsell-key="${safeKey}" ${available ? "" : "disabled hidden"} style="${available ? `background-color:${safe(settings.buttonColor || "#4343d0")};color:${safe(settings.buttonTextColor || "#ffffff")};` : "display:none"}">
                       <span class="sc-upsell-btn-icon">+</span>
                       <span class="sc-upsell-btn-text">${safe(settings.buttonText)}</span>
                     </button>
@@ -3913,7 +3913,7 @@
   --sc-progress-bg: var(--sc-top-bg-color-effective);
   --sc-progress-text: var(--sc-text);
 
-  --sc-progress: #a93dea;
+  --sc-progress: #4343d0;
   --sc-free-tag-color: var(--sc-progress);
   --sc-free-tag-font-size: var(--sc-small-font-size);
   --sc-stepcount:4;
@@ -3942,7 +3942,7 @@
   --sc-input-text: #111827;
   --sc-input-placeholder: rgba(156,163,175,1);
 
-  --sc-apply-bg: #9F42EB;
+  --sc-apply-bg: #4343d0;
   --sc-apply-text: #ffffff;
   --sc-apply-border: rgba(17,24,39,.25);
 
@@ -3950,7 +3950,7 @@
   --sc-subtotal-text: #111827;
   --sc-subtotal-label: rgba(107,114,128,1);
 
-  --sc-checkout-bg: #a93dea;
+  --sc-checkout-bg: #4343d0;
   --sc-checkout-text: #ffffff;
   --sc-announce-bg: linear-gradient(90deg, #102864 0%, #5b2cf4 50%, #e126b9 100%);
   --sc-announce-text: #ffffff;
@@ -4355,7 +4355,7 @@ padding: 5px 10px 0px 10px;
   width:48%;
   height:100%;
   border-radius:999px;
-  background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 18%, transparent) 14%, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 18%, transparent) 86%, transparent 100%);
+  background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 18%, transparent) 14%, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 18%, transparent) 86%, transparent 100%);
   animation:scLineLoader 1.05s cubic-bezier(.42,0,.18,1) infinite !important;
   will-change:left;
 }
@@ -4942,8 +4942,8 @@ color: var(--sc-drawer-text-color);
 }
 .sc-bxgy-line-badge{
   margin-left:0;
-  color:var(--sc-free-tag-color);
-  font-weight:800;
+  color: var(--sc-drawer-text-color);
+  font-weight:600;
   white-space:nowrap;
 }
 .sc-bxgy-line-badge:empty::before{
@@ -5003,7 +5003,7 @@ color: var(--sc-drawer-text-color);
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
-  letter-spacing: normal;
+  letter-spacing: 0.5px;
 }
 .sc-cartgoal-bonus-nav-btn{
   position:absolute;
@@ -5117,7 +5117,7 @@ color: var(--sc-drawer-text-color);
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
-  letter-spacing: normal;
+  letter-spacing: 0.5px;
 }
 .sc-cartgoal-bonus-msg{
   margin:4px 0 0;
@@ -5983,7 +5983,7 @@ position: relative;
   width:28%;
   height:7px;
   border-radius:999px;
-  background:var(--sc-static-progress, #a93dea);
+  background:var(--sc-static-progress, #4343d0);
 }
 .sc-static-step{
   position:absolute;
@@ -6148,7 +6148,7 @@ position: relative;
 .sc-static-add{
   border:0;
   border-radius:calc(var(--sc-static-radius, 10px) - 6px);
-  background:var(--sc-static-upsell-button-bg, #a93dea);
+  background:var(--sc-static-upsell-button-bg, #4343d0);
   color:var(--sc-static-upsell-button-text, #ffffff);
   padding:10px 17px;
   font-size:15px;
@@ -6225,7 +6225,7 @@ position: relative;
 }
 .sc-static-design .sc-checkout{
   min-height:56px;
-  background:var(--sc-static-button-bg, #a93dea) !important;
+  background:var(--sc-static-button-bg, #4343d0) !important;
   color:var(--sc-static-button-text, #ffffff) !important;
   font-size:calc(var(--sc-base-font-size, 16px) + 4px) !important;
   font-weight:900;
@@ -6245,8 +6245,8 @@ position: relative;
   background:var(--sc-static-card-bg, #ffffff);
 }
 .sc-static-design .sc-footer-tab.is-active{
-  color:var(--sc-static-button-bg, #a93dea);
-  border-bottom-color:var(--sc-static-button-bg, #a93dea);
+  color:var(--sc-static-button-bg, #4343d0);
+  border-bottom-color:var(--sc-static-button-bg, #4343d0);
 }
 .sc-static-design .sc-offers{
   margin:0 18px;
@@ -6433,12 +6433,12 @@ display: flex;
     font-size: calc(var(--sc-heading-font-size));
     line-height: 1.2;
     color: var(--sc-freegift-title-color);
-    letter-spacing: normal;
+    letter-spacing: 0.5px;
 }
 .sc-freegift-subtext {
     margin: 0;
     font-size: calc(var(--sc-freegift-font-size) * 1.06);
-    letter-spacing: normal;
+    letter-spacing: 0.5px;
 }
 .sc-freegift-count{
   display:inline-flex;
@@ -6552,7 +6552,7 @@ display: flex;
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
-    letter-spacing: normal;
+    letter-spacing: 0.5px;
 }
 .sc-freegift-option-price{
   display:flex;
@@ -7259,8 +7259,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     padding: 0 !important;
     font-size: var(--sc-base-font-size) !important;
     font-weight: 500 !important;
-    letter-spacing: normal !important;
+    letter-spacing: 0.5px;
     color: var(--sc-progress-text) !important;
+    text-align: center;
 }
 .sc-drawer:not(.sc-offers-active) .sc-progress.sc-cart-goal-progress .sc-milestone{
   border-bottom:0 !important;
@@ -7310,7 +7311,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   color:var(--sc-drawer-text-color) !important;
   font-weight:700 !important;
   font-size:var(--sc-base-font-size) !important;
-  letter-spacing: normal;
+  letter-spacing: 0.5px;
 }
 .sc-drawer:not(.sc-offers-active) .sc-price{
   color:var(--sc-drawer-text-color,#102864) !important;
@@ -7602,7 +7603,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   -webkit-line-clamp:2 !important;
   -webkit-box-orient:vertical !important;
   overflow:hidden !important;
-  letter-spacing: normal;
+  letter-spacing: 0.5px;
 }
 .sc-drawer.sc-offers-active .sc-offer-code-copy{
   display:flex !important;
@@ -7766,7 +7767,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   width:100%;
   height:100%;
   border-radius:999px;
-  background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 14%, transparent) 20%, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #9f42eb)) 14%, transparent) 80%, transparent 100%) !important;
+  background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 14%, transparent) 20%, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 14%, transparent) 80%, transparent 100%) !important;
   transform:translate3d(-105%,0,0);
   animation:none !important;
   will-change:transform;
@@ -7840,7 +7841,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   width:11px !important;
   height:3px !important;
   border-radius:999px !important;
-  background:var(--sc-checkbox-spark, var(--sc-freegift-accent, #9f42eb)) !important;
+  background:var(--sc-checkbox-spark, var(--sc-freegift-accent, #4343d0)) !important;
   opacity:0;
   transform-origin:left center !important;
 }
@@ -7849,8 +7850,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 .smartcartify-cart-drawer .sc-freegift-check .sc-check-sparks i:nth-child(3){top:19px;transform:rotate(38deg) scaleX(.35);}
 .smartcartify-cart-drawer .sc-freegift-option.selected .sc-freegift-check,
 .smartcartify-cart-drawer .sc-freegift-check.sc-check-animate{
-  background:var(--sc-checkbox-accent, var(--sc-freegift-accent, #9f42eb)) !important;
-  border-color:var(--sc-checkbox-accent, var(--sc-freegift-accent, #9f42eb)) !important;
+  background:var(--sc-checkbox-accent, var(--sc-freegift-accent, #4343d0)) !important;
+  border-color:var(--sc-checkbox-accent, var(--sc-freegift-accent, #4343d0)) !important;
   box-shadow:0 7px 16px rgba(159,66,235,.30);
   animation:scGiftCheckPop .34s cubic-bezier(.2,.9,.2,1.25) both;
 }
@@ -8314,18 +8315,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       drawerText: "#102864",
       border: "#e5e7eb",
       muted: "#6b7280",
-      progress: "#a93dea",
-      checkoutBg: "#9F42EB",
+      progress: "#4343d0",
+      checkoutBg: "#4343d0",
       checkoutText: "#ffffff",
-      announcementBarBackgroundColor: "linear-gradient(90deg, #102864 0%, #5b2cf4 50%, #e126b9 100%)",
+      announcementBarBackgroundColor: "#4343d0",
       announcementBarTextColor: "#ffffff",
       buttonLabelColor: "#ffffff",
       iconColor: "#102864",
       offerIconColor: "#111827",
       tabIconColor: "#102864",
-      tabActiveColor: "#9F42EB",
+      tabActiveColor: "#4343d0",
       footerBg: "transparent",
-      applyBtnBg: "#9F42EB",
+      applyBtnBg: "#4343d0",
       applyBtnText: "#ffffff",
       applyBtnBorder: "rgba(17,24,39,.25)",
       subtotalBg: "#ffffff",
@@ -8351,7 +8352,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const gradientStart = pickColor(
       style,
       ["cartDrawerGradientStart", "drawerGradientStart", "gradientStart", "cartDrawerGradientFrom"],
-      getFirstColorFromBackground(baseBg) || "#9F42EB"
+      getFirstColorFromBackground(baseBg) || "#4343d0"
     );
     const gradientEnd = pickColor(
       style,
@@ -10598,8 +10599,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     );
     const border = pickColor(style, ["borderColor", "border"], "#e5e7eb");
     const muted = pickColor(style, ["muted", "mutedColor"], "#6f7a8a");
-    const progressColor = pickColor(style, ["progress"], "#a93dea");
-    const buttonBg = pickColor(style, ["buttonColor"], "#a93dea");
+    const progressColor = pickColor(style, ["progress"], "#4343d0");
+    const buttonBg = pickColor(style, ["buttonColor"], "#4343d0");
     const buttonText = pickColor(style, ["buttonLabelColor"], "#ffffff");
     const iconColor = pickColor(style, ["iconColor"], text);
     const mode = String(style?.cartDrawerBackgroundMode || "gradient").toLowerCase();

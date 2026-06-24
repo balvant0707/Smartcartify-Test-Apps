@@ -1130,75 +1130,41 @@ function CartDrawerPreview({
   cartDefaultIcon,
   shopCurrencyCode = DEFAULT_CURRENCY_CODE,
 }) {
-  const r = Math.max(Number(radius) || 10, 6);
+  const r = Math.max(Number(radius) || 12, 12);
   const fs = Math.max(Number(base) || 12, 10);
-  const headingFs = Math.max(18, Number((fs * (Number(headingScale) || 1.25)).toFixed(2)));
+  const headingFs = Math.max(20, Number((fs * (Number(headingScale) || 1.25)).toFixed(2)));
   const fontFamily = font || DEFAULT_STYLE.font;
-  const tc = textColor || "#111111";
-  const ptc = progressTextColor || tc;
-  const hc = headerColor || "#111111";
-  const bc = buttonColor || "#A033E8";
+  const tc = textColor || "#102864";
+  const drawerText = textColor || "#102864";
+  const ptc = progressTextColor || drawerText;
+  const hc = headerColor || "#ffffff";
+  const bc = buttonColor || "#A93DEA";
   const blc = buttonLabelColor || "#ffffff";
-  const pc = progress || "#A033E8";
+  const pc = progress || "#A93DEA";
   const brc = borderColor || "#E1E5ED";
-  const ic = iconColor || pc;
+  const ic = iconColor || "#102864";
   const surface = uiBg || "#ffffff";
-  const progressSurface = progressBg || uiBg || "#ffffff";
-  const completedIconColor = contrastRatio(ic, pc) >= 3 ? ic : readableColorOn(pc);
+  const progressSurface = progressBg || "#ffffff";
+  const completedIconColor = readableColorOn(pc);
   const gradStart = drawerGradientStart || DEFAULT_STYLE.cartDrawerGradientStart;
   const gradEnd = drawerGradientEnd || DEFAULT_STYLE.cartDrawerGradientEnd;
 
-  const previewProducts = Array.isArray(upsellPreviewItems)
-    ? upsellPreviewItems.filter(Boolean)
-    : [];
-
-  const mainProduct = {
-    title: "Cream Sofa",
-    tag: "",
-    price: formatCurrencyAmount(500, shopCurrencyCode),
-    image: "/images/Shirt_cc945e9e-c2e1-4d98-a085-15dfd9fb3457.png",
-  };
-
-  const fallbackUpsellProducts = [
-    {
-      id: "preview-upsell-1",
-      title: "Nike Orange",
-      tag: "Recommended",
-      price: formatCurrencyAmount(300, shopCurrencyCode),
-      image: "/images/upsellproduct.png",
-    },
-    {
-      id: "preview-upsell-2",
-      title: "Sample Puma Shoes",
-      tag: "Recommended",
-      price: formatCurrencyAmount(300, shopCurrencyCode),
-      image: "/images/upsellproduct.png",
-    },
-  ];
-  const upsellProducts = (previewProducts.length ? previewProducts : fallbackUpsellProducts).slice(0, 8);
   const [activeUpsellIndex, setActiveUpsellIndex] = useState(0);
   const [activeFreeProductIndex, setActiveFreeProductIndex] = useState(0);
   const [activeDrawerTab, setActiveDrawerTab] = useState("cart");
-  const activeUpsellProduct = upsellProducts[activeUpsellIndex] || upsellProducts[0] || fallbackUpsellProducts[0];
 
-  const parsedPrice = parsePreviewPrice(mainProduct.price, shopCurrencyCode);
-  const totalPrice = formatPreviewPrice(parsedPrice.amount, shopCurrencyCode);
-
-  const announceMessageParts = [];
-  (codeDiscountRules || []).forEach((rule) => {
-    const beforeMsgParts = resolveCodeDiscountBeforeMessageParts(rule, shopCurrencyCode);
-    if (beforeMsgParts.length) {
-      announceMessageParts.push(beforeMsgParts);
-      return;
-    }
-    if (rule?.discountCode) {
-      announceMessageParts.push([
-        { text: "Use code " },
-        { text: String(rule.discountCode).toUpperCase(), bold: true },
-      ]);
-    }
-  });
-  if (!announceMessageParts.length) announceMessageParts.push([{ text: "This is just a SampleMessage" }]);
+  const showUpsell = upsellSettings?.enabled !== false;
+  const showOfferTabs = offerButtonEnabled !== false;
+  const upsellShowAsSlider = upsellSettings?.showAsSlider !== false;
+  const upsellAutoplay = upsellSettings?.autoplay !== false;
+  const upsellTitle = upsellSettings?.sectionTitle || "You may also like...";
+  const upsellButtonText = upsellSettings?.buttonText || "Add";
+  const upsellButtonBg = upsellSettings?.buttonColor || bc;
+  const upsellButtonTextColor = upsellSettings?.buttonTextColor || blc;
+  const upsellArrowColor = upsellSettings?.arrowColor || ic;
+  const upsellSurface = upsellSettings?.backgroundColor || "#ffffff";
+  const upsellTextColor = upsellSettings?.textColor || drawerText;
+  const upsellBorderColor = upsellSettings?.borderColor || brc;
 
   const topCartGoalCampaign = (cartGoalRules || [])[0] || null;
   const cartGoalPreviewRules = buildCartGoalPreviewRules(topCartGoalCampaign);
@@ -1207,38 +1173,6 @@ function CartDrawerPreview({
     ...(discountRules || []).map((rule) => ({ ...rule, _ruleType: "discount", _defaultIcon: DiscountIcon })),
     ...(freeGiftRules || []).map((rule) => ({ ...rule, _ruleType: "free", _defaultIcon: GiftCardIcon })),
   ];
-
-  const cartGoalFreeProducts = cartGoalPreviewRules
-    .filter((rule) =>
-      rule?._ruleType === "free" &&
-      String(rule?.showcaseFreeGifts ?? topCartGoalCampaign?.showcaseFreeGifts ?? "show").toLowerCase() !== "hide"
-    )
-    .flatMap((rule) => Array.isArray(rule.previewProducts) ? rule.previewProducts : []);
-  const freeGiftPreviewProducts = (freeGiftRules || []).flatMap((rule) =>
-    Array.isArray(rule.previewProducts) ? rule.previewProducts : []
-  );
-  const fallbackFreeProducts = [
-    {
-      id: "preview-free-1",
-      title: "White Bed Clothes",
-      tag: "Free product",
-      price: "",
-      image: "/images/upsellproduct.png",
-    },
-    {
-      id: "preview-free-2",
-      title: "Free Product Gift",
-      tag: "Free product",
-      price: "",
-      image: "/images/upsellproduct.png",
-    },
-  ];
-  const freeProducts = (
-    cartGoalFreeProducts.length || freeGiftPreviewProducts.length
-      ? [...cartGoalFreeProducts, ...freeGiftPreviewProducts]
-      : fallbackFreeProducts
-  ).slice(0, 8);
-  const activeFreeProduct = freeProducts[activeFreeProductIndex] || freeProducts[0] || fallbackFreeProducts[0];
 
   const slotMap = { 1: null, 2: null, 3: null, 4: null };
   const unslotted = [];
@@ -1269,28 +1203,7 @@ function CartDrawerPreview({
     if (stepCount <= 1) return 50;
     return index === stepCount - 1 ? 100 : ((index + 1) / stepCount) * 100;
   };
-  const progressFill = stepCount ? stepPosition(0) : 33;
-
-  const firstPending = displaySteps[0]?.rule;
-  const nextGoalParts = (() => {
-    if (!firstPending) return [{ text: "Add more to get Free Gift with this order" }];
-
-    const amount = firstPending.triggerType === "quantity"
-      ? firstPending.minQuantity
-      : firstPending._ruleType === "shipping"
-        ? firstPending.minSubtotal
-        : firstPending.minPurchase;
-
-    const discountOpts = firstPending._ruleType === "discount"
-      ? { value: firstPending.value, valueType: firstPending.valueType, goal: amount, trackBy: firstPending.triggerType, currencyCode: shopCurrencyCode }
-      : { goal: amount, trackBy: firstPending.triggerType, currencyCode: shopCurrencyCode };
-
-    const resolvedParts = resolveStepTextParts(firstPending.progressTextBefore, amount, discountOpts);
-    return resolvedParts.length
-      ? resolvedParts
-      : [{ text: buildDefaultProgressBefore(firstPending, shopCurrencyCode) || "Add more to get Free Gift with this order" }];
-  })();
-  const nextGoalText = partsToText(nextGoalParts);
+  const progressFill = stepCount ? 100 : 0;
 
   const resolveStepLabel = (step) => {
     if (step.fallbackLabel) return step.fallbackLabel;
@@ -1309,6 +1222,119 @@ function CartDrawerPreview({
 
     return resolveStepText(rule.progressTextBelow, amount, discountOpts) || ruleStepLabel(rule, shopCurrencyCode);
   };
+
+  const firstPending = displaySteps[displaySteps.length - 1]?.rule || displaySteps[0]?.rule;
+  const nextGoalParts = (() => {
+    if (!firstPending) return [{ text: "Congratulations! You have unlocked Free Gift!" }];
+
+    const amount = firstPending.triggerType === "quantity"
+      ? firstPending.minQuantity
+      : firstPending._ruleType === "shipping"
+        ? firstPending.minSubtotal
+        : firstPending.minPurchase;
+
+    const discountOpts = firstPending._ruleType === "discount"
+      ? { value: firstPending.value, valueType: firstPending.valueType, goal: amount, trackBy: firstPending.triggerType, currencyCode: shopCurrencyCode }
+      : { goal: amount, trackBy: firstPending.triggerType, currencyCode: shopCurrencyCode };
+
+    const resolvedParts = resolveStepTextParts(firstPending.progressTextAfter || firstPending.progressTextBefore, amount, discountOpts);
+    return resolvedParts.length
+      ? resolvedParts
+      : [{ text: buildDefaultProgressAfter(firstPending, shopCurrencyCode) || "Congratulations! You have unlocked Free Gift!" }];
+  })();
+
+  const cartGoalFreeProducts = cartGoalPreviewRules
+    .filter((rule) =>
+      rule?._ruleType === "free" &&
+      String(rule?.showcaseFreeGifts ?? topCartGoalCampaign?.showcaseFreeGifts ?? "show").toLowerCase() !== "hide"
+    )
+    .flatMap((rule) => Array.isArray(rule.previewProducts) ? rule.previewProducts : []);
+  const freeGiftPreviewProducts = (freeGiftRules || []).flatMap((rule) =>
+    Array.isArray(rule.previewProducts) ? rule.previewProducts : []
+  );
+
+  const fallbackFreeProducts = [
+    {
+      id: "preview-free-1",
+      title: "Bottle Soda",
+      tag: "Free",
+      compare: formatCurrencyAmount(4, shopCurrencyCode),
+      price: "Free",
+      image: "/images/upsellproduct.png",
+    },
+    {
+      id: "preview-free-2",
+      title: "Couple Gift Box",
+      tag: "BuyXGetY",
+      compare: formatCurrencyAmount(93.98, shopCurrencyCode),
+      price: "Free",
+      image: "/images/upsellproduct.png",
+    },
+  ];
+
+  const freeProducts = (
+    cartGoalFreeProducts.length || freeGiftPreviewProducts.length
+      ? [...cartGoalFreeProducts, ...freeGiftPreviewProducts]
+      : fallbackFreeProducts
+  ).slice(0, 8);
+  const activeFreeProduct = freeProducts[activeFreeProductIndex] || freeProducts[0] || fallbackFreeProducts[0];
+
+  const previewProducts = Array.isArray(upsellPreviewItems)
+    ? upsellPreviewItems.filter(Boolean)
+    : [];
+
+  const fallbackUpsellProducts = [
+    {
+      id: "preview-upsell-1",
+      title: "Casual Sneakers",
+      tag: "Buy X Get Y",
+      price: formatCurrencyAmount(199.95, shopCurrencyCode),
+      image: "/images/upsellproduct.png",
+    },
+    {
+      id: "preview-upsell-2",
+      title: "Sample Puma Shoes",
+      tag: "Recommended",
+      price: formatCurrencyAmount(300, shopCurrencyCode),
+      image: "/images/upsellproduct.png",
+    },
+  ];
+  const upsellProducts = (previewProducts.length ? previewProducts : fallbackUpsellProducts).slice(0, 8);
+  const activeUpsellProduct = upsellProducts[activeUpsellIndex] || upsellProducts[0] || fallbackUpsellProducts[0];
+
+  const mainProduct = {
+    title: activeUpsellProduct?.title || "Casual Sneakers",
+    tag: activeUpsellProduct?.tag || "Buy X Get Y",
+    price: activeUpsellProduct?.price || formatCurrencyAmount(199.95, shopCurrencyCode),
+    image: activeUpsellProduct?.image || "/images/upsellproduct.png",
+  };
+
+  const announceMessageParts = [];
+  (codeDiscountRules || []).forEach((rule) => {
+    const beforeMsgParts = resolveCodeDiscountBeforeMessageParts(rule, shopCurrencyCode);
+    if (beforeMsgParts.length) {
+      announceMessageParts.push(beforeMsgParts);
+      return;
+    }
+    if (rule?.discountCode) {
+      announceMessageParts.push([
+        { text: "Use code " },
+        { text: String(rule.discountCode).toUpperCase(), bold: true },
+        { text: " and get discount!" },
+      ]);
+    }
+  });
+  if (!announceMessageParts.length) {
+    announceMessageParts.push([
+      { text: "Use code " },
+      { text: "RUDRA123", bold: true },
+      { text: " and get 10% off! Add " },
+      { text: formatCurrencyAmount(0, shopCurrencyCode), bold: true },
+      { text: " more" },
+    ]);
+  }
+  const marqueeContent = announceMessageParts.filter((message) => partsToText(message));
+  const marqueeTextContent = marqueeContent.map((message) => partsToText(message));
 
   const offerSubtitleForRule = (rule, fallback = "") => {
     if (!rule) return fallback;
@@ -1350,11 +1376,11 @@ function CartDrawerPreview({
         products: Array.isArray(rule.previewProducts) ? rule.previewProducts : [],
       };
     }),
-    ...(codeDiscountRules || []).slice(0, 1).map((rule) => ({
+    ...(codeDiscountRules || []).slice(0, 2).map((rule) => ({
       key: `code-${rule.discountCode || rule.id || "discount"}`,
       type: "code",
       title: rule.codeCampaignName || rule.campaignName || "Code Discount",
-      subtitle: resolveCodeDiscountBeforeMessage(rule) || "Apply this discount code",
+      subtitle: resolveCodeDiscountBeforeMessage(rule, shopCurrencyCode) || "Apply this discount code",
       code: String(rule.discountCode || "smart123").toUpperCase(),
       icon: DiscountCodeIcon,
       action: "Apply Code",
@@ -1382,24 +1408,6 @@ function CartDrawerPreview({
         };
       }),
   ];
-
-  const showUpsell = upsellSettings?.enabled !== false;
-  const showOfferTabs = offerButtonEnabled !== false;
-  const upsellShowAsSlider = upsellSettings?.showAsSlider !== false;
-  const upsellAutoplay = upsellSettings?.autoplay !== false;
-  const upsellTitle = upsellSettings?.sectionTitle || "You may also like...";
-  const upsellButtonText = upsellSettings?.buttonText || "Add";
-  const upsellButtonBg = upsellSettings?.buttonColor || bc;
-  const upsellButtonTextColor = upsellSettings?.buttonTextColor || blc;
-  const upsellArrowColor = upsellSettings?.arrowColor || ic;
-  const upsellSurface = upsellSettings?.backgroundColor || surface;
-  const upsellTextColor = upsellSettings?.textColor || tc;
-  const upsellBorderColor = upsellSettings?.borderColor || brc;
-  const marqueeMessages = announceMessageParts.filter((message) => partsToText(message));
-  const marqueeContent = marqueeMessages.length
-    ? marqueeMessages
-    : [[{ text: "This is just a SampleMessage" }]];
-  const marqueeTextContent = marqueeContent.map((message) => partsToText(message));
 
   useEffect(() => {
     setActiveUpsellIndex(0);
@@ -1441,26 +1449,33 @@ function CartDrawerPreview({
     });
   };
 
-  const drawerBackgroundStyle = drawerBgMode === "gradient"
-    ? { background: `linear-gradient(180deg, ${gradStart}, ${gradEnd})` }
+  const bodyBackgroundStyle = drawerBgMode === "image" && drawerImage
+    ? {
+      background: `linear-gradient(rgba(244,244,247,.92), rgba(244,244,247,.92)), url(${drawerImage})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+    }
+    : { background: bg || surface || "#f4f4f7" };
+
+  const topBackgroundStyle = drawerBgMode === "gradient"
+    ? { background: `linear-gradient(135deg, ${gradStart}, ${gradEnd})` }
     : drawerBgMode === "image" && drawerImage
       ? {
-        background: `linear-gradient(rgba(255,255,255,.90), rgba(255,255,255,.90)), url(${drawerImage})`,
+        background: `linear-gradient(135deg, ${withAlpha(bc, 0.92)}, ${withAlpha(pc, 0.72)}), url(${drawerImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
-      : { background: bg || surface };
+      : { background: `linear-gradient(135deg, ${bc} 0%, ${pc} 58%, ${withAlpha(pc, 0.28)} 100%)` };
 
-  const headerBackgroundStyle = drawerBgMode === "gradient"
-    ? { background: `linear-gradient(135deg, ${gradStart}, ${gradEnd})` }
-    : { background: bg || surface };
   const showCustomCartIcon = normalizeCartIconType(cartIconType) === "custom" && cartIconUrl;
   const headerCartIcon = CART_DEFAULT_ICON_MAP[normalizeDefaultCartIcon(cartDefaultIcon)] || CartIcon;
   const isBottomSheetPreview = mobileLayout === "bottom_sheet";
   const previewHeight = isBottomSheetPreview ? 620 : 680;
-  const previewRadius = Math.max(r, 12);
+  const cartPreviewCount = Math.max(3, freeProducts.length + 2);
+  const totalPrice = formatCurrencyAmount(331.14, shopCurrencyCode);
+  const discountPrice = `-${formatCurrencyAmount(82.78, shopCurrencyCode)}`;
 
-  const ProductImage = ({ src, alt, size = 54 }) => (
+  const ProductImage = ({ src, alt, size = 58, radiusPx = 10 }) => (
     <img
       src={normalizePreviewImage(src)}
       alt={alt || "Product"}
@@ -1468,6 +1483,7 @@ function CartDrawerPreview({
       style={{
         width: size,
         height: size,
+        borderRadius: radiusPx,
         objectFit: "cover",
         background: "#F7F7F7",
         flexShrink: 0,
@@ -1475,27 +1491,202 @@ function CartDrawerPreview({
     />
   );
 
-  const SmallIconButton = ({ icon, label, color = ic }) => (
-    <button
-      type="button"
-      aria-label={label}
+  const MilestoneProgress = () => (
+    <Box padding="300">
+      <BlockStack gap="250">
+        <Text as="p" alignment="center" fontWeight="semibold" tone="inherit">
+          <span style={{ color: ptc, fontSize: Math.max(fs + 1, 13), lineHeight: "18px" }}>
+            {renderRichMessage(nextGoalParts, "preview-next-goal")}
+          </span>
+        </Text>
+
+        <div style={{ position: "relative", height: 50, margin: "0 22px" }}>
+          <div style={{ position: "absolute", top: 13, left: 0, right: 0, height: 8, borderRadius: 999, background: withAlpha(pc, 0.24) }} />
+          <div style={{ position: "absolute", top: 13, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc, transition: "width .25s ease" }} />
+
+          {displaySteps.map((step, index) => {
+            const pct = stepPosition(index);
+            const done = pct <= progressFill;
+            const iconSrc = iconForChoice(step.rule?.iconChoice, step.rule?._defaultIcon || GiftCardIcon);
+            return (
+              <div
+                key={`${step.slot}-${index}`}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: `${pct}%`,
+                  transform: "translateX(-50%)",
+                  width: 106,
+                  textAlign: "center",
+                  zIndex: 2,
+                }}
+              >
+                <div
+                  className={done ? "cp-goal-dot cp-goal-dot-done" : "cp-goal-dot"}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    margin: "0 auto",
+                    borderRadius: "50%",
+                    display: "grid",
+                    placeItems: "center",
+                    background: done ? pc : progressSurface,
+                    color: done ? completedIconColor : ic,
+                    border: `2px solid ${done ? pc : withAlpha(ptc, 0.35)}`,
+                    boxShadow: "0 1px 4px rgba(15,23,42,.18)",
+                  }}
+                >
+                  <PreviewIcon source={iconSrc} size={18} color="currentColor" />
+                </div>
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: Math.max(fs - 2, 10),
+                    lineHeight: "13px",
+                    color: ptc,
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {resolveStepLabel(step)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </BlockStack>
+    </Box>
+  );
+
+  const CartTag = ({ icon = DiscountIcon, children }) => (
+    <span
       style={{
-        width: 26,
-        height: 26,
-        borderRadius: "50%",
-        border: `1px solid ${brc}`,
-        background: "#ffffff",
-        color,
-        display: "grid",
-        placeItems: "center",
-        padding: 0,
-        cursor: "pointer",
-        flexShrink: 0,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        minHeight: 24,
+        borderRadius: 6,
+        padding: "4px 9px",
+        background: withAlpha(pc, 0.12),
+        color: ic,
+        fontWeight: 800,
+        fontSize: Math.max(fs - 1, 11),
+        lineHeight: "14px",
       }}
     >
       <PreviewIcon source={icon} size={13} color="currentColor" />
-    </button>
+      {children}
+    </span>
   );
+
+  const renderProductRow = (item, index) => (
+    <div
+      key={`${item.title}-${index}`}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "72px minmax(0, 1fr) auto",
+        gap: 12,
+        alignItems: "center",
+        padding: "15px 14px",
+        borderBottom: index === 2 ? "none" : `1px solid ${brc}`,
+        background: "#ffffff",
+      }}
+    >
+      <ProductImage src={item.image} alt={item.title} size={54} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ color: drawerText, fontWeight: 800, fontSize: Math.max(fs + 3, 15), lineHeight: "20px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {item.title}
+        </div>
+        <div style={{ marginTop: 6 }}>
+          <CartTag icon={item.tagIcon || DiscountIcon}>{item.tag || "Free"}</CartTag>
+        </div>
+        {item.qty && (
+          <InlineStack gap="200" blockAlign="center" wrap={false}>
+            <button type="button" style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${brc}`, background: "#fff", color: ic, cursor: "pointer", fontWeight: 800 }}>-</button>
+            <span style={{ minWidth: 18, textAlign: "center", color: drawerText, fontWeight: 800, fontSize: Math.max(fs + 2, 14) }}>{item.qty}</span>
+            <button type="button" style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${brc}`, background: "#fff", color: ic, cursor: "pointer", fontWeight: 800 }}>+</button>
+          </InlineStack>
+        )}
+      </div>
+      <BlockStack gap="100" align="end">
+        <button
+          type="button"
+          aria-label="Remove item"
+          style={{
+            width: 26,
+            height: 26,
+            border: 0,
+            background: "transparent",
+            color: ic,
+            display: "grid",
+            placeItems: "center",
+            padding: 0,
+            cursor: "pointer",
+            justifySelf: "end",
+          }}
+        >
+          <PreviewIcon source={XIcon} size={18} color="currentColor" />
+        </button>
+        <InlineStack gap="200" blockAlign="center" wrap={false}>
+          {item.compare && (
+            <span style={{ color: `${drawerText}80`, fontSize: Math.max(fs, 12), fontWeight: 700, textDecoration: "line-through", whiteSpace: "nowrap" }}>
+              {item.compare}
+            </span>
+          )}
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minWidth: 78,
+              minHeight: 34,
+              borderRadius: 999,
+              padding: "6px 12px",
+              background: item.free ? pc : "transparent",
+              color: item.free ? completedIconColor : drawerText,
+              fontSize: Math.max(fs + 3, 15),
+              fontWeight: 800,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {item.price}
+          </span>
+        </InlineStack>
+      </BlockStack>
+    </div>
+  );
+
+  const cartRows = [
+    {
+      title: freeProducts[0]?.title || "Bottle Soda",
+      tag: freeProducts[0]?.tag || "Free",
+      tagIcon: DiscountIcon,
+      image: freeProducts[0]?.image || fallbackFreeProducts[0].image,
+      compare: freeProducts[0]?.compare || formatCurrencyAmount(4, shopCurrencyCode),
+      price: "Free",
+      free: true,
+    },
+    {
+      title: freeProducts[1]?.title || activeFreeProduct?.title || "Couple Gift Box",
+      tag: freeProducts[1]?.tag || "BuyXGetY",
+      tagIcon: DiscountIcon,
+      image: freeProducts[1]?.image || activeFreeProduct?.image || fallbackFreeProducts[1].image,
+      compare: freeProducts[1]?.compare || formatCurrencyAmount(93.98, shopCurrencyCode),
+      price: "Free",
+      free: true,
+    },
+    {
+      title: mainProduct.title || "Casual Sneakers",
+      tag: mainProduct.tag || "Buy X Get Y",
+      tagIcon: DiscountIcon,
+      image: mainProduct.image,
+      price: mainProduct.price || formatCurrencyAmount(199.95, shopCurrencyCode),
+      qty: 5,
+      free: false,
+    },
+  ];
 
   const OfferProductThumbs = ({ products = [], icon }) => {
     const visible = products.filter(Boolean).slice(0, 4);
@@ -1503,12 +1694,13 @@ function CartDrawerPreview({
       return (
         <div
           style={{
-            width: 50,
-            height: 40,
+            width: 64,
+            height: 58,
+            borderRadius: 12,
             display: "grid",
             placeItems: "center",
             background: "#ffffff",
-            border: `1px solid ${ic}`,
+            border: `1px solid ${brc}`,
             color: ic,
           }}
         >
@@ -1520,8 +1712,8 @@ function CartDrawerPreview({
     return (
       <div
         style={{
-          width: 50,
-          height: 40,
+          width: 64,
+          height: 58,
           display: "grid",
           gridTemplateColumns: "repeat(2, 1fr)",
           gap: 4,
@@ -1535,8 +1727,9 @@ function CartDrawerPreview({
             alt={product.title || "Offer product"}
             onError={(event) => { event.currentTarget.style.display = "none"; }}
             style={{
-              width: 30,
-              height: 30,
+              width: 28,
+              height: 28,
+              borderRadius: 8,
               objectFit: "cover",
               border: `1px solid ${brc}`,
               background: "#F7F7F7",
@@ -1553,6 +1746,15 @@ function CartDrawerPreview({
         @keyframes cpAnnouncementMarquee {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
+        }
+        @keyframes cpCornerLineMove {
+          0% { left: -45%; }
+          100% { left: 110%; }
+        }
+        @keyframes cpGoalPop {
+          0% { transform: scale(.84); }
+          55% { transform: scale(1.14); }
+          100% { transform: scale(1); }
         }
         .cp-announcementMarquee {
           overflow: hidden;
@@ -1575,19 +1777,21 @@ function CartDrawerPreview({
           gap: 10px;
           padding-inline: 18px;
         }
-        @media (prefers-reduced-motion: reduce) {
-          .cp-announcementTrack { animation: none; }
+        .cp-goal-dot-done {
+          animation: cpGoalPop .45s ease both;
         }
         .cp-preview-discount-code .Polaris-TextField,
         .cp-preview-discount-code .Polaris-TextField__Input,
         .cp-preview-discount-code .Polaris-TextField__Backdrop {
-          border-radius: 0 !important;
-          --pc-shadow-bevel-border-radius: 0 !important;
+          border-radius: ${Math.max(r, 8)}px !important;
+          --pc-shadow-bevel-border-radius: ${Math.max(r, 8)}px !important;
         }
-          .cp-preview-sticky .Polaris-Box {
-    border-radius: 0px !important;
-}
+        @media (prefers-reduced-motion: reduce) {
+          .cp-announcementTrack { animation: none; }
+          .cp-goal-dot-done { animation: none; }
+        }
       `}</style>
+
       <div
         style={{
           height: previewHeight,
@@ -1596,20 +1800,21 @@ function CartDrawerPreview({
           flexDirection: "column",
           overflow: "hidden",
           border: `1px solid ${brc}`,
-          color: tc,
+          borderRadius: isBottomSheetPreview ? "24px 24px 0 0" : 0,
+          color: drawerText,
           fontSize: fs,
           fontFamily,
           boxShadow: drawerPosition === "left"
-            ? "8px 0 22px rgba(15,23,42,.10)"
-            : "-8px 0 22px rgba(15,23,42,.10)",
+            ? "8px 0 22px rgba(15,23,42,.12)"
+            : "-8px 0 22px rgba(15,23,42,.12)",
           opacity: drawerAutoOpen ? 1 : 0.88,
           marginTop: isBottomSheetPreview ? 48 : 0,
-          ...drawerBackgroundStyle,
+          ...bodyBackgroundStyle,
         }}
       >
-        <div style={{ padding: "18px 20px 16px", flexShrink: 0, ...headerBackgroundStyle }}>
+        <div style={{ padding: "22px 18px 0", minHeight: 136, flexShrink: 0, ...topBackgroundStyle }}>
           <InlineStack align="space-between" blockAlign="center" wrap={false}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0, color: hc }}>
+            <InlineStack gap="200" blockAlign="center" wrap={false}>
               {showCustomCartIcon ? (
                 <img
                   src={cartIconUrl}
@@ -1618,49 +1823,44 @@ function CartDrawerPreview({
                   style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0 }}
                 />
               ) : (
-                <PreviewIcon source={headerCartIcon} size={22} color={ic || hc} />
+                <PreviewIcon source={headerCartIcon} size={22} color={hc} />
               )}
-              <span style={{ color: hc, fontWeight: 700, fontSize: headingFs, lineHeight: 1.1 }}>
-                {activeDrawerTab === "offers" ? "Offers" : "Your Cart"}
-              </span>
-              {activeDrawerTab === "cart" && (
-                <span style={{ color: hc, fontWeight: 700, fontSize: Math.max(fs, 12), opacity: 0.82 }}>
-                  (1)
+              <Text as="h3" fontWeight="bold">
+                <span style={{ color: hc, fontSize: headingFs, lineHeight: 1.1 }}>
+                  {activeDrawerTab === "offers" ? "Offers" : `Cart (${cartPreviewCount})`}
                 </span>
-              )}
-            </div>
+              </Text>
+            </InlineStack>
+
             <button
               type="button"
               aria-label="Close cart"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
+                width: 52,
+                height: 38,
+                borderRadius: 999,
                 border: 0,
-                background: "transparent",
+                background: "#ffffff",
                 color: ic,
-                lineHeight: 1,
-                padding: 0,
+                display: "grid",
+                placeItems: "center",
                 cursor: "pointer",
-                width: 26,
-                height: 26,
+                boxShadow: "0 8px 18px rgba(15,23,42,.16)",
               }}
             >
               <PreviewIcon source={XIcon} size={20} color="currentColor" />
             </button>
           </InlineStack>
-        </div>
 
-        {activeDrawerTab === "cart" ? (
-          <>
+          {activeDrawerTab === "cart" && (
             <div
               style={{
-                padding: "10px 0",
-                background: announcementBg || "#F4EAFF",
-                borderBottom: `1px solid ${brc}`,
-                textAlign: "center",
-                color: announcementText || tc,
-                flexShrink: 0,
+                marginTop: 20,
+                borderRadius: `${Math.max(r, 12)}px ${Math.max(r, 12)}px 0 0`,
+                overflow: "hidden",
+                background: announcementBg || "#102864",
+                color: announcementText || "#ffffff",
+                boxShadow: "0 10px 24px rgba(15,23,42,.14)",
               }}
             >
               <div className="cp-announcementMarquee" aria-label={marqueeTextContent.join(" ")}>
@@ -1674,7 +1874,9 @@ function CartDrawerPreview({
                           style={{
                             fontSize: Math.max(fs + 1, 13),
                             lineHeight: "16px",
-                            color: announcementText || tc,
+                            minHeight: 56,
+                            color: announcementText || "#ffffff",
+                            fontWeight: 800,
                           }}
                         >
                           {index > 0 && <span aria-hidden="true">{"\u2022"}</span>}
@@ -1686,113 +1888,44 @@ function CartDrawerPreview({
                 </div>
               </div>
             </div>
+          )}
+        </div>
 
+        {activeDrawerTab === "cart" ? (
+          <>
             <div
               style={{
-                padding: "5px",
-                textAlign: "center",
+                margin: "-1px 18px 0",
                 background: progressSurface,
+                borderRadius: `0 0 ${Math.max(r, 12)}px ${Math.max(r, 12)}px`,
+                boxShadow: "0 2px 8px rgba(15,23,42,.08)",
                 color: ptc,
-                flexShrink: 0,
-                boxShadow: "0 1px 3px rgba(15,23,42,.08)",
                 overflow: "hidden",
-                margin: 1,
+                flexShrink: 0,
               }}
             >
-              <div style={{ position: "relative", minHeight: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {/* <button
-              type="button"
-              aria-label="Back"
-              style={{
-                position: "absolute",
-                left: 0,
-                top: "50%",
-                transform: "translateY(-50%)",
-                width: 24,
-                height: 24,
-                border: 0,
-                background: "transparent",
-                color: ic,
-                display: "grid",
-                placeItems: "center",
-                padding: 0,
-                cursor: "pointer",
-              }}
-            >
-              <PreviewIcon source={ChevronLeftIcon} size={18} color="currentColor" />
-            </button> */}
-                <p
+              <MilestoneProgress />
+              <div
+                style={{
+                  position: "relative",
+                  height: 4,
+                  background: "#ffffff",
+                  overflow: "hidden",
+                  boxShadow: "0 -1px 0 rgba(15,23,42,.06)",
+                }}
+              >
+                <div
                   style={{
-                    margin: 0,
-                    padding: "0 28px",
-                    color: ptc,
-                    fontSize: Math.max(fs, 12),
-                    lineHeight: "18px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    width: "100%",
+                    position: "absolute",
+                    top: 0,
+                    left: "-45%",
+                    height: "100%",
+                    width: "45%",
+                    borderRadius: 999,
+                    background: `linear-gradient(90deg, transparent, ${withAlpha(pc, 0.18)}, ${pc}, ${withAlpha(pc, 0.18)}, transparent)`,
+                    animation: "cpCornerLineMove 1.1s cubic-bezier(.42,0,.18,1) infinite",
                   }}
-                >
-                  {renderRichMessage(nextGoalParts, "next-goal")}
-                </p>
-              </div>
-
-              <div style={{ position: "relative", height: 74, margin: "14px 18px 0" }}>
-                <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: withAlpha(pc, 0.24) }} />
-                <div style={{ position: "absolute", top: 19, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
-
-                {displaySteps.map((step, index) => {
-                  const pct = stepPosition(index);
-                  const done = pct <= progressFill;
-                  const iconSrc = iconForChoice(step.rule?.iconChoice, step.rule?._defaultIcon || GiftCardIcon);
-
-                  return (
-                    <div
-                      key={`${step.slot}-${index}`}
-                      style={{
-                        position: "absolute",
-                        top: 2,
-                        left: `${pct}%`,
-                        transform: "translateX(-50%)",
-                        width: 96,
-                        textAlign: "center",
-                        zIndex: 2,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          margin: "0 auto",
-                          borderRadius: "50%",
-                          display: "grid",
-                          placeItems: "center",
-                          background: done ? pc : progressSurface,
-                          color: done ? completedIconColor : ic,
-                          border: `2px solid ${done ? pc : withAlpha(ptc, 0.72)}`,
-                          boxShadow: "0 1px 4px rgba(15,23,42,.18)",
-                        }}
-                      >
-                        <PreviewIcon source={iconSrc} size={20} color="currentColor" />
-                      </div>
-                      <div
-                        style={{
-                          marginTop: 6,
-                          fontSize: Math.max(fs - 2, 10),
-                          lineHeight: "13px",
-                          color: ptc,
-                          fontWeight: 700,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {resolveStepLabel(step)}
-                      </div>
-                    </div>
-                  );
-                })}
+                />
               </div>
             </div>
 
@@ -1801,317 +1934,120 @@ function CartDrawerPreview({
                 flex: 1,
                 minHeight: 0,
                 overflow: "auto",
+                margin: "10px 18px 0",
+                borderRadius: Math.max(r, 14),
+                background: "#ffffff",
+                boxShadow: "0 2px 8px rgba(15,23,42,.12)",
               }}
             >
-              <Box padding="400">
-                <InlineStack gap="300" blockAlign="start" wrap={false}>
-                  <ProductImage src={mainProduct.image} alt={mainProduct.title} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <InlineStack align="space-between" blockAlign="start" wrap={false}>
-                      <BlockStack gap="050">
-                        <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 1, 13), lineHeight: "17px" }}>
-                          {mainProduct.title || "Sample Product"}
-                        </div>
-                        <div style={{ color: `${tc}99`, fontSize: Math.max(fs - 1, 11) }}>
-                          {mainProduct.tag || "Small"}
-                        </div>
-                      </BlockStack>
-                      <SmallIconButton icon={XIcon} label="Remove item" />
-                    </InlineStack>
-
-                    <InlineStack align="space-between" blockAlign="center" wrap={false}>
-                      <InlineStack gap="100" blockAlign="center" wrap={false}>
-                        <button type="button" style={{ width: 24, height: 24, borderRadius: 6, border: `1px solid ${brc}`, background: "#fff", color: ic, cursor: "pointer" }}>-</button>
-                        <span style={{ minWidth: 18, textAlign: "center", fontWeight: 700 }}>1</span>
-                        <button type="button" style={{ width: 24, height: 24, borderRadius: 6, border: `1px solid ${brc}`, background: "#fff", cursor: "pointer" }}>+</button>
-                      </InlineStack>
-                      <div style={{ color: tc, fontWeight: 700 }}>{mainProduct.price || formatCurrencyAmount(300, shopCurrencyCode)}</div>
-                    </InlineStack>
-                  </div>
-                </InlineStack>
-              </Box>
-
-              {freeProducts.length > 0 && (
-                <>
-                  <Divider />
-                  <Box padding="400" background="transparent">
-                    <BlockStack gap="200">
-                      <div style={{ textAlign: "center", color: tc, fontSize: Math.max(fs + 2, 14), fontWeight: 700 }}>
-                        Free product
-                      </div>
-                      <InlineStack gap="200" blockAlign="center" wrap={false}>
-                        <button
-                          type="button"
-                          aria-label="Previous free product"
-                          onClick={() => moveFreeProductPreview(-1)}
-                          disabled={freeProducts.length < 2}
-                          style={{
-                            width: 26,
-                            height: 32,
-                            border: 0,
-                            background: "transparent",
-                            color: ic,
-                            display: "grid",
-                            placeItems: "center",
-                            padding: 0,
-                            cursor: freeProducts.length > 1 ? "pointer" : "default",
-                            opacity: freeProducts.length > 1 ? 1 : 0.45,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <PreviewIcon source={ChevronLeftIcon} size={18} color="currentColor" />
-                        </button>
-
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "76px minmax(0, 1fr)",
-                            alignItems: "center",
-                            gap: 12,
-                            minWidth: 0,
-                            flex: 1,
-                            padding: "2px 4px",
-                            background: "transparent",
-                          }}
-                        >
-                          <ProductImage src={activeFreeProduct.image} alt={activeFreeProduct.title} size={50} />
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 1, 13), lineHeight: "17px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {activeFreeProduct.title || "Free product"}
-                            </div>
-                            <div style={{ color: `${tc}99`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 3, lineHeight: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {renderRichMessage(nextGoalParts, "free-product-goal")}
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          aria-label="Next free product"
-                          onClick={() => moveFreeProductPreview(1)}
-                          disabled={freeProducts.length < 2}
-                          style={{
-                            width: 26,
-                            height: 32,
-                            border: 0,
-                            background: "transparent",
-                            color: ic,
-                            display: "grid",
-                            placeItems: "center",
-                            padding: 0,
-                            cursor: freeProducts.length > 1 ? "pointer" : "default",
-                            opacity: freeProducts.length > 1 ? 1 : 0.45,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <PreviewIcon source={ChevronRightIcon} size={18} color="currentColor" />
-                        </button>
-                      </InlineStack>
-
-                      {freeProducts.length > 1 && (
-                        <div style={{ display: "flex", justifyContent: "center", gap: 6, paddingTop: 2 }}>
-                          {freeProducts.slice(0, 8).map((product, index) => (
-                            <button
-                              type="button"
-                              key={product.id || product.title || index}
-                              aria-label={`Show free product ${index + 1}`}
-                              onClick={() => setActiveFreeProductIndex(index)}
-                              style={{
-                                width: index === activeFreeProductIndex ? 22 : 6,
-                                height: 5,
-                                borderRadius: 999,
-                                border: 0,
-                                padding: 0,
-                                background: index === activeFreeProductIndex ? withAlpha(ic, 0.42) : withAlpha(tc, 0.12),
-                                display: "block",
-                                cursor: "pointer",
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </BlockStack>
-                  </Box>
-                </>
-              )}
+              {cartRows.map(renderProductRow)}
 
               {showUpsell && (
-                <>
-                  <Divider />
-                  <Box padding="400" background="transparent">
-                    <BlockStack gap="200">
-                      <div style={{ textAlign: "center", color: `${upsellTextColor}99`, fontSize: Math.max(fs - 1, 11), fontWeight: 700 }}>
+                <div style={{ padding: "14px 14px 16px", background: "#ffffff" }}>
+                  <BlockStack gap="200">
+                    <Text as="p" alignment="center" tone="subdued" fontWeight="bold">
+                      <span style={{ color: `${upsellTextColor}99`, fontSize: Math.max(fs, 12) }}>
                         {upsellTitle}
+                      </span>
+                    </Text>
+
+                    <InlineStack gap="200" blockAlign="center" wrap={false}>
+                      {upsellShowAsSlider && (
+                        <button
+                          type="button"
+                          aria-label="Previous product"
+                          onClick={() => moveUpsellPreview(-1)}
+                          disabled={upsellProducts.length < 2}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: "50%",
+                            border: `1px solid ${upsellBorderColor}`,
+                            background: "#ffffff",
+                            color: upsellArrowColor,
+                            display: "grid",
+                            placeItems: "center",
+                            padding: 0,
+                            cursor: upsellProducts.length > 1 ? "pointer" : "default",
+                            opacity: upsellProducts.length > 1 ? 1 : 0.45,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <PreviewIcon source={ChevronLeftIcon} size={14} color="currentColor" />
+                        </button>
+                      )}
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "48px minmax(0, 1fr) auto",
+                          alignItems: "center",
+                          gap: 10,
+                          minWidth: 0,
+                          flex: 1,
+                          padding: "9px 10px",
+                          border: `1px solid ${upsellBorderColor}`,
+                          borderRadius: Math.max(r, 10),
+                          background: upsellSurface,
+                        }}
+                      >
+                        <ProductImage src={activeUpsellProduct.image} alt={activeUpsellProduct.title} size={48} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ color: upsellTextColor, fontWeight: 800, fontSize: Math.max(fs, 12), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {activeUpsellProduct.title || "Recommended product"}
+                          </div>
+                          <div style={{ color: `${upsellTextColor}CC`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 2 }}>
+                            {activeUpsellProduct.price || formatCurrencyAmount(300, shopCurrencyCode)}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          style={{
+                            background: upsellButtonBg,
+                            color: upsellButtonTextColor,
+                            border: "none",
+                            borderRadius: Math.max(r, 8),
+                            padding: "8px 12px",
+                            fontWeight: 800,
+                            fontSize: Math.max(fs - 1, 11),
+                            whiteSpace: "nowrap",
+                            cursor: "pointer",
+                            maxWidth: 92,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {upsellButtonText}
+                        </button>
                       </div>
 
-                      {upsellShowAsSlider ? (
-                        <InlineStack gap="200" blockAlign="center" wrap={false}>
-                          <button
-                            type="button"
-                            aria-label="Previous product"
-                            onClick={() => moveUpsellPreview(-1)}
-                            disabled={upsellProducts.length < 2}
-                            style={{
-                              width: 26,
-                              height: 26,
-                              borderRadius: "50%",
-                              border: `1px solid ${upsellBorderColor}`,
-                              background: "#ffffff",
-                              color: upsellArrowColor,
-                              display: "grid",
-                              placeItems: "center",
-                              padding: 0,
-                              cursor: upsellProducts.length > 1 ? "pointer" : "default",
-                              opacity: upsellProducts.length > 1 ? 1 : 0.45,
-                              flexShrink: 0,
-                            }}
-                          >
-                            <PreviewIcon source={ChevronLeftIcon} size={13} color="currentColor" />
-                          </button>
-
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "48px minmax(0, 1fr) auto",
-                              alignItems: "center",
-                              gap: 10,
-                              minWidth: 0,
-                              flex: 1,
-                              padding: "8px 10px",
-                              border: `1px solid ${upsellBorderColor}`,
-                              borderRadius: Math.max(r, 8),
-                              background: upsellSurface,
-                            }}
-                          >
-                            <ProductImage src={activeUpsellProduct.image} alt={activeUpsellProduct.title} size={48} />
-
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ color: upsellTextColor, fontWeight: 700, fontSize: Math.max(fs, 12), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {activeUpsellProduct.title || "Nike Orange"}
-                              </div>
-                              <div style={{ color: `${upsellTextColor}CC`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 2 }}>
-                                {activeUpsellProduct.price || formatCurrencyAmount(300, shopCurrencyCode)}
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              style={{
-                                background: upsellButtonBg,
-                                color: upsellButtonTextColor,
-                                border: "none",
-                                borderRadius: Math.max(r, 6),
-                                padding: "8px 12px",
-                                fontWeight: 700,
-                                fontSize: Math.max(fs - 1, 11),
-                                whiteSpace: "nowrap",
-                                cursor: "pointer",
-                                maxWidth: 96,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                              }}
-                            >
-                              {upsellButtonText}
-                            </button>
-                          </div>
-
-                          <button
-                            type="button"
-                            aria-label="Next product"
-                            onClick={() => moveUpsellPreview(1)}
-                            disabled={upsellProducts.length < 2}
-                            style={{
-                              width: 26,
-                              height: 26,
-                              borderRadius: "50%",
-                              border: `1px solid ${upsellBorderColor}`,
-                              background: "#ffffff",
-                              color: upsellArrowColor,
-                              display: "grid",
-                              placeItems: "center",
-                              padding: 0,
-                              cursor: upsellProducts.length > 1 ? "pointer" : "default",
-                              opacity: upsellProducts.length > 1 ? 1 : 0.45,
-                              flexShrink: 0,
-                            }}
-                          >
-                            <PreviewIcon source={ChevronRightIcon} size={13} color="currentColor" />
-                          </button>
-                        </InlineStack>
-                      ) : (
-                        <div style={{ display: "grid", gap: 8 }}>
-                          {upsellProducts.slice(0, 3).map((product) => (
-                            <div
-                              key={product.id || product.title}
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: "48px minmax(0, 1fr) auto",
-                                alignItems: "center",
-                                gap: 10,
-                                padding: "8px 10px",
-                                border: `1px solid ${upsellBorderColor}`,
-                                borderRadius: Math.max(r, 8),
-                                background: upsellSurface,
-                              }}
-                            >
-                              <ProductImage src={product.image} alt={product.title} size={48} />
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ color: upsellTextColor, fontWeight: 700, fontSize: Math.max(fs, 12), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                  {product.title || "Nike Orange"}
-                                </div>
-                                <div style={{ color: `${upsellTextColor}CC`, fontSize: Math.max(fs - 1, 11), fontWeight: 700, marginTop: 2 }}>
-                                  {product.price || formatCurrencyAmount(300, shopCurrencyCode)}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                style={{
-                                  background: upsellButtonBg,
-                                  color: upsellButtonTextColor,
-                                  border: "none",
-                                  borderRadius: Math.max(r, 6),
-                                  padding: "8px 12px",
-                                  fontWeight: 700,
-                                  fontSize: Math.max(fs - 1, 11),
-                                  whiteSpace: "nowrap",
-                                  cursor: "pointer",
-                                  maxWidth: 96,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {upsellButtonText}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
+                      {upsellShowAsSlider && (
+                        <button
+                          type="button"
+                          aria-label="Next product"
+                          onClick={() => moveUpsellPreview(1)}
+                          disabled={upsellProducts.length < 2}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: "50%",
+                            border: `1px solid ${upsellBorderColor}`,
+                            background: "#ffffff",
+                            color: upsellArrowColor,
+                            display: "grid",
+                            placeItems: "center",
+                            padding: 0,
+                            cursor: upsellProducts.length > 1 ? "pointer" : "default",
+                            opacity: upsellProducts.length > 1 ? 1 : 0.45,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <PreviewIcon source={ChevronRightIcon} size={14} color="currentColor" />
+                        </button>
                       )}
-
-                      {upsellShowAsSlider && upsellProducts.length > 1 && (
-                        <div style={{ display: "flex", justifyContent: "center", gap: 5, paddingTop: 4 }}>
-                          {upsellProducts.slice(0, 8).map((product, index) => (
-                            <button
-                              type="button"
-                              key={product.id || product.title || index}
-                              aria-label={`Show upsell product ${index + 1}`}
-                              onClick={() => setActiveUpsellIndex(index)}
-                              style={{
-                                width: index === activeUpsellIndex ? 18 : 6,
-                                height: 6,
-                                borderRadius: 999,
-                                border: 0,
-                                padding: 0,
-                                background: index === activeUpsellIndex ? upsellButtonBg : upsellBorderColor,
-                                display: "block",
-                                cursor: "pointer",
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </BlockStack>
-                  </Box>
-                </>
+                    </InlineStack>
+                  </BlockStack>
+                </div>
               )}
             </div>
           </>
@@ -2120,11 +2056,11 @@ function CartDrawerPreview({
             style={{
               flex: 1,
               minHeight: 0,
-              margin: 0,
-              borderTop: `1px solid ${brc}`,
-              ...drawerBackgroundStyle,
+              margin: "10px 18px 0",
+              borderRadius: Math.max(r, 14),
+              background: "#ffffff",
               overflow: "auto",
-              boxShadow: "none",
+              boxShadow: "0 2px 8px rgba(15,23,42,.12)",
             }}
           >
             {offerItems.length ? (
@@ -2133,11 +2069,11 @@ function CartDrawerPreview({
                   key={offer.key}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "80px minmax(0, 1fr) auto",
+                    gridTemplateColumns: "70px minmax(0, 1fr) auto",
                     gap: 12,
                     alignItems: "center",
                     padding: "16px 14px",
-                    borderTop: index === 0 ? 0 : `1px solid ${ic}`,
+                    borderTop: index === 0 ? 0 : `1px solid ${brc}`,
                   }}
                 >
                   {offer.type === "bxgy" || offer.type === "free" ? (
@@ -2145,13 +2081,13 @@ function CartDrawerPreview({
                   ) : (
                     <div
                       style={{
-                        width: 70,
-                        height: 70,
-                        borderRadius: Math.max(r, 8),
+                        width: 64,
+                        height: 58,
+                        borderRadius: 12,
                         display: "grid",
                         placeItems: "center",
-                        background: offer.type === "code" ? "#F8F8FA" : "#ffffff",
-                        border: `1px solid ${ic}`,
+                        background: "#F8F8FA",
+                        border: `1px solid ${brc}`,
                         color: ic,
                       }}
                     >
@@ -2159,17 +2095,17 @@ function CartDrawerPreview({
                     </div>
                   )}
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 3, 15), lineHeight: "20px" }}>
+                    <div style={{ color: drawerText, fontWeight: 800, fontSize: Math.max(fs + 3, 15), lineHeight: "20px" }}>
                       {offer.title}
                     </div>
-                    <div style={{ color: `${tc}99`, fontSize: Math.max(fs, 12), lineHeight: "17px", marginTop: 4, fontWeight: 700 }}>
+                    <div style={{ color: `${drawerText}99`, fontSize: Math.max(fs, 12), lineHeight: "17px", marginTop: 4, fontWeight: 700 }}>
                       {offer.subtitle}
                     </div>
                   </div>
                   {offer.type === "code" ? (
                     <div
                       style={{
-                        minWidth: 116,
+                        minWidth: 108,
                         border: `1px solid ${ic}`,
                         borderRadius: 10,
                         textAlign: "center",
@@ -2177,7 +2113,7 @@ function CartDrawerPreview({
                         padding: "8px 10px",
                       }}
                     >
-                      <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 1, 13), whiteSpace: "nowrap" }}>
+                      <div style={{ color: drawerText, fontWeight: 800, fontSize: Math.max(fs + 1, 13), whiteSpace: "nowrap" }}>
                         {offer.code}
                       </div>
                     </div>
@@ -2188,9 +2124,9 @@ function CartDrawerPreview({
                         border: 0,
                         background: bc,
                         color: blc,
-                        borderRadius: Math.max(r, 6),
-                        padding: "12px 14px",
-                        fontWeight: 700,
+                        borderRadius: Math.max(r, 8),
+                        padding: "11px 13px",
+                        fontWeight: 800,
                         whiteSpace: "nowrap",
                         cursor: "pointer",
                       }}
@@ -2201,85 +2137,102 @@ function CartDrawerPreview({
                 </div>
               ))
             ) : (
-              <div style={{ padding: 24, textAlign: "center", color: `${tc}99`, fontWeight: 700 }}>
+              <div style={{ padding: 24, textAlign: "center", color: `${drawerText}99`, fontWeight: 700 }}>
                 No offers configured yet.
               </div>
             )}
           </div>
         )}
 
-        {activeDrawerTab === "cart" && discountCodeApply && (
-          <div style={{ padding: "10px 10px 0", flexShrink: 0 }}>
-            <InlineStack gap="200" wrap={false}>
-              <div className="cp-preview-discount-code" style={{ flex: 1, minWidth: 0 }}>
-                <TextField
-                  label="Discount code"
-                  labelHidden
-                  placeholder="Apply Discount Code"
-                  value=""
-                  onChange={() => { }}
-                  autoComplete="off"
-                />
-              </div>
-              <button
-                type="button"
-                style={{
-                  border: 0,
-                  borderRadius: Math.max(r, 2),
-                  background: bc,
-                  color: blc,
-                  padding: "0 16px",
-                  minHeight: 40,
-                  fontWeight: 700,
-                  fontSize: Math.max(fs - 1, 11),
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  width: "100px",
-                }}
-              >
-                Apply
-              </button>
-            </InlineStack>
-          </div>
-        )}
-
         {activeDrawerTab === "cart" && (
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              minHeight: 58,
-              border: `1px solid ${brc}`,
-              boxShadow: stickyCheckout ? "0 -8px 18px rgba(15,23,42,.08)" : "none",
-              flexShrink: 0,
-              margin: 0,
-              borderRadius: 0,
+              margin: "10px 18px 0",
+              borderRadius: Math.max(r, 14),
               overflow: "hidden",
+              background: "#ffffff",
+              boxShadow: stickyCheckout ? "0 -8px 18px rgba(15,23,42,.08)" : "0 2px 8px rgba(15,23,42,.10)",
+              flexShrink: 0,
             }}
           >
-            <Box padding="200">
-              <BlockStack gap="050">
-                <div style={{ color: `${tc}99`, fontSize: Math.max(fs), fontWeight: 700 }}>Total</div>
-                <div style={{ color: tc, fontSize: Math.max(fs + 2, 14), fontWeight: 700, lineHeight: "18px" }}>{totalPrice}</div>
+            <div style={{ padding: "12px 14px 8px" }}>
+              <BlockStack gap="200">
+                <InlineStack align="space-between" blockAlign="center" wrap={false}>
+                  <Text as="p" fontWeight="bold"><span style={{ color: drawerText, fontSize: Math.max(fs + 2, 14) }}>Shipping</span></Text>
+                  <Text as="p" fontWeight="bold"><span style={{ color: drawerText, fontSize: Math.max(fs + 2, 14) }}>Free</span></Text>
+                </InlineStack>
+                <InlineStack align="space-between" blockAlign="center" wrap={false}>
+                  <Text as="p" fontWeight="bold"><span style={{ color: drawerText, fontSize: Math.max(fs + 2, 14) }}>Order Discount</span></Text>
+                  <Text as="p" fontWeight="bold"><span style={{ color: drawerText, fontSize: Math.max(fs + 2, 14) }}>{discountPrice}</span></Text>
+                </InlineStack>
+
+                {discountCodeApply && (
+                  <InlineStack gap="200" wrap={false}>
+                    <div className="cp-preview-discount-code" style={{ flex: 1, minWidth: 0 }}>
+                      <TextField
+                        label="Discount code"
+                        labelHidden
+                        placeholder="Apply Discount Code"
+                        value=""
+                        onChange={() => { }}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      style={{
+                        border: `1px solid ${ic}`,
+                        borderRadius: Math.max(r, 10),
+                        background: "#ffffff",
+                        color: ic,
+                        padding: "0 16px",
+                        minHeight: 52,
+                        fontWeight: 800,
+                        fontSize: Math.max(fs + 1, 13),
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                        width: 98,
+                      }}
+                    >
+                      Apply
+                    </button>
+                  </InlineStack>
+                )}
               </BlockStack>
-            </Box>
+            </div>
 
             <div
               style={{
                 display: "grid",
-                placeItems: "center",
-                background: bc,
-                color: blc,
-                fontWeight: 700,
-                fontSize: Math.max(fs, 12),
-                textAlign: "center",
-                padding: "0 12px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                gridTemplateColumns: "1fr 1fr",
+                minHeight: 70,
+                borderTop: `1px solid ${brc}`,
               }}
             >
-              {checkoutText || "Checkout"}
+              <Box padding="300">
+                <BlockStack gap="050">
+                  <span style={{ color: `${drawerText}99`, fontSize: Math.max(fs, 12), fontWeight: 700 }}>Total</span>
+                  <span style={{ color: drawerText, fontSize: Math.max(fs + 7, 19), fontWeight: 900, lineHeight: "21px" }}>{totalPrice}</span>
+                </BlockStack>
+              </Box>
+
+              <div
+                style={{
+                  display: "grid",
+                  placeItems: "center",
+                  background: bc,
+                  color: blc,
+                  fontWeight: 900,
+                  fontSize: Math.max(fs + 2, 14),
+                  textAlign: "center",
+                  padding: "0 12px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {checkoutText || "Checkout"}
+              </div>
             </div>
           </div>
         )}
@@ -2290,13 +2243,12 @@ function CartDrawerPreview({
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
               gap: 0,
-              margin: 0,
+              margin: "12px 18px 12px",
               border: 0,
-              borderTop: `1px solid ${brc}`,
-              borderRadius: 0,
-              background: surface,
+              borderRadius: Math.max(r, 14),
+              background: "#ffffff",
               overflow: "hidden",
-              boxShadow: "none",
+              boxShadow: "0 2px 8px rgba(15,23,42,.10)",
               flexShrink: 0,
             }}
           >
@@ -2311,21 +2263,21 @@ function CartDrawerPreview({
                   key={tab.key}
                   onClick={() => setActiveDrawerTab(tab.key)}
                   style={{
-                    minHeight: 68,
+                    minHeight: 66,
                     border: 0,
                     borderBottom: selected ? `3px solid ${bc}` : "3px solid transparent",
                     background: "#ffffff",
-                    color: selected ? bc : tc,
+                    color: selected ? bc : drawerText,
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 6,
-                    fontSize: Math.max(fs + 1, 13),
-                    fontWeight: 700,
+                    gap: 7,
+                    fontSize: Math.max(fs + 3, 15),
+                    fontWeight: 900,
                     cursor: "pointer",
                   }}
                 >
-                  <PreviewIcon source={tab.icon} size={15} color="currentColor" />
+                  <PreviewIcon source={tab.icon} size={17} color="currentColor" />
                   {tab.label}
                 </button>
               );
