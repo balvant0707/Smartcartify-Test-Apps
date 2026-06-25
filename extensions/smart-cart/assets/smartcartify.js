@@ -8310,7 +8310,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   height:4px;
   flex:0 0 0;
   position:absolute;
-  top:0;
+  top:28%;
   left:0;
   right:0;
   z-index:30;

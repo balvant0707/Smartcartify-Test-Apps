@@ -443,6 +443,7 @@ const buildProxyPayload = (shop, shopData, request, extras = {}) => {
 const isDatabaseConnectionError = (error) =>
   error?.name === "PrismaClientInitializationError" ||
   error?.code === "P1001" ||
+  error?.code === "P2024" ||
   /can't reach database server|database server is running|connect\s+etimedout|econnrefused|schema engine error/i.test(
     String(error?.message || "")
   );
@@ -955,27 +956,27 @@ export const loader = async ({ request }) => {
         throw err;
       });
 
-      const [
-        shopRow,
-        shippingRules,
-        discountRules,
-        freeGiftRules,
-        bxgyRules,
-        cartGoalRules,
-        styleSettings,
-        upsellSettings,
-        addToCartBarSettings,
-      ] = await Promise.all([
-        prisma.shop.findUnique({ where: { shop } }),
-        prisma.shippingRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
-        safeDiscountRules(),
-        safeFreeGiftRules(),
-        prisma.bxgyRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
-        prisma.cartGoalRule.findMany({ where: { shop }, orderBy: { id: "asc" } }),
-    safeStyleSettings(),
-        prisma.upsellSettings.findUnique({ where: { shop } }),
-        safeCartBarSettings(),
-      ]);
+      // Keep cold-cache DB fanout below the production Prisma pool limit.
+      // The proxy is hit by every storefront page load; launching all reads at
+      // once can exhaust small serverless pools and throw P2024.
+      const shopRow = await prisma.shop.findUnique({ where: { shop } });
+      const shippingRules = await prisma.shippingRule.findMany({
+        where: { shop },
+        orderBy: { id: "asc" },
+      });
+      const discountRules = await safeDiscountRules();
+      const freeGiftRules = await safeFreeGiftRules();
+      const bxgyRules = await prisma.bxgyRule.findMany({
+        where: { shop },
+        orderBy: { id: "asc" },
+      });
+      const cartGoalRules = await prisma.cartGoalRule.findMany({
+        where: { shop },
+        orderBy: { id: "asc" },
+      });
+      const styleSettings = await safeStyleSettings();
+      const upsellSettings = await prisma.upsellSettings.findUnique({ where: { shop } });
+      const addToCartBarSettings = await safeCartBarSettings();
 
       const shopAccessToken = await resolveShopAccessToken(shop, shopRow);
       const isAuthorized = Boolean(shopAccessToken);
