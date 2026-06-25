@@ -1760,7 +1760,7 @@ function CartDrawerPreview({
               style={{
                 padding: "10px 6px 4px",
                 textAlign: "center",
-                background: "#ffffff",
+                background: progressSurface,
                 color: ptc,
                 flexShrink: 0,
                 boxShadow: "0 1px 3px rgba(15,23,42,.06)",
@@ -1808,7 +1808,7 @@ function CartDrawerPreview({
               </div>
 
               <div style={{ position: "relative", height: 69, margin: "0px 30px" }}>
-                <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: "#d9d6d6" }} />
+                <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: borderColor }} />
                 <div style={{ position: "absolute", top: 19, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
 
                 {displaySteps.map((step, index) => {
