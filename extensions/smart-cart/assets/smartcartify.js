@@ -8848,6 +8848,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         title: offer.title,
         goalMet: offer.goalMet !== false,
         force: true,
+        popupTab: "offers",
         fallbackProducts: Array.isArray(offer.fallbackProducts) ? offer.fallbackProducts : []
       });
     }
@@ -10100,6 +10101,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return `${storefrontPath(`discount/${encodeURIComponent(code)}`)}?redirect=${encodeURIComponent(redirect)}`;
   };
 
+  const buildCheckoutUrlWithDiscount = (code) => {
+    const checkoutUrl = new URL(storefrontPath("checkout"), window.location.origin);
+    const normalized = trimToNull(code);
+    if (normalized) checkoutUrl.searchParams.set("discount", normalized);
+    return `${checkoutUrl.pathname}${checkoutUrl.search}${checkoutUrl.hash}`;
+  };
+
   const buildDiscountClearUrl = (redirectPath = "/cart") => {
     const redirect =
       redirectPath === "/checkout"
@@ -10271,13 +10279,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return false;
   };
 
-  const goToCheckoutWithDiscount = () => {
+  const goToCheckoutWithDiscount = async () => {
     if (!validateRewardSelectionBeforeCheckout()) return;
 
     const code = getCheckoutDiscountCode();
 
     if (code) {
-      window.location.href = buildDiscountUrl(code, "/checkout");
+      rememberManualDiscountCode(code);
+      await persistDiscountCodeToCartAttributes(code);
+      try {
+        await loadDiscountUrlInIframe(buildDiscountUrl(code, "/cart"));
+      } catch { }
+      window.location.href = buildCheckoutUrlWithDiscount(code);
       return;
     }
 
@@ -14797,7 +14810,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     };
   };
 
-  const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title, goalMet = true, force = false  , fallbackProducts = [] }) => {
+  const openRewardPopupFor = ({ kind, rule, ruleKey, slot, title, goalMet = true, force = false, popupTab = "cart", fallbackProducts = [] }) => {
     if (!force && Number(drawer.__sc_suppress_reward_popup_until || 0) > Date.now()) {
       return false;
     }
@@ -14861,10 +14874,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (!drawer.classList.contains("open")) openDrawer();
 
-    // Free Gift and Buy X Get Y reward popups are tied to the cart goal flow.
-    // Keep the drawer on Cart while the customer selects and adds the reward.
+    // Automatic Free Gift and Buy X Get Y reward popups stay on Cart.
+    // User-initiated "Show Gifts" actions from Offers keep the Offers tab active.
     if (["free", "bxgy", "buyxgety"].includes(normalizedPopupKind) && OFFER_TABS_ENABLED) {
-      setDrawerTab("cart");
+      setDrawerTab(popupTab === "offers" ? "offers" : "cart");
     }
 
     const state = ensureRewardPopup();
