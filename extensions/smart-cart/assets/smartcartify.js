@@ -7715,7 +7715,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   box-shadow:-14px 0 34px rgba(15,23,42,.22) !important;
 }
 .sc-drawer::before{
-  height:178px !important;
+  height:220px !important;
   background:var(--sc-top-bg-image-effective, var(--sc-ref-gradient)) !important;
   background-image:var(--sc-top-bg-image-effective, var(--sc-ref-gradient)) !important;
   opacity:1 !important;

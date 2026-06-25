@@ -54,8 +54,8 @@ const DEFAULT_STYLE = {
   cartDrawerBackgroundMode: "gradient",
   cartDrawerBackground: "#ffffff",
   cartDrawerImage: "",
-  cartDrawerGradientStart: "#520b4f",
-  cartDrawerGradientEnd: "#1301b7",
+  cartDrawerGradientStart: "#da34d2",
+  cartDrawerGradientEnd: "#6858f3",
   cartDrawerTextColor: "#000000",
   cartDrawerHeaderColor: "#000000",
   cartIconType: "default",
@@ -1488,7 +1488,7 @@ function CartDrawerPreview({
     });
   };
 
-  const previewGradientBg = `linear-gradient(180deg, ${gradStart} 0%, ${gradEnd} 30%, #ffffff 30%, #ffffff 100%)`;
+  const previewGradientBg = `linear-gradient(135deg, ${gradStart} 0%, ${gradEnd} 30%, #ffffff 30%, #ffffff 100%)`;
   const previewBackdropStyle = drawerBgMode === "gradient"
     ? { background: previewGradientBg }
     : drawerBgMode === "image" && drawerImage
