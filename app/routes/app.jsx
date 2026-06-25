@@ -1,8 +1,9 @@
 // app/routes/app.jsx
 
 // 1) Import dependencies at the top
-import { Outlet, useFetchers, useLoaderData, useNavigation, useRouteError } from "react-router";
+import { Outlet, useFetchers, useLoaderData, useLocation, useNavigation, useRouteError } from "react-router";
 import { useEffect, useRef, useState } from "react";
+import { Buffer } from "node:buffer";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider as BridgeProvider } from "@shopify/shopify-app-react-router/react";
 import {
@@ -104,6 +105,27 @@ s-section::part(content) {
 `;
 
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH"]);
+const HOST_COOKIE_NAME = "sc_shopify_host";
+
+function getCookieValue(cookieHeader, name) {
+  const value = String(cookieHeader || "")
+    .split(";")
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${name}=`))
+    ?.slice(name.length + 1) || "";
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function deriveAdminHostFromShop(shop) {
+  const handle = String(shop || "").split(".")[0]?.trim();
+  return handle
+    ? Buffer.from(`admin.shopify.com/store/${handle}`).toString("base64")
+    : "";
+}
 
 function isMutationMethod(method) {
   return MUTATION_METHODS.has(String(method || "").toUpperCase());
@@ -254,16 +276,34 @@ export const loader = async ({ request }) => {
   }
 
   const url = new URL(request.url);
+  const queryHost = url.searchParams.get("host") || "";
+  const cookieHost = getCookieValue(request.headers.get("cookie"), HOST_COOKIE_NAME);
+  const host = queryHost || cookieHost || deriveAdminHostFromShop(resolvedShop);
+
   return {
     apiKey: process.env.SHOPIFY_API_KEY || "",
     shop: resolvedShop || null,
-    host: url.searchParams.get("host") || null,
+    host: host || null,
   };
 };
 
 // 3) Main App component
 export default function App() {
   const { apiKey, host } = useLoaderData();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !host) return;
+
+    document.cookie = `${HOST_COOKIE_NAME}=${encodeURIComponent(host)}; path=/; max-age=604800; SameSite=Lax`;
+
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("host")) return;
+
+    url.searchParams.delete("host");
+    const cleanUrl = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState(window.history.state, "", cleanUrl);
+  }, [host, location.pathname, location.search]);
 
   // Avoid initializing App Bridge without a host parameter; Shopify Admin refuses to load inside an iframe.
   if (!host) {
@@ -284,12 +324,8 @@ export default function App() {
     );
   }
 
-  const docsHref = host
-    ? `/app/documents?host=${encodeURIComponent(host)}`
-    : "/app/documents";
-  const analyticsHref = host
-    ? `/app/analytics?host=${encodeURIComponent(host)}`
-    : "/app/analytics";
+  const docsHref = "/app/documents";
+  const analyticsHref = "/app/analytics";
 
   return (
     <BridgeProvider embedded apiKey={apiKey} host={host} forceRedirect>
@@ -298,10 +334,10 @@ export default function App() {
         <Frame>
           <ui-nav-menu>
             {/* <a href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</a> */}
-            <a href={host ? `/app/campaigns?host=${encodeURIComponent(host)}` : "/app/campaigns"}>Create Campaign</a>
-            <a href={host ? `/app/my-campaigns?host=${encodeURIComponent(host)}` : "/app/my-campaigns"}>My Campaigns</a>
-            <a href={host ? `/app/cartbar?host=${encodeURIComponent(host)}` : "/app/cartbar"}>Add to Cart Bar</a>
-            <a href={host ? `/app/customize-preview?host=${encodeURIComponent(host)}` : "/app/customize-preview"}>Customize & Preview</a>
+            <a href="/app/campaigns">Create Campaign</a>
+            <a href="/app/my-campaigns">My Campaigns</a>
+            <a href="/app/cartbar">Add to Cart Bar</a>
+            <a href="/app/customize-preview">Customize & Preview</a>
             <a href={analyticsHref}>Analytics</a>
             <a href={docsHref}>Documents</a>
           </ui-nav-menu>
