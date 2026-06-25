@@ -1814,7 +1814,6 @@ function SettingsSection({ open, onOpenChange, settings, onSettingsChange }) {
 export default function RuleCartGoal() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const host = searchParams.get("host");
   const id = searchParams.get("id");
   const {
     rule,
@@ -1826,7 +1825,7 @@ export default function RuleCartGoal() {
   const navigation = useNavigation();
   const submit = useSubmit();
   const productFetcher = useFetcher();
-  const withHost = (path) => (host ? `${path}?host=${encodeURIComponent(host)}` : path);
+  const withHost = (path) => path;
   const handledSuccessKeyRef = useRef(null);
 
   const navigateSafely = (to, options) => {
@@ -1911,20 +1910,16 @@ export default function RuleCartGoal() {
       handledSuccessKeyRef.current = successKey;
 
       if (leaveAfterDraftSave) {
-        const campaignsPath = host
-          ? `/app/campaigns?host=${encodeURIComponent(host)}`
-          : "/app/campaigns";
-        navigateSafely(campaignsPath);
+        navigateSafely("/app/campaigns");
         return;
       }
 
       if (!id && actionData.id) {
         const idParam = `id=${encodeURIComponent(actionData.id)}`;
-        const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
-        navigateSafely(`/app/rule-cart-goal?${idParam}${hostParam}`, { replace: true });
+        navigateSafely(`/app/rule-cart-goal?${idParam}`, { replace: true });
       }
     }
-  }, [actionData, host, id, leaveAfterDraftSave, navigation.state]);
+  }, [actionData, id, leaveAfterDraftSave, navigation.state]);
 
   useEffect(() => {
     if (navigation.state === "idle") {

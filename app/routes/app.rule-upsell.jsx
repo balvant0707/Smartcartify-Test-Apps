@@ -1,6 +1,6 @@
 import { Fragment, useState, useEffect } from "react";
 import {
-  useNavigate, useSearchParams, useSubmit,
+  useNavigate, useSubmit,
   useActionData, useLoaderData, useNavigation, useFetcher,
 } from "react-router";
 import {
@@ -276,9 +276,7 @@ function SelectedItemsDisplay({ ids, allItems, onRemove, emptyLabel }) {
 
 export default function RuleUpsell() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const host = searchParams.get("host");
-  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
+  const withHost = (path) => path;
 
   const loaderData = useLoaderData();
   const actionData = useActionData();

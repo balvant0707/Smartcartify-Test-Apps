@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 import {
   Page,
   Tabs,
@@ -642,14 +642,12 @@ function PreviewPanel({ ruleType, onCreate, creating = false }) {
 }
 export default function CampaignSelector() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const host = searchParams.get("host");
 
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
   const [selectedId, setSelectedId] = useState("cart-goal");
   const [creatingRuleId, setCreatingRuleId] = useState(null);
 
-  // Build URL for a rule editor page, appending host if present.
+  // Build URL for a rule editor page.
   const toRulePage = (base, extraParams = {}) => {
     const [pathname, search = ""] = String(base).split("?");
     const params = new URLSearchParams(search);
@@ -658,7 +656,6 @@ export default function CampaignSelector() {
         params.set(key, value);
       }
     });
-    if (host) params.set("host", host);
     const qs = params.toString();
     return qs ? `${pathname}?${qs}` : pathname;
   };
@@ -715,8 +712,7 @@ export default function CampaignSelector() {
     <Page
       backAction={{
         content: "Back",
-        onAction: () =>
-          navigate(host ? `/app?host=${encodeURIComponent(host)}` : "/app"),
+        onAction: () => navigate("/app"),
       }}
       title="Select a campaign type"
     >

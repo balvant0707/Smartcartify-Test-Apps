@@ -1,6 +1,6 @@
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import React from "react";
-import { useFetcher, useLoaderData, useLocation, useRouteError } from "react-router";
+import { useFetcher, useLoaderData, useRouteError } from "react-router";
 import { authenticate, apiVersion } from "../shopify.server";
 import prisma from "../db.server";
 import { Page, Box, Text, Modal, TextField, BlockStack, InlineStack, Card, Button } from "@shopify/polaris";
@@ -365,9 +365,6 @@ export default function Index() {
   const { shop, embedEnabled, appEmbedOwnerId, shouldShowReviewPopup } =
     useLoaderData() ?? {};
   const fetcher = useFetcher();
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const host = params.get("host");
   const [reviewModalOpen, setReviewModalOpen] = React.useState(Boolean(shouldShowReviewPopup));
   const [reviewRating, setReviewRating] = React.useState(0);
   const [reviewComment, setReviewComment] = React.useState("");
@@ -401,10 +398,7 @@ export default function Index() {
   };
 
   const withHost = (path) => {
-    if (!host) return path;
-    const url = new URL(path, "http://placeholder");
-    url.searchParams.set("host", host);
-    return url.pathname + url.search;
+    return path;
   };
 
   const dashboardApps = [

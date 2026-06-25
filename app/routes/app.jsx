@@ -3,7 +3,6 @@
 // 1) Import dependencies at the top
 import { Outlet, useFetchers, useLoaderData, useLocation, useNavigation, useRouteError } from "react-router";
 import { useEffect, useRef, useState } from "react";
-import { Buffer } from "node:buffer";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider as BridgeProvider } from "@shopify/shopify-app-react-router/react";
 import {
@@ -122,8 +121,9 @@ function getCookieValue(cookieHeader, name) {
 
 function deriveAdminHostFromShop(shop) {
   const handle = String(shop || "").split(".")[0]?.trim();
-  return handle
-    ? Buffer.from(`admin.shopify.com/store/${handle}`).toString("base64")
+  const bufferCtor = globalThis.Buffer;
+  return handle && bufferCtor
+    ? bufferCtor.from(`admin.shopify.com/store/${handle}`).toString("base64")
     : "";
 }
 
@@ -135,7 +135,9 @@ function SaveConfigurationFeedback() {
   const navigation = useNavigation();
   const fetchers = useFetchers();
   const wasSavingRef = useRef(false);
+  const clickTimerRef = useRef(null);
   const [toastActive, setToastActive] = useState(false);
+  const [clickPending, setClickPending] = useState(false);
 
   const navigationSaving =
     navigation.state !== "idle" && isMutationMethod(navigation.formMethod);
@@ -143,6 +145,72 @@ function SaveConfigurationFeedback() {
     (fetcher) => fetcher.state !== "idle" && isMutationMethod(fetcher.formMethod),
   );
   const isSaving = navigationSaving || fetcherSaving;
+  const isLoading = navigation.state !== "idle" || fetchers.some((fetcher) => fetcher.state !== "idle");
+  const showSpinner = isSaving || isLoading || clickPending;
+
+  useEffect(() => {
+    const clearClickPending = () => {
+      if (clickTimerRef.current) {
+        window.clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
+      setClickPending(false);
+    };
+
+    const clearClickTimer = () => {
+      if (clickTimerRef.current) {
+        window.clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
+    };
+
+    const shouldShowClickSpinner = (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return false;
+      }
+
+      const target = event.target instanceof Element ? event.target : null;
+      const control = target?.closest?.("button, a, [role='button'], [role='tab']");
+      if (!control) return false;
+      if (control.matches?.("[disabled], [aria-disabled='true']")) return false;
+      if (control.closest?.("[data-no-global-spinner]")) return false;
+
+      const link = control.closest?.("a[href]");
+      if (link) {
+        const href = link.getAttribute("href") || "";
+        if (!href || href.startsWith("#") || link.target === "_blank" || link.hasAttribute("download")) return false;
+      }
+
+      return true;
+    };
+
+    const handleClick = (event) => {
+      if (!shouldShowClickSpinner(event)) return;
+      setToastActive(false);
+      setClickPending(true);
+      if (clickTimerRef.current) window.clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = window.setTimeout(() => {
+        setClickPending(false);
+        clickTimerRef.current = null;
+      }, 450);
+    };
+
+    document.addEventListener("click", handleClick, true);
+    return () => {
+      document.removeEventListener("click", handleClick, true);
+      clearClickTimer();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isLoading) {
+      if (clickTimerRef.current) {
+        window.clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
+      setClickPending(false);
+    }
+  }, [isLoading]);
 
   useEffect(() => {
     if (isSaving) {
@@ -164,13 +232,13 @@ function SaveConfigurationFeedback() {
 
   return (
     <>
-      {isSaving ? (
+      {showSpinner ? (
         <div className="global-save-overlay" role="status" aria-live="polite">
           <div className="global-save-overlay__panel">
             <InlineStack gap="300" blockAlign="center" align="center" wrap={false}>
-              <Spinner accessibilityLabel="Saving configuration" size="small" />
+              <Spinner accessibilityLabel={isSaving ? "Saving configuration" : "Loading"} size="small" />
               <Text as="span" variant="bodyMd" fontWeight="semibold">
-                Saving configuration...
+                {isSaving ? "Saving configuration..." : "Loading..."}
               </Text>
             </InlineStack>
           </div>
@@ -333,7 +401,6 @@ export default function App() {
         <style>{GLOBAL_POLARIS_RADIUS_CSS}</style>
         <Frame>
           <ui-nav-menu>
-            {/* <a href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</a> */}
             <a href="/app/campaigns">Create Campaign</a>
             <a href="/app/my-campaigns">My Campaigns</a>
             <a href="/app/cartbar">Add to Cart Bar</a>

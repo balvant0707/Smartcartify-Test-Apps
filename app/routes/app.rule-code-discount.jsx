@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  useNavigate, useSearchParams, useSubmit,
+  useNavigate, useSubmit,
   useActionData, useLoaderData, useNavigation,
 } from "react-router";
 import {
@@ -175,9 +175,7 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
 
 export default function RuleCodeDiscount() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const host = searchParams.get("host");
-  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
+  const withHost = (path) => path;
 
   const loaderData = useLoaderData();
   const actionData = useActionData();
@@ -220,10 +218,9 @@ export default function RuleCodeDiscount() {
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
       const idParam = `id=${encodeURIComponent(actionData.id)}`;
-      const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
-      navigate(`/app/rule-code-discount?${idParam}${hostParam}`, { replace: true });
+      navigate(`/app/rule-code-discount?${idParam}`, { replace: true });
     }
-  }, [actionData, host, navigate, navigation.state, recordId]);
+  }, [actionData, navigate, navigation.state, recordId]);
 
   const getDiscountValueError = (nextValue = value, nextValueType = valueType) => {
     const numericDiscountValue = Number(nextValue || 0);

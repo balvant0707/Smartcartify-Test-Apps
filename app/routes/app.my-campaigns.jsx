@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, useLoaderData, useFetcher } from "react-router";
+import { useNavigate, useLoaderData, useFetcher } from "react-router";
 import {
   Page, Tabs, Text, Box, InlineStack,
   Button, Badge, Modal, EmptyState, Icon, Banner, IndexTable, Tooltip,
@@ -572,11 +572,8 @@ function RuleCampaignMark({ meta, name }) {
 
 export default function MyRules() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const host = searchParams.get("host");
   const withHost = (path, extra = {}) => {
     const p = new URLSearchParams(extra);
-    if (host) p.set("host", host);
     const qs = p.toString();
     return qs ? `${path}?${qs}` : path;
   };

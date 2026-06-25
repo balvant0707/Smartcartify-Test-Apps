@@ -1,7 +1,7 @@
 // app/routes/app.customize-preview.jsx
 import { useEffect, useState } from "react";
 import {
-  useNavigate, useSearchParams, useSubmit,
+  useNavigate, useSubmit,
   useActionData, useLoaderData, useNavigation,
   useRouteError,
 } from "react-router";
@@ -54,8 +54,8 @@ const DEFAULT_STYLE = {
   cartDrawerBackgroundMode: "gradient",
   cartDrawerBackground: "#ffffff",
   cartDrawerImage: "",
-  cartDrawerGradientStart: "#ffffff",
-  cartDrawerGradientEnd: "#f9f9f9",
+  cartDrawerGradientStart: "#9e0899",
+  cartDrawerGradientEnd: "#01b753",
   cartDrawerTextColor: "#000000",
   cartDrawerHeaderColor: "#000000",
   cartIconType: "default",
@@ -2450,9 +2450,7 @@ function CartDrawerPreview({
 
 export default function CustomizePreview() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const host = searchParams.get("host");
-  const withHost = (p) => host ? `${p}?host=${encodeURIComponent(host)}` : p;
+  const withHost = (p) => p;
 
   const loaderData = useLoaderData() ?? {};
   const actionData = useActionData();

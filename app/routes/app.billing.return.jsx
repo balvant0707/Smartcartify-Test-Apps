@@ -12,7 +12,6 @@ export async function loader({ request }) {
   const shop = session.shop;
 
   const url = new URL(request.url);
-  const host = url.searchParams.get("host");
   const shopParam = url.searchParams.get("shop");
 
   const query = `#graphql
@@ -86,12 +85,9 @@ export async function loader({ request }) {
     });
   }
 
-  const back =
-    host && shopParam
-      ? `/app/pricing?host=${encodeURIComponent(host)}&shop=${encodeURIComponent(shopParam)}`
-      : host
-      ? `/app/pricing?host=${encodeURIComponent(host)}`
-      : "/app/pricing";
+  const back = shopParam
+    ? `/app/pricing?shop=${encodeURIComponent(shopParam)}`
+    : "/app/pricing";
 
   return redirect(back);
 }

@@ -167,21 +167,17 @@ export async function action({ request }) {
   const shop = session.shop;
   const isTest = process.env.SHOPIFY_BILLING_TEST === "true";
 
-  const reqUrl = new URL(request.url);
-  const host = reqUrl.searchParams.get("host");
-
   const form = await request.formData();
 
   // Note. top button intent
   const intent = String(form.get("intent") || "").trim();
   const rawPlanId = String(form.get("planId") || "").trim().toLowerCase();
 
-  logger.log("Pricing action invoked:", { shop, host, rawPlanId, intent });
+  logger.log("Pricing action invoked:", { shop, rawPlanId, intent });
 
   const origin = new URL(request.url).origin;
   const buildReturnUrl = (path, extraParams = {}) => {
     const url = new URL(path, origin);
-    if (host) url.searchParams.set("host", host);
     url.searchParams.set("shop", shop);
     Object.entries(extraParams).forEach(([key, value]) => {
       url.searchParams.set(key, value);
@@ -274,17 +270,13 @@ export async function action({ request }) {
       });
     }
 
-    const back = host
-      ? `/app/pricing?host=${encodeURIComponent(host)}&shop=${encodeURIComponent(shop)}`
-      : "/app/pricing";
+    const back = `/app/pricing?shop=${encodeURIComponent(shop)}`;
     return redirect(back);
   }
 
   // Note. Must have planId when selecting plans
   if (!rawPlanId) {
-    const back = host
-      ? `/app/pricing?host=${encodeURIComponent(host)}&shop=${encodeURIComponent(shop)}`
-      : "/app/pricing";
+    const back = `/app/pricing?shop=${encodeURIComponent(shop)}`;
     return redirect(back);
   }
 
@@ -296,9 +288,7 @@ export async function action({ request }) {
     }
     await upsertFree();
 
-    const back = host
-      ? `/app?host=${encodeURIComponent(host)}&shop=${encodeURIComponent(shop)}`
-      : "/app";
+    const back = `/app?shop=${encodeURIComponent(shop)}`;
     return redirect(back);
   }
 
