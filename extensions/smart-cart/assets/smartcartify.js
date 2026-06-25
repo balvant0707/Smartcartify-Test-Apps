@@ -7618,8 +7618,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 ========================================================= */
 .sc-drawer,
 .smartcartify-cart-drawer{
-  --sc-ref-gradient:linear-gradient(135deg,#ff3b30 0%,#e12fc0 45%,#ffe1d6 100%);
-  background:#f6f7fb !important;
+  --sc-ref-gradient:linear-gradient(135deg,#ff3b30 0%,#e12fc0 44%,#ffe1d6 100%);
+  --sc-drawer-shell-gradient:linear-gradient(135deg,#ff3b30 0%,#e12fc0 24%,#ffe1d6 44%,#f6f7fb 44%,#f6f7fb 100%);
+  background:var(--sc-drawer-shell-gradient) !important;
   color:var(--sc-drawer-text-color,#102864) !important;
   overflow:hidden !important;
   box-shadow:-14px 0 34px rgba(15,23,42,.22) !important;
@@ -7937,7 +7938,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 /* Offers tab full page */
 .sc-drawer.sc-offers-active,
 .smartcartify-cart-drawer.sc-offers-active{
-  background:#f6f7fb !important;
+  background:var(--sc-drawer-shell-gradient) !important;
 }
 .sc-drawer.sc-offers-active::before{
   height:178px !important;
@@ -8431,6 +8432,118 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 }
 
 
+/* SmartCartify requested cart drawer fixes */
+.smartcartify-cart-drawer,
+.sc-drawer{
+  background:var(--sc-drawer-shell-gradient, linear-gradient(135deg,#ff3b30 0%,#e12fc0 24%,#ffe1d6 44%,#f6f7fb 44%,#f6f7fb 100%)) !important;
+}
+.smartcartify-cart-drawer .sc-line-loader,
+.smartcartify-cart-drawer .sc-line-loader *,
+.sc-drawer .sc-line-loader,
+.sc-drawer .sc-line-loader *{
+  line-height:0 !important;
+  font-size:0 !important;
+  color:transparent !important;
+}
+.smartcartify-cart-drawer .sc-line-loader-bg::before,
+.sc-drawer .sc-line-loader-bg::before{
+  display:none !important;
+  height:0 !important;
+  background:transparent !important;
+}
+.smartcartify-cart-drawer .sc-line-loader-runner,
+.sc-drawer .sc-line-loader-runner{
+  text-indent:-9999px !important;
+  overflow:hidden !important;
+}
+.sc-drawer .sc-img{
+  position:relative !important;
+  overflow:visible !important;
+}
+.sc-drawer .sc-gift-image-badge{
+  position:absolute;
+  top:-12px;
+  left:50%;
+  transform:translateX(-50%);
+  width:24px;
+  height:24px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--sc-progress,#a83df0);
+  color:#ffffff;
+  border:2px solid #ffffff;
+  box-shadow:0 3px 10px rgba(15,23,42,.18);
+  z-index:4;
+  pointer-events:none;
+}
+.sc-drawer .sc-gift-image-badge svg{
+  width:14px !important;
+  height:14px !important;
+  fill:currentColor !important;
+  display:block !important;
+}
+.sc-drawer .sc-gift-image-badge svg [fill]:not([fill="none"]){
+  fill:currentColor !important;
+}
+.sc-applied-discount-codes{
+  width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+  margin-top:-2px;
+}
+.sc-applied-discount-codes[hidden]{display:none !important;}
+.sc-applied-code-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  max-width:100%;
+  min-height:26px;
+  padding:5px 7px;
+  border-radius:4px;
+  background:#ececf3;
+  color:var(--sc-drawer-text-color,#102864);
+  font-size:calc(var(--sc-small-font-size,12px) * .95) !important;
+  line-height:1 !important;
+  font-weight:900;
+  letter-spacing:.02em;
+}
+.sc-applied-code-icon,
+.sc-applied-code-icon svg{
+  width:13px !important;
+  height:13px !important;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:currentColor !important;
+  fill:currentColor !important;
+}
+.sc-applied-code-remove,
+.sc-discount .sc-applied-code-remove,
+.sc-drawer:not(.sc-offers-active) .sc-discount .sc-applied-code-remove{
+  width:auto !important;
+  min-width:0 !important;
+  height:auto !important;
+  min-height:0 !important;
+  padding:0 0 0 3px !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  color:inherit !important;
+  box-shadow:none !important;
+  font-size:14px !important;
+  line-height:1 !important;
+  font-weight:900 !important;
+  cursor:pointer !important;
+}
+.sc-freegift-close{
+  display:none !important;
+}
+
+
     `;
     document.head.appendChild(s);
   };
@@ -8493,7 +8606,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       </div>
       <div id="corner-cowi-cart-indeterminate-loading-bar-wrapper" class="sc-line-loader corner-covey-cart-undefined-loading-bar-wrapper" data-sc-line-loader hidden aria-hidden="true">
           <div id="corner-cowi-cart-indeterminate-loading-bar-bg" class="sc-line-loader-bg">
-            <div id="corner-cowi-cart-indeterminate-loading-bar-runner" class="sc-line-loader-runner">&nbsp;</div>
+            <div id="corner-cowi-cart-indeterminate-loading-bar-runner" class="sc-line-loader-runner"></div>
           </div>
         </div>
       <div class="sc-items-list">
@@ -8517,6 +8630,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           spellcheck="false"
         />
         <button type="button" data-discount-apply>Apply</button>
+        <div class="sc-applied-discount-codes" data-applied-discount-codes hidden></div>
         <div class="sc-discount-msg" data-discount-msg hidden></div>
       </div>
       <div class="sc-footer-row">
@@ -8662,6 +8776,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (tabButton) {
       e.preventDefault();
       setDrawerTab(tabButton.getAttribute("data-drawer-tab"));
+      return;
+    }
+    const discountRemoveButton = el.closest("[data-discount-remove-code]");
+    if (discountRemoveButton) {
+      e.preventDefault();
+      const code = trimToNull(discountRemoveButton.getAttribute("data-discount-remove-code"));
+      await removeDiscountCode(code);
       return;
     }
     const codeCopyButton = el.closest("[data-offer-code-copy]");
@@ -9394,6 +9515,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     }
   };
 
+
+
+  const showDiscountValidationPopup = (message, title = "Discount code not applied") => {
+    const text = trimToNull(message) || "This discount code is invalid or not available for this cart.";
+    if (discountMsg) discountMsg.style.color = "#dc2626";
+    setDiscountMessage(text, 5500);
+    showCenterCelebratePopup(title, text, 4200, "error");
+  };
+
   const DISCOUNT_APPLY_LOADING_MIN_MS = 650;
   const DISCOUNT_APPLY_LOADING_MAX_MS = 12000;
   let discountApplyLoadingStartedAt = 0;
@@ -9456,7 +9586,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const waitForDiscountApplied = async (code, attempts = 8) => {
     for (let i = 0; i < attempts; i += 1) {
       CART = await fetchCart({ force: true });
-      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) return true;
+      if (isDiscountAppliedInCart(code)) return true;
       await new Promise((resolve) => setTimeout(resolve, 250 + i * 100));
     }
     return false;
@@ -9813,6 +9943,95 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!enabled) setDiscountMessage("");
   };
 
+
+
+  const getActiveDiscountCodesForBadges = () => {
+    const out = [];
+    const seen = new Set();
+    const add = (code) => {
+      const c = trimToNull(code);
+      if (!c) return;
+      const key = c.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(c);
+    };
+
+    getAppliedDiscountCodes().forEach(add);
+
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    if (manualCode) {
+      const rule = findCodeDiscountRuleByCode(manualCode);
+      const validation = rule ? validateCodeDiscountRule(rule, getCartSubtotalCents()) : { ok: isDiscountAppliedInCart(manualCode) };
+      if (validation.ok && (rule || isDiscountAppliedInCart(manualCode) || isManualDiscountCodeRemembered(manualCode))) {
+        add(manualCode);
+      }
+    }
+
+    return out;
+  };
+
+  const renderAppliedDiscountCodeBadges = () => {
+    const host = drawer.querySelector("[data-applied-discount-codes]");
+    if (!host) return;
+
+    const isEmpty = !Array.isArray(CART?.items) || CART.items.length === 0;
+    if (isEmpty || drawerDiscountPanel?.hidden) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+
+    const codes = getActiveDiscountCodesForBadges();
+    if (!codes.length) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+
+    host.innerHTML = codes
+      .map((code) => `
+        <span class="sc-applied-code-chip" title="${safe(code)}">
+          <span class="sc-applied-code-icon" aria-hidden="true">${ICONS.discount || ""}</span>
+          <span class="sc-applied-code-text">${safe(String(code).toUpperCase())}</span>
+          <button class="sc-applied-code-remove" type="button" data-discount-remove-code="${safe(code)}" aria-label="Remove discount code ${safe(code)}">&times;</button>
+        </span>
+      `)
+      .join("");
+    host.hidden = false;
+  };
+
+  const removeDiscountCode = async (code = "") => {
+    const normalized = trimToNull(code) || trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    if (!normalized) return;
+
+    setDiscountApplyLoading(true);
+    setDiscountMessage("");
+
+    try {
+      await clearDiscountCode(normalized);
+      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+      scStore.del("__SC_LAST_APPLIED_CODE__");
+
+      if (
+        discountInput &&
+        String(discountInput.value || "").trim().toLowerCase() === normalized.toLowerCase()
+      ) {
+        discountInput.value = "";
+      }
+
+      await refreshFromNetwork();
+      renderAllFromCache();
+      if (discountMsg) discountMsg.style.color = "#16a34a";
+      setDiscountMessage(`Discount code removed: ${normalized}`, 3000);
+    } catch (err) {
+      console.error("[SmartCartify] discount remove failed:", err);
+      showDiscountValidationPopup("Could not remove discount code. Please try again.", "Discount code not removed");
+    } finally {
+      setDiscountApplyLoading(false);
+    }
+  };
+
   const getCheckoutDiscountCode = () => {
     const appliedCodes = getAppliedDiscountCodes();
     if (appliedCodes.length) return appliedCodes[0];
@@ -9940,21 +10159,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       console.warn("[SmartCartify] discount fetch apply failed, retrying with iframe:", err?.message || err);
     }
 
-    // Shopify's /discount endpoint may not expose the code in cart.js until
-    // checkout. Touch it through a same-origin iframe as well, then persist the
-    // entered code in cart attributes so the drawer can render the applied state
-    // immediately and the checkout button can carry the same code.
+    // For unknown Shopify codes, do not mark the code as applied until
+    // Shopify confirms it in cart discount applications. This prevents invalid
+    // codes from showing as successful inside the drawer.
     const iframeTouched = await loadDiscountUrlInIframe(target);
     endpointTouched = endpointTouched || iframeTouched;
 
-    rememberManualDiscountCode(normalized);
-    await persistDiscountCodeToCartAttributes(normalized);
-
     invalidateCartCache();
     const confirmed = await waitForDiscountApplied(normalized, 10);
-    if (confirmed) return true;
+    if (!confirmed) return false;
 
-    return endpointTouched || isManualDiscountCodeRemembered(normalized);
+    rememberManualDiscountCode(normalized);
+    await persistDiscountCodeToCartAttributes(normalized);
+    return true;
   };
 
 
@@ -10096,7 +10313,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const code = overrideCode || trimToNull(discountInput?.value);
 
     if (!code) {
-      setDiscountMessage("Please enter a discount code.");
+      showDiscountValidationPopup("Please enter a discount code.", "Discount code required");
       return;
     }
 
@@ -10118,11 +10335,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         }
 
         const isQtyDiscount = String(rule?.triggerType ?? rule?.trigger_type ?? "amount").trim().toLowerCase() === "quantity";
-        setDiscountMessage(
-          isQtyDiscount
-            ? `Add ${Math.ceil(remaining)} more item(s) to use code ${code}.`
-            : `Add ${formatCampaignMoney(remaining * priceDivisor(CART?.currency), CART?.currency)} more to use code ${code}.`
-        );
+        const minMessage = isQtyDiscount
+          ? `Add ${Math.ceil(remaining)} more item(s) to use code ${code}.`
+          : `Add ${formatCampaignMoney(remaining * priceDivisor(CART?.currency), CART?.currency)} more to use code ${code}.`;
+        showDiscountValidationPopup(minMessage, "Minimum requirement not met");
 
         setDiscountApplyLoading(false);
 
@@ -10135,8 +10351,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       scStore.del(MANUAL_DISCOUNT_CODE_KEY);
       scStore.del("__SC_LAST_APPLIED_CODE__");
 
-      if (discountMsg) discountMsg.style.color = "#dc2626";
-      setDiscountMessage(validation.message);
+      showDiscountValidationPopup(validation.message, "Minimum requirement not met");
       setDiscountApplyLoading(false);
       return;
     }
@@ -10150,21 +10365,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (discountInput) discountInput.value = "";
         await clearDiscountCode(code);
         CART = await fetchCart({ force: true });
-        throw new Error(`Discount code was not accepted by Shopify: ${code}`);
+        renderAppliedDiscountCodeBadges();
+        showDiscountValidationPopup(`Discount code ${code} is invalid or not available for this cart.`, "Invalid discount code");
+        return;
       }
 
       rememberManualDiscountCode(code);
       suppressAutoRewardPopups(3200);
       await refreshFromNetwork();
       renderAllFromCache();
+      renderAppliedDiscountCodeBadges();
 
       if (discountMsg) discountMsg.style.color = "#16a34a";
       setDiscountMessage(`Discount applied: ${code}`);
       celebrateDiscountApplied(code);
     } catch (err) {
       console.error("[SmartCartify] discount apply failed:", err);
-      if (discountMsg) discountMsg.style.color = "#dc2626";
-      setDiscountMessage("Could not apply discount code. Please try again.");
+      showDiscountValidationPopup("Could not apply discount code. Please try again.", "Discount code not applied");
     } finally {
       setDiscountApplyLoading(false);
     }
@@ -11827,6 +12044,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
     });
 
+    // Cart footer should not list Order Discount or Code Discount rows.
+    // Discounts still reduce the Total; only Shipping remains visible here.
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const label = String(rows[i]?.label || "").trim().toLowerCase();
+      if (label !== "shipping") rows.splice(i, 1);
+    }
+
     const uniqueRows = [];
     const seen = new Set();
 
@@ -11979,6 +12203,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const footerEl = drawer.querySelector(".sc-footer");
     const isEmpty = !items.length;
     updateDiscountPanelVisibility({ isEmpty });
+    renderAppliedDiscountCodeBadges();
     if (checkoutButton) checkoutButton.hidden = isEmpty;
     if (subtotalBox) subtotalBox.hidden = isEmpty;
     if (footerRow) footerRow.hidden = isEmpty;
@@ -12056,6 +12281,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const rewardFreePill = isReward
           ? `<span class="sc-reward-free-pill">Free</span>`
           : "";
+        const rewardGiftBadge = isReward
+          ? `<span class="sc-gift-image-badge" aria-hidden="true">${ICONS.gift || "🎁"}</span>`
+          : "";
         const bxgyLineBadge = !isReward && isBuyXGetYQualifyingLine(it)
           ? `<span class="sc-free-tag sc-free-tag-under sc-bxgy-line-badge"></span>`
           : "";
@@ -12071,7 +12299,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
         return `
           <div class="sc-item${isReward ? " sc-item-reward" : ""}" data-line="${line}">
-            <div class="sc-img">${img}</div>
+            <div class="sc-img">${rewardGiftBadge}${img}</div>
 
             <div class="sc-mid">
               <p class="sc-name" title="${safe(it.product_title)}">${nameHtml}</p>
@@ -12890,7 +13118,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     overlayEl.className = "sc-freegift-overlay";
     overlayEl.innerHTML = `
       <div class="sc-freegift-card">
-        <button class="sc-freegift-close" type="button" aria-label="Close reward popup">&times;</button>
         <div class="sc-freegift-header">
           <div class="sc-freegift-icon">${ICONS.gift || "🎁"}</div>
           <div class="sc-freegift-heading">
@@ -16307,7 +16534,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const preload = async () => {
     try {
       void preloadAtcProductFromHandle(); // fire-and-forget; result used by getShopifyAnalyticsProduct fallback
-      setProgressLoading(true);
       // Fire cart + proxy simultaneously — proxy server ignores subtotal/quantity,
       // so passing an empty cart is fine and saves one full sequential round-trip.
       const [cartRes, proxyRes] = await Promise.allSettled([
@@ -16376,9 +16602,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   let refreshTimer = null;
-  const refreshFromNetwork = async () => {
+  const refreshFromNetwork = async (opts = {}) => {
     if (refreshTimer) clearTimeout(refreshTimer);
-    setProgressLoading(true);
+    const showLoader = opts?.showLoader === true;
+    if (showLoader) setProgressLoading(true);
     return new Promise((resolve) => {
       refreshTimer = setTimeout(async () => {
         try {
@@ -16391,7 +16618,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         } catch (e) {
           console.error(e);
         } finally {
-          setProgressLoading(false);
+          if (showLoader) setProgressLoading(false);
           resolve();
         }
       }, 60);
@@ -16683,6 +16910,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             await refreshFromNetwork();
             renderAllFromCache();
           } finally {
+            setProgressLoading(false);
             btn.classList.remove("sc-open-loading");
             btn.removeAttribute("aria-busy");
           }
