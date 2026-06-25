@@ -4278,10 +4278,12 @@
   };
 
   const showDiscountValidationPopup = (message, title = "Discount code not applied") => {
+    // Code Discount validation/removal messages should stay inline only.
+    // Do not show the large center modal for any code-discount error/removal state.
+    void title;
     const text = trimToNull(message) || "This discount code is not valid for the current cart.";
     if (discountMsg) discountMsg.style.color = "#dc2626";
     setDiscountMessage(text, 5000);
-    showCenterCelebratePopup(title, text, 4200, "error");
   };
 
   const findAppliedDiscountCodeRule = () => {
@@ -9779,37 +9781,86 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   let LAST_AUTO_REMOVED_AT = 0;
 
   const clearDiscountCode = async (code) => {
-    const attempts = [
-      "/discount/clear?redirect=/cart",
-      "/discount/clear",
-    ];
-    for (const url of attempts) {
+    const normalized = trimToNull(code);
+    const target = String(normalized || "").toLowerCase();
+    let endpointCleared = false;
+    let attributesCleared = false;
+
+    // Clear Shopify's discount cookie/session first. Do not return early here;
+    // app-created codes are also persisted in cart attributes and must be cleared too.
+    const clearUrls = [];
+    try {
+      if (typeof buildDiscountClearUrl === "function") {
+        clearUrls.push(buildDiscountClearUrl("/cart"));
+      }
+    } catch { }
+    clearUrls.push("/discount/clear?redirect=/cart", "/discount/clear");
+
+    for (const url of Array.from(new Set(clearUrls.filter(Boolean)))) {
       try {
-        const res = await fetch(url, { credentials: "same-origin", redirect: "follow" });
-        if (res && res.ok) return true;
+        const res = await fetch(url, {
+          credentials: "same-origin",
+          redirect: "follow",
+          cache: "no-store",
+        });
+        endpointCleared = endpointCleared || !!(res && (res.ok || res.redirected || res.type === "opaqueredirect"));
       } catch { }
     }
+
+    try {
+      if (typeof buildDiscountClearUrl === "function" && typeof loadDiscountUrlInIframe === "function") {
+        endpointCleared = (await loadDiscountUrlInIframe(buildDiscountClearUrl("/cart"))) || endpointCleared;
+      }
+    } catch { }
+
+    // Clear all drawer/app persisted discount attributes so the chip disappears immediately.
     try {
       const attrs = CART?.attributes || {};
-      const target = String(code || "").toLowerCase();
-      const attributes = {};
+      const attributes = {
+        discount_code: "",
+        discountCode: "",
+        _discount_code: "",
+        _sc_discount_code: "",
+        smartcartify_discount_code: "",
+      };
+
       Object.entries(attrs).forEach(([k, v]) => {
         if (!k) return;
-        if (String(v || "").toLowerCase() === target) {
-          attributes[k] = "";
+        const key = String(k);
+        const keyLower = key.toLowerCase();
+        const valueLower = String(v || "").trim().toLowerCase();
+        if (
+          (target && valueLower === target) ||
+          keyLower === "discount_code" ||
+          keyLower === "discountcode" ||
+          keyLower === "_discount_code" ||
+          keyLower === "_sc_discount_code" ||
+          keyLower === "smartcartify_discount_code"
+        ) {
+          attributes[key] = "";
         }
       });
-      attributes.discount_code = "";
-      attributes.discountCode = "";
+
       const r = await fetch("/cart/update.js", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         credentials: "same-origin",
         body: JSON.stringify({ attributes }),
       });
-      if (r && r.ok) return true;
+      if (r && r.ok) {
+        attributesCleared = true;
+        try {
+          const updatedCart = await r.json();
+          if (updatedCart && typeof updatedCart === "object") {
+            cartCacheValue = updatedCart;
+            cartCacheTs = Date.now();
+          }
+        } catch { }
+      }
     } catch { }
-    return false;
+
+    invalidateCartCache();
+    return endpointCleared || attributesCleared;
   };
 
   const removeDiscountCodeFromDrawer = async (code) => {
@@ -9821,17 +9872,24 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     try {
       await clearDiscountCode(normalized);
-      const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-      if (
-        manualCode &&
-        String(manualCode).trim().toLowerCase() === normalized.toLowerCase()
-      ) {
-        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
-        scStore.del("__SC_LAST_APPLIED_CODE__");
-      }
+
+      // Removing a chip means the drawer should forget the app-managed code too.
+      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+      scStore.del("__SC_LAST_APPLIED_CODE__");
+
       if (discountInput) discountInput.value = "";
       invalidateCartCache();
       CART = await fetchCart({ force: true });
+
+      // If Shopify/cart attributes still report the same code, run one more clear pass.
+      if (isDiscountAppliedInCart(normalized) || isManualDiscountCodeRemembered(normalized)) {
+        await clearDiscountCode(normalized);
+        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+        scStore.del("__SC_LAST_APPLIED_CODE__");
+        invalidateCartCache();
+        CART = await fetchCart({ force: true });
+      }
+
       PROXY = await fetchProxy(CART);
       renderAllFromCache();
       if (discountMsg) discountMsg.style.color = "#16a34a";
@@ -10033,6 +10091,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           ? storefrontPath("cart")
           : redirectPath;
     return `${storefrontPath(`discount/${encodeURIComponent(code)}`)}?redirect=${encodeURIComponent(redirect)}`;
+  };
+
+  const buildDiscountClearUrl = (redirectPath = "/cart") => {
+    const redirect =
+      redirectPath === "/checkout"
+        ? storefrontPath("checkout")
+        : redirectPath === "/cart"
+          ? storefrontPath("cart")
+          : redirectPath;
+    return `${storefrontPath("discount/clear")}?redirect=${encodeURIComponent(redirect)}`;
   };
 
   const persistDiscountCodeToCartAttributes = async (code) => {
@@ -14759,6 +14827,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (guardKey && !force && drawer.__sc_reward_popup_for === `${kind}:${guardKey}`) return false;
 
     if (!drawer.classList.contains("open")) openDrawer();
+
+    // Free Gift and Buy X Get Y reward popups must belong to the Offers tab.
+    // When they unlock from a cart refresh/action, switch the drawer to Offers first.
+    if (["free", "bxgy", "buyxgety"].includes(normalizedPopupKind) && OFFER_TABS_ENABLED) {
+      setDrawerTab("offers");
+    }
 
     const state = ensureRewardPopup();
     const qty = getRewardQtyFromRule(kind, rule);
