@@ -1672,6 +1672,7 @@ function CartDrawerPreview({
           opacity: drawerAutoOpen ? 1 : 0.88,
           margin: isBottomSheetPreview ? "48px auto 0" : "0 auto",
           padding: 18,
+          gap:15,
           ...previewBackdropStyle,
         }}
       >
@@ -2542,7 +2543,13 @@ export default function CustomizePreview() {
       title="Customize & Preview"
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
     >
-      <style>{`.cp-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(460px,450px);gap:15px;align-items:start}@media(max-width:1100px){.cp-layout{grid-template-columns:1fr}}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.cp-preview-sticky{position:sticky;top:80px}`}</style>
+      <style>{`
+      .cp-preview-discount-codes
+        {
+            border-radius: 14px !important;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, .13) !important;
+        }
+      .cp-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(460px,450px);gap:15px;align-items:start}@media(max-width:1100px){.cp-layout{grid-template-columns:1fr}}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.cp-preview-sticky{position:sticky;top:80px}`}</style>
 
       {actionData?.error && (
         <Box paddingBlockEnd="400">

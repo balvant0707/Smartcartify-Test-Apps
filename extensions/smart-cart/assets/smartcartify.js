@@ -2436,7 +2436,7 @@
         : `<span>${label}</span>`;
       return `
                 <div class="sc-cartgoal-bonus-slide">
-                  <div class="sc-cartgoal-bonus-item" role="button" tabindex="0" data-cartgoal-bonus-open="${index}" aria-label="Open ${safe(slide.title)} free gift">
+                  <div class="sc-cartgoal-bonus-item">
                     <div class="sc-cartgoal-bonus-img">${imageHtml}</div>
                     <div class="sc-cartgoal-bonus-info">
                       <p class="sc-cartgoal-bonus-product">${safe(slide.title)}</p>
@@ -4277,13 +4277,13 @@
     return Math.max(0, min - subtotal);
   };
 
-  const showDiscountValidationPopup = (message, title = "Discount code not applied") => {
-    // Code Discount validation/removal messages should stay inline only.
-    // Do not show the large center modal for any code-discount error/removal state.
-    void title;
+  const showDiscountValidationPopup = (message, title = "Discount code not applied", opts = {}) => {
     const text = trimToNull(message) || "This discount code is not valid for the current cart.";
     if (discountMsg) discountMsg.style.color = "#dc2626";
     setDiscountMessage(text, 5000);
+    if (opts?.showPopup) {
+      showCenterCelebratePopup(title, text, 5000, "error");
+    }
   };
 
   const findAppliedDiscountCodeRule = () => {
@@ -6976,10 +6976,10 @@ position: relative;
   transform:scale(1.04);
 }
 .sc-freegift-header{
-display: flex;
+    display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 5px 10px;
+    padding: 10px 10px;
     border-bottom: 1px solid rgba(15, 23, 42, .1);
     background: #fff;
 }
@@ -8343,6 +8343,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   transform:translate3d(-105%,0,0);
   animation:none !important;
   will-change:transform;
+  z-index: 50;
 }
 .smartcartify-cart-drawer .sc-line-loader.is-active .sc-line-loader-runner.is-running{
   animation:scCornerIndeterminateLine 1.08s cubic-bezier(.42,0,.18,1) infinite !important;
@@ -8786,7 +8787,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const code = trimToNull(codeApplyButton.getAttribute("data-offer-code-apply"));
       if (code) {
         if (discountInput) discountInput.value = code;
-        await applyDiscountCode(code);
+        await applyDiscountCode(code, { showValidationPopup: true });
       }
       return;
     }
@@ -10277,7 +10278,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     window.location.href = "/checkout";
   };
 
-  const validateCodeDiscountRule = (rule, subtotalCents) => {
+  const validateCodeDiscountRule = (rule, subtotalCents, code = "") => {
     // If the code is not available in the app proxy rule list, still allow
     // Shopify to validate it. Blocking here made valid Shopify discount codes
     // show "could not be applied" before Shopify got a chance to apply them.
@@ -10285,6 +10286,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     const currency = normalizeCurrencyCode();
     const subtotal = Math.max(0, Number(subtotalCents) || 0);
+    const codeText = trimToNull(code || getDiscountRuleCode(rule));
+    const prefix = codeText
+      ? `Discount code ${String(codeText).toUpperCase()} was not applied. `
+      : "";
     const triggerType = String(rule?.triggerType ?? rule?.trigger_type ?? "amount")
       .trim()
       .toLowerCase();
@@ -10298,7 +10303,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     ) {
       return {
         ok: false,
-        message: `Add ${Math.ceil(minQuantity - getCartTotalQty())} more item(s) to use this discount code.`,
+        message: `${prefix}Add ${Math.ceil(minQuantity - getCartTotalQty())} more item(s) to use this discount code.`,
       };
     }
 
@@ -10317,7 +10322,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (subtotal < minCents) {
         return {
           ok: false,
-          message: `Add ${formatCampaignMoney(minCents - subtotal, currency)} more to use this discount code.`,
+          message: `${prefix}Add ${formatCampaignMoney(minCents - subtotal, currency)} more to use this discount code.`,
         };
       }
     }
@@ -10332,14 +10337,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     ) {
       return {
         ok: false,
-        message: `Discount amount ${formatCampaignMoney(meta.cents, currency)} cannot be greater than cart subtotal ${formatCampaignMoney(subtotal, currency)}.`,
+        message: `${prefix}Discount amount ${formatCampaignMoney(meta.cents, currency)} cannot be greater than cart subtotal ${formatCampaignMoney(subtotal, currency)}.`,
       };
     }
 
     return { ok: true, message: "" };
   };
 
-  const applyDiscountCode = async (codeOverride = "") => {
+  const applyDiscountCode = async (codeOverride = "", opts = {}) => {
+    const showValidationPopup = opts?.showValidationPopup === true;
     const overrideCode =
       typeof codeOverride === "string" || typeof codeOverride === "number"
         ? trimToNull(codeOverride)
@@ -10350,7 +10356,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const code = overrideCode || trimToNull(discountInput?.value);
 
     if (!code) {
-      showDiscountValidationPopup("Please enter a discount code.");
+      showDiscountValidationPopup("Please enter a discount code.", "Discount code not applied", {
+        showPopup: showValidationPopup,
+      });
       return;
     }
 
@@ -10360,17 +10368,23 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!rule) {
       scStore.del(MANUAL_DISCOUNT_CODE_KEY);
       scStore.del("__SC_LAST_APPLIED_CODE__");
-      showDiscountValidationPopup("This discount code is invalid. Please check the code and try again.");
+      showDiscountValidationPopup(
+        `Discount code ${String(code).toUpperCase()} is invalid. Please check the code and try again.`,
+        "Discount code not applied",
+        { showPopup: showValidationPopup }
+      );
       return;
     }
 
-    const validation = validateCodeDiscountRule(rule, getCartSubtotalCents());
+    const validation = validateCodeDiscountRule(rule, getCartSubtotalCents(), code);
 
     if (!validation.ok) {
       scStore.del(MANUAL_DISCOUNT_CODE_KEY);
       scStore.del("__SC_LAST_APPLIED_CODE__");
 
-      showDiscountValidationPopup(validation.message);
+      showDiscountValidationPopup(validation.message, "Discount code not applied", {
+        showPopup: showValidationPopup,
+      });
       return;
     }
 
@@ -10385,7 +10399,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (discountInput) discountInput.value = "";
         await clearDiscountCode(code);
         CART = await fetchCart({ force: true });
-        throw new Error(`This discount code is invalid. Please check the code and try again.`);
+        throw new Error(`Discount code ${String(code).toUpperCase()} is invalid. Please check the code and try again.`);
       }
 
       rememberManualDiscountCode(code);
@@ -10398,7 +10412,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       celebrateDiscountApplied(code);
     } catch (err) {
       console.error("[SmartCartify] discount apply failed:", err);
-      showDiscountValidationPopup(trimToNull(err?.message) || "Could not apply discount code. Please try again.");
+      showDiscountValidationPopup(
+        trimToNull(err?.message) || "Could not apply discount code. Please try again.",
+        "Discount code not applied",
+        { showPopup: showValidationPopup }
+      );
     } finally {
       setDiscountApplyLoading(false);
     }
@@ -10423,7 +10441,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
   if (discountButton) discountButton.addEventListener("click", (e) => {
     e.preventDefault();
-    applyDiscountCode();
+    applyDiscountCode("", { showValidationPopup: true });
   });
   if (discountInput) {
     discountInput.addEventListener("input", () => {
