@@ -1777,7 +1777,9 @@
         variant.inventory_quantity ??
         variant.inventoryQuantity ??
         variant.qtyAvailable ??
-        variant.quantityAvailable;
+        variant.quantityAvailable ??
+        variant.quantity ??
+        variant.qty;
       if (inv != null && Number.isFinite(Number(inv))) return Number(inv) > 0;
     }
 
@@ -4359,7 +4361,7 @@
   --sc-drawer-header-color: #ffffff;
 
   --sc-top-bg-color: transparent;
-  --sc-top-bg-image: linear-gradient(135deg, #ff3b30 0%, #e126b9 48%, #f8dfd0 100%);
+  --sc-top-bg-image: linear-gradient(180deg, #ffffff 0%, #ffffff 30%, #ff3b30 30%, #f8dfd0 100%);
   --sc-top-bg-color-effective: transparent;
   --sc-top-bg-image-effective: var(--sc-top-bg-image);
 
@@ -9328,7 +9330,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     } else if (mode === "gradient") {
       const gradientBg = /gradient\(/i.test(String(baseBg))
         ? String(baseBg)
-        : `linear-gradient(180deg, ${String(gradientStart)} 0%, ${String(gradientEnd)} 100%)`;
+        : `linear-gradient(180deg, #ffffff 0%, #ffffff 30%, ${String(gradientStart)} 30%, ${String(gradientEnd)} 100%)`;
 
       const heroBg = drawerBackgroundImage ? `${gradientBg}, ${drawerBackgroundImage}` : gradientBg;
       r.setProperty("--sc-top-bg-color", "transparent");
@@ -11295,7 +11297,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const gradientEnd = pickColor(style, ["cartDrawerGradientEnd"], "#f3dacd");
     const drawerImage = trimToNull(style?.cartDrawerImage);
     const headerBg = mode === "gradient"
-      ? `linear-gradient(135deg, ${gradientStart} 0%, ${progressColor} 46%, ${gradientEnd} 100%)`
+      ? `linear-gradient(180deg, #ffffff 0%, #ffffff 30%, ${gradientStart} 30%, ${gradientEnd} 100%)`
       : mode === "image" && drawerImage
         ? `linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)), ${buildCssUrl(drawerImage)}`
         : shellBg;
@@ -12138,7 +12140,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       variant.inventory_quantity ??
       variant.inventoryQuantity ??
       variant.qtyAvailable ??
-      variant.quantityAvailable;
+      variant.quantityAvailable ??
+      variant.quantity ??
+      variant.qty;
     if (inventory != null && Number.isFinite(Number(inventory)) && Number(inventory) <= 0) {
       const policy = String(
         variant.inventory_policy ??
@@ -12533,7 +12537,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       compareAtPrice: variant?.compare_at_price ?? variant?.compareAtPrice ?? null,
       image: imageUrl,
       available: isVariantAvailable(variant, product),
-      inventory_quantity: variant?.inventory_quantity ?? variant?.inventoryQuantity,
+      inventory_quantity: variant?.inventory_quantity ?? variant?.inventoryQuantity ?? variant?.quantity ?? variant?.qty,
       inventory_policy: variant?.inventory_policy ?? variant?.inventoryPolicy,
       option1: variant?.option1 ?? rawOptions?.[0]?.value,
       option2: variant?.option2 ?? rawOptions?.[1]?.value,
@@ -12952,17 +12956,28 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       const options = Array.isArray(rewardPopupCache.current.options)
         ? rewardPopupCache.current.options
         : [];
+      const selectedOption = options.find((option) => String(option.optionId) === String(selectedId));
+      if (selectedOption?.soldOut) {
+        if (rewardPopupCache.messageEl) {
+          rewardPopupCache.messageEl.hidden = false;
+          rewardPopupCache.messageEl.classList.add("is-error");
+          rewardPopupCache.messageEl.textContent = "This free gift is sold out. Please select another product.";
+        }
+        return;
+      }
       const selectionLimit = getRewardSelectionLimit(
         rewardPopupCache.current.kind,
         rewardPopupCache.current.rule,
-        options
+        options.filter((option) => !option?.soldOut)
       );
       const currentIds = Array.isArray(rewardPopupCache.current.selectedOptionIds)
         ? [...rewardPopupCache.current.selectedOptionIds]
         : rewardPopupCache.current.selectedOptionId
           ? [rewardPopupCache.current.selectedOptionId]
           : [];
-      let nextIds = currentIds;
+      let nextIds = currentIds.filter((id) =>
+        options.some((option) => String(option.optionId) === String(id) && !option.soldOut)
+      );
       if (selectedId) {
         if (nextIds.includes(selectedId)) {
           nextIds = nextIds.filter((id) => String(id) !== String(selectedId));
@@ -13572,6 +13587,27 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return Number.isFinite(n) ? Math.round(n * priceDivisor()) : 0;
   };
 
+  const isRewardPopupVariantSoldOut = (variant) => {
+    if (!variant) return true;
+    const direct =
+      variant.available ??
+      variant.available_for_sale ??
+      variant.availableForSale ??
+      variant.isAvailable;
+    if (direct === false) return true;
+
+    const inventory =
+      variant.inventory_quantity ??
+      variant.inventoryQuantity ??
+      variant.qtyAvailable ??
+      variant.quantityAvailable ??
+      variant.quantity ??
+      variant.qty;
+    if (inventory != null && Number.isFinite(Number(inventory)) && Number(inventory) <= 0) return true;
+
+    return isRewardVariantUnavailable(variant);
+  };
+
   const getSelectedRewardVariant = (option) => {
     const variants = Array.isArray(option?.variants) ? option.variants : [];
     if (!variants.length) return option?.variant || null;
@@ -13583,7 +13619,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         return !wanted || String(variant?.[def.key] || "") === String(wanted);
       })
     );
-    if (matched && isVariantAvailable(matched)) return matched;
+    if (matched) return matched;
     const available = variants.find((variant) => isVariantAvailable(variant));
     return available || option?.variant || null;
   };
@@ -13603,6 +13639,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       variant: selectedVariant,
       image: trimToNull(selectedVariant?.image) || trimToNull(next.image),
       priceCents: centsFromDecimalPrice(selectedVariant?.price),
+      soldOut: isRewardPopupVariantSoldOut(selectedVariant),
     };
   };
 
@@ -13685,10 +13722,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         : [];
     const exactVariant = variants.find((item) => getVariantLegacyId(item) === getVariantLegacyId(variant));
     const selectedVariant =
-      (exactVariant && isVariantAvailable(exactVariant) ? exactVariant : null) ||
+      exactVariant ||
       variants.find((item) => isVariantAvailable(item)) ||
+      variants[0] ||
+      variant ||
       null;
-    if (!selectedVariant || !getVariantLegacyId(selectedVariant) || isRewardVariantUnavailable(selectedVariant)) return null;
+    if (!selectedVariant || !getVariantLegacyId(selectedVariant)) return null;
+    const soldOut = isRewardPopupVariantSoldOut(selectedVariant);
     const normalizedKind = String(kind || "free").toLowerCase();
     const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
     const sourceRule = !isBxgyReward && product?.__sc_source_rule ? product.__sc_source_rule : rule;
@@ -13756,6 +13796,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       title: productName,
       image: trimToNull(product?.image) || trimToNull(product?.Image) || trimToNull(product?.image?.url) || trimToNull(product?.Image?.url) || trimToNull(selectedVariant?.image) || trimToNull(selectedVariant?.Image) || trimToNull(selectedVariant?.product?.image) || (isBxgyReward ? trimToNull(rule?.rewardProductImage) || trimToNull(rule?.getProductImage) || trimToNull(rule?.yProductImage) : trimToNull(rule?.bonusProductImage) || trimToNull(rule?.freeProductImage) || trimToNull(rule?.giftProductImage)) || "",
       priceCents: centsFromDecimalPrice(selectedVariant?.price),
+      soldOut,
     };
   };
 
@@ -13847,6 +13888,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       image,
       price: variantSeed?.price ?? entry?.price ?? 0,
       available: variantSeed?.available ?? variantSeed?.available_for_sale ?? variantSeed?.availableForSale ?? true,
+      inventory_quantity: variantSeed?.inventory_quantity ?? variantSeed?.inventoryQuantity ?? variantSeed?.quantity ?? variantSeed?.qty ?? entry?.inventory_quantity ?? entry?.inventoryQuantity ?? entry?.quantity ?? entry?.qty,
     };
   };
 
@@ -14240,14 +14282,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     state.listEl.hidden = false;
     state.listEl.style.removeProperty("display");
     state.current.options = Array.isArray(options) ? options : [];
-    const selectionLimit = getRewardSelectionLimit(state.current.kind, state.current.rule, state.current.options);
+    const selectableOptions = state.current.options.filter((option) => !option?.soldOut);
+    const selectionLimit = getRewardSelectionLimit(state.current.kind, state.current.rule, selectableOptions);
     const preservedSelectedIds = Array.isArray(state.current.selectedOptionIds)
       ? state.current.selectedOptionIds.map(trimToNull).filter(Boolean)
       : trimToNull(state.current.selectedOptionId)
         ? [trimToNull(state.current.selectedOptionId)]
         : [];
     const validSelectedIds = preservedSelectedIds
-      .filter((id) => state.current.options.some((option) => String(option.optionId) === String(id)))
+      .filter((id) => state.current.options.some((option) => String(option.optionId) === String(id) && !option.soldOut))
       .slice(0, selectionLimit);
     const defaultSelectedIds = validSelectedIds.length ? validSelectedIds : [];
     state.current.selectedOptionIds = defaultSelectedIds;
@@ -14266,6 +14309,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       state.messageEl.classList.remove("is-error");
       state.messageEl.textContent = state.current.goalMet === false
         ? getRewardGoalPendingMessage(state.current.kind)
+        : selectionLimit <= 0
+          ? "All free gifts are sold out right now."
         : selectedCount >= selectionLimit
           ? "Click Add to add your free gift to the cart."
           : `Select ${selectionLimit - selectedCount} more free gift${selectionLimit - selectedCount === 1 ? "" : "s"} to add to your cart.`;
@@ -14306,6 +14351,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const rowsHtml = state.current.options.map((option) => {
       const selected = selectedIds.some((id) => String(id) === String(option.optionId));
       const activeVariant = selected ? getSelectedRewardVariant(option) : option.variant;
+      const soldOut = !!option.soldOut || isRewardPopupVariantSoldOut(activeVariant);
       const priceCents = selected ? centsFromDecimalPrice(activeVariant?.price) : option.priceCents;
       const priceHtml = priceCents > 0
         ? `<span class="sc-freegift-price">${formatMoney(priceCents, currency)}</span>`
@@ -14315,12 +14361,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         ? `<img src="${safe(image)}" alt="${safe(option.title)}" loading="lazy">`
         : `<span class="sc-freegift-thumb-empty">${safe((option.title || "G").slice(0, 1))}</span>`;
       return `
-        <div class="sc-freegift-option-wrap ${selected ? "selected" : ""}">
-          <button class="sc-freegift-option ${selected ? "selected" : ""}" type="button" data-option-id="${safe(option.optionId)}">
+        <div class="sc-freegift-option-wrap ${selected ? "selected" : ""} ${soldOut ? "is-soldout" : ""}">
+          <button class="sc-freegift-option ${selected ? "selected" : ""} ${soldOut ? "is-soldout" : ""}" type="button" data-option-id="${safe(option.optionId)}" ${soldOut ? `aria-disabled="true"` : ""}>
             <span class="sc-freegift-thumb">${imageHtml}</span>
             <span class="sc-freegift-option-main">
               <span class="sc-freegift-option-title">${safe(option.title)}</span>
-              <span class="sc-freegift-option-price">${priceHtml}<span class="sc-freegift-free-pill">Free</span></span>
+              <span class="sc-freegift-option-price">${priceHtml}<span class="sc-freegift-free-pill">${soldOut ? "Soldout" : "Free"}</span></span>
             </span>
             <span class="sc-freegift-check" role="checkbox" aria-checked="${selected ? "true" : "false"}" aria-hidden="true">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -14337,7 +14383,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     optionsEl.innerHTML = rowsHtml;
     requestAnimationFrame(() => triggerFreeGiftCheckAnimations(optionsEl));
 
-    if (state.addButton) state.addButton.disabled = state.current.goalMet === false || selectedCount < selectionLimit;
+    if (state.addButton) state.addButton.disabled = state.current.goalMet === false || selectionLimit <= 0 || selectedCount < selectionLimit;
   };
 
   const getBxgyReferenceItems = (rule) => {

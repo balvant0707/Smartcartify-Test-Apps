@@ -51,7 +51,7 @@ const DEFAULT_STYLE = {
   iconColor: "#000000",
   announcementBarBackgroundColor: "#000000",
   announcementBarTextColor: "#ffffff",
-  cartDrawerBackgroundMode: "color",
+  cartDrawerBackgroundMode: "gradient",
   cartDrawerBackground: "#ffffff",
   cartDrawerImage: "",
   cartDrawerGradientStart: "#ffffff",
@@ -658,7 +658,9 @@ export const action = async ({ request }) => {
   const d = body ?? {};
   const parseText = (v) => typeof v === "string" && v.trim() ? v.trim() : null;
   const modeRaw = String(d.cartDrawerBackgroundMode || "").toLowerCase();
-  const mode = ["image", "gradient"].includes(modeRaw) ? modeRaw : "color";
+  const mode = ["color", "image", "gradient"].includes(modeRaw)
+    ? modeRaw
+    : DEFAULT_STYLE.cartDrawerBackgroundMode;
 
   const settings = {
     font: parseText(d.font) || DEFAULT_STYLE.font,
@@ -1114,7 +1116,7 @@ function normalizePreviewImage(src, fallback = "/images/upsellproduct.png") {
 }
 
 function CartDrawerPreview({
-  uiBg, textColor, progressTextColor, buttonColor, buttonLabelColor,
+  bg, uiBg, textColor, progressTextColor, headerColor, buttonColor, buttonLabelColor,
   progress, progressBg, radius, base, headingScale, font, checkoutText,
   announcementBg, announcementText,
   shippingRules, discountRules, freeGiftRules, cartGoalRules, upsellSettings,
@@ -1125,6 +1127,7 @@ function CartDrawerPreview({
   drawerAutoOpen, drawerPosition, stickyCheckout, mobileLayout, offerButtonEnabled,
   discountCodeApply,
   borderColor, iconColor,
+  cartIconUrl, cartIconType, cartDefaultIcon,
   shopCurrencyCode = DEFAULT_CURRENCY_CODE,
 }) {
   const r = Math.max(Number(radius) || 10, 6);
@@ -1140,6 +1143,7 @@ function CartDrawerPreview({
   const ic = iconColor || pc;
   const surface = uiBg || "#ffffff";
   const progressSurface = progressBg || uiBg || "#ffffff";
+  const hc = headerColor || announcementText || "#000000";
   const completedIconColor = contrastRatio(ic, pc) >= 3 ? ic : readableColorOn(pc);
   const gradStart = drawerGradientStart || DEFAULT_STYLE.cartDrawerGradientStart;
   const gradEnd = drawerGradientEnd || DEFAULT_STYLE.cartDrawerGradientEnd;
@@ -1484,15 +1488,16 @@ function CartDrawerPreview({
     });
   };
 
+  const previewGradientBg = `linear-gradient(180deg, #ffffff 0%, #ffffff 30%, ${gradStart} 30%, ${gradEnd} 100%)`;
   const previewBackdropStyle = drawerBgMode === "gradient"
-    ? { background: `linear-gradient(135deg, ${gradStart}, ${bc} 52%, ${gradEnd})` }
+    ? { background: previewGradientBg }
     : drawerBgMode === "image" && drawerImage
       ? {
         background: `linear-gradient(135deg, ${withAlpha(bc, 0.78)}, ${withAlpha(announcementBg || bc, 0.72)}), url(${drawerImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
-      : { background: `linear-gradient(135deg, ${announcementBg || "#ff3b41"} 0%, ${bc} 48%, #ffe2d0 100%)` };
+      : { background: bg || surface || "#ffffff" };
   const isBottomSheetPreview = mobileLayout === "bottom_sheet";
   const previewHeight = isBottomSheetPreview ? 720 : 820;
   const previewRadius = Math.max(r, 12);
@@ -1586,6 +1591,23 @@ function CartDrawerPreview({
     );
   };
 
+  const previewCartIcon = cartIconType === "custom" && cartIconUrl
+    ? (
+      <img
+        src={cartIconUrl}
+        alt=""
+        onError={(event) => { event.currentTarget.style.display = "none"; }}
+        style={{ width: 22, height: 22, objectFit: "contain", display: "block" }}
+      />
+    )
+    : (
+      <PreviewIcon
+        source={CART_DEFAULT_ICON_MAP[normalizeDefaultCartIcon(cartDefaultIcon)] || CartIcon}
+        size={22}
+        color="currentColor"
+      />
+    );
+
   return (
     <Card padding="0">
       <style>{`
@@ -1657,11 +1679,14 @@ function CartDrawerPreview({
         <div style={{ padding: "0 6px 6px", flexShrink: 0 }}>
           <InlineStack align="space-between" blockAlign="center" wrap={false}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-              <span style={{ color: announcementText || "#ffffff", fontWeight: 800, fontSize: headingFs, lineHeight: 1.1 }}>
+              <span style={{ color: hc, display: "inline-flex", alignItems: "center" }}>
+                {previewCartIcon}
+              </span>
+              <span style={{ color: hc, fontWeight: 800, fontSize: headingFs, lineHeight: 1.1 }}>
                 {activeDrawerTab === "offers" ? "Offers" : "Cart"}
               </span>
               {activeDrawerTab === "cart" && (
-                <span style={{ color: announcementText || "#ffffff", fontWeight: 800, fontSize: Math.max(fs + 3, 15), opacity: 0.96 }}>
+                <span style={{ color: hc, fontWeight: 800, fontSize: Math.max(fs + 3, 15), opacity: 0.96 }}>
                   (4)
                 </span>
               )}
@@ -1696,12 +1721,12 @@ function CartDrawerPreview({
               style={{
                 position: "relative",
                 padding: "13px 74px 13px 0",
-                background: bc,
+                background: announcementBg || bc,
                 borderBottom: `1px solid ${withAlpha(brc, 0.7)}`,
                 borderTopLeftRadius: previewRadius,
                 borderTopRightRadius: previewRadius,
                 textAlign: "center",
-                color: blc,
+                color: announcementText || blc,
                 flexShrink: 0,
                 overflow: "hidden",
               }}
@@ -1717,7 +1742,7 @@ function CartDrawerPreview({
                           style={{
                             fontSize: Math.max(fs + 1, 13),
                             lineHeight: "16px",
-                            color: blc,
+                            color: announcementText || blc,
                             fontWeight: 800,
                           }}
                         >
@@ -1738,7 +1763,7 @@ function CartDrawerPreview({
                   transform: "translateY(-50%)",
                   border: 0,
                   background: "transparent",
-                  color: blc,
+                  color: announcementText || blc,
                   fontWeight: 800,
                   fontSize: Math.max(fs, 12),
                   cursor: "pointer",
@@ -1801,7 +1826,7 @@ function CartDrawerPreview({
               </div>
 
               <div style={{ position: "relative", height: 74, margin: "14px 18px 0" }}>
-                <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: withAlpha(pc, 0.2) }} />
+                <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: progressSurface }} />
                 <div style={{ position: "absolute", top: 19, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
 
                 {displaySteps.map((step, index) => {
@@ -2523,7 +2548,11 @@ export default function CustomizePreview() {
     }, { method: "post", encType: "application/json" });
   };
 
-  const previewBg = drawerBgMode === "color" ? (drawerBg || bg || "#fff") : drawerBgMode === "gradient" ? `linear-gradient(90deg, ${drawerGradientStart}  0%, ${drawerGradientEnd} 100%))` : "#fff";
+  const previewBg = drawerBgMode === "color"
+    ? (drawerBg || bg || "#fff")
+    : drawerBgMode === "gradient"
+      ? `linear-gradient(180deg, #ffffff 0%, #ffffff 30%, ${drawerGradientStart || DEFAULT_STYLE.cartDrawerGradientStart} 30%, ${drawerGradientEnd || DEFAULT_STYLE.cartDrawerGradientEnd} 100%)`
+      : "#fff";
 
   return (
     <Page
