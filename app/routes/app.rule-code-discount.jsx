@@ -48,7 +48,15 @@ export const action = async ({ request }) => {
     progressTextBefore, progressTextAfter,
     startsAt, endsAt,
     customerTarget, customerTags,
+    usageLimitEnabled, usageLimit, appliesOncePerCustomer,
   } = body;
+
+  const hasUsageLimit = Boolean(usageLimitEnabled);
+  const parsedUsageLimit = parseInt(usageLimit || "", 10);
+  const normalizedUsageLimit =
+    hasUsageLimit && Number.isFinite(parsedUsageLimit) && parsedUsageLimit > 0
+      ? String(Math.floor(parsedUsageLimit))
+      : null;
 
   const dbData = {
     shop,
@@ -59,6 +67,9 @@ export const action = async ({ request }) => {
     discountCode: discountCode ? String(discountCode).toUpperCase().trim() : null,
     valueType: valueType || "percent",
     value: value ? String(value) : "0",
+    usageLimitEnabled: hasUsageLimit,
+    usageLimit: normalizedUsageLimit,
+    appliesOncePerCustomer: Boolean(appliesOncePerCustomer),
     triggerType: triggerType || "amount",
     minPurchase: triggerType === "amount" ? (minPurchase ? String(minPurchase) : null) : null,
     minQuantity: triggerType === "quantity" ? (minQuantity ? String(minQuantity) : null) : null,
@@ -82,6 +93,10 @@ export const action = async ({ request }) => {
 
   if (triggerType === "amount" && (!Number.isFinite(numericMinPurchase) || numericMinPurchase <= 0)) {
     return { error: "Minimum cart value is required." };
+  }
+
+  if (hasUsageLimit && !normalizedUsageLimit) {
+    return { error: "Maximum discount uses must be greater than 0." };
   }
 
   try {
@@ -110,6 +125,8 @@ export const action = async ({ request }) => {
       minReqType: triggerType === "quantity" ? "quantity" : "subtotal",
       minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,
       minQuantity: triggerType === "quantity" ? (minQuantity || null) : null,
+      usageLimit: normalizedUsageLimit,
+      appliesOncePerCustomer: Boolean(appliesOncePerCustomer),
     });
     if (shopifyId) dbData.codeDiscountId = shopifyId;
 
@@ -195,6 +212,9 @@ export default function RuleCodeDiscount() {
   const [discountCode, setDiscountCode] = useState(r?.discountCode ?? "");
   const [valueType, setValueType] = useState(r?.valueType ?? "percent");
   const [value, setValue] = useState(r?.value ?? "");
+  const [usageLimitEnabled, setUsageLimitEnabled] = useState(Boolean(r?.usageLimitEnabled || r?.usageLimit));
+  const [usageLimit, setUsageLimit] = useState(r?.usageLimit ?? "100");
+  const [appliesOncePerCustomer, setAppliesOncePerCustomer] = useState(Boolean(r?.appliesOncePerCustomer));
   const [triggerTabIdx, setTriggerTabIdx] = useState(r?.triggerType === "quantity" ? 1 : 0);
   const triggerType = triggerTabIdx === 0 ? "amount" : "quantity";
   const [minPurchase, setMinPurchase] = useState(r?.minPurchase ?? "");
@@ -250,6 +270,13 @@ export default function RuleCodeDiscount() {
       errors.minPurchase = "Minimum cart value is required.";
     }
 
+    if (usageLimitEnabled) {
+      const numericUsageLimit = parseInt(usageLimit || "", 10);
+      if (!Number.isFinite(numericUsageLimit) || numericUsageLimit <= 0) {
+        errors.usageLimit = "Maximum discount uses must be greater than 0.";
+      }
+    }
+
     return errors;
   };
 
@@ -269,6 +296,9 @@ export default function RuleCodeDiscount() {
         discountCode,
         valueType,
         value,
+        usageLimitEnabled,
+        usageLimit: usageLimitEnabled ? usageLimit : null,
+        appliesOncePerCustomer,
         triggerType,
         minPurchase: triggerType === "amount" ? minPurchase : null,
         minQuantity: triggerType === "quantity" ? minQuantity : null,
@@ -354,6 +384,47 @@ export default function RuleCodeDiscount() {
                   helpText="Enter the exact Shopify discount code. It will also be created / synced in your Shopify discounts."
                   prefix={<Icon source={ClipboardIcon} />}
                 />
+
+                <Divider />
+
+                <BlockStack gap="300">
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Maximum discount uses</Text>
+                  <BlockStack gap="200">
+                    <Checkbox
+                      label="Limit number of times each code can be used in total"
+                      checked={usageLimitEnabled}
+                      onChange={(checked) => {
+                        setUsageLimitEnabled(checked);
+                        if (checked && !usageLimit) setUsageLimit("100");
+                        setFormErrors((current) => ({ ...current, usageLimit: undefined }));
+                      }}
+                    />
+                    {usageLimitEnabled && (
+                      <Box paddingInlineStart="600">
+                        <div style={{ maxWidth: "188px" }}>
+                          <TextField
+                            label="Maximum uses"
+                            labelHidden
+                            type="number"
+                            min={1}
+                            value={usageLimit}
+                            onChange={(nextValue) => {
+                              setUsageLimit(nextValue);
+                              setFormErrors((current) => ({ ...current, usageLimit: undefined }));
+                            }}
+                            autoComplete="off"
+                            error={formErrors.usageLimit}
+                          />
+                        </div>
+                      </Box>
+                    )}
+                    <Checkbox
+                      label="Limit to one use per customer"
+                      checked={appliesOncePerCustomer}
+                      onChange={setAppliesOncePerCustomer}
+                    />
+                  </BlockStack>
+                </BlockStack>
 
                 <Divider />
 

@@ -4277,6 +4277,13 @@
     return Math.max(0, min - subtotal);
   };
 
+  const showDiscountValidationPopup = (message, title = "Discount code not applied") => {
+    const text = trimToNull(message) || "This discount code is not valid for the current cart.";
+    if (discountMsg) discountMsg.style.color = "#dc2626";
+    setDiscountMessage(text, 5000);
+    showCenterCelebratePopup(title, text, 4200, "error");
+  };
+
   const findAppliedDiscountCodeRule = () => {
     for (const rule of getAllCodeDiscountRules()) {
       const code = getDiscountRuleCode(rule);
@@ -4765,7 +4772,7 @@ padding: 5px 10px 0px 10px;
 
 .sc-line-loader{
   width:100%;
-  height:3px;
+  height:2px;
   display:none;
   flex:0 0 auto;
   position:absolute;
@@ -4812,7 +4819,7 @@ padding: 5px 10px 0px 10px;
   top:0;
   left:-48%;
   width:48%;
-  height:100%;
+  height:2px;
   border-radius:999px;
   background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 18%, transparent) 14%, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 18%, transparent) 86%, transparent 100%);
   animation:scLineLoader 1.05s cubic-bezier(.42,0,.18,1) infinite !important;
@@ -5199,11 +5206,33 @@ padding: 5px 10px 0px 10px;
   position:relative;
   width:60px;
   height:50px;
-  overflow:hidden;
+  overflow:visible;
   border-radius:0.75em !important;
 }
 .sc-item.sc-item-reward .sc-img img{
   border-radius:0.75em;
+}
+.sc-reward-img-gift{
+  position:absolute;
+  top:-10px;
+  left:50%;
+  transform:translateX(-50%);
+  width:24px;
+  height:24px;
+  border-radius:999px;
+  display:grid;
+  place-items:center;
+  background:var(--sc-checkout-bg);
+  color:var(--sc-checkout-text);
+  box-shadow:0 4px 10px rgba(15,23,42,.18);
+  z-index:2;
+  pointer-events:none;
+}
+.sc-reward-img-gift svg{
+  width:15px;
+  height:15px;
+  display:block;
+  fill:currentColor;
 }
 .sc-item.sc-item-reward .sc-img::before{
   content:none;
@@ -5911,6 +5940,60 @@ color: var(--sc-drawer-text-color);
     border-radius: .75em !important;
 }
 .sc-discount button:disabled{opacity:.75;cursor:wait;}
+.sc-applied-discounts{
+  width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+}
+.sc-applied-discounts[hidden]{
+  display:none !important;
+}
+.sc-discount-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  max-width:100%;
+  min-height:28px;
+  padding:4px 8px 4px 10px;
+  border-radius:999px;
+  background:rgba(67,67,208,.1);
+  color:var(--sc-drawer-text-color);
+  font-size:var(--sc-small-font-size);
+  font-weight:800;
+  line-height:1;
+}
+.sc-discount-chip-remove{
+  width:18px;
+  height:18px;
+  border:0;
+  border-radius:999px;
+  display:inline-grid;
+  place-items:center;
+  padding:0;
+  background:rgba(15,23,42,.12);
+  color:inherit;
+  cursor:pointer;
+  font-size:14px;
+  line-height:1;
+}
+.sc-discount .sc-discount-chip-remove{
+  min-width:18px;
+  width:18px;
+  height:18px;
+  border:0;
+  border-radius:999px;
+  padding:0;
+  background:rgba(15,23,42,.12);
+  color:inherit;
+  font-size:14px;
+  font-weight:800;
+}
+.sc-discount-chip-remove:disabled{
+  cursor:wait;
+  opacity:.7;
+}
 .sc-discount-msg{
   width:100%;
   margin-top:4px;
@@ -6880,6 +6963,9 @@ position: relative;
   font-weight:800;
   box-shadow:0 4px 12px rgba(15,23,42,.16);
 }
+.sc-freegift-card .sc-freegift-close{
+  display:none !important;
+}
 .sc-freegift-close:hover{
   transform:scale(1.04);
 }
@@ -7618,17 +7704,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 ========================================================= */
 .sc-drawer,
 .smartcartify-cart-drawer{
-  --sc-ref-gradient:linear-gradient(135deg,#ff3b30 0%,#e12fc0 44%,#ffe1d6 100%);
-  --sc-drawer-shell-gradient:linear-gradient(135deg,#ff3b30 0%,#e12fc0 24%,#ffe1d6 44%,#f6f7fb 44%,#f6f7fb 100%);
-  background:var(--sc-drawer-shell-gradient) !important;
+  --sc-ref-gradient:linear-gradient(135deg,#ff3b30 0%,#e12fc0 45%,#ffe1d6 100%);
+  background:var(--sc-drawer-bg, var(--sc-ref-gradient)) !important;
+  background-size:cover !important;
+  background-position:center !important;
   color:var(--sc-drawer-text-color,#102864) !important;
   overflow:hidden !important;
   box-shadow:-14px 0 34px rgba(15,23,42,.22) !important;
 }
 .sc-drawer::before{
   height:178px !important;
-  background:var(--sc-ref-gradient) !important;
-  background-image:var(--sc-ref-gradient) !important;
+  background:var(--sc-top-bg-image-effective, var(--sc-ref-gradient)) !important;
+  background-image:var(--sc-top-bg-image-effective, var(--sc-ref-gradient)) !important;
   opacity:1 !important;
 }
 .sc-drawer .sc-header {
@@ -7876,6 +7963,18 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   color:var(--sc-drawer-text-color,#102864) !important;
   font-weight:900 !important;
 }
+.sc-drawer:not(.sc-offers-active) .sc-discount .sc-discount-chip-remove{
+  min-width:18px !important;
+  width:18px !important;
+  height:18px !important;
+  border:0 !important;
+  border-radius:999px !important;
+  padding:0 !important;
+  background:rgba(15,23,42,.12) !important;
+  color:inherit !important;
+  font-size:14px !important;
+  line-height:1 !important;
+}
 .sc-drawer:not(.sc-offers-active) .sc-footer-row{
   min-height:54px !important;
   grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
@@ -7938,7 +8037,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 /* Offers tab full page */
 .sc-drawer.sc-offers-active,
 .smartcartify-cart-drawer.sc-offers-active{
-  background:var(--sc-drawer-shell-gradient) !important;
+  background:var(--sc-drawer-bg, var(--sc-ref-gradient)) !important;
 }
 .sc-drawer.sc-offers-active::before{
   height:178px !important;
@@ -8201,16 +8300,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 .smartcartify-cart-drawer .sc-line-loader{
   display:none;
   width:100%;
-  height:4px;
-  flex:0 0 4px;
+  height:2px;
+  flex:0 0 2px;
   position:relative;
   z-index:30;
   margin:0;
   padding:0;
-  background: var(--sc-drawer-bg);
+  background:transparent;
   overflow:hidden !important;
   border-radius:0;
-  box-shadow:0 1px 0 rgba(15,23,42,.06);
+  box-shadow:none;
   isolation:isolate;
 }
 .smartcartify-cart-drawer .sc-line-loader.is-active:not([hidden]),
@@ -8223,25 +8322,25 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   inset:0;
   width:100%;
   height:100%;
-  background: var(--sc-drawer-bg);
+  background:transparent;
   overflow:hidden !important;
   border-radius:0;
 }
 .smartcartify-cart-drawer .sc-line-loader-bg::before{
-  content:"";
+  content:none;
   position:absolute;
   left:0;
   right:0;
   top:50%;
   height:0px;
   transform:translateY(-50%);
-  background:var(--sc-line-loader-track, rgba(15,23,42,.08));
+  background:transparent;
 }
 .smartcartify-cart-drawer .sc-line-loader-runner{
   position:absolute;
   inset:0 auto 0 0;
   width:100%;
-  height:100%;
+  height:2px;
   border-radius:999px;
   background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 14%, transparent) 20%, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 14%, transparent) 80%, transparent 100%) !important;
   transform:translate3d(-105%,0,0);
@@ -8432,118 +8531,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 }
 
 
-/* SmartCartify requested cart drawer fixes */
-.smartcartify-cart-drawer,
-.sc-drawer{
-  background:var(--sc-drawer-shell-gradient, linear-gradient(135deg,#ff3b30 0%,#e12fc0 24%,#ffe1d6 44%,#f6f7fb 44%,#f6f7fb 100%)) !important;
-}
-.smartcartify-cart-drawer .sc-line-loader,
-.smartcartify-cart-drawer .sc-line-loader *,
-.sc-drawer .sc-line-loader,
-.sc-drawer .sc-line-loader *{
-  line-height:0 !important;
-  font-size:0 !important;
-  color:transparent !important;
-}
-.smartcartify-cart-drawer .sc-line-loader-bg::before,
-.sc-drawer .sc-line-loader-bg::before{
-  display:none !important;
-  height:0 !important;
-  background:transparent !important;
-}
-.smartcartify-cart-drawer .sc-line-loader-runner,
-.sc-drawer .sc-line-loader-runner{
-  text-indent:-9999px !important;
-  overflow:hidden !important;
-}
-.sc-drawer .sc-img{
-  position:relative !important;
-  overflow:visible !important;
-}
-.sc-drawer .sc-gift-image-badge{
-  position:absolute;
-  top:-12px;
-  left:50%;
-  transform:translateX(-50%);
-  width:24px;
-  height:24px;
-  border-radius:999px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  background:var(--sc-progress,#a83df0);
-  color:#ffffff;
-  border:2px solid #ffffff;
-  box-shadow:0 3px 10px rgba(15,23,42,.18);
-  z-index:4;
-  pointer-events:none;
-}
-.sc-drawer .sc-gift-image-badge svg{
-  width:14px !important;
-  height:14px !important;
-  fill:currentColor !important;
-  display:block !important;
-}
-.sc-drawer .sc-gift-image-badge svg [fill]:not([fill="none"]){
-  fill:currentColor !important;
-}
-.sc-applied-discount-codes{
-  width:100%;
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:6px;
-  margin-top:-2px;
-}
-.sc-applied-discount-codes[hidden]{display:none !important;}
-.sc-applied-code-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:5px;
-  max-width:100%;
-  min-height:26px;
-  padding:5px 7px;
-  border-radius:4px;
-  background:#ececf3;
-  color:var(--sc-drawer-text-color,#102864);
-  font-size:calc(var(--sc-small-font-size,12px) * .95) !important;
-  line-height:1 !important;
-  font-weight:900;
-  letter-spacing:.02em;
-}
-.sc-applied-code-icon,
-.sc-applied-code-icon svg{
-  width:13px !important;
-  height:13px !important;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  color:currentColor !important;
-  fill:currentColor !important;
-}
-.sc-applied-code-remove,
-.sc-discount .sc-applied-code-remove,
-.sc-drawer:not(.sc-offers-active) .sc-discount .sc-applied-code-remove{
-  width:auto !important;
-  min-width:0 !important;
-  height:auto !important;
-  min-height:0 !important;
-  padding:0 0 0 3px !important;
-  border:0 !important;
-  border-radius:0 !important;
-  background:transparent !important;
-  color:inherit !important;
-  box-shadow:none !important;
-  font-size:14px !important;
-  line-height:1 !important;
-  font-weight:900 !important;
-  cursor:pointer !important;
-}
-.sc-freegift-close{
-  display:none !important;
-}
-
-
     `;
     document.head.appendChild(s);
   };
@@ -8630,7 +8617,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
           spellcheck="false"
         />
         <button type="button" data-discount-apply>Apply</button>
-        <div class="sc-applied-discount-codes" data-applied-discount-codes hidden></div>
+        <div class="sc-applied-discounts" data-discount-applied hidden></div>
         <div class="sc-discount-msg" data-discount-msg hidden></div>
       </div>
       <div class="sc-footer-row">
@@ -8743,6 +8730,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const discountInput = drawer.querySelector("[data-discount-input]");
   const discountButton = drawer.querySelector("[data-discount-apply]");
   const discountMsg = drawer.querySelector("[data-discount-msg]");
+  const discountAppliedWrap = drawer.querySelector("[data-discount-applied]");
   const discountLoadingOverlay = drawer.querySelector("[data-discount-loading]");
   const offersPanel = drawer.querySelector("[data-offers-panel]");
   const offerTabs = drawer.querySelector("[data-offer-tabs]");
@@ -8753,6 +8741,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const el = e.target;
     if (!(el instanceof Element)) return;
     if (el.closest("[data-close]")) closeDrawer();
+    const discountRemove = el.closest("[data-discount-remove]");
+    if (discountRemove) {
+      e.preventDefault();
+      const code = discountRemove.getAttribute("data-discount-remove");
+      void removeDiscountCodeFromDrawer(code);
+      return;
+    }
     const staticQty = el.closest("[data-static-qty]");
     if (staticQty) {
       e.preventDefault();
@@ -8776,13 +8771,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (tabButton) {
       e.preventDefault();
       setDrawerTab(tabButton.getAttribute("data-drawer-tab"));
-      return;
-    }
-    const discountRemoveButton = el.closest("[data-discount-remove-code]");
-    if (discountRemoveButton) {
-      e.preventDefault();
-      const code = trimToNull(discountRemoveButton.getAttribute("data-discount-remove-code"));
-      await removeDiscountCode(code);
       return;
     }
     const codeCopyButton = el.closest("[data-offer-code-copy]");
@@ -9460,7 +9448,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
       r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
-      r.setProperty("--sc-drawer-bg", String(drawerShellBg));
+      r.setProperty("--sc-drawer-bg", heroBg);
       if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "#ffffff");
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else {
@@ -9513,15 +9501,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         DISCOUNT_MESSAGE_TIMER = null;
       }, Number(ttl));
     }
-  };
-
-
-
-  const showDiscountValidationPopup = (message, title = "Discount code not applied") => {
-    const text = trimToNull(message) || "This discount code is invalid or not available for this cart.";
-    if (discountMsg) discountMsg.style.color = "#dc2626";
-    setDiscountMessage(text, 5500);
-    showCenterCelebratePopup(title, text, 4200, "error");
   };
 
   const DISCOUNT_APPLY_LOADING_MIN_MS = 650;
@@ -9586,7 +9565,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   const waitForDiscountApplied = async (code, attempts = 8) => {
     for (let i = 0; i < attempts; i += 1) {
       CART = await fetchCart({ force: true });
-      if (isDiscountAppliedInCart(code)) return true;
+      if (isDiscountAppliedInCart(code) || isManualDiscountCodeRemembered(code)) return true;
       await new Promise((resolve) => setTimeout(resolve, 250 + i * 100));
     }
     return false;
@@ -9750,6 +9729,49 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return applied;
   };
 
+  const renderAppliedDiscountChips = () => {
+    if (!discountAppliedWrap) return;
+
+    const rows = [];
+    const seen = new Set();
+    const addCode = (code) => {
+      const normalized = trimToNull(code);
+      if (!normalized) return;
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      rows.push(normalized);
+    };
+
+    getAppliedDiscountCodes().forEach(addCode);
+    getAppliedDiscountRules().forEach(({ code }) => addCode(code));
+
+    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+    const manualRule = manualCode ? findCodeDiscountRuleByCode(manualCode) : null;
+    if (manualCode && manualRule) {
+      const validation = validateCodeDiscountRule(manualRule, getCartSubtotalCents());
+      if (validation.ok) addCode(manualCode);
+    }
+
+    if (!rows.length) {
+      discountAppliedWrap.hidden = true;
+      discountAppliedWrap.innerHTML = "";
+      return;
+    }
+
+    discountAppliedWrap.hidden = false;
+    discountAppliedWrap.innerHTML = rows
+      .map(
+        (code) => `
+          <span class="sc-discount-chip">
+            <span>${safe(String(code).toUpperCase())}</span>
+            <button class="sc-discount-chip-remove" type="button" data-discount-remove="${safe(code)}" aria-label="Remove discount code ${safe(code)}">&times;</button>
+          </span>
+        `
+      )
+      .join("");
+  };
+
   let DISCOUNT_REMOVE_IN_FLIGHT = false;
   let LAST_AUTO_REMOVED_CODE = null;
   let LAST_AUTO_REMOVED_AT = 0;
@@ -9786,6 +9808,39 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (r && r.ok) return true;
     } catch { }
     return false;
+  };
+
+  const removeDiscountCodeFromDrawer = async (code) => {
+    const normalized = trimToNull(code);
+    if (!normalized || DISCOUNT_REMOVE_IN_FLIGHT) return;
+
+    DISCOUNT_REMOVE_IN_FLIGHT = true;
+    setDiscountApplyLoading(true, { minVisibleMs: 220 });
+
+    try {
+      await clearDiscountCode(normalized);
+      const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
+      if (
+        manualCode &&
+        String(manualCode).trim().toLowerCase() === normalized.toLowerCase()
+      ) {
+        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+        scStore.del("__SC_LAST_APPLIED_CODE__");
+      }
+      if (discountInput) discountInput.value = "";
+      invalidateCartCache();
+      CART = await fetchCart({ force: true });
+      PROXY = await fetchProxy(CART);
+      renderAllFromCache();
+      if (discountMsg) discountMsg.style.color = "#16a34a";
+      setDiscountMessage(`Discount code removed: ${normalized}`, 2400);
+    } catch (err) {
+      console.error("[SmartCartify] discount remove failed:", err);
+      showDiscountValidationPopup("Could not remove this discount code. Please try again.", "Discount code not removed");
+    } finally {
+      DISCOUNT_REMOVE_IN_FLIGHT = false;
+      setDiscountApplyLoading(false, { minVisibleMs: 220 });
+    }
   };
 
   let DISCOUNT_MANUAL_ENFORCE_IN_FLIGHT = false;
@@ -9917,8 +9972,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         await refreshFromNetwork();
         renderAllFromCache();
 
-        if (discountMsg) discountMsg.style.color = "#dc2626";
-        setDiscountMessage(validationMessage);
+        showDiscountValidationPopup(validationMessage);
         LAST_AUTO_REMOVED_CODE = code;
         LAST_AUTO_REMOVED_AT = Date.now();
       } catch (err) {
@@ -9941,95 +9995,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     drawerDiscountPanel.hidden = !enabled;
     if (!enabled && discountInput) discountInput.value = "";
     if (!enabled) setDiscountMessage("");
-  };
-
-
-
-  const getActiveDiscountCodesForBadges = () => {
-    const out = [];
-    const seen = new Set();
-    const add = (code) => {
-      const c = trimToNull(code);
-      if (!c) return;
-      const key = c.toLowerCase();
-      if (seen.has(key)) return;
-      seen.add(key);
-      out.push(c);
-    };
-
-    getAppliedDiscountCodes().forEach(add);
-
-    const manualCode = trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    if (manualCode) {
-      const rule = findCodeDiscountRuleByCode(manualCode);
-      const validation = rule ? validateCodeDiscountRule(rule, getCartSubtotalCents()) : { ok: isDiscountAppliedInCart(manualCode) };
-      if (validation.ok && (rule || isDiscountAppliedInCart(manualCode) || isManualDiscountCodeRemembered(manualCode))) {
-        add(manualCode);
-      }
-    }
-
-    return out;
-  };
-
-  const renderAppliedDiscountCodeBadges = () => {
-    const host = drawer.querySelector("[data-applied-discount-codes]");
-    if (!host) return;
-
-    const isEmpty = !Array.isArray(CART?.items) || CART.items.length === 0;
-    if (isEmpty || drawerDiscountPanel?.hidden) {
-      host.hidden = true;
-      host.innerHTML = "";
-      return;
-    }
-
-    const codes = getActiveDiscountCodesForBadges();
-    if (!codes.length) {
-      host.hidden = true;
-      host.innerHTML = "";
-      return;
-    }
-
-    host.innerHTML = codes
-      .map((code) => `
-        <span class="sc-applied-code-chip" title="${safe(code)}">
-          <span class="sc-applied-code-icon" aria-hidden="true">${ICONS.discount || ""}</span>
-          <span class="sc-applied-code-text">${safe(String(code).toUpperCase())}</span>
-          <button class="sc-applied-code-remove" type="button" data-discount-remove-code="${safe(code)}" aria-label="Remove discount code ${safe(code)}">&times;</button>
-        </span>
-      `)
-      .join("");
-    host.hidden = false;
-  };
-
-  const removeDiscountCode = async (code = "") => {
-    const normalized = trimToNull(code) || trimToNull(scStore.get(MANUAL_DISCOUNT_CODE_KEY));
-    if (!normalized) return;
-
-    setDiscountApplyLoading(true);
-    setDiscountMessage("");
-
-    try {
-      await clearDiscountCode(normalized);
-      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
-      scStore.del("__SC_LAST_APPLIED_CODE__");
-
-      if (
-        discountInput &&
-        String(discountInput.value || "").trim().toLowerCase() === normalized.toLowerCase()
-      ) {
-        discountInput.value = "";
-      }
-
-      await refreshFromNetwork();
-      renderAllFromCache();
-      if (discountMsg) discountMsg.style.color = "#16a34a";
-      setDiscountMessage(`Discount code removed: ${normalized}`, 3000);
-    } catch (err) {
-      console.error("[SmartCartify] discount remove failed:", err);
-      showDiscountValidationPopup("Could not remove discount code. Please try again.", "Discount code not removed");
-    } finally {
-      setDiscountApplyLoading(false);
-    }
   };
 
   const getCheckoutDiscountCode = () => {
@@ -10159,19 +10124,21 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       console.warn("[SmartCartify] discount fetch apply failed, retrying with iframe:", err?.message || err);
     }
 
-    // For unknown Shopify codes, do not mark the code as applied until
-    // Shopify confirms it in cart discount applications. This prevents invalid
-    // codes from showing as successful inside the drawer.
+    // Shopify's /discount endpoint may not expose the code in cart.js until
+    // checkout. Touch it through a same-origin iframe as well, then persist the
+    // entered code in cart attributes so the drawer can render the applied state
+    // immediately and the checkout button can carry the same code.
     const iframeTouched = await loadDiscountUrlInIframe(target);
     endpointTouched = endpointTouched || iframeTouched;
 
-    invalidateCartCache();
-    const confirmed = await waitForDiscountApplied(normalized, 10);
-    if (!confirmed) return false;
-
     rememberManualDiscountCode(normalized);
     await persistDiscountCodeToCartAttributes(normalized);
-    return true;
+
+    invalidateCartCache();
+    const confirmed = await waitForDiscountApplied(normalized, 10);
+    if (confirmed) return true;
+
+    return endpointTouched || isManualDiscountCodeRemembered(normalized);
   };
 
 
@@ -10313,48 +10280,31 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const code = overrideCode || trimToNull(discountInput?.value);
 
     if (!code) {
-      showDiscountValidationPopup("Please enter a discount code.", "Discount code required");
+      showDiscountValidationPopup("Please enter a discount code.");
       return;
     }
 
     setDiscountMessage("");
-    setDiscountApplyLoading(true);
 
     const rule = findCodeDiscountRuleByCode(code);
-
-    if (rule) {
-      const remaining = getDiscountRuleRemaining(rule);
-
-      if (remaining > 0) {
-
-        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
-        scStore.del("__SC_LAST_APPLIED_CODE__");
-
-        if (discountMsg) {
-          discountMsg.style.color = "#dc2626";
-        }
-
-        const isQtyDiscount = String(rule?.triggerType ?? rule?.trigger_type ?? "amount").trim().toLowerCase() === "quantity";
-        const minMessage = isQtyDiscount
-          ? `Add ${Math.ceil(remaining)} more item(s) to use code ${code}.`
-          : `Add ${formatCampaignMoney(remaining * priceDivisor(CART?.currency), CART?.currency)} more to use code ${code}.`;
-        showDiscountValidationPopup(minMessage, "Minimum requirement not met");
-
-        setDiscountApplyLoading(false);
-
-        return;
-      }
+    if (!rule) {
+      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
+      scStore.del("__SC_LAST_APPLIED_CODE__");
+      showDiscountValidationPopup("This discount code is invalid. Please check the code and try again.");
+      return;
     }
+
     const validation = validateCodeDiscountRule(rule, getCartSubtotalCents());
 
     if (!validation.ok) {
       scStore.del(MANUAL_DISCOUNT_CODE_KEY);
       scStore.del("__SC_LAST_APPLIED_CODE__");
 
-      showDiscountValidationPopup(validation.message, "Minimum requirement not met");
-      setDiscountApplyLoading(false);
+      showDiscountValidationPopup(validation.message);
       return;
     }
+
+    setDiscountApplyLoading(true);
 
     try {
       const applied = await applyCodeThroughShopify(code);
@@ -10365,23 +10315,20 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         if (discountInput) discountInput.value = "";
         await clearDiscountCode(code);
         CART = await fetchCart({ force: true });
-        renderAppliedDiscountCodeBadges();
-        showDiscountValidationPopup(`Discount code ${code} is invalid or not available for this cart.`, "Invalid discount code");
-        return;
+        throw new Error(`This discount code is invalid. Please check the code and try again.`);
       }
 
       rememberManualDiscountCode(code);
       suppressAutoRewardPopups(3200);
       await refreshFromNetwork();
       renderAllFromCache();
-      renderAppliedDiscountCodeBadges();
 
       if (discountMsg) discountMsg.style.color = "#16a34a";
       setDiscountMessage(`Discount applied: ${code}`);
       celebrateDiscountApplied(code);
     } catch (err) {
       console.error("[SmartCartify] discount apply failed:", err);
-      showDiscountValidationPopup("Could not apply discount code. Please try again.", "Discount code not applied");
+      showDiscountValidationPopup(trimToNull(err?.message) || "Could not apply discount code. Please try again.");
     } finally {
       setDiscountApplyLoading(false);
     }
@@ -11864,6 +11811,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     return /^-/.test(value) ? value : `-${value}`;
   };
 
+  const getFooterDiscountValueLabel = (rule) => {
+    const tokens = getDiscountValueTokens(rule);
+    const raw =
+      trimToNull(tokens?.value) ||
+      trimToNull(tokens?.valueWithOff) ||
+      trimToNull(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "");
+    if (!raw) return "";
+    return String(raw).replace(/\s*off\b/gi, "").trim();
+  };
+
   const getDiscountTagLabel = (rule, kind) => {
     const rawVal = trimToNull(rule?.value ?? rule?.discountValue ?? rule?.discount_value ?? "");
     const typeHint = String(
@@ -11996,7 +11953,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (Number.isFinite(discountCents) && discountCents > 0) {
         rows.push({
           key: `order:${step?.rule?.id ?? step?.title ?? step?.slot}`,
-          label: "Order Discount",
+          label: `Order Discount${getFooterDiscountValueLabel(step?.rule) ? ` (${getFooterDiscountValueLabel(step?.rule)})` : ""}`,
           amount: formatDiscountAmountWithCode(discountCents, currency),
         });
       }
@@ -12018,7 +11975,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (Number.isFinite(codeDiscountCents) && codeDiscountCents > 0) {
         rows.push({
           key: `code:${appliedCode.code}`,
-          label: `Discount Code (${String(appliedCode.code).toUpperCase()})`,
+          label: `Code Discount${getFooterDiscountValueLabel(appliedCode.rule) ? ` (${getFooterDiscountValueLabel(appliedCode.rule)})` : ""}`,
           amount: formatDiscountAmountWithCode(codeDiscountCents, currency),
         });
       }
@@ -12038,18 +11995,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (Number.isFinite(amount) && amount > 0) {
         rows.push({
           key: `code:${code}`,
-          label: `Discount Code (${String(code).toUpperCase()})`,
+          label: `Code Discount (${String(code).toUpperCase()})`,
           amount: formatDiscountAmountWithCode(Math.min(amount, subtotalCents), currency),
         });
       }
     });
-
-    // Cart footer should not list Order Discount or Code Discount rows.
-    // Discounts still reduce the Total; only Shipping remains visible here.
-    for (let i = rows.length - 1; i >= 0; i -= 1) {
-      const label = String(rows[i]?.label || "").trim().toLowerCase();
-      if (label !== "shipping") rows.splice(i, 1);
-    }
 
     const uniqueRows = [];
     const seen = new Set();
@@ -12203,7 +12153,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const footerEl = drawer.querySelector(".sc-footer");
     const isEmpty = !items.length;
     updateDiscountPanelVisibility({ isEmpty });
-    renderAppliedDiscountCodeBadges();
+    renderAppliedDiscountChips();
     if (checkoutButton) checkoutButton.hidden = isEmpty;
     if (subtotalBox) subtotalBox.hidden = isEmpty;
     if (footerRow) footerRow.hidden = isEmpty;
@@ -12236,8 +12186,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     itemsWrap.innerHTML = items
       .map((it, idx) => {
         const line = idx + 1;
-        const img = it.image ? `<img src="${it.image}" alt="${safe(it.product_title)}" loading="lazy">` : "";
-
         const qty = Number(it.quantity) || 0;
         const finalLine = Number(it?.final_line_price) || 0;
 
@@ -12245,6 +12193,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const isFreeGift = String(props?.[FREE_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
         const isBxgyGift = String(props?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
         const isReward = isFreeGift || isBxgyGift;
+        const rewardImageBadge = isReward
+          ? `<span class="sc-reward-img-gift" aria-hidden="true">${ICONS.gift || ""}</span>`
+          : "";
+        const img = `${rewardImageBadge}${it.image ? `<img src="${safe(it.image)}" alt="${safe(it.product_title)}" loading="lazy">` : ""}`;
 
         const unitPrice = Number(it.price) || 0;
         const compareUnit = Number(it.compare_at_price) || 0;
@@ -12281,9 +12233,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         const rewardFreePill = isReward
           ? `<span class="sc-reward-free-pill">Free</span>`
           : "";
-        const rewardGiftBadge = isReward
-          ? `<span class="sc-gift-image-badge" aria-hidden="true">${ICONS.gift || "🎁"}</span>`
-          : "";
         const bxgyLineBadge = !isReward && isBuyXGetYQualifyingLine(it)
           ? `<span class="sc-free-tag sc-free-tag-under sc-bxgy-line-badge"></span>`
           : "";
@@ -12299,7 +12248,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
         return `
           <div class="sc-item${isReward ? " sc-item-reward" : ""}" data-line="${line}">
-            <div class="sc-img">${rewardGiftBadge}${img}</div>
+            <div class="sc-img">${img}</div>
 
             <div class="sc-mid">
               <p class="sc-name" title="${safe(it.product_title)}">${nameHtml}</p>
@@ -16602,10 +16551,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   };
 
   let refreshTimer = null;
-  const refreshFromNetwork = async (opts = {}) => {
+  const refreshFromNetwork = async () => {
     if (refreshTimer) clearTimeout(refreshTimer);
-    const showLoader = opts?.showLoader === true;
-    if (showLoader) setProgressLoading(true);
+    setProgressLoading(true);
     return new Promise((resolve) => {
       refreshTimer = setTimeout(async () => {
         try {
@@ -16618,7 +16566,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         } catch (e) {
           console.error(e);
         } finally {
-          if (showLoader) setProgressLoading(false);
+          setProgressLoading(false);
           resolve();
         }
       }, 60);
@@ -16910,7 +16858,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
             await refreshFromNetwork();
             renderAllFromCache();
           } finally {
-            setProgressLoading(false);
             btn.classList.remove("sc-open-loading");
             btn.removeAttribute("aria-busy");
           }

@@ -117,6 +117,9 @@ model DiscountRule {
   cartStepName               String?   @db.VarChar(255)
   codeCampaignName           String?   @db.VarChar(255)
   valueType                  String    @default("percent")
+  usageLimitEnabled          Boolean   @default(false)
+  usageLimit                 String?   @db.VarChar(255)
+  appliesOncePerCustomer     Boolean   @default(false)
   appliesTo                  String?   @db.LongText
   codeDiscountId             String?   @db.VarChar(255)
   condition                  String?   @db.VarChar(255)

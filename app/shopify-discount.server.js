@@ -926,8 +926,15 @@ export async function upsertDiscountCode(admin, {
   minQuantity,
   minReqType = "subtotal",
   enabled = true,
+  usageLimit,
+  appliesOncePerCustomer = false,
 }) {
   const codeStr = String(code || "").toUpperCase().trim();
+  const parsedUsageLimit = parseInt(usageLimit || "", 10);
+  const normalizedUsageLimit =
+    Number.isFinite(parsedUsageLimit) && parsedUsageLimit > 0
+      ? parsedUsageLimit
+      : null;
   const minimumRequirement =
     minReqType === "quantity"
       ? minQuantity
@@ -956,9 +963,10 @@ export async function upsertDiscountCode(admin, {
         : { discountAmount: { amount: String(parseFloat(discountValue || "0")), appliesOnEachItem: false } },
       items: { all: true },
     },
-    appliesOncePerCustomer: false,
+    appliesOncePerCustomer: Boolean(appliesOncePerCustomer),
     minimumRequirement,
     combinesWith: COMBINES_WITH_CODE_DISCOUNTS,
+    usageLimit: normalizedUsageLimit,
     ...(codeStr ? { code: codeStr } : {}),
   };
 
