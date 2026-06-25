@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  useNavigate, useSubmit,
+  useNavigate, useSearchParams, useSubmit,
   useActionData, useLoaderData, useNavigation, redirect,
 } from "react-router";
 import {
@@ -125,7 +125,9 @@ export const action = async ({ request }) => {
   const { default: prisma } = await import("../db.server");
   const { invalidateShopCache } = await import("./app.proxy.smart.jsx");
   const { admin, session } = await authenticate.admin(request);
-  const campaignsUrl = "/app/campaigns";
+  const url = new URL(request.url);
+  const host = url.searchParams.get("host");
+  const campaignsUrl = host ? `/app/campaigns?host=${encodeURIComponent(host)}` : "/app/campaigns";
   const shop = session.shop;
   const body = await request.json();
   const {
@@ -273,7 +275,9 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
 
 export default function RuleShipping() {
   const navigate = useNavigate();
-  const withHost = (path) => path;
+  const [searchParams] = useSearchParams();
+  const host = searchParams.get("host");
+  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
 
   const loaderData = useLoaderData();
   const actionData = useActionData();

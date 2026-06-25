@@ -5,6 +5,7 @@ import {
   useLoaderData,
   useNavigate,
   useNavigation,
+  useSearchParams,
   useSubmit,
 } from "react-router";
 import {
@@ -729,7 +730,9 @@ function TargetingSection({
 
 export default function RuleBxgy() {
   const navigate = useNavigate();
-  const withHost = (path) => path;
+  const [searchParams] = useSearchParams();
+  const host = searchParams.get("host");
+  const withHost = (path) => (host ? `${path}?host=${encodeURIComponent(host)}` : path);
 
   const loaderData = useLoaderData();
   const actionData = useActionData();
@@ -1025,9 +1028,10 @@ export default function RuleBxgy() {
   useEffect(() => {
     if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
       const idParam = `id=${encodeURIComponent(actionData.id)}`;
-      navigate(`/app/rule-bxgy?${idParam}`, { replace: true });
+      const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
+      navigate(`/app/rule-bxgy?${idParam}${hostParam}`, { replace: true });
     }
-  }, [actionData, navigate, navigation.state, recordId]);
+  }, [actionData, host, navigate, navigation.state, recordId]);
 
   const handleConditionChange = (nextCondition) => {
     setConditionType(nextCondition);

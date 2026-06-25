@@ -1,7 +1,7 @@
 // app/routes/app.customize-preview.jsx
 import { useEffect, useState } from "react";
 import {
-  useNavigate, useSubmit,
+  useNavigate, useSearchParams, useSubmit,
   useActionData, useLoaderData, useNavigation,
   useRouteError,
 } from "react-router";
@@ -54,8 +54,8 @@ const DEFAULT_STYLE = {
   cartDrawerBackgroundMode: "gradient",
   cartDrawerBackground: "#ffffff",
   cartDrawerImage: "",
-  cartDrawerGradientStart: "#9e0899",
-  cartDrawerGradientEnd: "#01b753",
+  cartDrawerGradientStart: "#520b4f",
+  cartDrawerGradientEnd: "#1301b7",
   cartDrawerTextColor: "#000000",
   cartDrawerHeaderColor: "#000000",
   cartIconType: "default",
@@ -1655,7 +1655,7 @@ function CartDrawerPreview({
       <div
         style={{
           width: "100%",
-          maxWidth: 430,
+          maxWidth: "100%",
           height: previewHeight,
           minHeight: previewHeight,
           display: "flex",
@@ -2450,7 +2450,9 @@ function CartDrawerPreview({
 
 export default function CustomizePreview() {
   const navigate = useNavigate();
-  const withHost = (p) => p;
+  const [searchParams] = useSearchParams();
+  const host = searchParams.get("host");
+  const withHost = (p) => host ? `${p}?host=${encodeURIComponent(host)}` : p;
 
   const loaderData = useLoaderData() ?? {};
   const actionData = useActionData();
@@ -2558,7 +2560,7 @@ export default function CustomizePreview() {
       title="Customize & Preview"
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
     >
-      <style>{`.cp-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,500px);gap:24px;align-items:start}@media(max-width:1100px){.cp-layout{grid-template-columns:1fr}}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.cp-preview-sticky{position:sticky;top:80px}`}</style>
+      <style>{`.cp-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(460px,450px);gap:15px;align-items:start}@media(max-width:1100px){.cp-layout{grid-template-columns:1fr}}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.cp-preview-sticky{position:sticky;top:80px}`}</style>
 
       {actionData?.error && (
         <Box paddingBlockEnd="400">

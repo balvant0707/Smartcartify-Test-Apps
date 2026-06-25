@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  useNavigate, useSubmit,
+  useNavigate, useSearchParams, useSubmit,
   useActionData, useLoaderData, useNavigation, useFetcher, redirect,
 } from "react-router";
 import {
@@ -347,7 +347,9 @@ function SectionCard({ icon, title, children, defaultOpen = true }) {
 
 export default function RuleFreeProduct() {
   const navigate = useNavigate();
-  const withHost = (path) => path;
+  const [searchParams] = useSearchParams();
+  const host = searchParams.get("host");
+  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
 
   const loaderData = useLoaderData();
   const actionData = useActionData();

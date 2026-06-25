@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  useNavigate, useSubmit,
+  useNavigate, useSearchParams, useSubmit,
   useActionData, useLoaderData, useNavigation, redirect,
 } from "react-router";
 import {
@@ -255,7 +255,9 @@ const TRIGGER_TABS = [
 
 export default function RuleAutoDiscount() {
   const navigate = useNavigate();
-  const withHost = (path) => path;
+  const [searchParams] = useSearchParams();
+  const host = searchParams.get("host");
+  const withHost = (path) => host ? `${path}?host=${encodeURIComponent(host)}` : path;
 
   const loaderData = useLoaderData();
   const actionData = useActionData();
