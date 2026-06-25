@@ -43,13 +43,13 @@ const DEFAULT_STYLE = {
   radius: "0",
   textColor: "#000000",
   bg: "#ffffff",
-  progress: "#000000",
+  progress: "#6858f3",
   progressBg: "#ffffff",
-  buttonColor: "#000000",
+  buttonColor: "#6858f3",
   buttonLabelColor: "#ffffff",
   borderColor: "#E1E5ED",
   iconColor: "#000000",
-  announcementBarBackgroundColor: "#000000",
+  announcementBarBackgroundColor: "#6858f3",
   announcementBarTextColor: "#ffffff",
   cartDrawerBackgroundMode: "gradient",
   cartDrawerBackground: "#ffffff",
@@ -1488,7 +1488,7 @@ function CartDrawerPreview({
     });
   };
 
-  const previewGradientBg = `linear-gradient(135deg, ${gradStart} 0%, ${gradEnd} 30%, #ffffff 30%, #ffffff 100%)`;
+  const previewGradientBg = `linear-gradient(180deg, ${gradStart} 0%, ${gradEnd} 30%, #ffffff 30%, #ffffff 100%)`;
   const previewBackdropStyle = drawerBgMode === "gradient"
     ? { background: previewGradientBg }
     : drawerBgMode === "image" && drawerImage

@@ -217,6 +217,7 @@
   let BUYXGETY_RULES = []; // buyxgety rules list OR discountrule type=buyxgety if present
 
   let discountPopupShownForCode = null;
+  const RECENTLY_REMOVED_DISCOUNT_CODES = new Map();
   let DISCOUNT_PANEL_STYLE_ENABLED = false;
   let OFFER_TABS_ENABLED = true;
   const FORCE_CART_OFFER_TABS = true;
@@ -3995,8 +3996,12 @@
     if (manualCode) out.push(manualCode);
     if (attrCode) out.push(attrCode);
     const seen = new Set();
+    const now = Date.now();
     return out.filter((c) => {
       const key = String(c).trim().toLowerCase();
+      const suppressedAt = Number(RECENTLY_REMOVED_DISCOUNT_CODES.get(key) || 0);
+      if (suppressedAt && now - suppressedAt < 10000) return false;
+      if (suppressedAt) RECENTLY_REMOVED_DISCOUNT_CODES.delete(key);
       if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -8303,8 +8308,11 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   display:none;
   width:100%;
   height:4px;
-  flex:0 0 4px;
-  position:relative;
+  flex:0 0 0;
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
   z-index:30;
   margin:0;
   padding:0;
@@ -9793,6 +9801,24 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const target = String(normalized || "").toLowerCase();
     let endpointCleared = false;
     let attributesCleared = false;
+    const fetchNoStoreWithTimeout = async (url, timeoutMs = 1200) => {
+      const controller = typeof AbortController === "function" ? new AbortController() : null;
+      const timeoutId = controller
+        ? setTimeout(() => {
+          try { controller.abort(); } catch { }
+        }, timeoutMs)
+        : null;
+      try {
+        return await fetch(url, {
+          credentials: "same-origin",
+          redirect: "follow",
+          cache: "no-store",
+          signal: controller?.signal,
+        });
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+    };
 
     // Clear Shopify's discount cookie/session first. Do not return early here;
     // app-created codes are also persisted in cart attributes and must be cleared too.
@@ -9804,20 +9830,17 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     } catch { }
     clearUrls.push("/discount/clear?redirect=/cart", "/discount/clear");
 
-    for (const url of Array.from(new Set(clearUrls.filter(Boolean)))) {
-      try {
-        const res = await fetch(url, {
-          credentials: "same-origin",
-          redirect: "follow",
-          cache: "no-store",
-        });
-        endpointCleared = endpointCleared || !!(res && (res.ok || res.redirected || res.type === "opaqueredirect"));
-      } catch { }
-    }
+    const endpointResults = await Promise.allSettled(
+      Array.from(new Set(clearUrls.filter(Boolean))).map((url) => fetchNoStoreWithTimeout(url))
+    );
+    endpointCleared = endpointResults.some(({ status, value }) =>
+      status === "fulfilled" &&
+      !!(value && (value.ok || value.redirected || value.type === "opaqueredirect"))
+    );
 
     try {
       if (typeof buildDiscountClearUrl === "function" && typeof loadDiscountUrlInIframe === "function") {
-        endpointCleared = (await loadDiscountUrlInIframe(buildDiscountClearUrl("/cart"))) || endpointCleared;
+        void loadDiscountUrlInIframe(buildDiscountClearUrl("/cart"));
       }
     } catch { }
 
@@ -9879,29 +9902,34 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     setDiscountApplyLoading(true, { minVisibleMs: 220 });
 
     try {
-      await clearDiscountCode(normalized);
-
       // Removing a chip means the drawer should forget the app-managed code too.
       scStore.del(MANUAL_DISCOUNT_CODE_KEY);
       scStore.del("__SC_LAST_APPLIED_CODE__");
+      RECENTLY_REMOVED_DISCOUNT_CODES.set(normalized.toLowerCase(), Date.now());
 
       if (discountInput) discountInput.value = "";
+      if (discountAppliedWrap) {
+        discountAppliedWrap
+          .querySelectorAll("[data-discount-remove]")
+          .forEach((button) => {
+            if (String(button.getAttribute("data-discount-remove") || "").trim().toLowerCase() === normalized.toLowerCase()) {
+              button.closest(".sc-discount-chip")?.remove();
+            }
+          });
+        if (!discountAppliedWrap.querySelector(".sc-discount-chip")) {
+          discountAppliedWrap.hidden = true;
+          discountAppliedWrap.innerHTML = "";
+        }
+      }
+      if (discountMsg) discountMsg.style.color = "#16a34a";
+      setDiscountMessage(`Discount code removed: ${normalized}`, 2400);
+
+      await clearDiscountCode(normalized);
+
       invalidateCartCache();
       CART = await fetchCart({ force: true });
 
-      // If Shopify/cart attributes still report the same code, run one more clear pass.
-      if (isDiscountAppliedInCart(normalized) || isManualDiscountCodeRemembered(normalized)) {
-        await clearDiscountCode(normalized);
-        scStore.del(MANUAL_DISCOUNT_CODE_KEY);
-        scStore.del("__SC_LAST_APPLIED_CODE__");
-        invalidateCartCache();
-        CART = await fetchCart({ force: true });
-      }
-
-      PROXY = await fetchProxy(CART);
       renderAllFromCache();
-      if (discountMsg) discountMsg.style.color = "#16a34a";
-      setDiscountMessage(`Discount code removed: ${normalized}`, 2400);
     } catch (err) {
       console.error("[SmartCartify] discount remove failed:", err);
       showDiscountValidationPopup("Could not remove this discount code. Please try again.", "Discount code not removed");
@@ -13284,11 +13312,19 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (rewardPopupCache.headerSubEl) {
         rewardPopupCache.headerSubEl.innerHTML = `All free products are shown below. Choose one <span class="sc-freegift-count">${selectedCount}/${selectionLimit}</span>`;
       }
-      if (rewardPopupCache.addButton) rewardPopupCache.addButton.disabled = selectedCount < selectionLimit || !goalMet;
+      if (rewardPopupCache.addButton) {
+        rewardPopupCache.addButton.disabled =
+          !!rewardPopupCache.current.rewardAlreadyInCart ||
+          selectedCount < selectionLimit ||
+          !goalMet;
+        if (rewardPopupCache.current.rewardAlreadyInCart) rewardPopupCache.addButton.textContent = "Already added";
+      }
       if (rewardPopupCache.messageEl) {
         const addLabel = rewardPopupCache.current.kind === "free" ? "Add Free Gift" : "Add Item";
         rewardPopupCache.messageEl.classList.remove("is-error");
-        rewardPopupCache.messageEl.textContent = !goalMet
+        rewardPopupCache.messageEl.textContent = rewardPopupCache.current.rewardAlreadyInCart
+          ? "This free gift is already in your cart."
+          : !goalMet
           ? getRewardGoalPendingMessage(rewardPopupCache.current.kind)
           : selectedCount >= selectionLimit
             ? `Item selected. Click ${addLabel} to add it to your cart.`
@@ -13354,6 +13390,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       addBtn.addEventListener("click", async () => {
         if (!rewardPopupCache?.current) return;
         const cur = rewardPopupCache.current;
+        if (cur.rewardAlreadyInCart) {
+          if (rewardPopupCache.messageEl) {
+            rewardPopupCache.messageEl.classList.remove("is-error");
+            rewardPopupCache.messageEl.textContent = "This free gift is already in your cart.";
+          }
+          addBtn.disabled = true;
+          addBtn.classList.remove("loading");
+          return;
+        }
         if (cur.goalMet === false) {
           if (rewardPopupCache.messageEl) {
             rewardPopupCache.messageEl.classList.add("is-error");
@@ -13462,8 +13507,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
               ? 1
               : 0;
           addBtn.disabled =
+            !!active?.rewardAlreadyInCart ||
             active?.goalMet === false ||
             (requiresSelection && activeSelectedCount < activeLimit);
+          if (active?.rewardAlreadyInCart) addBtn.textContent = "Already added";
           addBtn.classList.remove("loading");
         }
       });
@@ -14597,7 +14644,9 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (state.messageEl) {
       state.messageEl.hidden = false;
       state.messageEl.classList.remove("is-error");
-      state.messageEl.textContent = state.current.goalMet === false
+      state.messageEl.textContent = state.current.rewardAlreadyInCart
+        ? "This free gift is already in your cart."
+        : state.current.goalMet === false
         ? getRewardGoalPendingMessage(state.current.kind)
         : selectionLimit <= 0
           ? "All free gifts are sold out right now."
@@ -14673,7 +14722,14 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     optionsEl.innerHTML = rowsHtml;
     requestAnimationFrame(() => triggerFreeGiftCheckAnimations(optionsEl));
 
-    if (state.addButton) state.addButton.disabled = state.current.goalMet === false || selectionLimit <= 0 || selectedCount < selectionLimit;
+    if (state.addButton) {
+      state.addButton.disabled =
+        !!state.current.rewardAlreadyInCart ||
+        state.current.goalMet === false ||
+        selectionLimit <= 0 ||
+        selectedCount < selectionLimit;
+      if (state.current.rewardAlreadyInCart) state.addButton.textContent = "Already added";
+    }
   };
 
   const getBxgyReferenceItems = (rule) => {
@@ -14857,10 +14913,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const guardKey = normalizedPopupKind === "free" ? slot || ruleKey : ruleKey;
     const addItemGoalMet = goalMet !== false;
 
-    // Never reopen a Free Gift / Buy X Get Y popup after its reward item exists in the cart.
-    // This guard intentionally runs even when the caller passes force:true, because
-    // render/Cart tab refreshes should not override the "already added" state.
-    if (guardKey && cartHasRewardForKey(kind, guardKey)) {
+    const rewardAlreadyInCart = !!(guardKey && cartHasRewardForKey(kind, guardKey));
+    const allowAlreadyAddedPreview = popupTab === "offers";
+
+    // Automatic popups should not reopen after the reward exists in the cart.
+    // Offers-tab "Show Gifts" is a user-initiated preview, so let it open
+    // even for an already-added reward, but keep adding disabled below.
+    if (rewardAlreadyInCart && !allowAlreadyAddedPreview) {
       if (normalizedPopupKind === "free") scStore.del(keyPendingFreeGift(guardKey));
       markPopupShown(kind, guardKey);
       drawer.__sc_reward_popup_for = null;
@@ -14953,7 +15012,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (state.addButton) state.addButton.textContent = ["free", "bxgy", "buyxgety"].includes(normalizedPopupKind) ? "✓ Add Free Gift" : `Add Item`;
 
-    state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, requiresSelection: isMultiOptionReward, options: [], selectedOption: null, selectedOptionId: null, selectedOptionIds: [], selectedOptions: [] };
+    state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, rewardAlreadyInCart, requiresSelection: isMultiOptionReward, options: [], selectedOption: null, selectedOptionId: null, selectedOptionIds: [], selectedOptions: [] };
     state.overlay.classList.add("open");
 
     drawer.__sc_reward_popup_for = `${kind}:${guardKey || ""}`;
@@ -14976,13 +15035,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (state.messageEl) {
         state.messageEl.hidden = false;
         state.messageEl.classList.remove("is-error");
-        state.messageEl.textContent = addItemGoalMet
+        state.messageEl.textContent = rewardAlreadyInCart
+          ? "This free gift is already in your cart."
+          : addItemGoalMet
           ? "Select a free gift to add it to your cart."
           : getRewardGoalPendingMessage(kind);
       }
       if (state.addButton) {
         state.addButton.style.removeProperty("display");
         state.addButton.disabled = true;
+        if (rewardAlreadyInCart) state.addButton.textContent = "Already added";
       }
 
       const immediateOptions = getImmediateFreeGiftOptions(rule, kind);
@@ -15024,12 +15086,15 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       }
       if (state.optionsEl) state.optionsEl.innerHTML = "";
       if (state.messageEl) {
-        state.messageEl.hidden = addItemGoalMet;
+        state.messageEl.hidden = addItemGoalMet && !rewardAlreadyInCart;
         state.messageEl.classList.remove("is-error");
-        state.messageEl.textContent = addItemGoalMet ? "" : getRewardGoalPendingMessage(kind);
+        state.messageEl.textContent = rewardAlreadyInCart
+          ? "This free gift is already in your cart."
+          : addItemGoalMet ? "" : getRewardGoalPendingMessage(kind);
       }
       state.addButton.style.removeProperty("display");
-      state.addButton.disabled = !addItemGoalMet;
+      state.addButton.disabled = !addItemGoalMet || rewardAlreadyInCart;
+      if (rewardAlreadyInCart) state.addButton.textContent = "Already added";
     }
 
     return true;
