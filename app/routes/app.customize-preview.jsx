@@ -1142,7 +1142,7 @@ function CartDrawerPreview({
   const brc = borderColor || "#E1E5ED";
   const ic = iconColor || pc;
   const surface = uiBg || "#ffffff";
-  const progressSurface = progressBg || uiBg || "#ffffff";
+  const progressSurface = progressBg || uiBg || "#959494";
   const hc = headerColor || announcementText || "#000000";
   const completedIconColor = contrastRatio(ic, pc) >= 3 ? ic : readableColorOn(pc);
   const gradStart = drawerGradientStart || DEFAULT_STYLE.cartDrawerGradientStart;
@@ -1807,7 +1807,7 @@ function CartDrawerPreview({
                 </p>
               </div>
 
-              <div style={{ position: "relative", height: 74, margin: "14px 18px 0" }}>
+              <div style={{ position: "relative", height: 69, margin: "0px 30px" }}>
                 <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: progressSurface }} />
                 <div style={{ position: "absolute", top: 19, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
 
@@ -1821,7 +1821,7 @@ function CartDrawerPreview({
                       key={`${step.slot}-${index}`}
                       style={{
                         position: "absolute",
-                        top: 2,
+                        top: 7,
                         left: `${pct}%`,
                         transform: "translateX(-50%)",
                         width: 96,
