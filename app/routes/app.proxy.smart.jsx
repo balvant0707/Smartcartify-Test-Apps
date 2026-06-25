@@ -389,6 +389,16 @@ const buildProxyPayload = (shop, shopData, request, extras = {}) => {
     scheduleNow,
     ruleContext
   ).filter((rule) => String(rule?.type || "").toLowerCase() === "code");
+  const activeDiscountRules = filterActiveScheduledRules(
+    shopData._rawDiscountRules,
+    scheduleNow,
+    ruleContext
+  );
+  const activeFreeGiftRules = filterActiveScheduledRules(
+    shopData._rawFreeGiftRules,
+    scheduleNow,
+    ruleContext
+  );
   const activeBxgyRules = filterActiveScheduledRules(
     shopData._rawBxgyRules,
     scheduleNow,
@@ -405,11 +415,16 @@ const buildProxyPayload = (shop, shopData, request, extras = {}) => {
     shop,
     authorized: Boolean(shopData.authorized),
     metadata: shopData.metadata,
-    shippingRules: [],
-    discountRules: activeCodeDiscountRules.slice(0, 1),
-    freeGiftRules: [],
-    bxgyRules: activeBxgyRules.slice(0, 1),
-    cartGoalRules: activeCartGoalRules.slice(0, 1),
+    shippingRules: filterActiveScheduledRules(
+      shopData._rawShippingRules,
+      scheduleNow,
+      ruleContext
+    ),
+    discountRules: activeDiscountRules,
+    codeDiscountRules: activeCodeDiscountRules,
+    freeGiftRules: activeFreeGiftRules,
+    bxgyRules: activeBxgyRules,
+    cartGoalRules: activeCartGoalRules,
     styleSettings: shopData.styleSettings,
     upsellSettings: shopData.upsellSettings,
     addToCartBarSettings: {
@@ -610,6 +625,22 @@ const getBxgyRewardProductIds = (rule = {}) => {
     ...parseResourceIdArray(rule.bonusProductIds),
     normalizeProductId(rule.bonusProductId),
     normalizeProductId(rule.bonus),
+  ].filter(Boolean);
+  return [...new Set(ids)];
+};
+
+const getFreeGiftRewardProductIds = (rule = {}) => {
+  const ids = [
+    ...parseResourceIdArray(rule.bonusProductIds),
+    ...parseResourceIdArray(rule.bonusProducts),
+    ...parseResourceIdArray(rule.freeProductIds),
+    ...parseResourceIdArray(rule.freeProducts),
+    ...parseResourceIdArray(rule.giftProductIds),
+    ...parseResourceIdArray(rule.giftProducts),
+    normalizeProductId(rule.bonusProductId),
+    normalizeProductId(rule.bonus),
+    normalizeProductId(rule.freeProductId),
+    normalizeProductId(rule.giftProductId),
   ].filter(Boolean);
   return [...new Set(ids)];
 };
@@ -988,6 +1019,51 @@ export const loader = async ({ request }) => {
         : [];
       const addToCartBarProduct = addToCartBarProducts[0] ?? null;
 
+      const freeGiftRewardProductIds = [
+        ...new Set(
+          (Array.isArray(freeGiftRules) ? freeGiftRules : [])
+            .flatMap(getFreeGiftRewardProductIds)
+            .filter(Boolean)
+        ),
+      ];
+      const freeGiftRewardProductsRaw = isAuthorized && freeGiftRewardProductIds.length
+        ? await fetchProductsByIds(shop, shopAccessToken, freeGiftRewardProductIds)
+        : [];
+      const freeGiftRewardProductsMap = new Map(
+        freeGiftRewardProductsRaw.map((product) => [String(product?.id || ""), product])
+      );
+      const freeGiftRulesForProxy = (Array.isArray(freeGiftRules) ? freeGiftRules : []).map((rule) => {
+        const rewardIds = getFreeGiftRewardProductIds(rule);
+        const existingProducts = [
+          ...(Array.isArray(rule?.bonusProducts) ? rule.bonusProducts : []),
+          ...(Array.isArray(rule?.freeProducts) ? rule.freeProducts : []),
+          ...(Array.isArray(rule?.giftProducts) ? rule.giftProducts : []),
+        ];
+        const existingProductMap = new Map(
+          existingProducts
+            .map((product) => [String(normalizeProductId(product) || product?.id || ""), product])
+            .filter(([id]) => id)
+        );
+        const bonusProducts = rewardIds
+          .map((id) => freeGiftRewardProductsMap.get(String(id)) || existingProductMap.get(String(id)))
+          .filter(Boolean);
+
+        if (!rewardIds.length && !bonusProducts.length) return rule;
+
+        const firstProduct = bonusProducts[0] || {};
+        return {
+          ...rule,
+          bonusProductId: rewardIds[0] || rule?.bonusProductId || firstProduct?.id || null,
+          bonusProductIds: rewardIds,
+          bonusProducts,
+          freeProductIds: rewardIds,
+          freeProducts: bonusProducts,
+          giftProducts: bonusProducts,
+          bonusProductTitle: firstProduct?.title || rule?.bonusProductTitle || "",
+          bonusProductVariantId: firstProduct?.variantId || rule?.bonusProductVariantId || "",
+        };
+      });
+
       const bxgyRewardProductIds = [
         ...new Set(
           (Array.isArray(bxgyRules) ? bxgyRules : [])
@@ -1090,7 +1166,7 @@ export const loader = async ({ request }) => {
         metadata: buildShopMetadata(shopRow),
         _rawShippingRules: shippingRules,
         _rawDiscountRules: discountRules,
-        _rawFreeGiftRules: freeGiftRules,
+        _rawFreeGiftRules: freeGiftRulesForProxy,
         _rawBxgyRules: bxgyRulesForProxy,
         _rawCartGoalRules: cartGoalRulesForProxy,
         styleSettings: styleSettingsWithCartIcon ?? null,
