@@ -429,10 +429,11 @@ export const action = async ({ request }) => {
         where: { id: parseInt(id, 10), shop },
       });
       if (!existing) return { error: "Campaign not found" };
-      record = await prisma.bxgyRule.update({
-        where: { id: parseInt(id, 10) },
+      await prisma.bxgyRule.updateMany({
+        where: { id: existing.id, shop },
         data: dbData,
       });
+      record = await prisma.bxgyRule.findFirst({ where: { id: existing.id, shop } });
     } else {
       record = await prisma.bxgyRule.create({ data: dbData });
     }

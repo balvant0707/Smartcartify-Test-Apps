@@ -214,7 +214,11 @@ export const action = async ({ request }) => {
     if (id) {
       const existing = await prisma.freeGiftRule.findFirst({ where: { id: parseInt(id, 10), shop } });
       if (!existing) return { error: "Rule not found" };
-      record = await prisma.freeGiftRule.update({ where: { id: parseInt(id, 10) }, data: dbData });
+      await prisma.freeGiftRule.updateMany({
+        where: { id: existing.id, shop },
+        data: dbData,
+      });
+      record = await prisma.freeGiftRule.findFirst({ where: { id: existing.id, shop } });
     } else {
       record = await prisma.freeGiftRule.create({ data: dbData });
     }

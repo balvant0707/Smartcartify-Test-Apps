@@ -1114,7 +1114,7 @@ function normalizePreviewImage(src, fallback = "/images/upsellproduct.png") {
 }
 
 function CartDrawerPreview({
-  bg, uiBg, textColor, progressTextColor, headerColor, buttonColor, buttonLabelColor,
+  uiBg, textColor, progressTextColor, buttonColor, buttonLabelColor,
   progress, progressBg, radius, base, headingScale, font, checkoutText,
   announcementBg, announcementText,
   shippingRules, discountRules, freeGiftRules, cartGoalRules, upsellSettings,
@@ -1125,21 +1125,17 @@ function CartDrawerPreview({
   drawerAutoOpen, drawerPosition, stickyCheckout, mobileLayout, offerButtonEnabled,
   discountCodeApply,
   borderColor, iconColor,
-  cartIconUrl,
-  cartIconType,
-  cartDefaultIcon,
   shopCurrencyCode = DEFAULT_CURRENCY_CODE,
 }) {
   const r = Math.max(Number(radius) || 10, 6);
   const fs = Math.max(Number(base) || 12, 10);
   const headingFs = Math.max(18, Number((fs * (Number(headingScale) || 1.25)).toFixed(2)));
   const fontFamily = font || DEFAULT_STYLE.font;
-  const tc = textColor || "#111111";
+  const tc = textColor || "#1f376d";
   const ptc = progressTextColor || tc;
-  const hc = headerColor || "#111111";
-  const bc = buttonColor || "#A033E8";
+  const bc = buttonColor || "#4b43df";
   const blc = buttonLabelColor || "#ffffff";
-  const pc = progress || "#A033E8";
+  const pc = progress || "#4b43df";
   const brc = borderColor || "#E1E5ED";
   const ic = iconColor || pc;
   const surface = uiBg || "#ffffff";
@@ -1152,19 +1148,12 @@ function CartDrawerPreview({
     ? upsellPreviewItems.filter(Boolean)
     : [];
 
-  const mainProduct = {
-    title: "Cream Sofa",
-    tag: "",
-    price: formatCurrencyAmount(500, shopCurrencyCode),
-    image: "/images/Shirt_cc945e9e-c2e1-4d98-a085-15dfd9fb3457.png",
-  };
-
   const fallbackUpsellProducts = [
     {
       id: "preview-upsell-1",
-      title: "Nike Orange",
+      title: "Classic White T-Shirt",
       tag: "Recommended",
-      price: formatCurrencyAmount(300, shopCurrencyCode),
+      price: formatCurrencyAmount(19.99, shopCurrencyCode),
       image: "/images/upsellproduct.png",
     },
     {
@@ -1180,6 +1169,13 @@ function CartDrawerPreview({
   const [activeFreeProductIndex, setActiveFreeProductIndex] = useState(0);
   const [activeDrawerTab, setActiveDrawerTab] = useState("cart");
   const activeUpsellProduct = upsellProducts[activeUpsellIndex] || upsellProducts[0] || fallbackUpsellProducts[0];
+  const mainProductSource = upsellProducts[0] || activeUpsellProduct || fallbackUpsellProducts[0];
+  const mainProduct = {
+    title: mainProductSource?.title || "Clay Plant Pot",
+    tag: mainProductSource?.tag || "Size: Regular",
+    price: mainProductSource?.price || formatCurrencyAmount(400, shopCurrencyCode),
+    image: mainProductSource?.image || "/images/FreeProduct.png",
+  };
 
   const parsedPrice = parsePreviewPrice(mainProduct.price, shopCurrencyCode);
   const totalPrice = formatPreviewPrice(parsedPrice.amount, shopCurrencyCode);
@@ -1198,7 +1194,17 @@ function CartDrawerPreview({
       ]);
     }
   });
-  if (!announceMessageParts.length) announceMessageParts.push([{ text: "This is just a SampleMessage" }]);
+  if (!announceMessageParts.length) {
+    announceMessageParts.push([
+      { text: `Add ${formatCurrencyAmount(600, shopCurrencyCode)} more to use code ` },
+      { text: "MAA0707", bold: true },
+      { text: " and get 0 off!" },
+    ]);
+  }
+  const firstCodeRule = (codeDiscountRules || [])[0] || null;
+  const announcementActionLabel = firstCodeRule?.triggerType === "quantity"
+    ? `Add ${firstCodeRule?.minQuantity || 1}`
+    : `Add ${formatCurrencyAmount(Number(firstCodeRule?.minPurchase || 60), shopCurrencyCode)}`;
 
   const topCartGoalCampaign = (cartGoalRules || [])[0] || null;
   const cartGoalPreviewRules = buildCartGoalPreviewRules(topCartGoalCampaign);
@@ -1220,10 +1226,10 @@ function CartDrawerPreview({
   const fallbackFreeProducts = [
     {
       id: "preview-free-1",
-      title: "White Bed Clothes",
+      title: "Blue Denim Jacket",
       tag: "Free product",
       price: "",
-      image: "/images/upsellproduct.png",
+      image: "/images/Shirt_cc945e9e-c2e1-4d98-a085-15dfd9fb3457.png",
     },
     {
       id: "preview-free-2",
@@ -1333,55 +1339,92 @@ function CartDrawerPreview({
     return String(parsed || fallback || "").trim();
   };
 
-  const offerItems = [
-    ...(bxgyRules || []).slice(0, 2).map((rule) => {
-      const x = Number(rule?.xQty || rule?.minQuantity || 0);
-      const y = Number(rule?.yQty || 0);
-      const fallback = Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0
-        ? `Buy ${x} and get ${y} free`
-        : "Buy something and get something";
+  const progressOfferItems = displaySteps
+    .filter((step) => step?.rule && !step.fallbackLabel)
+    .map((step, index) => {
+      const rule = step.rule;
+      const type = rule?._ruleType || rule?.ruleType || "reward";
+      const title = type === "shipping"
+        ? "Free Shipping"
+        : type === "discount"
+          ? resolveStepLabel(step)
+          : type === "free"
+            ? "Free Gift"
+            : resolveStepLabel(step);
       return {
-        key: `bxgy-${rule.id || rule.campaignName || fallback}`,
-        type: "bxgy",
-        title: rule.campaignName || "Buy X Get Y Discount",
-        subtitle: messageText(rule.beforeOfferUnlockMessage, fallback),
-        icon: PackageFulfilledIcon,
-        action: "Show Gifts",
-        products: Array.isArray(rule.previewProducts) ? rule.previewProducts : [],
+        key: `step-${step.slot}-${index}`,
+        type,
+        title,
+        subtitle: offerSubtitleForRule(rule, "Reward available in this order"),
+        icon: iconForChoice(rule?.iconChoice, rule?._defaultIcon || GiftCardIcon),
+        action: type === "free" ? "Show Gifts" : "",
+        products: Array.isArray(rule?.previewProducts) ? rule.previewProducts : [],
       };
-    }),
-    ...(codeDiscountRules || []).slice(0, 1).map((rule) => ({
-      key: `code-${rule.discountCode || rule.id || "discount"}`,
+    });
+
+  const bxgyOfferItems = (bxgyRules || []).slice(0, 2).map((rule) => {
+    const x = Number(rule?.xQty || rule?.minQuantity || 0);
+    const y = Number(rule?.yQty || 0);
+    const fallback = Number.isFinite(x) && x > 0 && Number.isFinite(y) && y > 0
+      ? `Buy ${x} and get ${y} free`
+      : "Buy something and get something";
+    return {
+      key: `bxgy-${rule.id || rule.campaignName || fallback}`,
+      type: "bxgy",
+      title: rule.campaignName || "Buy X Get Y Discount",
+      subtitle: messageText(rule.beforeOfferUnlockMessage, fallback),
+      icon: PackageFulfilledIcon,
+      action: "Show Gifts",
+      products: Array.isArray(rule.previewProducts) ? rule.previewProducts : [],
+    };
+  });
+
+  const codeOfferItems = (codeDiscountRules || []).slice(0, 1).map((rule) => ({
+    key: `code-${rule.discountCode || rule.id || "discount"}`,
+    type: "code",
+    title: rule.codeCampaignName || rule.campaignName || "Code Discount",
+    subtitle: resolveCodeDiscountBeforeMessage(rule, shopCurrencyCode) || "Apply this discount code",
+    code: String(rule.discountCode || "MAA0707").toUpperCase(),
+    icon: DiscountCodeIcon,
+    action: "Apply Code",
+  }));
+
+  const dynamicOfferItems = [...progressOfferItems, ...bxgyOfferItems, ...codeOfferItems];
+  const fallbackOfferItems = [
+    {
+      key: "fallback-shipping",
+      type: "shipping",
+      title: "Free Shipping",
+      subtitle: `Add ${formatCurrencyAmount(300, shopCurrencyCode)} more to get free shipping on this order`,
+      icon: DeliveryIcon,
+    },
+    {
+      key: "fallback-discount",
+      type: "discount",
+      title: "10% Discount",
+      subtitle: `Add ${formatCurrencyAmount(600, shopCurrencyCode)} more to get a 10% discount on this order`,
+      icon: CashDollarIcon,
+    },
+    {
+      key: "fallback-free",
+      type: "free",
+      title: "Free Gift",
+      subtitle: `Add ${formatCurrencyAmount(900, shopCurrencyCode)} more to get Free Gift with this order`,
+      icon: GiftCardIcon,
+      action: "Show Gifts",
+      products: freeProducts,
+    },
+    {
+      key: "fallback-code",
       type: "code",
-      title: rule.codeCampaignName || rule.campaignName || "Code Discount",
-      subtitle: resolveCodeDiscountBeforeMessage(rule) || "Apply this discount code",
-      code: String(rule.discountCode || "smart123").toUpperCase(),
+      title: "Code Discount",
+      subtitle: `Add ${formatCurrencyAmount(600, shopCurrencyCode)} more to use code MAA0707 and get 0 off!`,
+      code: "MAA0707",
       icon: DiscountCodeIcon,
       action: "Apply Code",
-    })),
-    ...displaySteps
-      .filter((step) => step?.rule && !step.fallbackLabel)
-      .map((step, index) => {
-        const rule = step.rule;
-        const type = rule?._ruleType || rule?.ruleType || "reward";
-        const title = type === "shipping"
-          ? "Free Shipping"
-          : type === "discount"
-            ? resolveStepLabel(step)
-            : type === "free"
-              ? "Free Gift"
-              : resolveStepLabel(step);
-        return {
-          key: `step-${step.slot}-${index}`,
-          type,
-          title,
-          subtitle: offerSubtitleForRule(rule, "Reward available in this order"),
-          icon: iconForChoice(rule?.iconChoice, rule?._defaultIcon || GiftCardIcon),
-          action: type === "free" ? "Show Gifts" : "",
-          products: Array.isArray(rule?.previewProducts) ? rule.previewProducts : [],
-        };
-      }),
+    },
   ];
+  const offerItems = dynamicOfferItems.length ? dynamicOfferItems : fallbackOfferItems;
 
   const showUpsell = upsellSettings?.enabled !== false;
   const showOfferTabs = offerButtonEnabled !== false;
@@ -1441,23 +1484,17 @@ function CartDrawerPreview({
     });
   };
 
-  const drawerBackgroundStyle = drawerBgMode === "gradient"
-    ? { background: `linear-gradient(180deg, ${gradStart}, ${gradEnd})` }
+  const previewBackdropStyle = drawerBgMode === "gradient"
+    ? { background: `linear-gradient(135deg, ${gradStart}, ${bc} 52%, ${gradEnd})` }
     : drawerBgMode === "image" && drawerImage
       ? {
-        background: `linear-gradient(rgba(255,255,255,.90), rgba(255,255,255,.90)), url(${drawerImage})`,
+        background: `linear-gradient(135deg, ${withAlpha(bc, 0.78)}, ${withAlpha(announcementBg || bc, 0.72)}), url(${drawerImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
-      : { background: bg || surface };
-
-  const headerBackgroundStyle = drawerBgMode === "gradient"
-    ? { background: `linear-gradient(135deg, ${gradStart}, ${gradEnd})` }
-    : { background: bg || surface };
-  const showCustomCartIcon = normalizeCartIconType(cartIconType) === "custom" && cartIconUrl;
-  const headerCartIcon = CART_DEFAULT_ICON_MAP[normalizeDefaultCartIcon(cartDefaultIcon)] || CartIcon;
+      : { background: `linear-gradient(135deg, ${announcementBg || "#ff3b41"} 0%, ${bc} 48%, #ffe2d0 100%)` };
   const isBottomSheetPreview = mobileLayout === "bottom_sheet";
-  const previewHeight = isBottomSheetPreview ? 620 : 680;
+  const previewHeight = isBottomSheetPreview ? 720 : 820;
   const previewRadius = Math.max(r, 12);
 
   const ProductImage = ({ src, alt, size = 54 }) => (
@@ -1470,6 +1507,7 @@ function CartDrawerPreview({
         height: size,
         objectFit: "cover",
         background: "#F7F7F7",
+        borderRadius: Math.max(r, 8),
         flexShrink: 0,
       }}
     />
@@ -1524,7 +1562,7 @@ function CartDrawerPreview({
           height: 40,
           display: "grid",
           gridTemplateColumns: "repeat(2, 1fr)",
-          gap: 4,
+          gap: 3,
           alignContent: "center",
         }}
       >
@@ -1535,11 +1573,12 @@ function CartDrawerPreview({
             alt={product.title || "Offer product"}
             onError={(event) => { event.currentTarget.style.display = "none"; }}
             style={{
-              width: 30,
-              height: 30,
+              width: 24,
+              height: 24,
               objectFit: "cover",
               border: `1px solid ${brc}`,
               background: "#F7F7F7",
+              borderRadius: 3,
             }}
           />
         ))}
@@ -1578,24 +1617,30 @@ function CartDrawerPreview({
         @media (prefers-reduced-motion: reduce) {
           .cp-announcementTrack { animation: none; }
         }
-        .cp-preview-discount-code .Polaris-TextField,
+        .cp-preview-discount-code .Polaris-TextField__Input {
+          min-height: 52px;
+          font-weight: 700;
+        }
         .cp-preview-discount-code .Polaris-TextField__Input,
         .cp-preview-discount-code .Polaris-TextField__Backdrop {
-          border-radius: 0 !important;
+          border-radius: ${Math.max(r, 10)}px !important;
           --pc-shadow-bevel-border-radius: 0 !important;
         }
-          .cp-preview-sticky .Polaris-Box {
-    border-radius: 0px !important;
-}
+        .cp-preview-sticky .Polaris-Box {
+          border-radius: 0px !important;
+        }
       `}</style>
       <div
         style={{
+          width: "100%",
+          maxWidth: 430,
           height: previewHeight,
           minHeight: previewHeight,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          border: `1px solid ${brc}`,
+          border: `1px solid ${withAlpha(brc, 0.82)}`,
+          borderRadius: previewRadius,
           color: tc,
           fontSize: fs,
           fontFamily,
@@ -1603,29 +1648,21 @@ function CartDrawerPreview({
             ? "8px 0 22px rgba(15,23,42,.10)"
             : "-8px 0 22px rgba(15,23,42,.10)",
           opacity: drawerAutoOpen ? 1 : 0.88,
-          marginTop: isBottomSheetPreview ? 48 : 0,
-          ...drawerBackgroundStyle,
+          margin: isBottomSheetPreview ? "48px auto 0" : "0 auto",
+          padding: 18,
+          gap: 12,
+          ...previewBackdropStyle,
         }}
       >
-        <div style={{ padding: "18px 20px 16px", flexShrink: 0, ...headerBackgroundStyle }}>
+        <div style={{ padding: "0 6px 6px", flexShrink: 0 }}>
           <InlineStack align="space-between" blockAlign="center" wrap={false}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0, color: hc }}>
-              {showCustomCartIcon ? (
-                <img
-                  src={cartIconUrl}
-                  alt=""
-                  aria-hidden="true"
-                  style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0 }}
-                />
-              ) : (
-                <PreviewIcon source={headerCartIcon} size={22} color={ic || hc} />
-              )}
-              <span style={{ color: hc, fontWeight: 700, fontSize: headingFs, lineHeight: 1.1 }}>
-                {activeDrawerTab === "offers" ? "Offers" : "Your Cart"}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <span style={{ color: announcementText || "#ffffff", fontWeight: 800, fontSize: headingFs, lineHeight: 1.1 }}>
+                {activeDrawerTab === "offers" ? "Offers" : "Cart"}
               </span>
               {activeDrawerTab === "cart" && (
-                <span style={{ color: hc, fontWeight: 700, fontSize: Math.max(fs, 12), opacity: 0.82 }}>
-                  (1)
+                <span style={{ color: announcementText || "#ffffff", fontWeight: 800, fontSize: Math.max(fs + 3, 15), opacity: 0.96 }}>
+                  (4)
                 </span>
               )}
             </div>
@@ -1637,16 +1674,18 @@ function CartDrawerPreview({
                 alignItems: "center",
                 justifyContent: "center",
                 border: 0,
-                background: "transparent",
+                borderRadius: 999,
+                background: "#ffffff",
                 color: ic,
                 lineHeight: 1,
                 padding: 0,
                 cursor: "pointer",
-                width: 26,
-                height: 26,
+                width: 50,
+                height: 38,
+                boxShadow: "0 6px 18px rgba(15,23,42,.14)",
               }}
             >
-              <PreviewIcon source={XIcon} size={20} color="currentColor" />
+              <PreviewIcon source={XIcon} size={18} color="currentColor" />
             </button>
           </InlineStack>
         </div>
@@ -1655,12 +1694,16 @@ function CartDrawerPreview({
           <>
             <div
               style={{
-                padding: "10px 0",
-                background: announcementBg || "#F4EAFF",
-                borderBottom: `1px solid ${brc}`,
+                position: "relative",
+                padding: "13px 74px 13px 0",
+                background: bc,
+                borderBottom: `1px solid ${withAlpha(brc, 0.7)}`,
+                borderTopLeftRadius: previewRadius,
+                borderTopRightRadius: previewRadius,
                 textAlign: "center",
-                color: announcementText || tc,
+                color: blc,
                 flexShrink: 0,
+                overflow: "hidden",
               }}
             >
               <div className="cp-announcementMarquee" aria-label={marqueeTextContent.join(" ")}>
@@ -1674,7 +1717,8 @@ function CartDrawerPreview({
                           style={{
                             fontSize: Math.max(fs + 1, 13),
                             lineHeight: "16px",
-                            color: announcementText || tc,
+                            color: blc,
+                            fontWeight: 800,
                           }}
                         >
                           {index > 0 && <span aria-hidden="true">{"\u2022"}</span>}
@@ -1685,18 +1729,36 @@ function CartDrawerPreview({
                   ))}
                 </div>
               </div>
+              <button
+                type="button"
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  border: 0,
+                  background: "transparent",
+                  color: blc,
+                  fontWeight: 800,
+                  fontSize: Math.max(fs, 12),
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {announcementActionLabel}
+              </button>
             </div>
 
             <div
               style={{
-                padding: "5px",
+                padding: "10px 6px 4px",
                 textAlign: "center",
-                background: progressSurface,
+                background: "#ffffff",
                 color: ptc,
                 flexShrink: 0,
-                boxShadow: "0 1px 3px rgba(15,23,42,.08)",
+                boxShadow: "0 1px 3px rgba(15,23,42,.06)",
                 overflow: "hidden",
-                margin: 1,
+                margin: 0,
               }}
             >
               <div style={{ position: "relative", minHeight: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1739,7 +1801,7 @@ function CartDrawerPreview({
               </div>
 
               <div style={{ position: "relative", height: 74, margin: "14px 18px 0" }}>
-                <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: withAlpha(pc, 0.24) }} />
+                <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: withAlpha(pc, 0.2) }} />
                 <div style={{ position: "absolute", top: 19, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
 
                 {displaySteps.map((step, index) => {
@@ -1762,19 +1824,19 @@ function CartDrawerPreview({
                     >
                       <div
                         style={{
-                          width: 36,
-                          height: 36,
+                          width: 30,
+                          height: 30,
                           margin: "0 auto",
                           borderRadius: "50%",
                           display: "grid",
                           placeItems: "center",
                           background: done ? pc : progressSurface,
                           color: done ? completedIconColor : ic,
-                          border: `2px solid ${done ? pc : withAlpha(ptc, 0.72)}`,
+                          border: `2px solid ${done ? pc : withAlpha(ptc, 0.18)}`,
                           boxShadow: "0 1px 4px rgba(15,23,42,.18)",
                         }}
                       >
-                        <PreviewIcon source={iconSrc} size={20} color="currentColor" />
+                        <PreviewIcon source={iconSrc} size={16} color="currentColor" />
                       </div>
                       <div
                         style={{
@@ -1801,6 +1863,9 @@ function CartDrawerPreview({
                 flex: 1,
                 minHeight: 0,
                 overflow: "auto",
+                background: "#ffffff",
+                borderBottomLeftRadius: activeDrawerTab === "cart" && !discountCodeApply && !stickyCheckout ? previewRadius : 0,
+                borderBottomRightRadius: activeDrawerTab === "cart" && !discountCodeApply && !stickyCheckout ? previewRadius : 0,
               }}
             >
               <Box padding="400">
@@ -2121,10 +2186,12 @@ function CartDrawerPreview({
               flex: 1,
               minHeight: 0,
               margin: 0,
-              borderTop: `1px solid ${brc}`,
-              ...drawerBackgroundStyle,
+              border: `1px solid ${withAlpha(brc, 0.78)}`,
+              borderRadius: previewRadius,
+              background: "#ffffff",
               overflow: "auto",
-              boxShadow: "none",
+              boxShadow: "0 14px 30px rgba(15,23,42,.10)",
+              padding: "6px 0 0",
             }}
           >
             {offerItems.length ? (
@@ -2133,11 +2200,11 @@ function CartDrawerPreview({
                   key={offer.key}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "80px minmax(0, 1fr) auto",
-                    gap: 12,
+                    gridTemplateColumns: "86px minmax(0, 1fr) auto",
+                    gap: 14,
                     alignItems: "center",
-                    padding: "16px 14px",
-                    borderTop: index === 0 ? 0 : `1px solid ${ic}`,
+                    padding: "21px 16px",
+                    borderTop: index === 0 ? 0 : `1px solid ${withAlpha(brc, 0.9)}`,
                   }}
                 >
                   {offer.type === "bxgy" || offer.type === "free" ? (
@@ -2147,22 +2214,23 @@ function CartDrawerPreview({
                       style={{
                         width: 70,
                         height: 70,
-                        borderRadius: Math.max(r, 8),
+                        borderRadius: Math.max(r, 10),
                         display: "grid",
                         placeItems: "center",
-                        background: offer.type === "code" ? "#F8F8FA" : "#ffffff",
-                        border: `1px solid ${ic}`,
-                        color: ic,
+                        background: "#F7F8FA",
+                        border: `1px solid ${withAlpha(brc, 0.9)}`,
+                        color: tc,
+                        boxShadow: "0 2px 8px rgba(15,23,42,.04)",
                       }}
                     >
                       <PreviewIcon source={offer.icon} size={30} color="currentColor" />
                     </div>
                   )}
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 3, 15), lineHeight: "20px" }}>
+                    <div style={{ color: tc, fontWeight: 800, fontSize: Math.max(fs + 3, 15), lineHeight: "20px" }}>
                       {offer.title}
                     </div>
-                    <div style={{ color: `${tc}99`, fontSize: Math.max(fs, 12), lineHeight: "17px", marginTop: 4, fontWeight: 700 }}>
+                    <div style={{ color: `${tc}A8`, fontSize: Math.max(fs, 12), lineHeight: "17px", marginTop: 4, fontWeight: 700 }}>
                       {offer.subtitle}
                     </div>
                   </div>
@@ -2170,27 +2238,42 @@ function CartDrawerPreview({
                     <div
                       style={{
                         minWidth: 116,
-                        border: `1px solid ${ic}`,
-                        borderRadius: 10,
+                        border: `1px solid ${withAlpha(ic, 0.42)}`,
+                        borderRadius: 8,
                         textAlign: "center",
                         background: "#ffffff",
-                        padding: "8px 10px",
+                        overflow: "hidden",
+                        boxShadow: "0 10px 20px rgba(15,23,42,.08)",
                       }}
                     >
-                      <div style={{ color: tc, fontWeight: 700, fontSize: Math.max(fs + 1, 13), whiteSpace: "nowrap" }}>
+                      <div style={{ color: tc, fontWeight: 800, fontSize: Math.max(fs + 1, 13), whiteSpace: "nowrap", padding: "9px 10px" }}>
                         {offer.code}
                       </div>
+                      <button
+                        type="button"
+                        style={{
+                          width: "100%",
+                          minHeight: 42,
+                          border: 0,
+                          background: bc,
+                          color: blc,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {offer.action}
+                      </button>
                     </div>
                   ) : offer.action ? (
                     <button
                       type="button"
                       style={{
-                        border: 0,
-                        background: bc,
-                        color: blc,
-                        borderRadius: Math.max(r, 6),
-                        padding: "12px 14px",
-                        fontWeight: 700,
+                        border: `2px solid ${bc}`,
+                        background: "#ffffff",
+                        color: bc,
+                        borderRadius: Math.max(r, 8),
+                        padding: "12px 16px",
+                        fontWeight: 800,
                         whiteSpace: "nowrap",
                         cursor: "pointer",
                       }}
@@ -2209,7 +2292,7 @@ function CartDrawerPreview({
         )}
 
         {activeDrawerTab === "cart" && discountCodeApply && (
-          <div style={{ padding: "10px 10px 0", flexShrink: 0 }}>
+          <div style={{ padding: "12px 12px 0", flexShrink: 0, background: "#ffffff", borderTop: `1px solid ${brc}` }}>
             <InlineStack gap="200" wrap={false}>
               <div className="cp-preview-discount-code" style={{ flex: 1, minWidth: 0 }}>
                 <TextField
@@ -2225,13 +2308,14 @@ function CartDrawerPreview({
                 type="button"
                 style={{
                   border: 0,
-                  borderRadius: Math.max(r, 2),
-                  background: bc,
-                  color: blc,
+                  borderRadius: Math.max(r, 8),
+                  background: "#ffffff",
+                  color: tc,
+                  boxShadow: `inset 0 0 0 1px ${ic}`,
                   padding: "0 16px",
-                  minHeight: 40,
-                  fontWeight: 700,
-                  fontSize: Math.max(fs - 1, 11),
+                  minHeight: 52,
+                  fontWeight: 800,
+                  fontSize: Math.max(fs + 1, 13),
                   cursor: "pointer",
                   whiteSpace: "nowrap",
                   width: "100px",
@@ -2248,13 +2332,14 @@ function CartDrawerPreview({
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              minHeight: 58,
+              minHeight: 70,
               border: `1px solid ${brc}`,
               boxShadow: stickyCheckout ? "0 -8px 18px rgba(15,23,42,.08)" : "none",
               flexShrink: 0,
               margin: 0,
-              borderRadius: 0,
+              borderRadius: discountCodeApply ? 0 : `0 0 ${previewRadius}px ${previewRadius}px`,
               overflow: "hidden",
+              background: "#ffffff",
             }}
           >
             <Box padding="200">
@@ -2292,11 +2377,10 @@ function CartDrawerPreview({
               gap: 0,
               margin: 0,
               border: 0,
-              borderTop: `1px solid ${brc}`,
-              borderRadius: 0,
-              background: surface,
+              borderRadius: Math.max(r, 12),
+              background: "#ffffff",
               overflow: "hidden",
-              boxShadow: "none",
+              boxShadow: "0 10px 22px rgba(15,23,42,.10)",
               flexShrink: 0,
             }}
           >
@@ -2311,7 +2395,7 @@ function CartDrawerPreview({
                   key={tab.key}
                   onClick={() => setActiveDrawerTab(tab.key)}
                   style={{
-                    minHeight: 68,
+                    minHeight: 64,
                     border: 0,
                     borderBottom: selected ? `3px solid ${bc}` : "3px solid transparent",
                     background: "#ffffff",
@@ -2321,7 +2405,7 @@ function CartDrawerPreview({
                     justifyContent: "center",
                     gap: 6,
                     fontSize: Math.max(fs + 1, 13),
-                    fontWeight: 700,
+                    fontWeight: 800,
                     cursor: "pointer",
                   }}
                 >
@@ -2447,7 +2531,7 @@ export default function CustomizePreview() {
       title="Customize & Preview"
       primaryAction={{ content: "Save", loading: isSaving, onAction: handleSave }}
     >
-      <style>{`.cp-layout{display:grid;grid-template-columns:1fr 420px;gap:24px;align-items:start}@media(max-width:1000px){.cp-layout{grid-template-columns:1fr}}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.cp-preview-sticky{position:sticky;top:80px}`}</style>
+      <style>{`.cp-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,500px);gap:24px;align-items:start}@media(max-width:1100px){.cp-layout{grid-template-columns:1fr}}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.cp-preview-sticky{position:sticky;top:80px}`}</style>
 
       {actionData?.error && (
         <Box paddingBlockEnd="400">
@@ -2699,7 +2783,7 @@ export default function CustomizePreview() {
             <Card>
               <BlockStack gap="300">
                 <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="bodyMd" fontWeight="semibold" as="p">Live Preview</Text>
+                  <Text variant="bodyMd" fontWeight="semibold" as="p">Design Preview</Text>
                   <Badge tone="success">Dynamic</Badge>
                 </InlineStack>
                 <CartDrawerPreview
