@@ -1499,7 +1499,7 @@ function CartDrawerPreview({
       }
       : { background: bg || surface || "#ffffff" };
   const isBottomSheetPreview = mobileLayout === "bottom_sheet";
-  const previewHeight = isBottomSheetPreview ? 720 : 820;
+  const previewHeight = isBottomSheetPreview ? "100%" : "100%";
   const previewRadius = Math.max(r, 12);
 
   const ProductImage = ({ src, alt, size = 54 }) => (
@@ -1809,7 +1809,7 @@ function CartDrawerPreview({
 
               <div style={{ position: "relative", height: 69, margin: "0px 30px" }}>
                 <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: progressSurface }} />
-                <div style={{ position: "absolute", top: 19, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
+                <div style={{ position: "absolute", top: 19, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: brc }} />
 
                 {displaySteps.map((step, index) => {
                   const pct = stepPosition(index);
@@ -2010,7 +2010,7 @@ function CartDrawerPreview({
               {showUpsell && (
                 <>
                   <Divider />
-                  <Box padding="400" background="transparent">
+                  <Box style={{ padding: "15px 0" }}background="transparent">
                     <BlockStack gap="200">
                       <div style={{ textAlign: "center", color: `${upsellTextColor}99`, fontSize: Math.max(fs - 1, 11), fontWeight: 700 }}>
                         {upsellTitle}
