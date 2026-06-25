@@ -1808,7 +1808,7 @@ function CartDrawerPreview({
               </div>
 
               <div style={{ position: "relative", height: 69, margin: "0px 30px" }}>
-                <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: progressSurface }} />
+                <div style={{ position: "absolute", top: 19, left: 0, right: 0, height: 8, borderRadius: 999, background: "#d9d6d6" }} />
                 <div style={{ position: "absolute", top: 19, left: 0, width: `${progressFill}%`, height: 8, borderRadius: 999, background: pc }} />
 
                 {displaySteps.map((step, index) => {
