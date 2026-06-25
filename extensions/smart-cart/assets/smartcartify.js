@@ -3570,6 +3570,13 @@
     if (!lineLoader) return;
     const show = !!isVisible;
 
+    if (show) {
+      const itemsList = drawer.querySelector(".sc-items-list");
+      if (itemsList instanceof HTMLElement) {
+        lineLoader.style.top = `${Math.max(0, Number(itemsList.offsetTop) || 0)}px`;
+      }
+    }
+
     lineLoader.hidden = !show;
     lineLoader.classList.toggle("is-active", show);
     lineLoader.style.display = show ? "block" : "none";
@@ -6981,6 +6988,9 @@ position: relative;
 .sc-freegift-card .sc-freegift-close,
 .sc-freegift-overlay .sc-freegift-close{
   display:none !important;
+}
+.sc-freegift-overlay.sc-offers-popup .sc-freegift-close{
+  display:inline-flex !important;
 }
 .sc-freegift-close:hover{
   transform:scale(1.04);
@@ -12606,10 +12616,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const reason = String(opts.reason || "");
     const active = rewardPopupCache.current;
     const activeKind = String(active?.kind || "").toLowerCase();
+    const isOffersCloseButton = active?.popupTab === "offers" && reason === "close-button";
     const mustAddBeforeClose =
       active?.goalMet !== false &&
       ["free", "bxgy", "buyxgety"].includes(activeKind) &&
-      reason !== "added";
+      reason !== "added" &&
+      !isOffersCloseButton;
 
     if (mustAddBeforeClose || (!force && reason === "outside" && !canCloseRewardPopup())) {
       if (rewardPopupCache.messageEl) {
@@ -12635,6 +12647,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       rewardPopupTimer = null;
     }
     rewardPopupCache.overlay.classList.remove("open");
+    rewardPopupCache.overlay.classList.remove("sc-offers-popup");
     rewardPopupCache.current = null;
     drawer.__sc_reward_popup_for = null;
     return true;
@@ -13211,6 +13224,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     overlayEl.className = "sc-freegift-overlay";
     overlayEl.innerHTML = `
       <div class="sc-freegift-card">
+        <button class="sc-freegift-close" type="button" aria-label="Close reward popup">&times;</button>
         <div class="sc-freegift-header">
           <div class="sc-freegift-heading">
             <p class="sc-freegift-title-text">Reward unlocked</p>
@@ -15012,7 +15026,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (state.addButton) state.addButton.textContent = ["free", "bxgy", "buyxgety"].includes(normalizedPopupKind) ? "✓ Add Free Gift" : `Add Item`;
 
-    state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, rewardAlreadyInCart, requiresSelection: isMultiOptionReward, options: [], selectedOption: null, selectedOptionId: null, selectedOptionIds: [], selectedOptions: [] };
+    state.current = { kind, ruleKey, slot, rule, variant, qty, goalMet: addItemGoalMet, popupTab, rewardAlreadyInCart, requiresSelection: isMultiOptionReward, options: [], selectedOption: null, selectedOptionId: null, selectedOptionIds: [], selectedOptions: [] };
+    state.overlay.classList.toggle("sc-offers-popup", popupTab === "offers");
     state.overlay.classList.add("open");
 
     drawer.__sc_reward_popup_for = `${kind}:${guardKey || ""}`;
