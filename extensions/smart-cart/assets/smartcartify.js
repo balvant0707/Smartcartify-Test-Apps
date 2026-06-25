@@ -4368,9 +4368,10 @@
   --sc-drawer-header-color: #ffffff;
 
   --sc-top-bg-color: transparent;
-  --sc-top-bg-image: linear-gradient(180deg, #ffffff 0%, #ffffff 30%, #ff3b30 30%, #f8dfd0 100%);
+  --sc-top-bg-image: linear-gradient(135deg, rgba(89,166,229,.92) 0%, rgba(207,80,122,.86) 48%, rgba(237,104,64,.78) 100%);
   --sc-top-bg-color-effective: transparent;
   --sc-top-bg-image-effective: var(--sc-top-bg-image);
+  --sc-top-gradient-height: 30%;
 
   --sc-progress-bg: var(--sc-top-bg-color-effective);
   --sc-progress-text: var(--sc-text);
@@ -4490,14 +4491,16 @@
   content:"";
   position:absolute;
   inset:0 0 auto 0;
-  height:190px;
+  height:var(--sc-top-gradient-height, 30%);
   background-color:var(--sc-top-bg-color-effective);
   background-image:var(--sc-top-bg-image-effective);
   background-size:cover;
-  background-position:center;
+  background-position:center top;
   background-repeat:no-repeat;
   pointer-events:none;
   z-index:0;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 72%,rgba(0,0,0,0) 100%);
+  mask-image:linear-gradient(180deg,#000 0%,#000 72%,rgba(0,0,0,0) 100%);
 }
 .sc-drawer > *{
   position:relative;
@@ -6963,7 +6966,8 @@ position: relative;
   font-weight:800;
   box-shadow:0 4px 12px rgba(15,23,42,.16);
 }
-.sc-freegift-card .sc-freegift-close{
+.sc-freegift-card .sc-freegift-close,
+.sc-freegift-overlay .sc-freegift-close{
   display:none !important;
 }
 .sc-freegift-close:hover{
@@ -6975,18 +6979,9 @@ display: flex;
     align-items: center;
     padding: 5px 10px;
     border-bottom: 1px solid rgba(15, 23, 42, .1);
+    background: #fff;
 }
-.sc-freegift-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    background: var(--sc-freegift-accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ffffff;
-}
-.sc-freegift-icon svg{width:22px;height:22px;fill:currentColor;}
+
 .sc-freegift-heading{display:grid;gap:8px;}
 .sc-freegift-title-text{
     margin: 0;
@@ -9307,6 +9302,13 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     r.setProperty("--sc-overlay-bg", overlayBg);
     r.setProperty("--sc-drawer-width", drawerWidth);
+    r.setProperty(
+      "--sc-top-gradient-height",
+      normalizeLen(
+        pick(style, ["cartDrawerTopGradientHeight", "drawerTopGradientHeight", "topGradientHeight"], null),
+        "30%"
+      )
+    );
 
     r.setProperty("--sc-border", borderColor);
     r.setProperty("--sc-muted", mutedColor);
@@ -9448,7 +9450,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       r.setProperty("--sc-top-bg-image-effective", "var(--sc-top-bg-image)");
 
       r.setProperty("--sc-drawer-bg-image", drawerBackgroundImage || "none");
-      r.setProperty("--sc-drawer-bg", heroBg);
+      r.setProperty("--sc-drawer-bg", String(drawerShellBg));
       if (!hasExplicitProgressBg) r.setProperty("--sc-progress-bg", "#ffffff");
       if (!hasExplicitFooterBg) r.setProperty("--sc-footer-bg", "transparent");
     } else {
@@ -13068,7 +13070,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     overlayEl.innerHTML = `
       <div class="sc-freegift-card">
         <div class="sc-freegift-header">
-          <div class="sc-freegift-icon">${ICONS.gift || "🎁"}</div>
           <div class="sc-freegift-heading">
             <p class="sc-freegift-title-text">Reward unlocked</p>
             <p class="sc-freegift-subtext"></p>
@@ -13110,7 +13111,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       ruleTitleEl: overlayEl.querySelector(".sc-freegift-rule-title"),
       headerTitleEl: overlayEl.querySelector(".sc-freegift-title-text"),
       headerSubEl: overlayEl.querySelector(".sc-freegift-subtext"),
-      iconEl: overlayEl.querySelector(".sc-freegift-icon"),
       contentEl: overlayEl.querySelector(".sc-freegift-content"),
       listEl: overlayEl.querySelector(".sc-freegift-list"),
       optionsEl: overlayEl.querySelector(".sc-freegift-options"),
@@ -14743,12 +14743,20 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     const guardKey = normalizedPopupKind === "free" ? slot || ruleKey : ruleKey;
     const addItemGoalMet = goalMet !== false;
 
+    // Never reopen a Free Gift / Buy X Get Y popup after its reward item exists in the cart.
+    // This guard intentionally runs even when the caller passes force:true, because
+    // render/Cart tab refreshes should not override the "already added" state.
+    if (guardKey && cartHasRewardForKey(kind, guardKey)) {
+      if (normalizedPopupKind === "free") scStore.del(keyPendingFreeGift(guardKey));
+      markPopupShown(kind, guardKey);
+      drawer.__sc_reward_popup_for = null;
+      return false;
+    }
+
     // already shown in this session storage (page refresh safe)
     if (guardKey && !force && !canShowPopupFor(kind, guardKey)) return false;
 
     if (guardKey && !force && drawer.__sc_reward_popup_for === `${kind}:${guardKey}`) return false;
-
-    if (guardKey && !force && cartHasRewardForKey(kind, guardKey)) return false;
 
     if (!drawer.classList.contains("open")) openDrawer();
 

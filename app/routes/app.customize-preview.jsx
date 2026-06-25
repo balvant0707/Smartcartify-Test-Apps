@@ -1672,7 +1672,6 @@ function CartDrawerPreview({
           opacity: drawerAutoOpen ? 1 : 0.88,
           margin: isBottomSheetPreview ? "48px auto 0" : "0 auto",
           padding: 18,
-          gap: 12,
           ...previewBackdropStyle,
         }}
       >
@@ -1714,13 +1713,13 @@ function CartDrawerPreview({
             </button>
           </InlineStack>
         </div>
-
+         <div class="cp-preview-discount-codes">   
         {activeDrawerTab === "cart" ? (
           <>
             <div
               style={{
                 position: "relative",
-                padding: "13px 74px 13px 0",
+                padding: "10px",
                 background: announcementBg || bc,
                 borderBottom: `1px solid ${withAlpha(brc, 0.7)}`,
                 borderTopLeftRadius: previewRadius,
@@ -1754,24 +1753,6 @@ function CartDrawerPreview({
                   ))}
                 </div>
               </div>
-              <button
-                type="button"
-                style={{
-                  position: "absolute",
-                  right: 10,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  border: 0,
-                  background: "transparent",
-                  color: announcementText || blc,
-                  fontWeight: 800,
-                  fontSize: Math.max(fs, 12),
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {announcementActionLabel}
-              </button>
             </div>
 
             <div
@@ -2315,6 +2296,7 @@ function CartDrawerPreview({
             )}
           </div>
         )}
+        </div>  
 
         {activeDrawerTab === "cart" && discountCodeApply && (
           <div style={{ padding: "12px 12px 0", flexShrink: 0, background: "#ffffff", borderTop: `1px solid ${brc}` }}>
