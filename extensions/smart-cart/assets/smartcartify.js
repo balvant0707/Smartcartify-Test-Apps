@@ -3523,10 +3523,14 @@
   };
 
   const celebrateDiscountApplied = (code) => {
-    // Apply code success: show only the paper celebration.
-    // No reward/success popup should open after discount apply.
-    void code;
+    const normalizedCode = trimToNull(code);
     firePaperEffect(2800);
+    showCenterCelebratePopup(
+      "Discount applied",
+      normalizedCode ? `Code ${String(normalizedCode).toUpperCase()} was applied to your cart.` : "Your discount code was applied to your cart.",
+      4200,
+      "success"
+    );
   };
 
   const suppressAutoRewardPopups = (ms = 3000) => {
@@ -4777,7 +4781,7 @@ padding: 5px 10px 0px 10px;
 
 .sc-line-loader{
   width:100%;
-  height:2px;
+  height:4px;
   display:none;
   flex:0 0 auto;
   position:absolute;
@@ -4788,8 +4792,8 @@ padding: 5px 10px 0px 10px;
   padding:0;
   margin:0;
   overflow:hidden;
-  background:transparent;
-  box-shadow:none;
+  background:var(--sc-line-loader-track, rgba(67,67,208,.18));
+  box-shadow:0 1px 4px rgba(15,23,42,.12);
   isolation:isolate;
   pointer-events:none;
 }
@@ -4805,7 +4809,7 @@ padding: 5px 10px 0px 10px;
   inset:0;
   width:100%;
   height:100%;
-  background:transparent;
+  background:var(--sc-line-loader-track, rgba(67,67,208,.18));
   overflow:hidden;
   border-radius:0;
 }
@@ -4824,9 +4828,10 @@ padding: 5px 10px 0px 10px;
   top:0;
   left:-48%;
   width:48%;
-  height:2px;
+  height:4px;
   border-radius:999px;
-  background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 18%, transparent) 14%, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 18%, transparent) 86%, transparent 100%);
+  background:var(--sc-line-loader-accent, var(--sc-progress, #4343d0));
+  box-shadow:0 0 10px var(--sc-line-loader-accent, var(--sc-progress, #4343d0));
   animation:scLineLoader 1.05s cubic-bezier(.42,0,.18,1) infinite !important;
   will-change:left;
 }
@@ -8297,16 +8302,16 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 .smartcartify-cart-drawer .sc-line-loader{
   display:none;
   width:100%;
-  height:2px;
-  flex:0 0 2px;
+  height:4px;
+  flex:0 0 4px;
   position:relative;
   z-index:30;
   margin:0;
   padding:0;
-  background:transparent;
+  background:var(--sc-line-loader-track, rgba(67,67,208,.18));
   overflow:hidden !important;
   border-radius:0;
-  box-shadow:none;
+  box-shadow:0 1px 4px rgba(15,23,42,.12);
   isolation:isolate;
 }
 .smartcartify-cart-drawer .sc-line-loader.is-active:not([hidden]),
@@ -8319,7 +8324,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   inset:0;
   width:100%;
   height:100%;
-  background:transparent;
+  background:var(--sc-line-loader-track, rgba(67,67,208,.18));
   overflow:hidden !important;
   border-radius:0;
 }
@@ -8337,9 +8342,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   position:absolute;
   inset:0 auto 0 0;
   width:100%;
-  height:2px;
+  height:4px;
   border-radius:999px;
-  background:linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 14%, transparent) 20%, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 50%, color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 14%, transparent) 80%, transparent 100%) !important;
+  background:var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) !important;
+  box-shadow:0 0 10px var(--sc-line-loader-accent, var(--sc-progress, #4343d0));
   transform:translate3d(-105%,0,0);
   animation:none !important;
   will-change:transform;
@@ -12557,17 +12563,26 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     if (!rewardPopupCache) return true;
     const force = !!opts.force;
     const reason = String(opts.reason || "");
+    const active = rewardPopupCache.current;
+    const activeKind = String(active?.kind || "").toLowerCase();
+    const mustAddBeforeClose =
+      active?.goalMet !== false &&
+      ["free", "bxgy", "buyxgety"].includes(activeKind) &&
+      reason !== "added";
 
-    if (!force && reason === "outside" && !canCloseRewardPopup()) {
+    if (mustAddBeforeClose || (!force && reason === "outside" && !canCloseRewardPopup())) {
       if (rewardPopupCache.messageEl) {
         rewardPopupCache.messageEl.hidden = false;
         rewardPopupCache.messageEl.classList.add("is-error");
-        const active = rewardPopupCache.current;
-        const limit = getRewardSelectionLimit(active?.kind, active?.rule, active?.options);
-        rewardPopupCache.messageEl.textContent =
-          limit === 1
-            ? "Please select one reward product before closing this popup."
-            : `Please select ${limit} reward products before closing this popup.`;
+        if (mustAddBeforeClose) {
+          rewardPopupCache.messageEl.textContent = "Add the free gift to your cart before closing this popup.";
+        } else {
+          const limit = getRewardSelectionLimit(active?.kind, active?.rule, active?.options);
+          rewardPopupCache.messageEl.textContent =
+            limit === 1
+              ? "Please select one reward product before closing this popup."
+              : `Please select ${limit} reward products before closing this popup.`;
+        }
       }
       rewardPopupCache.overlay.classList.add("sc-freegift-shake");
       setTimeout(() => rewardPopupCache?.overlay?.classList.remove("sc-freegift-shake"), 260);
@@ -14846,10 +14861,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 
     if (!drawer.classList.contains("open")) openDrawer();
 
-    // Free Gift and Buy X Get Y reward popups must belong to the Offers tab.
-    // When they unlock from a cart refresh/action, switch the drawer to Offers first.
+    // Free Gift and Buy X Get Y reward popups are tied to the cart goal flow.
+    // Keep the drawer on Cart while the customer selects and adds the reward.
     if (["free", "bxgy", "buyxgety"].includes(normalizedPopupKind) && OFFER_TABS_ENABLED) {
-      setDrawerTab("offers");
+      setDrawerTab("cart");
     }
 
     const state = ensureRewardPopup();
