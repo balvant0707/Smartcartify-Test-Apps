@@ -1488,7 +1488,7 @@ function CartDrawerPreview({
     });
   };
 
-  const previewGradientBg = `linear-gradient(180deg, #ffffff 0%, #ffffff 30%, ${gradStart} 30%, ${gradEnd} 100%)`;
+  const previewGradientBg = `linear-gradient(180deg, ${gradStart} 0%, ${gradEnd} 30%, #ffffff 30%, #ffffff 100%)`;
   const previewBackdropStyle = drawerBgMode === "gradient"
     ? { background: previewGradientBg }
     : drawerBgMode === "image" && drawerImage
@@ -2551,7 +2551,7 @@ export default function CustomizePreview() {
   const previewBg = drawerBgMode === "color"
     ? (drawerBg || bg || "#fff")
     : drawerBgMode === "gradient"
-      ? `linear-gradient(180deg, #ffffff 0%, #ffffff 30%, ${drawerGradientStart || DEFAULT_STYLE.cartDrawerGradientStart} 30%, ${drawerGradientEnd || DEFAULT_STYLE.cartDrawerGradientEnd} 100%)`
+      ? `linear-gradient(180deg, ${drawerGradientStart || DEFAULT_STYLE.cartDrawerGradientStart} 0%, ${drawerGradientEnd || DEFAULT_STYLE.cartDrawerGradientEnd} 30%, #ffffff 30%, #ffffff 100%)`
       : "#fff";
 
   return (
