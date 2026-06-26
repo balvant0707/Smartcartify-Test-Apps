@@ -742,7 +742,7 @@ export default function Index() {
                         boxShadow: "0 2px 10px #ffffff",
                       }}
                     >
-                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" ,marginBottom:"12px" }}>
                         <div
                           style={{
                             display: "flex",
