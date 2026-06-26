@@ -6061,11 +6061,11 @@ color: var(--sc-drawer-text-color);
   display:none;
 }
 .sc-upsell-btn-oos{
-  border:1px solid #9ca3af;
-  background:#f3f4f6;
-  color:#6b7280;
-  font-weight:700;
-  text-transform:uppercase;
+  border: 1px solid #4471be;
+  background: #4e7edd !important;
+  color: #f4f6f9 !important;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 .sc-upsell-btn-oos[hidden]{display:none !important;}
 .sc-upsell-arrow{
@@ -8192,10 +8192,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 .sc-drawer:not(.sc-offers-active) .sc-upsell-btn {
     min-height: 30px !important;
     border-radius: 4px !important;
-    background: var(--sc-checkout-bg) !important;
-    color: var(--sc-checkout-text) !important;
+    background: var(--sc-checkout-bg);
+    color: var(--sc-checkout-text);
     font-size: var(--sc-base-font-size);
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     text-transform: capitalize;
 }
 
