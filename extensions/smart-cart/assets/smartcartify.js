@@ -144,7 +144,7 @@
     discount: `<svg viewBox="0 0 20 20" class="Polaris-Icon__Svg" focusable="false" aria-hidden="true"><path d="M12.78 8.28a.75.75 0 0 0-1.06-1.06l-4.5 4.5a.75.75 0 1 0 1.06 1.06l4.5-4.5Z"></path><path d="M9 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path><path d="M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path><path fill-rule="evenodd" d="M12.094 3.514c-.822-1.79-3.366-1.79-4.188 0a.804.804 0 0 1-1.011.42c-1.848-.686-3.647 1.113-2.962 2.96a.804.804 0 0 1-.419 1.012c-1.79.822-1.79 3.366 0 4.188a.805.805 0 0 1 .42 1.011c-.686 1.848 1.113 3.647 2.96 2.962a.805.805 0 0 1 1.012.419c.822 1.79 3.366 1.79 4.188 0a.805.805 0 0 1 1.011-.42c1.848.686 3.647-1.113 2.962-2.96a.805.805 0 0 1 .419-1.012c1.79-.822 1.79-3.366 0-4.188a.805.805 0 0 1-.42-1.011c.686-1.848-1.113-3.647-2.96-2.962a.805.805 0 0 1-1.012-.419Zm-2.825.626a.804.804 0 0 1 1.462 0 2.304 2.304 0 0 0 2.896 1.2.804.804 0 0 1 1.034 1.034 2.304 2.304 0 0 0 1.199 2.895.804.804 0 0 1 0 1.462 2.304 2.304 0 0 0-1.2 2.896.805.805 0 0 1-1.034 1.034 2.304 2.304 0 0 0-2.895 1.199.804.804 0 0 1-1.462 0 2.304 2.304 0 0 0-2.896-1.2.804.804 0 0 1-1.033-1.034 2.305 2.305 0 0 0-1.2-2.895.804.804 0 0 1 0-1.462 2.304 2.304 0 0 0 1.2-2.896.804.804 0 0 1 1.033-1.033 2.304 2.304 0 0 0 2.896-1.2Z"></path></svg>`,
     free: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 12"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H8V2.25C8 2.66421 7.66421 3 7.25 3C6.83579 3 6.5 2.66421 6.5 2.25V1.5H2.5C2.22386 1.5 2 1.72386 2 2V5.04268C2.2913 5.14564 2.5 5.42345 2.5 5.75C2.5 6.07655 2.2913 6.35436 2 6.45732V10C2 10.2761 2.22386 10.5 2.5 10.5H6.5V9.5C6.5 9.08579 6.83579 8.75 7.25 8.75C7.66421 8.75 8 9.08579 8 9.5V10.5H13.5C13.7761 10.5 14 10.2761 14 10V6.5H12.75C12.3358 6.5 12 6.16421 12 5.75C12 5.33579 12.3358 5 12.75 5H14V2C14 1.72386 13.7761 1.5 13.5 1.5ZM15.5 5.75V2C15.5 0.895431 14.6046 0 13.5 0H7.25H2.5C1.39543 0 0.5 0.895431 0.5 2V10C0.5 11.1046 1.39543 12 2.5 12H13.5C14.6046 12 15.5 11.1046 15.5 10V5.75ZM6.79746 3.99197C6.45366 3.23561 5.69951 2.75 4.86868 2.75C3.69632 2.75 2.75 3.70396 2.75 4.87184C2.75 6.04319 3.69915 7 4.875 7H5.73284C5.13766 7.50971 4.47708 7.92423 3.89394 8.00754C3.48389 8.06612 3.19896 8.44602 3.25754 8.85607C3.31612 9.26612 3.69602 9.55104 4.10607 9.49246C5.21669 9.3338 6.23422 8.57331 6.90944 7.9624C7.03044 7.85293 7.14433 7.74463 7.25 7.64032C7.35567 7.74463 7.46956 7.85293 7.59056 7.9624C8.26578 8.57331 9.28331 9.3338 10.3939 9.49246C10.804 9.55104 11.1839 9.26612 11.2425 8.85607C11.301 8.44602 11.0161 8.06612 10.6061 8.00754C10.0229 7.92423 9.36234 7.50971 8.76716 7H9.625C10.8009 7 11.75 6.04319 11.75 4.87184C11.75 3.70396 10.8037 2.75 9.63132 2.75C8.80049 2.75 8.04634 3.23561 7.70254 3.99197L7.25 4.98755L6.79746 3.99197ZM5.83524 5.5H4.875C4.53206 5.5 4.25 5.21926 4.25 4.87184C4.25 4.5279 4.52923 4.25 4.86868 4.25C5.1113 4.25 5.33152 4.3918 5.43191 4.61267L5.83524 5.5ZM9.625 5.5H8.66476L9.06809 4.61267C9.16848 4.3918 9.3887 4.25 9.63132 4.25C9.97077 4.25 10.25 4.5279 10.25 4.87184C10.25 5.21926 9.96794 5.5 9.625 5.5Z"></path></svg>`,
     bxgy: `<i data-lucide="shopping-bag" aria-hidden="true"></i>`,
-    freereward:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="">
+    freereward: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="">
             <path d="M20 13v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16zM14.5 2a3.5 3.5 0 0 1 3.163 5.001L21 7a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1l3.337.001a3.5 3.5 0 0 1 5.664-3.95A3.48 3.48 0 0 1 14.5 2zm-5 2a1.5 1.5 0 0 0-.144 2.993L9.5 7H11V5.5a1.5 1.5 0 0 0-1.356-1.493L9.5 4zm5 0l-.144.007a1.5 1.5 0 0 0-1.35 1.349L13 5.5V7h1.5l.144-.007a1.5 1.5 0 0 0 0-2.986L14.5 4z" fill="rgb(106,42,209)"></path>
           </svg>`,
   };
@@ -1767,6 +1767,93 @@
     return null;
   };
 
+  const normalizeUpsellVariantLegacyId = (value) => {
+    const raw = trimToNull(value);
+    if (!raw) return null;
+    if (/Product\//i.test(raw) && !/ProductVariant\//i.test(raw)) return null;
+    if (/^product:/i.test(raw)) return null;
+    return normalizeVariantId(raw) || gidToId(raw) || (/^\d+$/.test(raw) ? raw : null);
+  };
+
+  const getUpsellProductLookupId = (item) => {
+    if (!item) return null;
+    const raw =
+      item.productId ||
+      item.product_id ||
+      item.id ||
+      item.admin_graphql_api_id ||
+      item.adminGraphqlApiId ||
+      item.legacyResourceId ||
+      item.legacy_resource_id ||
+      "";
+    if (String(raw || "").includes("ProductVariant")) return null;
+    return normalizeProductNumericId(raw) || gidToId(raw) || trimToNull(raw);
+  };
+
+  const pickUpsellAvailableVariantId = (variants, item = null) => {
+    const list = Array.isArray(variants) ? variants : [];
+    const picked =
+      list.find((variant) => isVariantAvailable(variant, item)) ||
+      list[0] ||
+      null;
+    return normalizeUpsellVariantLegacyId(
+      picked?.id ||
+      picked?.variantId ||
+      picked?.variant_id ||
+      picked?.admin_graphql_api_id ||
+      picked?.adminGraphqlApiId ||
+      picked?.legacyResourceId ||
+      picked?.legacy_resource_id ||
+      ""
+    );
+  };
+
+  const resolveUpsellVariantIdForAdd = async (item, rawVariantId = "") => {
+    const direct = normalizeUpsellVariantLegacyId(rawVariantId);
+    if (direct) return direct;
+
+    const fromItem = normalizeUpsellVariantLegacyId(
+      item?.variantId ||
+      item?.variant_id ||
+      item?.selectedVariantId ||
+      item?.selected_variant_id ||
+      ""
+    );
+    if (fromItem) return fromItem;
+
+    const fromVariants = pickUpsellAvailableVariantId(item?.variants, item);
+    if (fromVariants) return fromVariants;
+
+    const lookupId = getUpsellProductLookupId(item);
+    const handle = trimToNull(item?.handle || item?.Handle);
+    if (!lookupId && !handle) return null;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const url = handle
+        ? `/products/${encodeURIComponent(handle)}.js`
+        : `/products.json?ids=${encodeURIComponent(lookupId)}&limit=1`;
+      const res = await fetch(url, {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) return null;
+      const payload = await res.json();
+      const product = handle
+        ? payload
+        : Array.isArray(payload?.products)
+          ? payload.products[0]
+          : null;
+      return pickUpsellAvailableVariantId(product?.variants, item);
+    } catch (err) {
+      console.warn("[SmartCartify] upsell variant lookup failed:", err?.message || err);
+      return null;
+    }
+  };
+
   const isVariantAvailable = (variant, product = null) => {
     if (variant) {
       const direct =
@@ -1963,6 +2050,19 @@
         null;
       const compareAtPriceCents = priceToCents(compareRaw);
       return {
+        id:
+          trimToNull(p?.id) ||
+          trimToNull(p?.productId) ||
+          trimToNull(p?.product_id) ||
+          "",
+        productId:
+          trimToNull(p?.productId) ||
+          trimToNull(p?.product_id) ||
+          trimToNull(p?.id) ||
+          "",
+        handle: trimToNull(p?.handle) || trimToNull(p?.Handle) || "",
+        admin_graphql_api_id: trimToNull(p?.admin_graphql_api_id) || trimToNull(p?.adminGraphqlApiId) || "",
+        legacyResourceId: trimToNull(p?.legacyResourceId) || trimToNull(p?.legacy_resource_id) || "",
         title: safe(p?.title || "Product"),
         price:
           priceCents != null ? formatMoney(priceCents, currency) : formatMoney(2500, currency),
@@ -2539,11 +2639,15 @@
         : "";
       const addVariantId = available
         ? safe(
-          picked?.id ||
-          picked?.variantId ||
-          picked?.admin_graphql_api_id ||
-          item?.variantId ||
-          ""
+          normalizeUpsellVariantLegacyId(
+            picked?.id ||
+            picked?.variantId ||
+            picked?.variant_id ||
+            picked?.admin_graphql_api_id ||
+            picked?.adminGraphqlApiId ||
+            item?.variantId ||
+            ""
+          ) || ""
         )
         : "";
       const selectMarkup = showSelect
@@ -2660,13 +2764,15 @@
           const picked = variants[0] || null;
           variantId = picked?.id || item?.variantId || null;
         }
-        const legacyId = normalizeVariantId(variantId) || gidToId(variantId) || trimToNull(variantId);
-        if (!legacyId) return;
         try {
           setProgressLoading(true);
           btn.disabled = true;
           btn.classList.add("loading");
           btn.setAttribute("aria-busy", "true");
+          const legacyId = await resolveUpsellVariantIdForAdd(itemForLog, variantId);
+          if (!legacyId) {
+            throw new Error("No available variant found for this upsell product.");
+          }
           const body = new URLSearchParams();
           body.set("id", legacyId);
           body.set("quantity", "1");
@@ -2722,10 +2828,14 @@
         const isAvailable = isVariantAvailable(picked, item);
         if (btn) {
           const nextId =
-            picked?.id ||
-            picked?.variantId ||
-            picked?.admin_graphql_api_id ||
-            "";
+            normalizeUpsellVariantLegacyId(
+              picked?.id ||
+              picked?.variantId ||
+              picked?.variant_id ||
+              picked?.admin_graphql_api_id ||
+              picked?.adminGraphqlApiId ||
+              ""
+            ) || "";
           btn.setAttribute("data-upsell-add", isAvailable ? safe(nextId) : "");
           btn.disabled = !isAvailable;
           btn.hidden = !isAvailable;
@@ -4887,12 +4997,12 @@ padding: 5px 10px 0px 10px;
   content:"";
   position:absolute;
   top:0;
-  width:46px;
+  width:100px;
   height:100%;
   border-radius:999px;
   background:var(--sc-line-loader-accent, var(--sc-progress, #4343d0));
   opacity:.45;
-  filter:blur(8px);
+  filter:blur(30px);
   pointer-events:none;
 }
 .sc-line-loader-runner::before{
@@ -6045,18 +6155,18 @@ color: var(--sc-drawer-text-color);
   display:none !important;
 }
 .sc-discount-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:7px;
-  max-width:100%;
-  min-height:28px;
-  padding:4px 8px 4px 10px;
-  border-radius:999px;
-  background:rgba(67,67,208,.1);
-  color:var(--sc-drawer-text-color);
-  font-size:var(--sc-small-font-size);
-  font-weight:800;
-  line-height:1;
+  display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 100%;
+    min-height: 20px;
+    padding: 1px 0px 1px 4px;
+    border-radius: 999px;
+    background: rgba(67, 67, 208, .1);
+    color: var(--sc-drawer-text-color);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
 }
 .sc-discount-chip-icon{
   width:14px;
@@ -10337,9 +10447,9 @@ div:empty{
           credentials: "same-origin",
           redirect: "follow",
           cache: "no-store",
-        }).catch(() => loadDiscountUrlInIframe(target).catch?.(() => {}));
+        }).catch(() => loadDiscountUrlInIframe(target).catch?.(() => { }));
       } catch {
-        loadDiscountUrlInIframe(target).catch?.(() => {});
+        loadDiscountUrlInIframe(target).catch?.(() => { });
       }
 
       return true;
@@ -13439,10 +13549,10 @@ div:empty{
         rewardPopupCache.messageEl.textContent = rewardPopupCache.current.rewardAlreadyInCart
           ? "This free gift is already in your cart."
           : !goalMet
-          ? getRewardGoalPendingMessage(rewardPopupCache.current.kind)
-          : selectedCount >= selectionLimit
-            ? `Item selected. Click ${addLabel} to add it to your cart.`
-            : `Select ${selectionLimit - selectedCount} more free gift${selectionLimit - selectedCount === 1 ? "" : "s"} to add to your cart.`;
+            ? getRewardGoalPendingMessage(rewardPopupCache.current.kind)
+            : selectedCount >= selectionLimit
+              ? `Item selected. Click ${addLabel} to add it to your cart.`
+              : `Select ${selectionLimit - selectedCount} more free gift${selectionLimit - selectedCount === 1 ? "" : "s"} to add to your cart.`;
       }
       if (rewardPopupCache.listEl) {
         rewardPopupCache.listEl.querySelectorAll(".sc-freegift-option").forEach((row) => {
@@ -14761,12 +14871,12 @@ div:empty{
       state.messageEl.textContent = state.current.rewardAlreadyInCart
         ? "This free gift is already in your cart."
         : state.current.goalMet === false
-        ? getRewardGoalPendingMessage(state.current.kind)
-        : selectionLimit <= 0
-          ? "All free gifts are sold out right now."
-        : selectedCount >= selectionLimit
-          ? "Click Add to add your free gift to the cart."
-          : `Select ${selectionLimit - selectedCount} more free gift${selectionLimit - selectedCount === 1 ? "" : "s"} to add to your cart.`;
+          ? getRewardGoalPendingMessage(state.current.kind)
+          : selectionLimit <= 0
+            ? "All free gifts are sold out right now."
+            : selectedCount >= selectionLimit
+              ? "Click Add to add your free gift to the cart."
+              : `Select ${selectionLimit - selectedCount} more free gift${selectionLimit - selectedCount === 1 ? "" : "s"} to add to your cart.`;
     }
 
     if (!state.current.options.length) {
@@ -15153,8 +15263,8 @@ div:empty{
         state.messageEl.textContent = rewardAlreadyInCart
           ? "This free gift is already in your cart."
           : addItemGoalMet
-          ? "Select a free gift to add it to your cart."
-          : getRewardGoalPendingMessage(kind);
+            ? "Select a free gift to add it to your cart."
+            : getRewardGoalPendingMessage(kind);
       }
       if (state.addButton) {
         state.addButton.style.removeProperty("display");
