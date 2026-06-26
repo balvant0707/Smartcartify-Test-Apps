@@ -428,12 +428,13 @@ export default function Index() {
       imageAlt: "MixBox - Box & Bundle Builder",
     },
     {
-      title: "Content AI - SEO Generator",
+      title: "Nex AI SEO Product Description",
       category: "SEO",
       description:
         "Generate SEO-friendly content to improve visibility and conversion.",
-      href: "https://apps.shopify.com/content-ai-seo-generator",
-      icon: StarIcon,
+      href: "https://apps.shopify.com/ai-seo-product-description",
+      imageSrc: "/images/ai-content-logo.png",
+      imageAlt: "Nex AI SEO Product Description"
     },
   ];
 
