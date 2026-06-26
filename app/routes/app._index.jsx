@@ -1,6 +1,6 @@
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import React from "react";
-import { useFetcher, useLoaderData, useLocation, useRouteError } from "react-router";
+import { useFetcher, useLoaderData, useLocation, useNavigate, useRouteError } from "react-router";
 import { authenticate, apiVersion } from "../shopify.server";
 import prisma from "../db.server";
 import { Page, Box, Text, Modal, TextField, BlockStack, InlineStack, Card, Button } from "@shopify/polaris";
@@ -366,6 +366,7 @@ export default function Index() {
     useLoaderData() ?? {};
   const fetcher = useFetcher();
   const location = useLocation();
+  const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
   const host = params.get("host");
   const [reviewModalOpen, setReviewModalOpen] = React.useState(Boolean(shouldShowReviewPopup));
@@ -407,6 +408,9 @@ export default function Index() {
     url.searchParams.set("host", host);
     return url.pathname + url.search;
   };
+  const campaignsUrl = withHost(
+    shop ? `/app/campaigns?shop=${encodeURIComponent(shop)}` : "/app/campaigns"
+  );
 
   const dashboardApps = [
     {
@@ -668,10 +672,12 @@ export default function Index() {
                       </Text>
                       <InlineStack>
                         <Button
-                          url={withHost("/app/campaigns")}
                           variant="primary"
                           loading={campaignsLoading}
-                          onClick={() => setCampaignsLoading(true)}
+                          onClick={() => {
+                            setCampaignsLoading(true);
+                            navigate(campaignsUrl);
+                          }}
                         >
                           Create Campaigns
                         </Button>
