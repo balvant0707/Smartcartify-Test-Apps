@@ -1499,7 +1499,7 @@ function CartDrawerPreview({
       }
       : { background: bg || surface || "#ffffff" };
   const isBottomSheetPreview = mobileLayout === "bottom_sheet";
-  const previewHeight = isBottomSheetPreview ? 540 : 640;
+  const previewHeight = isBottomSheetPreview ? 540 : 760;
   const previewRadius = Math.max(r, 12);
 
   const ProductImage = ({ src, alt, size = 54 }) => (

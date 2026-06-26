@@ -144,6 +144,9 @@
     discount: `<svg viewBox="0 0 20 20" class="Polaris-Icon__Svg" focusable="false" aria-hidden="true"><path d="M12.78 8.28a.75.75 0 0 0-1.06-1.06l-4.5 4.5a.75.75 0 1 0 1.06 1.06l4.5-4.5Z"></path><path d="M9 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path><path d="M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path><path fill-rule="evenodd" d="M12.094 3.514c-.822-1.79-3.366-1.79-4.188 0a.804.804 0 0 1-1.011.42c-1.848-.686-3.647 1.113-2.962 2.96a.804.804 0 0 1-.419 1.012c-1.79.822-1.79 3.366 0 4.188a.805.805 0 0 1 .42 1.011c-.686 1.848 1.113 3.647 2.96 2.962a.805.805 0 0 1 1.012.419c.822 1.79 3.366 1.79 4.188 0a.805.805 0 0 1 1.011-.42c1.848.686 3.647-1.113 2.962-2.96a.805.805 0 0 1 .419-1.012c1.79-.822 1.79-3.366 0-4.188a.805.805 0 0 1-.42-1.011c.686-1.848-1.113-3.647-2.96-2.962a.805.805 0 0 1-1.012-.419Zm-2.825.626a.804.804 0 0 1 1.462 0 2.304 2.304 0 0 0 2.896 1.2.804.804 0 0 1 1.034 1.034 2.304 2.304 0 0 0 1.199 2.895.804.804 0 0 1 0 1.462 2.304 2.304 0 0 0-1.2 2.896.805.805 0 0 1-1.034 1.034 2.304 2.304 0 0 0-2.895 1.199.804.804 0 0 1-1.462 0 2.304 2.304 0 0 0-2.896-1.2.804.804 0 0 1-1.033-1.034 2.305 2.305 0 0 0-1.2-2.895.804.804 0 0 1 0-1.462 2.304 2.304 0 0 0 1.2-2.896.804.804 0 0 1 1.033-1.033 2.304 2.304 0 0 0 2.896-1.2Z"></path></svg>`,
     free: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 12"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H8V2.25C8 2.66421 7.66421 3 7.25 3C6.83579 3 6.5 2.66421 6.5 2.25V1.5H2.5C2.22386 1.5 2 1.72386 2 2V5.04268C2.2913 5.14564 2.5 5.42345 2.5 5.75C2.5 6.07655 2.2913 6.35436 2 6.45732V10C2 10.2761 2.22386 10.5 2.5 10.5H6.5V9.5C6.5 9.08579 6.83579 8.75 7.25 8.75C7.66421 8.75 8 9.08579 8 9.5V10.5H13.5C13.7761 10.5 14 10.2761 14 10V6.5H12.75C12.3358 6.5 12 6.16421 12 5.75C12 5.33579 12.3358 5 12.75 5H14V2C14 1.72386 13.7761 1.5 13.5 1.5ZM15.5 5.75V2C15.5 0.895431 14.6046 0 13.5 0H7.25H2.5C1.39543 0 0.5 0.895431 0.5 2V10C0.5 11.1046 1.39543 12 2.5 12H13.5C14.6046 12 15.5 11.1046 15.5 10V5.75ZM6.79746 3.99197C6.45366 3.23561 5.69951 2.75 4.86868 2.75C3.69632 2.75 2.75 3.70396 2.75 4.87184C2.75 6.04319 3.69915 7 4.875 7H5.73284C5.13766 7.50971 4.47708 7.92423 3.89394 8.00754C3.48389 8.06612 3.19896 8.44602 3.25754 8.85607C3.31612 9.26612 3.69602 9.55104 4.10607 9.49246C5.21669 9.3338 6.23422 8.57331 6.90944 7.9624C7.03044 7.85293 7.14433 7.74463 7.25 7.64032C7.35567 7.74463 7.46956 7.85293 7.59056 7.9624C8.26578 8.57331 9.28331 9.3338 10.3939 9.49246C10.804 9.55104 11.1839 9.26612 11.2425 8.85607C11.301 8.44602 11.0161 8.06612 10.6061 8.00754C10.0229 7.92423 9.36234 7.50971 8.76716 7H9.625C10.8009 7 11.75 6.04319 11.75 4.87184C11.75 3.70396 10.8037 2.75 9.63132 2.75C8.80049 2.75 8.04634 3.23561 7.70254 3.99197L7.25 4.98755L6.79746 3.99197ZM5.83524 5.5H4.875C4.53206 5.5 4.25 5.21926 4.25 4.87184C4.25 4.5279 4.52923 4.25 4.86868 4.25C5.1113 4.25 5.33152 4.3918 5.43191 4.61267L5.83524 5.5ZM9.625 5.5H8.66476L9.06809 4.61267C9.16848 4.3918 9.3887 4.25 9.63132 4.25C9.97077 4.25 10.25 4.5279 10.25 4.87184C10.25 5.21926 9.96794 5.5 9.625 5.5Z"></path></svg>`,
     bxgy: `<i data-lucide="shopping-bag" aria-hidden="true"></i>`,
+    freereward:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="">
+            <path d="M20 13v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-7h16zM14.5 2a3.5 3.5 0 0 1 3.163 5.001L21 7a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1l3.337.001a3.5 3.5 0 0 1 5.664-3.95A3.48 3.48 0 0 1 14.5 2zm-5 2a1.5 1.5 0 0 0-.144 2.993L9.5 7H11V5.5a1.5 1.5 0 0 0-1.356-1.493L9.5 4zm5 0l-.144.007a1.5 1.5 0 0 0-1.35 1.349L13 5.5V7h1.5l.144-.007a1.5 1.5 0 0 0 0-2.986L14.5 4z" fill="rgb(106,42,209)"></path>
+          </svg>`,
   };
   const ICON_SVG_SET = new Set(
     Object.values(ICONS).filter(
@@ -2681,9 +2684,15 @@
             } catch { }
             throw new Error(`Upsell add failed (${res.status}) ${errText}`.trim());
           }
-          await refreshFromNetwork();
+          invalidateCartCache();
+          CART = await fetchCart({ force: true });
+          PROXY = await fetchProxy(CART);
+          openDrawer();
+          renderAllFromCache();
+          document.dispatchEvent(new CustomEvent("cart:updated", { detail: { cart: CART, source: "smartcartify-upsell" } }));
         } catch (err) {
           console.error("[SmartCartify] upsell add failed:", err);
+          showCartActionMessage("Could not add this upsell product to the cart. Please try again.", "error");
         } finally {
           btn.disabled = false;
           setProgressLoading(false);
@@ -3571,9 +3580,15 @@
     const show = !!isVisible;
 
     if (show) {
-      const itemsList = drawer.querySelector(".sc-items-list");
-      if (itemsList instanceof HTMLElement) {
-        lineLoader.style.top = `${Math.max(0, Number(itemsList.offsetTop) || 0)}px`;
+      const currentOffersPanel = drawer.querySelector("[data-offers-panel]");
+      const visibleAnchor =
+        drawer.classList.contains("sc-offers-active") &&
+          currentOffersPanel instanceof HTMLElement &&
+          !currentOffersPanel.hidden
+          ? currentOffersPanel
+          : drawer.querySelector(".sc-items-list");
+      if (visibleAnchor instanceof HTMLElement) {
+        lineLoader.style.top = `${Math.max(0, Number(visibleAnchor.offsetTop) || 0)}px`;
       }
     }
 
@@ -3800,6 +3815,17 @@
       button.classList.remove("is-copied");
       button.setAttribute("aria-label", "Copy discount code");
     }, 1200);
+  };
+
+  const setOfferCodeApplyLoading = (button, isLoading) => {
+    const codebox = button?.closest?.(".sc-offer-codebox");
+    if (!codebox) return;
+    const active = !!isLoading;
+    const copyButton = codebox.querySelector("[data-offer-code-copy]");
+    const applyButton = codebox.querySelector("[data-offer-code-apply]");
+    codebox.classList.toggle("is-applying", active);
+    if (copyButton) copyButton.disabled = active;
+    if (applyButton) applyButton.disabled = active;
   };
 
   const setAnnouncementMessages = (arr) => {
@@ -5244,17 +5270,21 @@ padding: 5px 10px 0px 10px;
   border-radius:999px;
   display:grid;
   place-items:center;
-  background:var(--sc-checkout-bg);
+  border: 1px solid var(--sc-checkout-bg);
   color:var(--sc-checkout-text);
   box-shadow:0 4px 10px rgba(15,23,42,.18);
   z-index:2;
   pointer-events:none;
+  background:#ffffff;
 }
 .sc-reward-img-gift svg{
   width:15px;
   height:15px;
   display:block;
-  fill:currentColor;
+  fill:var(--sc-checkout-bg);
+}
+  .sc-item.sc-item-reward img {
+    border: 2px solid var(--sc-checkout-bg);
 }
 .sc-item.sc-item-reward .sc-img::before{
   content:none;
@@ -5724,7 +5754,7 @@ color: var(--sc-drawer-text-color);
   gap:3px;
 }
 .sc-upsell-top{
-  display:flex;
+  display:grid;
   gap:0;
   align-items:start;
   justify-content:space-between;
@@ -6320,6 +6350,33 @@ position: relative;
   width:16px;
   height:16px;
   display:block;
+}
+.sc-offer-codebox.is-applying .sc-offer-copy-icon svg{
+  display:none;
+}
+.sc-offer-codebox.is-applying .sc-offer-copy-icon::after{
+  content:"";
+  width:14px;
+  height:14px;
+  display:block;
+  border:2px solid rgba(107,114,128,.25);
+  border-top-color:currentColor;
+  border-radius:999px;
+  animation:scSpin .75s linear infinite;
+}
+.sc-offer-apply-icon{
+  width:14px;
+  height:14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+}
+.sc-offer-apply-icon svg{
+  width:14px;
+  height:14px;
+  display:block;
+  fill:currentColor;
 }
 .sc-offer-copied-text{
   position:absolute;
@@ -8222,6 +8279,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   display:flex !important;
   align-items:center !important;
   justify-content:center !important;
+  gap:5px !important;
   min-height:36px !important;
   border:0 !important;
   border-radius:0 !important;
@@ -8813,7 +8871,12 @@ div:empty{
       const code = trimToNull(codeApplyButton.getAttribute("data-offer-code-apply"));
       if (code) {
         if (discountInput) discountInput.value = code;
-        await applyDiscountCode(code, { showValidationPopup: true });
+        setOfferCodeApplyLoading(codeApplyButton, true);
+        try {
+          await applyDiscountCode(code, { showValidationPopup: true });
+        } finally {
+          setOfferCodeApplyLoading(codeApplyButton, false);
+        }
       }
       return;
     }
@@ -9796,6 +9859,7 @@ div:empty{
       .map(
         (code) => `
           <span class="sc-discount-chip">
+            
             <span>${safe(String(code).toUpperCase())}</span>
             <button class="sc-discount-chip-remove" type="button" data-discount-remove="${safe(code)}" aria-label="Remove discount code ${safe(code)}">&times;</button>
           </span>
@@ -10454,6 +10518,7 @@ div:empty{
       suppressAutoRewardPopups(3200);
       await refreshFromNetwork();
       renderAllFromCache();
+      if (discountInput) discountInput.value = "";
 
       if (discountMsg) discountMsg.style.color = "#16a34a";
       setDiscountMessage(`Discount applied: ${code}`);
@@ -11492,6 +11557,7 @@ div:empty{
       offersPanel.innerHTML = `<div class="sc-offers-empty">No offers configured yet.</div>`;
       return;
     }
+    const applyCodeIcon = `<span class="sc-offer-apply-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.9 2.1l9.899 1.415 1.414 9.9-9.192 9.192a1 1 0 0 1-1.414 0l-9.9-9.9a1 1 0 0 1 0-1.414L10.9 2.1zm2.828 8.486a2 2 0 1 0 2.828-2.829 2 2 0 0 0-2.828 2.829z" fill="currentColor"></path></svg></span>`;
 
     offersPanel.innerHTML = rows.map((offer, index) => {
       const actionHtml = offer.type === "code"
@@ -11506,7 +11572,7 @@ div:empty{
               </span>
               <span class="sc-offer-copied-text">Copied</span>
             </button>
-            <button class="sc-offer-code-apply" type="button" data-offer-code-apply="${safe(offer.code)}"${offer.applied ? " disabled" : ""}>${safe(offer.action || "Apply Code")}</button>
+            <button class="sc-offer-code-apply" type="button" data-offer-code-apply="${safe(offer.code)}"${offer.applied ? " disabled" : ""}>${applyCodeIcon}<span>${safe(offer.action || "Apply Code")}</span></button>
           </span>`
         : offer.action
           ? `<button class="sc-offer-action" type="button" data-offer-action="${index}">${safe(offer.action)}</button>`
@@ -11767,6 +11833,7 @@ div:empty{
 
   const renderStaticOffersPanel = () => {
     if (!offersPanel) return;
+    const applyCodeIcon = `<span class="sc-offer-apply-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.9 2.1l9.899 1.415 1.414 9.9-9.192 9.192a1 1 0 0 1-1.414 0l-9.9-9.9a1 1 0 0 1 0-1.414L10.9 2.1zm2.828 8.486a2 2 0 1 0 2.828-2.829 2 2 0 0 0-2.828 2.829z" fill="currentColor"></path></svg></span>`;
     offersPanel.innerHTML = `
       <div class="sc-offer-row">
         <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("code")}</span>
@@ -11785,7 +11852,7 @@ div:empty{
             </span>
             <span class="sc-offer-copied-text">Copied</span>
           </button>
-          <button class="sc-offer-code-apply" type="button" data-offer-code-apply="">Apply Code</button>
+          <button class="sc-offer-code-apply" type="button" data-offer-code-apply="">${applyCodeIcon}<span>Apply Code</span></button>
         </span>
       </div>
       <div class="sc-offer-row">
@@ -12330,7 +12397,7 @@ div:empty{
         const isBxgyGift = String(props?.[BXGY_GIFT_PROPERTY] || "").trim().toLowerCase() === "true";
         const isReward = isFreeGift || isBxgyGift;
         const rewardImageBadge = isReward
-          ? `<span class="sc-reward-img-gift" aria-hidden="true">${ICONS.gift || ""}</span>`
+          ? `<span class="sc-reward-img-gift" aria-hidden="true">${ICONS.freereward || ""}</span>`
           : "";
         const img = `${rewardImageBadge}${it.image ? `<img src="${safe(it.image)}" alt="${safe(it.product_title)}" loading="lazy">` : ""}`;
 
