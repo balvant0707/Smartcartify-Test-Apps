@@ -368,16 +368,7 @@ export default function RuleUpsell() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [leaveAfterDraftSave, setLeaveAfterDraftSave] = useState(false);
-
-  useEffect(() => {
-    if (actionData?.success && navigation.state === "idle" && leaveAfterDraftSave) {
-      navigate(withHost("/app/campaigns"));
-      return;
-    }
-    if (actionData?.success && navigation.state === "idle") {
-      navigate(withHost("/app/campaigns"));
-    }
-  }, [actionData, leaveAfterDraftSave, navigation.state]);
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
 
   const currentSnapshot = JSON.stringify({
     enabled,
@@ -402,7 +393,19 @@ export default function RuleUpsell() {
     selectedProductIds: parseStoredIds(r?.selectedProductIds),
     selectedCollectionIds: parseStoredIds(r?.selectedCollectionIds),
   });
-  const hasUnsavedChanges = currentSnapshot !== initialSnapshot;
+  const hasUnsavedChanges = currentSnapshot !== (savedSnapshot ?? initialSnapshot);
+
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle" && leaveAfterDraftSave) {
+      navigate(withHost("/app/campaigns"));
+      return;
+    }
+    if (actionData?.success && navigation.state === "idle") {
+      setSavedSnapshot(currentSnapshot);
+      setLeaveModalOpen(false);
+      navigate(withHost("/app/campaigns"));
+    }
+  }, [actionData, currentSnapshot, leaveAfterDraftSave, navigate, navigation.state]);
 
   const handleSave = () => {
     submit(

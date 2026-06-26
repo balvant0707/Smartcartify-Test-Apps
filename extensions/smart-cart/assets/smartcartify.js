@@ -1,4 +1,4 @@
-﻿(() => {
+﻿﻿(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -8342,7 +8342,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   inset:0;
   width:100%;
   height:100%;
-  background:var(--sc-line-loader-track, rgba(67,67,208,.18));
+  background: #ffffff;
   overflow:hidden !important;
   border-radius:0;
 }
@@ -8551,8 +8551,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 .smartcartify-cart-drawer .sc-dot-wrap.just-done .sc-dot-bubble{
   animation:scMilestoneCheckPop .34s cubic-bezier(.2,.9,.2,1.25) both;
 }
-.smartcartify-cart-drawer div:empty,
-.sc-atc-bar div:empty{
+div:empty{
   display:block !important;
 }
 

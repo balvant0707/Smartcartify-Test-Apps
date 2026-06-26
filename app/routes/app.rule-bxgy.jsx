@@ -876,6 +876,7 @@ export default function RuleBxgy() {
   const [openSection, setOpenSection] = useState("rewards");
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [leaveAfterDraftSave, setLeaveAfterDraftSave] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
 
   useEffect(() => {
     const maximum = Math.max(1, rewardProductIds.length);
@@ -1027,18 +1028,6 @@ export default function RuleBxgy() {
           }
           : { open: false };
 
-  useEffect(() => {
-    if (actionData?.success && navigation.state === "idle" && leaveAfterDraftSave) {
-      navigate(withHost("/app/campaigns"));
-      return;
-    }
-    if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
-      const idParam = `id=${encodeURIComponent(actionData.id)}`;
-      const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
-      navigate(`/app/rule-bxgy?${idParam}${hostParam}`, { replace: true });
-    }
-  }, [actionData, host, leaveAfterDraftSave, navigate, navigation.state, recordId]);
-
   const currentSnapshot = JSON.stringify({
     status,
     campaignName,
@@ -1085,7 +1074,23 @@ export default function RuleBxgy() {
     endDate: r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "",
     endTime: r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59",
   });
-  const hasUnsavedChanges = currentSnapshot !== initialSnapshot;
+  const hasUnsavedChanges = currentSnapshot !== (savedSnapshot ?? initialSnapshot);
+
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle" && leaveAfterDraftSave) {
+      navigate(withHost("/app/campaigns"));
+      return;
+    }
+    if (actionData?.success && navigation.state === "idle") {
+      setSavedSnapshot(currentSnapshot);
+      setLeaveModalOpen(false);
+    }
+    if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
+      const idParam = `id=${encodeURIComponent(actionData.id)}`;
+      const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
+      navigate(`/app/rule-bxgy?${idParam}${hostParam}`, { replace: true });
+    }
+  }, [actionData, currentSnapshot, host, leaveAfterDraftSave, navigate, navigation.state, recordId]);
 
   const handleConditionChange = (nextCondition) => {
     setConditionType(nextCondition);

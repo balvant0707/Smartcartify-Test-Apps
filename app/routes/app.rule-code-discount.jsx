@@ -263,18 +263,7 @@ export default function RuleCodeDiscount() {
   const [formErrors, setFormErrors] = useState({});
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [leaveAfterDraftSave, setLeaveAfterDraftSave] = useState(false);
-
-  useEffect(() => {
-    if (actionData?.success && navigation.state === "idle" && leaveAfterDraftSave) {
-      navigate(withHost("/app/campaigns"));
-      return;
-    }
-    if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
-      const idParam = `id=${encodeURIComponent(actionData.id)}`;
-      const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
-      navigate(`/app/rule-code-discount?${idParam}${hostParam}`, { replace: true });
-    }
-  }, [actionData, host, leaveAfterDraftSave, navigate, navigation.state, recordId]);
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
 
   const currentSnapshot = JSON.stringify({
     codeCampaignName,
@@ -320,7 +309,23 @@ export default function RuleCodeDiscount() {
     customerTarget: r?.customerTarget ?? "all",
     customerTags: r?.customerTags ?? "",
   });
-  const hasUnsavedChanges = currentSnapshot !== initialSnapshot;
+  const hasUnsavedChanges = currentSnapshot !== (savedSnapshot ?? initialSnapshot);
+
+  useEffect(() => {
+    if (actionData?.success && navigation.state === "idle" && leaveAfterDraftSave) {
+      navigate(withHost("/app/campaigns"));
+      return;
+    }
+    if (actionData?.success && navigation.state === "idle") {
+      setSavedSnapshot(currentSnapshot);
+      setLeaveModalOpen(false);
+    }
+    if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
+      const idParam = `id=${encodeURIComponent(actionData.id)}`;
+      const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
+      navigate(`/app/rule-code-discount?${idParam}${hostParam}`, { replace: true });
+    }
+  }, [actionData, currentSnapshot, host, leaveAfterDraftSave, navigate, navigation.state, recordId]);
 
   const getDiscountValueError = (nextValue = value, nextValueType = valueType) => {
     const numericDiscountValue = Number(nextValue || 0);
