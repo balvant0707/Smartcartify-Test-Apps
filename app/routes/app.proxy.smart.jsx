@@ -1249,6 +1249,12 @@ const analyticsModelByType = {
   freegift: prisma.freeGiftRule,
   freeGift: prisma.freeGiftRule,
   bxgy: prisma.bxgyRule,
+  cartgoal: prisma.cartGoalRule,
+  cartGoal: prisma.cartGoalRule,
+  "cart-goal": prisma.cartGoalRule,
+  upsell: prisma.upsellSettings,
+  upsellproduct: prisma.upsellSettings,
+  "upsell-product": prisma.upsellSettings,
 };
 
 export const action = async ({ request }) => {

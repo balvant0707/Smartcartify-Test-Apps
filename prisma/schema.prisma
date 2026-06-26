@@ -308,6 +308,8 @@ model UpsellSettings {
   buttonText            String?  @db.VarChar(255)
   selectedProductIds    String?  @db.LongText
   selectedCollectionIds String?  @db.LongText
+  analyticsImpressions  Int      @default(0)
+  analyticsConversions  Int      @default(0)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

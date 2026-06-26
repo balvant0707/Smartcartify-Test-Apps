@@ -121,12 +121,12 @@ const conversionRate = (conversions, impressions) => {
   return (toNumber(conversions) / views) * 100;
 };
 
-const normalizeRuleRows = (rows = [], type, fallbackName) =>
+const normalizeRuleRows = (rows = [], type, fallbackName, options = {}) =>
   rows.map((row) => ({
     id: row.id,
     type,
     enabled: Boolean(row.enabled),
-    name: row.campaignName || `${fallbackName} #${row.id}`,
+    name: options.name ? options.name(row) : row.campaignName || `${fallbackName} #${row.id}`,
     priority: toNumber(row.priority),
     customerTarget: row.customerTarget || "all",
     impressions: toNumber(row.analyticsImpressions),
@@ -145,20 +145,80 @@ const summarizeType = (rows = [], label) => {
   };
 };
 
+const queryUpsellAnalytics = async (shop) => {
+  try {
+    const row = await prisma.upsellSettings.findUnique({
+      where: { shop },
+      select: {
+        id: true,
+        enabled: true,
+        sectionTitle: true,
+        analyticsImpressions: true,
+        analyticsConversions: true,
+      },
+    });
+    if (!row) return [];
+    return [{
+      id: row.id,
+      type: "Upsell Product",
+      enabled: Boolean(row.enabled),
+      name: row.sectionTitle || "Upsell Product",
+      priority: 0,
+      customerTarget: "all",
+      impressions: toNumber(row.analyticsImpressions),
+      conversions: toNumber(row.analyticsConversions),
+      rate: conversionRate(row.analyticsConversions, row.analyticsImpressions),
+    }];
+  } catch {
+    return [];
+  }
+};
+
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
   try {
-    const [discountRows, bxgyRows] =
+    const [
+      shippingRows,
+      automaticDiscountRows,
+      codeDiscountRows,
+      freeGiftRows,
+      bxgyRows,
+      cartGoalRows,
+      upsellRows,
+    ] =
       await Promise.all([
+        queryRules(prisma.shippingRule, shop),
+        queryRules(prisma.discountRule, shop, { type: { not: "code" } }),
         queryRules(prisma.discountRule, shop, { type: "code" }),
+        queryRules(prisma.freeGiftRule, shop),
         queryRules(prisma.bxgyRule, shop),
+        queryRules(prisma.cartGoalRule, shop),
+        queryUpsellAnalytics(shop),
       ]);
 
-    const discounts = normalizeRuleRows(discountRows, "Code discount", "Code discount rule");
+    const shipping = normalizeRuleRows(shippingRows, "Shipping Rule", "Shipping Rule");
+    const automaticDiscounts = normalizeRuleRows(
+      automaticDiscountRows,
+      "Automatic Discount",
+      "Automatic Discount"
+    );
+    const codeDiscounts = normalizeRuleRows(codeDiscountRows, "Code Discount", "Code Discount");
+    const freeGifts = normalizeRuleRows(freeGiftRows, "Free Product", "Free Product");
     const bxgy = normalizeRuleRows(bxgyRows, "BXGY", "BXGY rule");
-    const rules = [...discounts, ...bxgy].sort((a, b) => {
+    const cartGoals = normalizeRuleRows(cartGoalRows, "Cart Goal", "Cart Goal", {
+      name: (row) => row.campaignName || `Cart Goal #${row.id}`,
+    });
+    const rules = [
+      ...shipping,
+      ...automaticDiscounts,
+      ...codeDiscounts,
+      ...freeGifts,
+      ...bxgy,
+      ...cartGoals,
+      ...upsellRows,
+    ].sort((a, b) => {
       if (b.conversions !== a.conversions) return b.conversions - a.conversions;
       if (b.impressions !== a.impressions) return b.impressions - a.impressions;
       return b.priority - a.priority;
@@ -180,8 +240,13 @@ export const loader = async ({ request }) => {
         conversionRate: conversionRate(totalConversions, totalImpressions),
       },
       byType: [
-        summarizeType(discounts, "Code discount"),
+        summarizeType(shipping, "Shipping Rule"),
+        summarizeType(automaticDiscounts, "Automatic Discount"),
+        summarizeType(codeDiscounts, "Code Discount"),
+        summarizeType(freeGifts, "Free Product"),
         summarizeType(bxgy, "BXGY"),
+        summarizeType(cartGoals, "Cart Goal"),
+        summarizeType(upsellRows, "Upsell Product"),
       ],
       topRule,
       rules,
@@ -222,6 +287,14 @@ export const action = async ({ request }) => {
           data: { analyticsImpressions: 0, analyticsConversions: 0 },
         }),
         prisma.bxgyRule.updateMany({
+          where: { shop },
+          data: { analyticsImpressions: 0, analyticsConversions: 0 },
+        }),
+        prisma.cartGoalRule.updateMany({
+          where: { shop },
+          data: { analyticsImpressions: 0, analyticsConversions: 0 },
+        }),
+        prisma.upsellSettings.updateMany({
           where: { shop },
           data: { analyticsImpressions: 0, analyticsConversions: 0 },
         }),

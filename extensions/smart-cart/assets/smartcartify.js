@@ -930,6 +930,13 @@
         rule?.min_purchase ??
         rule?.minAmount ??
         rule?.min_amount;
+    if (type === "cartgoal" || type === "cart-goal") {
+      const goals = parseArrayish(rule?.goals ?? rule?.Goals);
+      raw = goals
+        .map((goal) => Number(goal?.goal ?? goal?.Goal ?? goal?.amount ?? goal?.Amount))
+        .filter((goal) => Number.isFinite(goal) && goal > 0)
+        .sort((a, b) => a - b)[0];
+    }
 
     const n = Number(raw);
     return Number.isFinite(n) ? n : null;
@@ -1685,6 +1692,7 @@
   const getUpsellSettings = () => {
     const raw = PROXY?.upsellSettings || {};
     return {
+      id: raw.id ?? raw.ruleId ?? raw.rule_id ?? null,
       enabled: to01(raw.enabled) === 1,
       showAsSlider: to01(raw.showAsSlider) === 1,
       autoplay: to01(raw.autoplay) === 1,
@@ -2645,6 +2653,10 @@
     }
 
     wrap.hidden = false;
+    const upsellAnalyticsId = getAnalyticsRuleId(settings);
+    if (upsellAnalyticsId) {
+      sendAnalyticsEvent("impression", "upsell", upsellAnalyticsId);
+    }
     wrap.style.setProperty("--sc-upsell-bg", settings.backgroundColor || "var(--sc-drawer-bg, #ffffff)");
     wrap.style.setProperty("--sc-upsell-text", settings.textColor || "#111827");
     wrap.style.setProperty("--sc-upsell-button-bg", settings.buttonColor || "#4343d0");
@@ -2867,6 +2879,9 @@
           openDrawer();
           renderAllFromCache();
           document.dispatchEvent(new CustomEvent("cart:updated", { detail: { cart: CART, source: "smartcartify-upsell" } }));
+          if (upsellAnalyticsId) {
+            sendAnalyticsEvent("conversion", "upsell", upsellAnalyticsId);
+          }
         } catch (err) {
           console.error("[SmartCartify] upsell add failed:", err);
           showCartActionMessage("Could not add this upsell product to the cart. Please try again.", "error");
@@ -3128,6 +3143,7 @@
     addRows("shipping", getProxyArray(PROXY, ["shippingRules", "shippingRule", "shippingrule"]));
     addRows("discount", getProxyArray(PROXY, ["discountRules", "discountRule", "discountrule"]));
     addRows("free", getProxyArray(PROXY, ["freeGiftRules", "freeGiftRule", "freegiftrule"]));
+    addRows("cartgoal", getProxyArray(PROXY, CART_GOAL_PROXY_KEYS));
     addRows("bxgy", getProxyArray(PROXY, [
       "buyxgetyRules",
       "buyxgetyRule",
@@ -3167,10 +3183,15 @@
   };
 
   const recordCompletedRuleConversions = () => {
-    const subtotalCents = Number(CART?.items_subtotal_price || 0);
     getAnalyticsRules().forEach(({ type, id, rule }) => {
-      const goal = goalToCents(getGoalRupees(type, rule));
-      if (goal != null && subtotalCents < goal) return;
+      const progressMetric = getRuleProgressMetric(type, rule);
+      if (
+        progressMetric?.goal != null &&
+        Number.isFinite(Number(progressMetric.goal)) &&
+        Number(progressMetric.current || 0) < Number(progressMetric.goal)
+      ) {
+        return;
+      }
       sendAnalyticsEvent("conversion", type, id);
     });
   };
@@ -12985,8 +13006,10 @@ div:empty{
       null
     );
 
-  const isRewardVariantUnavailable = (variant) => {
+  const isRewardVariantUnavailable = (variant, kind = "free") => {
     if (!variant) return true;
+    const normalizedKind = String(kind || "free").toLowerCase();
+    const ignoreInventoryQuantity = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
     const direct =
       variant.available ??
       variant.available_for_sale ??
@@ -13001,7 +13024,7 @@ div:empty{
       variant.quantityAvailable ??
       variant.quantity ??
       variant.qty;
-    if (inventory != null && Number.isFinite(Number(inventory)) && Number(inventory) <= 0) {
+    if (!ignoreInventoryQuantity && inventory != null && Number.isFinite(Number(inventory)) && Number(inventory) <= 0) {
       const policy = String(
         variant.inventory_policy ??
         variant.inventoryPolicy ??
@@ -13041,7 +13064,7 @@ div:empty{
     }
 
     // Prevent the Shopify 422 request when we already know the chosen reward variant is unavailable.
-    if (isRewardVariantUnavailable(variantToAdd)) {
+    if (isRewardVariantUnavailable(variantToAdd, kind)) {
       const err = new Error(getRewardAddUnavailableMessage());
       err.code = "SC_REWARD_VARIANT_UNAVAILABLE";
       err.httpStatus = 422;
@@ -14474,8 +14497,10 @@ div:empty{
     return Number.isFinite(n) ? Math.round(n * priceDivisor()) : 0;
   };
 
-  const isRewardPopupVariantSoldOut = (variant) => {
+  const isRewardPopupVariantSoldOut = (variant, kind = "free") => {
     if (!variant) return true;
+    const normalizedKind = String(kind || "free").toLowerCase();
+    const ignoreInventoryQuantity = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
     const direct =
       variant.available ??
       variant.available_for_sale ??
@@ -14490,9 +14515,9 @@ div:empty{
       variant.quantityAvailable ??
       variant.quantity ??
       variant.qty;
-    if (inventory != null && Number.isFinite(Number(inventory)) && Number(inventory) <= 0) return true;
+    if (!ignoreInventoryQuantity && inventory != null && Number.isFinite(Number(inventory)) && Number(inventory) <= 0) return true;
 
-    return isRewardVariantUnavailable(variant);
+    return isRewardVariantUnavailable(variant, kind);
   };
 
   const getSelectedRewardVariant = (option) => {
@@ -14526,7 +14551,7 @@ div:empty{
       variant: selectedVariant,
       image: trimToNull(selectedVariant?.image) || trimToNull(next.image),
       priceCents: centsFromDecimalPrice(selectedVariant?.price),
-      soldOut: isRewardPopupVariantSoldOut(selectedVariant),
+      soldOut: isRewardPopupVariantSoldOut(selectedVariant, option?.kind),
     };
   };
 
@@ -14615,9 +14640,9 @@ div:empty{
       variant ||
       null;
     if (!selectedVariant || !getVariantLegacyId(selectedVariant)) return null;
-    const soldOut = isRewardPopupVariantSoldOut(selectedVariant);
     const normalizedKind = String(kind || "free").toLowerCase();
     const isBxgyReward = normalizedKind === "bxgy" || normalizedKind === "buyxgety";
+    const soldOut = isRewardPopupVariantSoldOut(selectedVariant, normalizedKind);
     const sourceRule = !isBxgyReward && product?.__sc_source_rule ? product.__sc_source_rule : rule;
     const optionRule = isBxgyReward
       ? {
@@ -14675,6 +14700,7 @@ div:empty{
       rule: optionRule,
       ruleKey: optionRuleKey,
       slot: optionSlot,
+      kind: normalizedKind,
       variant: selectedVariant,
       variants,
       variantOptions,
@@ -15240,7 +15266,7 @@ div:empty{
     const rowsHtml = state.current.options.map((option) => {
       const selected = selectedIds.some((id) => String(id) === String(option.optionId));
       const activeVariant = selected ? getSelectedRewardVariant(option) : option.variant;
-      const soldOut = !!option.soldOut || isRewardPopupVariantSoldOut(activeVariant);
+      const soldOut = !!option.soldOut || isRewardPopupVariantSoldOut(activeVariant, option?.kind);
       const priceCents = selected ? centsFromDecimalPrice(activeVariant?.price) : option.priceCents;
       const priceHtml = priceCents > 0
         ? `<span class="sc-freegift-price">${formatMoney(priceCents, currency)}</span>`
