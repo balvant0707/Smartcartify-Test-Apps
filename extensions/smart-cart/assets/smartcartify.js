@@ -1808,10 +1808,36 @@
     );
   };
 
+  const getUpsellVariantLegacyId = (variant) =>
+    normalizeUpsellVariantLegacyId(
+      variant?.id ||
+      variant?.variantId ||
+      variant?.variant_id ||
+      variant?.admin_graphql_api_id ||
+      variant?.adminGraphqlApiId ||
+      variant?.legacyResourceId ||
+      variant?.legacy_resource_id ||
+      ""
+    );
+
+  const upsellVariantBelongsToItem = (item, variantId) => {
+    const wanted = normalizeUpsellVariantLegacyId(variantId);
+    if (!wanted) return false;
+    const variants = Array.isArray(item?.variants) ? item.variants : [];
+    if (!variants.length) return true;
+    return variants.some((variant) => getUpsellVariantLegacyId(variant) === wanted);
+  };
+
   const resolveUpsellVariantIdForAdd = async (item, rawVariantId = "") => {
     const lookupId = getUpsellProductLookupId(item);
     const direct = normalizeUpsellVariantLegacyId(rawVariantId);
-    if (direct && (!lookupId || String(direct) !== String(lookupId))) return direct;
+    if (
+      direct &&
+      (!lookupId || String(direct) !== String(lookupId)) &&
+      upsellVariantBelongsToItem(item, direct)
+    ) {
+      return direct;
+    }
 
     const fromItem = normalizeUpsellVariantLegacyId(
       item?.variantId ||
@@ -1820,7 +1846,13 @@
       item?.selected_variant_id ||
       ""
     );
-    if (fromItem && (!lookupId || String(fromItem) !== String(lookupId))) return fromItem;
+    if (
+      fromItem &&
+      (!lookupId || String(fromItem) !== String(lookupId)) &&
+      upsellVariantBelongsToItem(item, fromItem)
+    ) {
+      return fromItem;
+    }
 
     const fromVariants = pickUpsellAvailableVariantId(item?.variants, item);
     if (fromVariants) return fromVariants;
@@ -2626,14 +2658,7 @@
       const picked =
         pickedByOption ||
         variants.find((v) => {
-          const variantLegacyId = normalizeUpsellVariantLegacyId(
-            v?.id ||
-            v?.variantId ||
-            v?.variant_id ||
-            v?.admin_graphql_api_id ||
-            v?.adminGraphqlApiId ||
-            ""
-          );
+          const variantLegacyId = getUpsellVariantLegacyId(v);
           const itemLegacyId = normalizeUpsellVariantLegacyId(item?.variantId || "");
           return variantLegacyId && itemLegacyId && variantLegacyId === itemLegacyId;
         }) ||
@@ -2651,11 +2676,7 @@
       const addVariantId = available
         ? safe(
           normalizeUpsellVariantLegacyId(
-            picked?.id ||
-            picked?.variantId ||
-            picked?.variant_id ||
-            picked?.admin_graphql_api_id ||
-            picked?.adminGraphqlApiId ||
+            getUpsellVariantLegacyId(picked) ||
             (
               String(normalizeUpsellVariantLegacyId(item?.variantId || "") || "") !== String(getUpsellProductLookupId(item) || "")
                 ? item?.variantId
@@ -8741,7 +8762,7 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   .smartcartify-cart-drawer.sc-offers-active .sc-offer-row{
     grid-template-columns:52px minmax(0,1fr) !important;
     gap:10px !important;
-    min-height:0 !important;
+    min-height:auto !important;
     padding:12px 10px !important;
   }
   .smartcartify-cart-drawer.sc-offers-active .sc-offer-icon,

@@ -708,6 +708,9 @@ const mapAdminProducts = (products = []) =>
       : [];
     return {
       id: p?.id ?? null,
+      productId: p?.id ?? null,
+      handle: p?.handle ?? "",
+      admin_graphql_api_id: p?.admin_graphql_api_id ?? null,
       title: p?.title ?? "",
       image: image || null,
       options,
