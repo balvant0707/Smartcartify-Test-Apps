@@ -2660,11 +2660,13 @@
           const picked = variants[0] || null;
           variantId = picked?.id || item?.variantId || null;
         }
-        const legacyId = normalizeVariantId(variantId);
+        const legacyId = normalizeVariantId(variantId) || gidToId(variantId) || trimToNull(variantId);
         if (!legacyId) return;
         try {
           setProgressLoading(true);
           btn.disabled = true;
+          btn.classList.add("loading");
+          btn.setAttribute("aria-busy", "true");
           const body = new URLSearchParams();
           body.set("id", legacyId);
           body.set("quantity", "1");
@@ -2695,6 +2697,8 @@
           showCartActionMessage("Could not add this upsell product to the cart. Please try again.", "error");
         } finally {
           btn.disabled = false;
+          btn.classList.remove("loading");
+          btn.removeAttribute("aria-busy");
           setProgressLoading(false);
         }
       });
@@ -4869,9 +4873,33 @@ padding: 5px 10px 0px 10px;
   height:4px;
   border-radius:999px;
   background:var(--sc-line-loader-accent, var(--sc-progress, #4343d0));
-  box-shadow:0 0 10px var(--sc-line-loader-accent, var(--sc-progress, #4343d0));
+  box-shadow:
+    -26px 0 18px color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 45%, transparent),
+    26px 0 18px color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 45%, transparent),
+    0 0 12px var(--sc-line-loader-accent, var(--sc-progress, #4343d0));
   animation:scLineLoader 1.05s cubic-bezier(.42,0,.18,1) infinite !important;
   will-change:left;
+  filter:drop-shadow(-20px 0 7px color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 45%, transparent))
+    drop-shadow(20px 0 7px color-mix(in srgb, var(--sc-line-loader-accent, var(--sc-progress, #4343d0)) 45%, transparent));
+}
+.sc-line-loader-runner::before,
+.sc-line-loader-runner::after{
+  content:"";
+  position:absolute;
+  top:0;
+  width:46px;
+  height:100%;
+  border-radius:999px;
+  background:var(--sc-line-loader-accent, var(--sc-progress, #4343d0));
+  opacity:.45;
+  filter:blur(8px);
+  pointer-events:none;
+}
+.sc-line-loader-runner::before{
+  right:100%;
+}
+.sc-line-loader-runner::after{
+  left:100%;
 }
 @keyframes scLineLoader{
   0%{left:-48%;}
@@ -5859,6 +5887,20 @@ color: var(--sc-drawer-text-color);
   white-space: nowrap;
   cursor:pointer;
 }
+.sc-upsell-btn.loading{
+  cursor:wait;
+  opacity:.82;
+}
+.sc-upsell-btn.loading .sc-upsell-btn-icon{
+  display:inline-block;
+  width:14px;
+  height:14px;
+  font-size:0;
+  border:2px solid rgba(255,255,255,.36);
+  border-top-color:currentColor;
+  border-radius:999px;
+  animation:scSpin .75s linear infinite;
+}
 .sc-upsell-btn-icon{
   display:none;
 }
@@ -6015,6 +6057,21 @@ color: var(--sc-drawer-text-color);
   font-size:var(--sc-small-font-size);
   font-weight:800;
   line-height:1;
+}
+.sc-discount-chip-icon{
+  width:14px;
+  height:14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:#111827;
+  flex:0 0 auto;
+}
+.sc-discount-chip-icon svg{
+  width:14px;
+  height:14px;
+  display:block;
+  fill:currentColor;
 }
 .sc-discount-chip-remove{
   width:18px;
@@ -6363,20 +6420,6 @@ position: relative;
   border-top-color:currentColor;
   border-radius:999px;
   animation:scSpin .75s linear infinite;
-}
-.sc-offer-apply-icon{
-  width:14px;
-  height:14px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  flex:0 0 auto;
-}
-.sc-offer-apply-icon svg{
-  width:14px;
-  height:14px;
-  display:block;
-  fill:currentColor;
 }
 .sc-offer-copied-text{
   position:absolute;
@@ -9824,6 +9867,8 @@ div:empty{
     return applied;
   };
 
+  const discountTagIconSvg = `<span class="sc-discount-chip-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.9 2.1l9.899 1.415 1.414 9.9-9.192 9.192a1 1 0 0 1-1.414 0l-9.9-9.9a1 1 0 0 1 0-1.414L10.9 2.1zm2.828 8.486a2 2 0 1 0 2.828-2.829 2 2 0 0 0-2.828 2.829z" fill="currentColor"></path></svg></span>`;
+
   const renderAppliedDiscountChips = () => {
     if (!discountAppliedWrap) return;
 
@@ -9859,7 +9904,7 @@ div:empty{
       .map(
         (code) => `
           <span class="sc-discount-chip">
-            
+            ${discountTagIconSvg}
             <span>${safe(String(code).toUpperCase())}</span>
             <button class="sc-discount-chip-remove" type="button" data-discount-remove="${safe(code)}" aria-label="Remove discount code ${safe(code)}">&times;</button>
           </span>
@@ -11557,8 +11602,6 @@ div:empty{
       offersPanel.innerHTML = `<div class="sc-offers-empty">No offers configured yet.</div>`;
       return;
     }
-    const applyCodeIcon = `<span class="sc-offer-apply-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.9 2.1l9.899 1.415 1.414 9.9-9.192 9.192a1 1 0 0 1-1.414 0l-9.9-9.9a1 1 0 0 1 0-1.414L10.9 2.1zm2.828 8.486a2 2 0 1 0 2.828-2.829 2 2 0 0 0-2.828 2.829z" fill="currentColor"></path></svg></span>`;
-
     offersPanel.innerHTML = rows.map((offer, index) => {
       const actionHtml = offer.type === "code"
         ? `<span class="sc-offer-codebox">
@@ -11572,7 +11615,7 @@ div:empty{
               </span>
               <span class="sc-offer-copied-text">Copied</span>
             </button>
-            <button class="sc-offer-code-apply" type="button" data-offer-code-apply="${safe(offer.code)}"${offer.applied ? " disabled" : ""}>${applyCodeIcon}<span>${safe(offer.action || "Apply Code")}</span></button>
+            <button class="sc-offer-code-apply" type="button" data-offer-code-apply="${safe(offer.code)}"${offer.applied ? " disabled" : ""}>${safe(offer.action || "Apply Code")}</button>
           </span>`
         : offer.action
           ? `<button class="sc-offer-action" type="button" data-offer-action="${index}">${safe(offer.action)}</button>`
@@ -11833,7 +11876,6 @@ div:empty{
 
   const renderStaticOffersPanel = () => {
     if (!offersPanel) return;
-    const applyCodeIcon = `<span class="sc-offer-apply-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10.9 2.1l9.899 1.415 1.414 9.9-9.192 9.192a1 1 0 0 1-1.414 0l-9.9-9.9a1 1 0 0 1 0-1.414L10.9 2.1zm2.828 8.486a2 2 0 1 0 2.828-2.829 2 2 0 0 0-2.828 2.829z" fill="currentColor"></path></svg></span>`;
     offersPanel.innerHTML = `
       <div class="sc-offer-row">
         <span class="sc-offer-icon" aria-hidden="true">${offerIconSvg("code")}</span>
@@ -11852,7 +11894,7 @@ div:empty{
             </span>
             <span class="sc-offer-copied-text">Copied</span>
           </button>
-          <button class="sc-offer-code-apply" type="button" data-offer-code-apply="">${applyCodeIcon}<span>Apply Code</span></button>
+          <button class="sc-offer-code-apply" type="button" data-offer-code-apply="">Apply Code</button>
         </span>
       </div>
       <div class="sc-offer-row">
