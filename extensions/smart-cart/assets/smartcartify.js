@@ -1919,6 +1919,38 @@
     return true;
   };
 
+  const getUpsellQuantityValue = (source) => {
+    if (!source) return null;
+    const raw =
+      source.inventory_quantity ??
+      source.inventoryQuantity ??
+      source.qtyAvailable ??
+      source.quantityAvailable ??
+      source.totalInventory ??
+      source.total_inventory ??
+      source.quantity ??
+      source.qty;
+    if (raw == null || raw === "") return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  };
+
+  const hasDisplayableUpsellQuantity = (product) => {
+    const productQty = getUpsellQuantityValue(product);
+    if (productQty != null && productQty <= 0) return false;
+
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    const variantQtyValues = variants
+      .map(getUpsellQuantityValue)
+      .filter((qty) => qty != null);
+
+    if (variantQtyValues.length && !variantQtyValues.some((qty) => qty > 0)) {
+      return false;
+    }
+
+    return true;
+  };
+
   const normalizeProxyVariants = (variants) =>
     (Array.isArray(variants) ? variants : []).map((v) => {
       const opts = Array.isArray(v?.variantOptions) ? v.variantOptions : [];
@@ -2021,7 +2053,7 @@
   };
 
   const buildUpsellItemsFromProxyProducts = (products, currency) => {
-    const list = Array.isArray(products) ? products : [];
+    const list = (Array.isArray(products) ? products : []).filter(hasDisplayableUpsellQuantity);
     return list.map((p) => {
       const variantsRaw = Array.isArray(p?.variants) ? p.variants : [];
       const variants = normalizeProxyVariants(variantsRaw);
@@ -2195,7 +2227,7 @@
 
     if (settings.recommendationMode === "auto") {
       if (Array.isArray(UPSELL_DYNAMIC) && UPSELL_DYNAMIC.length) {
-        return UPSELL_DYNAMIC;
+        return UPSELL_DYNAMIC.filter(hasDisplayableUpsellQuantity);
       }
       const fallbackProducts = Array.isArray(PROXY?.upsellProducts)
         ? PROXY.upsellProducts
@@ -2293,7 +2325,7 @@
       );
       if (!r.ok) return [];
       const data = await r.json();
-      const products = Array.isArray(data?.products) ? data.products : [];
+      const products = (Array.isArray(data?.products) ? data.products : []).filter(hasDisplayableUpsellQuantity);
       return products.map((p) => {
         const variants = Array.isArray(p?.variants) ? p.variants : [];
         const firstVariant = variants[0] || null;
