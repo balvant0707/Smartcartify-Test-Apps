@@ -54,6 +54,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { invalidateShopCache } from "./app.proxy.smart.jsx";
 import {
+  deleteAutomaticDiscount,
   upsertAutomaticBasic,
   upsertFreeShipping,
 } from "../shopify-discount.server";
@@ -539,6 +540,22 @@ async function syncCartGoalDiscounts({
   return syncedGoals;
 }
 
+async function deleteRemovedCartGoalDiscounts(admin, existingGoals, submittedGoals) {
+  const submittedGoalIds = new Set(
+    (Array.isArray(submittedGoals) ? submittedGoals : [])
+      .map((goal) => goal?.id)
+      .filter(Boolean)
+  );
+  const removedDiscountIds = (Array.isArray(existingGoals) ? existingGoals : [])
+    .filter((goal) => goal?.id && !submittedGoalIds.has(goal.id))
+    .map((goal) => goal?.shopifyDiscountId)
+    .filter(Boolean);
+
+  for (const discountId of [...new Set(removedDiscountIds)]) {
+    await deleteAutomaticDiscount(admin, discountId);
+  }
+}
+
 export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
@@ -659,6 +676,12 @@ export const action = async ({ request }) => {
     record = { id };
   } else {
     record = await prisma.cartGoalRule.create({ data });
+  }
+
+  try {
+    await deleteRemovedCartGoalDiscounts(admin, existingGoals, goals);
+  } catch (err) {
+    return { error: err?.message || "Removed Shopify discount cleanup failed" };
   }
 
   try {

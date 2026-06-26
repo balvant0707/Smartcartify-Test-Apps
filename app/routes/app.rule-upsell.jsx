@@ -366,12 +366,43 @@ export default function RuleUpsell() {
     arrowColor,
   } = UPSELL_PREVIEW_COLORS;
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [leaveAfterDraftSave, setLeaveAfterDraftSave] = useState(false);
 
   useEffect(() => {
+    if (actionData?.success && navigation.state === "idle" && leaveAfterDraftSave) {
+      navigate(withHost("/app/campaigns"));
+      return;
+    }
     if (actionData?.success && navigation.state === "idle") {
       navigate(withHost("/app/campaigns"));
     }
-  }, [actionData, navigation.state]);
+  }, [actionData, leaveAfterDraftSave, navigation.state]);
+
+  const currentSnapshot = JSON.stringify({
+    enabled,
+    showAsSlider,
+    autoplay,
+    recommendationMode,
+    sectionTitle,
+    buttonText,
+    selectionType,
+    selectedProductIds,
+    selectedCollectionIds,
+  });
+  const initialSnapshot = JSON.stringify({
+    enabled: r?.enabled !== false,
+    showAsSlider: r?.showAsSlider !== false,
+    autoplay: r?.autoplay !== false,
+    recommendationMode: r?.recommendationMode ?? "auto",
+    sectionTitle: r?.sectionTitle ?? "You may also like",
+    buttonText: r?.buttonText ?? "Add to cart",
+    selectionType: (parseStoredIds(r?.selectedCollectionIds).length > 0 && parseStoredIds(r?.selectedProductIds).length === 0)
+      ? "collections" : "products",
+    selectedProductIds: parseStoredIds(r?.selectedProductIds),
+    selectedCollectionIds: parseStoredIds(r?.selectedCollectionIds),
+  });
+  const hasUnsavedChanges = currentSnapshot !== initialSnapshot;
 
   const handleSave = () => {
     submit(
@@ -387,6 +418,37 @@ export default function RuleUpsell() {
       },
       { method: "post", encType: "application/json" }
     );
+  };
+
+  const handleSaveDraftAndLeave = () => {
+    if (navigation.state !== "idle") return;
+    setLeaveAfterDraftSave(true);
+    submit(
+      {
+        enabled: false,
+        showAsSlider,
+        autoplay,
+        recommendationMode,
+        sectionTitle,
+        buttonText,
+        selectedProductIds: selectionType === "products" ? selectedProductIds : [],
+        selectedCollectionIds: selectionType === "collections" ? selectedCollectionIds : [],
+      },
+      { method: "post", encType: "application/json" }
+    );
+  };
+
+  const handleBack = () => {
+    if (!r || hasUnsavedChanges) {
+      setLeaveModalOpen(true);
+      return;
+    }
+    navigate(withHost("/app/campaigns"));
+  };
+
+  const handleDiscardAndLeave = () => {
+    setLeaveModalOpen(false);
+    navigate(withHost("/app/campaigns"));
   };
 
   const isLoadingProducts = !productFetcher.data || productFetcher.state === "loading";
@@ -474,7 +536,7 @@ export default function RuleUpsell() {
 
   return (
     <Page
-      backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
+      backAction={{ content: "Campaigns", onAction: handleBack }}
       title="Upsell Product Rules"
       titleMetadata={enabled
         ? <Badge tone="success">Active</Badge>
@@ -1063,6 +1125,33 @@ export default function RuleUpsell() {
         loading={isLoadingCollections}
         error={collectionFetcher.data?.error || null}
       />
+      <Modal
+        open={leaveModalOpen}
+        onClose={() => setLeaveModalOpen(false)}
+        title="Save this upsell product campaign as a draft?"
+        primaryAction={{
+          content: "Save draft",
+          onAction: handleSaveDraftAndLeave,
+          loading: isSaving && leaveAfterDraftSave,
+        }}
+        secondaryActions={[
+          {
+            content: "Don't save",
+            destructive: true,
+            onAction: handleDiscardAndLeave,
+          },
+          {
+            content: "Keep editing",
+            onAction: () => setLeaveModalOpen(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            You have unsaved changes. Save this campaign as a paused draft, or leave without saving it.
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

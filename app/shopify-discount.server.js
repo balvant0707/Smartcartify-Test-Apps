@@ -401,7 +401,8 @@ function isBxgyUpdateStateConflict(error) {
   );
 }
 
-async function deleteAutomaticDiscount(admin, id) {
+export async function deleteAutomaticDiscount(admin, id) {
+  if (!id) return;
   const data = await gql(admin, AUTOMATIC_DELETE, {
     id: automaticDiscountNodeId(id),
   });

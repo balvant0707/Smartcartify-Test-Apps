@@ -6,7 +6,7 @@ import {
 import {
   Page, Text, Box, BlockStack, InlineStack, Button,
   TextField, Select, Checkbox, Collapsible, Divider,
-  Icon, RadioButton, Banner, Tabs, Badge,
+  Icon, RadioButton, Banner, Tabs, Badge, Modal,
 } from "@shopify/polaris";
 import {
   CodeIcon, SettingsIcon, EditIcon,
@@ -42,6 +42,7 @@ export const action = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const body = await request.json();
+  const saveAsDraft = body._action === "saveDraft";
   const {
     id, codeCampaignName, enabled, discountCode, valueType, value,
     triggerType, minPurchase, minQuantity,
@@ -51,7 +52,10 @@ export const action = async ({ request }) => {
     usageLimitEnabled, usageLimit, appliesOncePerCustomer,
   } = body;
 
-  const hasUsageLimit = Boolean(usageLimitEnabled);
+  const hasUsageLimit =
+    usageLimitEnabled === undefined ? true : Boolean(usageLimitEnabled);
+  const limitedToOneUsePerCustomer =
+    appliesOncePerCustomer === undefined ? true : Boolean(appliesOncePerCustomer);
   const parsedUsageLimit = parseInt(usageLimit || "", 10);
   const normalizedUsageLimit =
     hasUsageLimit && Number.isFinite(parsedUsageLimit) && parsedUsageLimit > 0
@@ -63,13 +67,13 @@ export const action = async ({ request }) => {
     type: "code",
     codeCampaignName: codeCampaignName || "Code Discount",
     campaignName: codeCampaignName || "Code Discount",
-    enabled: enabled !== false,
+    enabled: saveAsDraft ? false : enabled !== false,
     discountCode: discountCode ? String(discountCode).toUpperCase().trim() : null,
     valueType: valueType || "percent",
     value: value ? String(value) : "0",
     usageLimitEnabled: hasUsageLimit,
     usageLimit: normalizedUsageLimit,
-    appliesOncePerCustomer: Boolean(appliesOncePerCustomer),
+    appliesOncePerCustomer: limitedToOneUsePerCustomer,
     triggerType: triggerType || "amount",
     minPurchase: triggerType === "amount" ? (minPurchase ? String(minPurchase) : null) : null,
     minQuantity: triggerType === "quantity" ? (minQuantity ? String(minQuantity) : null) : null,
@@ -87,15 +91,15 @@ export const action = async ({ request }) => {
   const numericDiscountValue = Number(value || 0);
   const numericMinPurchase = Number(minPurchase || 0);
 
-  if (valueType === "percent" && numericDiscountValue > 100) {
+  if (!saveAsDraft && valueType === "percent" && numericDiscountValue > 100) {
     return { error: "Percentage discount cannot be more than 100%." };
   }
 
-  if (triggerType === "amount" && (!Number.isFinite(numericMinPurchase) || numericMinPurchase <= 0)) {
+  if (!saveAsDraft && triggerType === "amount" && (!Number.isFinite(numericMinPurchase) || numericMinPurchase <= 0)) {
     return { error: "Minimum cart value is required." };
   }
 
-  if (hasUsageLimit && !normalizedUsageLimit) {
+  if (!saveAsDraft && hasUsageLimit && !normalizedUsageLimit) {
     return { error: "Maximum discount uses must be greater than 0." };
   }
 
@@ -107,6 +111,23 @@ export const action = async ({ request }) => {
         select: { codeDiscountId: true },
       });
       existingShopifyId = existing?.codeDiscountId || null;
+    }
+
+    if (saveAsDraft) {
+      let record;
+      if (id) {
+        const existing = await prisma.discountRule.findFirst({ where: { id: parseInt(id, 10), shop } });
+        if (!existing) return { error: "Rule not found" };
+        await prisma.discountRule.updateMany({
+          where: { id: existing.id, shop },
+          data: dbData,
+        });
+        record = await prisma.discountRule.findFirst({ where: { id: existing.id, shop } });
+      } else {
+        record = await prisma.discountRule.create({ data: dbData });
+      }
+      invalidateShopCache(shop);
+      return { success: true, draft: true, id: record.id };
     }
 
     if (!discountCode) {
@@ -126,7 +147,7 @@ export const action = async ({ request }) => {
       minSubtotal: triggerType === "amount" ? (minPurchase || null) : null,
       minQuantity: triggerType === "quantity" ? (minQuantity || null) : null,
       usageLimit: normalizedUsageLimit,
-      appliesOncePerCustomer: Boolean(appliesOncePerCustomer),
+      appliesOncePerCustomer: limitedToOneUsePerCustomer,
     });
     if (shopifyId) dbData.codeDiscountId = shopifyId;
 
@@ -212,9 +233,13 @@ export default function RuleCodeDiscount() {
   const [discountCode, setDiscountCode] = useState(r?.discountCode ?? "");
   const [valueType, setValueType] = useState(r?.valueType ?? "percent");
   const [value, setValue] = useState(r?.value ?? "");
-  const [usageLimitEnabled, setUsageLimitEnabled] = useState(Boolean(r?.usageLimitEnabled || r?.usageLimit));
+  const [usageLimitEnabled, setUsageLimitEnabled] = useState(
+    r ? Boolean(r?.usageLimitEnabled || r?.usageLimit) : true
+  );
   const [usageLimit, setUsageLimit] = useState(r?.usageLimit ?? "100");
-  const [appliesOncePerCustomer, setAppliesOncePerCustomer] = useState(Boolean(r?.appliesOncePerCustomer));
+  const [appliesOncePerCustomer, setAppliesOncePerCustomer] = useState(
+    r ? Boolean(r?.appliesOncePerCustomer) : true
+  );
   const [triggerTabIdx, setTriggerTabIdx] = useState(r?.triggerType === "quantity" ? 1 : 0);
   const triggerType = triggerTabIdx === 0 ? "amount" : "quantity";
   const [minPurchase, setMinPurchase] = useState(r?.minPurchase ?? "");
@@ -236,14 +261,66 @@ export default function RuleCodeDiscount() {
   const [customerTarget, setCustomerTarget] = useState(r?.customerTarget ?? "all");
   const [customerTags, setCustomerTags] = useState(r?.customerTags ?? "");
   const [formErrors, setFormErrors] = useState({});
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [leaveAfterDraftSave, setLeaveAfterDraftSave] = useState(false);
 
   useEffect(() => {
+    if (actionData?.success && navigation.state === "idle" && leaveAfterDraftSave) {
+      navigate(withHost("/app/campaigns"));
+      return;
+    }
     if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
       const idParam = `id=${encodeURIComponent(actionData.id)}`;
       const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
       navigate(`/app/rule-code-discount?${idParam}${hostParam}`, { replace: true });
     }
-  }, [actionData, host, navigate, navigation.state, recordId]);
+  }, [actionData, host, leaveAfterDraftSave, navigate, navigation.state, recordId]);
+
+  const currentSnapshot = JSON.stringify({
+    codeCampaignName,
+    enabled,
+    discountCode,
+    valueType,
+    value,
+    usageLimitEnabled,
+    usageLimit,
+    appliesOncePerCustomer,
+    triggerType,
+    minPurchase,
+    minQuantity,
+    progressTextBefore,
+    progressTextAfter,
+    startDate,
+    startTime,
+    hasEndDate,
+    endDate,
+    endTime,
+    customerTarget,
+    customerTags,
+  });
+  const initialSnapshot = JSON.stringify({
+    codeCampaignName: r?.codeCampaignName ?? r?.campaignName ?? "Code Discount",
+    enabled: r?.enabled !== false,
+    discountCode: r?.discountCode ?? "",
+    valueType: r?.valueType ?? "percent",
+    value: r?.value ?? "",
+    usageLimitEnabled: r ? Boolean(r?.usageLimitEnabled || r?.usageLimit) : true,
+    usageLimit: r?.usageLimit ?? "100",
+    appliesOncePerCustomer: r ? Boolean(r?.appliesOncePerCustomer) : true,
+    triggerType: r?.triggerType === "quantity" ? "quantity" : "amount",
+    minPurchase: r?.minPurchase ?? "",
+    minQuantity: r?.minQuantity ?? "",
+    progressTextBefore: r?.progressTextBefore ?? "Add {{goal}} more to use code {{discount_code}} and get {{discount_value_with_off}}!",
+    progressTextAfter: r?.progressTextAfter ?? "{{discount_value_with_off}} unlocked with code {{discount_code}}!",
+    startDate: r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today,
+    startTime: r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00",
+    hasEndDate: !!r?.endsAt,
+    endDate: r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "",
+    endTime: r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59",
+    customerTarget: r?.customerTarget ?? "all",
+    customerTags: r?.customerTags ?? "",
+  });
+  const hasUnsavedChanges = currentSnapshot !== initialSnapshot;
 
   const getDiscountValueError = (nextValue = value, nextValueType = valueType) => {
     const numericDiscountValue = Number(nextValue || 0);
@@ -313,6 +390,48 @@ export default function RuleCodeDiscount() {
     );
   };
 
+  const handleBack = () => {
+    if (!recordId || hasUnsavedChanges) {
+      setLeaveModalOpen(true);
+      return;
+    }
+    navigate(withHost("/app/campaigns"));
+  };
+
+  const handleDiscardAndLeave = () => {
+    setLeaveModalOpen(false);
+    navigate(withHost("/app/campaigns"));
+  };
+
+  const handleSaveDraftAndLeave = () => {
+    if (navigation.state !== "idle") return;
+    setLeaveAfterDraftSave(true);
+    submit(
+      {
+        _action: "saveDraft",
+        id: recordId,
+        codeCampaignName,
+        enabled: false,
+        discountCode,
+        valueType,
+        value,
+        usageLimitEnabled,
+        usageLimit: usageLimitEnabled ? usageLimit : null,
+        appliesOncePerCustomer,
+        triggerType,
+        minPurchase: triggerType === "amount" ? minPurchase : null,
+        minQuantity: triggerType === "quantity" ? minQuantity : null,
+        progressTextBefore,
+        progressTextAfter,
+        startsAt: startDate ? new Date(`${startDate}T${startTime}`).toISOString() : null,
+        endsAt: hasEndDate && endDate ? new Date(`${endDate}T${endTime}`).toISOString() : null,
+        customerTarget,
+        customerTags: (customerTarget === "has_tag" || customerTarget === "no_tag") ? customerTags : null,
+      },
+      { method: "post", encType: "application/json" }
+    );
+  };
+
   const discountLabel = formatDiscountValueWithOff(valueType, value);
 
   const [sliderValue, setSliderValue] = useState(50);
@@ -347,7 +466,7 @@ export default function RuleCodeDiscount() {
 
   return (
     <Page
-      backAction={{ content: "Campaigns", onAction: () => navigate(withHost("/app/campaigns")) }}
+      backAction={{ content: "Campaigns", onAction: handleBack }}
       title={codeCampaignName || "Code Discount"}
       titleMetadata={enabled
         ? <Badge tone="success">Active</Badge>
@@ -668,6 +787,33 @@ export default function RuleCodeDiscount() {
           </BlockStack>
         </div>
       </Box>
+      <Modal
+        open={leaveModalOpen}
+        onClose={() => setLeaveModalOpen(false)}
+        title="Save this code discount as a draft?"
+        primaryAction={{
+          content: "Save draft",
+          onAction: handleSaveDraftAndLeave,
+          loading: isSaving && leaveAfterDraftSave,
+        }}
+        secondaryActions={[
+          {
+            content: "Don't save",
+            destructive: true,
+            onAction: handleDiscardAndLeave,
+          },
+          {
+            content: "Keep editing",
+            onAction: () => setLeaveModalOpen(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            You have unsaved changes. Save this campaign as a paused draft, or leave without saving it.
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 

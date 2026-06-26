@@ -372,6 +372,7 @@ export default function Index() {
   const [reviewRating, setReviewRating] = React.useState(0);
   const [reviewComment, setReviewComment] = React.useState("");
   const [reviewClientError, setReviewClientError] = React.useState(null);
+  const [campaignsLoading, setCampaignsLoading] = React.useState(false);
 
   React.useEffect(() => {
     setReviewModalOpen(Boolean(shouldShowReviewPopup));
@@ -665,7 +666,12 @@ export default function Index() {
                         Create a campaign that offers gifts to customers based on their purchase milestones. For example, offer a free gift when a customer spends $100.
                       </Text>
                       <InlineStack>
-                        <Button url={withHost(`/app/campaigns?shop=${shop}`)} variant="primary" >
+                        <Button
+                          url={withHost("/app/campaigns")}
+                          variant="primary"
+                          loading={campaignsLoading}
+                          onClick={() => setCampaignsLoading(true)}
+                        >
                           Create Campaigns
                         </Button>
                       </InlineStack>

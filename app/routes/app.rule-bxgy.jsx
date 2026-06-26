@@ -874,6 +874,8 @@ export default function RuleBxgy() {
   const [maxGifts, setMaxGifts] = useState(storedMaxUsesPerOrder ?? "1");
   const [translations, setTranslations] = useState(storedTranslations);
   const [openSection, setOpenSection] = useState("rewards");
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [leaveAfterDraftSave, setLeaveAfterDraftSave] = useState(false);
 
   useEffect(() => {
     const maximum = Math.max(1, rewardProductIds.length);
@@ -1026,12 +1028,64 @@ export default function RuleBxgy() {
           : { open: false };
 
   useEffect(() => {
+    if (actionData?.success && navigation.state === "idle" && leaveAfterDraftSave) {
+      navigate(withHost("/app/campaigns"));
+      return;
+    }
     if (actionData?.success && navigation.state === "idle" && !recordId && actionData.id) {
       const idParam = `id=${encodeURIComponent(actionData.id)}`;
       const hostParam = host ? `&host=${encodeURIComponent(host)}` : "";
       navigate(`/app/rule-bxgy?${idParam}${hostParam}`, { replace: true });
     }
-  }, [actionData, host, navigate, navigation.state, recordId]);
+  }, [actionData, host, leaveAfterDraftSave, navigate, navigation.state, recordId]);
+
+  const currentSnapshot = JSON.stringify({
+    status,
+    campaignName,
+    customerTarget,
+    customerTags,
+    conditionType,
+    buyProductIds,
+    buyCollectionIds,
+    minQuantity,
+    minSpend,
+    rewardProductIds,
+    giftsToSelect,
+    maxUsesEnabled,
+    maxGifts,
+    translations,
+    startDate,
+    startTime,
+    hasEndDate,
+    endDate,
+    endTime,
+  });
+  const initialSnapshot = JSON.stringify({
+    status: r?.status ?? (r?.enabled ? "active" : "draft"),
+    campaignName: r?.campaignName ?? defaultCampaignName,
+    customerTarget: r?.customerTarget || "all",
+    customerTags: r?.customerTags || "",
+    conditionType: initialCondition,
+    buyProductIds: storedBuyProductIds,
+    buyCollectionIds: storedBuyCollectionIds,
+    minQuantity:
+      r?.minQuantity ??
+      (initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? "1" : r?.xQty ?? "1"),
+    minSpend:
+      r?.minSpend ??
+      (initialCondition === CONDITION_TYPES.SPEND_COLLECTION ? r?.xQty ?? "" : ""),
+    rewardProductIds: storedRewardProductIds,
+    giftsToSelect: r?.yQty ?? "1",
+    maxUsesEnabled: Boolean(storedMaxUsesPerOrder),
+    maxGifts: storedMaxUsesPerOrder ?? "1",
+    translations: storedTranslations,
+    startDate: r?.startsAt ? new Date(r.startsAt).toISOString().split("T")[0] : today,
+    startTime: r?.startsAt ? new Date(r.startsAt).toTimeString().slice(0, 5) : "00:00",
+    hasEndDate: Boolean(r?.endsAt),
+    endDate: r?.endsAt ? new Date(r.endsAt).toISOString().split("T")[0] : "",
+    endTime: r?.endsAt ? new Date(r.endsAt).toTimeString().slice(0, 5) : "23:59",
+  });
+  const hasUnsavedChanges = currentSnapshot !== initialSnapshot;
 
   const handleConditionChange = (nextCondition) => {
     setConditionType(nextCondition);
@@ -1083,6 +1137,52 @@ export default function RuleBxgy() {
     );
   };
 
+  const submitDraftAndLeave = () => {
+    if (navigation.state !== "idle") return;
+    const englishContent = normalizeContent(translations.en);
+    setLeaveAfterDraftSave(true);
+    submit(
+      {
+        _action: "saveDraft",
+        id: recordId,
+        campaignName,
+        status: "draft",
+        conditionType,
+        buyProductIds: JSON.stringify(buyProductIds),
+        buyCollectionIds: JSON.stringify(buyCollectionIds),
+        minQuantity,
+        minSpend,
+        rewardProductIds: JSON.stringify(rewardProductIds),
+        giftsToSelect,
+        maxUsesEnabled,
+        maxGifts,
+        beforeTitle: englishContent.beforeTitle,
+        afterTitle: englishContent.afterTitle,
+        beforeText: englishContent.beforeText,
+        afterText: englishContent.afterText,
+        translations: JSON.stringify(translations),
+        startsAt: combineDateTime(startDate, startTime),
+        endsAt: hasEndDate ? combineDateTime(endDate, endTime) : null,
+        customerTarget,
+        customerTags,
+      },
+      { method: "post", encType: "application/json" }
+    );
+  };
+
+  const handleBack = () => {
+    if (!recordId || hasUnsavedChanges) {
+      setLeaveModalOpen(true);
+      return;
+    }
+    navigate(withHost("/app/campaigns"));
+  };
+
+  const handleDiscardAndLeave = () => {
+    setLeaveModalOpen(false);
+    navigate(withHost("/app/campaigns"));
+  };
+
   const condition = CONDITION_OPTIONS.find((option) => option.id === conditionType);
   const isPaused = status !== "active";
   const englishContent = normalizeContent(translations.en);
@@ -1091,7 +1191,7 @@ export default function RuleBxgy() {
     <Page
       backAction={{
         content: "Campaigns",
-        onAction: () => navigate(withHost("/app/campaigns")),
+        onAction: handleBack,
       }}
       title={campaignName || "Buy X Get Y Discount"}
       titleMetadata={isPaused ? <Badge tone="attention">Paused</Badge> : <Badge tone="success">Active</Badge>}
@@ -1529,6 +1629,33 @@ export default function RuleBxgy() {
         emptyText={pickerConfig.emptyText}
         kindLabel={pickerConfig.kindLabel}
       />
+      <Modal
+        open={leaveModalOpen}
+        onClose={() => setLeaveModalOpen(false)}
+        title="Save this Buy X Get Y discount as a draft?"
+        primaryAction={{
+          content: "Save draft",
+          onAction: submitDraftAndLeave,
+          loading: isSaving && leaveAfterDraftSave,
+        }}
+        secondaryActions={[
+          {
+            content: "Don't save",
+            destructive: true,
+            onAction: handleDiscardAndLeave,
+          },
+          {
+            content: "Keep editing",
+            onAction: () => setLeaveModalOpen(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            You have unsaved changes. Save this campaign as a paused draft, or leave without saving it.
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

@@ -1,4 +1,4 @@
-﻿﻿(() => {
+﻿(() => {
   /* =========================================================
    GLOBAL GUARD (avoid duplicate load / redeclare errors)
   ========================================================= */
@@ -8,8 +8,8 @@
   const root = document.getElementById("smart-embed-root");
   if (!root) return;// (C) BuyXGetY (bxgyrule)
 
-  // ✅ Requested DB table logs only
-  const DEBUG_TABLES = true;
+  // Optional storefront diagnostics. Enable only with data-debug-tables="true".
+  const DEBUG_TABLES = String(root.dataset.debugTables || "").toLowerCase() === "true";
 
   // ✅ App proxy path (prefer embed data, fallback to /apps/smart)
   let proxyPath = root.dataset.proxyPath || "/apps/smart";
@@ -6965,8 +6965,8 @@ position: relative;
 }
 .sc-freegift-close{
   position:absolute;
-  top:12px;
-  right:12px;
+  top:0px;
+  right:0px;
   width:32px;height:32px;
   border-radius:50%;
   border:1px solid var(--sc-close-border);
@@ -8326,10 +8326,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
   z-index:30;
   margin:0;
   padding:0;
-  background:var(--sc-line-loader-track, rgba(67,67,208,.18));
+  background: #FFFFFF;
   overflow:hidden !important;
   border-radius:0;
-  box-shadow:0 1px 4px rgba(15,23,42,.12);
+  box-shadow:0 1px 4px #FFFFFF;
   isolation:isolate;
 }
 .smartcartify-cart-drawer .sc-line-loader.is-active:not([hidden]),
@@ -8551,7 +8551,10 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
 .smartcartify-cart-drawer .sc-dot-wrap.just-done .sc-dot-bubble{
   animation:scMilestoneCheckPop .34s cubic-bezier(.2,.9,.2,1.25) both;
 }
-
+.smartcartify-cart-drawer div:empty,
+.sc-atc-bar div:empty{
+  display:block !important;
+}
 
     `;
     document.head.appendChild(s);
@@ -10422,17 +10425,6 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
     setDiscountMessage("");
 
     const rule = findCodeDiscountRuleByCode(code);
-    if (!rule) {
-      scStore.del(MANUAL_DISCOUNT_CODE_KEY);
-      scStore.del("__SC_LAST_APPLIED_CODE__");
-      showDiscountValidationPopup(
-        `Discount code ${String(code).toUpperCase()} is invalid. Please check the code and try again.`,
-        "Discount code not applied",
-        { showPopup: showValidationPopup }
-      );
-      return;
-    }
-
     const validation = validateCodeDiscountRule(rule, getCartSubtotalCents(), code);
 
     if (!validation.ok) {
@@ -16822,15 +16814,12 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
       if (!btn) return;
       if (!isAddToCartBtn(btn)) return;
 
+      const form = btn.closest("form");
+      if (!isAtcFormElement(form)) return;
+
       e.preventDefault();
       e.stopPropagation();
       if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-
-      const form = btn.closest('form[action^="/cart/add"]');
-      if (!form) {
-        await openAndRefreshDrawer();
-        return;
-      }
 
       try {
         setProgressLoading(true);
@@ -16874,9 +16863,8 @@ body.sc-atc-bottom-visible .sc-mobile-open-fallback{
         console.error("[SmartCartify] click intercept add failed:", err);
         const errMsg = trimToNull(err?.message) || "";
         if (isQuantityLimitMessage(errMsg)) return;
-        try {
-          form.submit();
-        } catch { }
+        openDrawer();
+        showCartActionMessage(errMsg || "Could not add this item to the cart. Please try again.", "error");
       } finally {
         setProgressLoading(false);
       }

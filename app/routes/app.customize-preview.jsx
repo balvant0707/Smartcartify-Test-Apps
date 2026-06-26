@@ -1499,7 +1499,7 @@ function CartDrawerPreview({
       }
       : { background: bg || surface || "#ffffff" };
   const isBottomSheetPreview = mobileLayout === "bottom_sheet";
-  const previewHeight = isBottomSheetPreview ? "100%" : "100%";
+  const previewHeight = isBottomSheetPreview ? 540 : 640;
   const previewRadius = Math.max(r, 12);
 
   const ProductImage = ({ src, alt, size = 54 }) => (
@@ -1658,6 +1658,7 @@ function CartDrawerPreview({
           maxWidth: "100%",
           height: previewHeight,
           minHeight: previewHeight,
+          maxHeight: "calc(100vh - 180px)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -1670,9 +1671,9 @@ function CartDrawerPreview({
             ? "8px 0 22px rgba(15,23,42,.10)"
             : "-8px 0 22px rgba(15,23,42,.10)",
           opacity: drawerAutoOpen ? 1 : 0.88,
-          margin: isBottomSheetPreview ? "48px auto 0" : "0 auto",
-          padding: 18,
-          gap:15,
+          margin: isBottomSheetPreview ? "48px auto 0" : drawerPosition === "left" ? "0 auto 0 0" : "0 0 0 auto",
+          padding: 16,
+          gap: 12,
           ...previewBackdropStyle,
         }}
       >
@@ -1714,7 +1715,7 @@ function CartDrawerPreview({
             </button>
           </InlineStack>
         </div>
-         <div class="cp-preview-discount-codes">   
+         <div className="cp-preview-discount-codes">
         {activeDrawerTab === "cart" ? (
           <>
             <div
@@ -2549,7 +2550,7 @@ export default function CustomizePreview() {
             border-radius: 14px !important;
             box-shadow: 0 8px 22px rgba(15, 23, 42, .13) !important;
         }
-      .cp-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(460px,450px);gap:15px;align-items:start}@media(max-width:1100px){.cp-layout{grid-template-columns:1fr}}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.cp-preview-sticky{position:sticky;top:80px}`}</style>
+      .cp-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(380px,440px);gap:18px;align-items:start}.cp-color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}.cp-preview-sticky{position:sticky;top:80px}.cp-preview-sticky>.Polaris-ShadowBevel{border-radius:12px !important}@media(max-width:1100px){.cp-layout{grid-template-columns:1fr}.cp-preview-sticky{position:static}}`}</style>
 
       {actionData?.error && (
         <Box paddingBlockEnd="400">
@@ -2605,6 +2606,7 @@ export default function CustomizePreview() {
                 <Text variant="bodyMd" fontWeight="semibold" as="p">Progress bar & UI</Text>
                 <div className="cp-color-grid">
                   <ColorField label="Text color" value={textColor} onChange={setTextColor} />
+                  <ColorField label="UI background" value={bg} onChange={setBg} />
                   <ColorField label="Progress bar" value={progress} onChange={setProgress} />
                   <ColorField label="Progress background" value={progressBg} onChange={setProgressBg} />
                   <ColorField label="Border color" value={borderColor} onChange={setBorderColor} />
