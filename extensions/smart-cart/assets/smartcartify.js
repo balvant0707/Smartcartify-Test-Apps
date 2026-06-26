@@ -1809,8 +1809,9 @@
   };
 
   const resolveUpsellVariantIdForAdd = async (item, rawVariantId = "") => {
+    const lookupId = getUpsellProductLookupId(item);
     const direct = normalizeUpsellVariantLegacyId(rawVariantId);
-    if (direct) return direct;
+    if (direct && (!lookupId || String(direct) !== String(lookupId))) return direct;
 
     const fromItem = normalizeUpsellVariantLegacyId(
       item?.variantId ||
@@ -1819,12 +1820,11 @@
       item?.selected_variant_id ||
       ""
     );
-    if (fromItem) return fromItem;
+    if (fromItem && (!lookupId || String(fromItem) !== String(lookupId))) return fromItem;
 
     const fromVariants = pickUpsellAvailableVariantId(item?.variants, item);
     if (fromVariants) return fromVariants;
 
-    const lookupId = getUpsellProductLookupId(item);
     const handle = trimToNull(item?.handle || item?.Handle);
     if (!lookupId && !handle) return null;
 
@@ -2610,11 +2610,11 @@
         ? trimToNull(item?.optionName) || (size ? size.name : "")
         : "";
       const sizeSelect = size ? size.value || size.name : "";
-      const rawKey = `upsell-${UPSELL_INDEX}-${idx}-${String(
-        item?.variantId || item?.title || ""
-      )}`;
+      const itemProductKey = getUpsellProductLookupId(item) || item?.handle || item?.title || "";
+      const itemVariantKey = normalizeUpsellVariantLegacyId(item?.variantId) || "";
+      const rawKey = `upsell-${idx}-${String(itemProductKey)}-${String(itemVariantKey)}`;
+      upsellItemMap.set(rawKey, item);
       const safeKey = safe(rawKey);
-      upsellItemMap.set(safeKey, item);
       const controlsClass = showSelect ? "sc-upsell-controls" : "sc-upsell-controls no-variant";
       const optIndex = Number(item?.optionIndex ?? 0);
       const variants = Array.isArray(item?.variants) ? item.variants : [];
@@ -2625,7 +2625,18 @@
         : null;
       const picked =
         pickedByOption ||
-        variants.find((v) => String(v?.id || "") === String(item?.variantId || "")) ||
+        variants.find((v) => {
+          const variantLegacyId = normalizeUpsellVariantLegacyId(
+            v?.id ||
+            v?.variantId ||
+            v?.variant_id ||
+            v?.admin_graphql_api_id ||
+            v?.adminGraphqlApiId ||
+            ""
+          );
+          const itemLegacyId = normalizeUpsellVariantLegacyId(item?.variantId || "");
+          return variantLegacyId && itemLegacyId && variantLegacyId === itemLegacyId;
+        }) ||
         variants[0] ||
         null;
       const available = isVariantAvailable(picked, item);
@@ -2645,7 +2656,11 @@
             picked?.variant_id ||
             picked?.admin_graphql_api_id ||
             picked?.adminGraphqlApiId ||
-            item?.variantId ||
+            (
+              String(normalizeUpsellVariantLegacyId(item?.variantId || "") || "") !== String(getUpsellProductLookupId(item) || "")
+                ? item?.variantId
+                : ""
+            ) ||
             ""
           ) || ""
         )
@@ -2755,6 +2770,7 @@
 
     wrap.querySelectorAll("[data-upsell-add]").forEach((btn) => {
       btn.addEventListener("click", async () => {
+        const loadingStartedAt = Date.now();
         let variantId = btn.getAttribute("data-upsell-add");
         const key = btn.getAttribute("data-upsell-key");
         const itemForLog = key ? upsellItemMap.get(key) : null;
@@ -2802,6 +2818,11 @@
           console.error("[SmartCartify] upsell add failed:", err);
           showCartActionMessage("Could not add this upsell product to the cart. Please try again.", "error");
         } finally {
+          const elapsed = Date.now() - loadingStartedAt;
+          const remaining = Math.max(0, 450 - elapsed);
+          if (remaining) {
+            await new Promise((resolve) => setTimeout(resolve, remaining));
+          }
           btn.disabled = false;
           btn.classList.remove("loading");
           btn.removeAttribute("aria-busy");
@@ -5002,7 +5023,7 @@ padding: 5px 10px 0px 10px;
   border-radius:999px;
   background:var(--sc-line-loader-accent, var(--sc-progress, #4343d0));
   opacity:.45;
-  filter:blur(30px);
+  filter:blur(8px);
   pointer-events:none;
 }
 .sc-line-loader-runner::before{
@@ -6002,14 +6023,18 @@ color: var(--sc-drawer-text-color);
   opacity:.82;
 }
 .sc-upsell-btn.loading .sc-upsell-btn-icon{
-  display:inline-block;
+  display:inline-block !important;
+  flex:0 0 14px;
   width:14px;
   height:14px;
+  min-width:14px;
+  box-sizing:border-box;
   font-size:0;
   border:2px solid rgba(255,255,255,.36);
-  border-top-color:currentColor;
+  border-top-color:currentColor !important;
   border-radius:999px;
-  animation:scSpin .75s linear infinite;
+  animation:scSpin .75s linear infinite !important;
+  transform-origin:center;
 }
 .sc-upsell-btn-icon{
   display:none;

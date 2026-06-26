@@ -181,6 +181,30 @@ function SaveConfigurationFeedback() {
   );
 }
 
+function TawkToScript() {
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    if (document.getElementById("tawk-to-script")) return undefined;
+
+    window.Tawk_API = window.Tawk_API || {};
+    window.Tawk_LoadStart = new Date();
+
+    const script = document.createElement("script");
+    script.id = "tawk-to-script";
+    script.async = true;
+    script.src = "https://embed.tawk.to/69a18bee302b0f1c32f99c57/1jifgl784";
+    script.charset = "UTF-8";
+    script.setAttribute("crossorigin", "*");
+
+    const firstScript = document.getElementsByTagName("script")[0];
+    firstScript?.parentNode?.insertBefore(script, firstScript);
+
+    return undefined;
+  }, []);
+
+  return null;
+}
+
 // 2) Loader (auth check)
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -332,6 +356,8 @@ export default function App() {
       <PolarisProvider i18n={en}>
         <style>{GLOBAL_POLARIS_RADIUS_CSS}</style>
         <Frame>
+          <TawkToScript />
+
           <ui-nav-menu>
             {/* <a href={host ? `/app?host=${encodeURIComponent(host)}` : "/app"}>Dashboard</a> */}
             <a href="/app/campaigns">Create Campaign</a>
