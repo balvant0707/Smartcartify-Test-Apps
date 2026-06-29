@@ -456,6 +456,32 @@ async function nextCartGoalCampaignName(shop) {
   return `Cart Goal ${Math.max(maxNumber, rows.length) + 1}`;
 }
 
+async function cartGoalColumnExists(columnName) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT COUNT(*) AS count
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'cartgoalrule'
+       AND COLUMN_NAME = '${columnName}'`
+  );
+  const first = Array.isArray(rows) ? rows[0] : null;
+  return Number(first ? Object.values(first)[0] : 0) > 0;
+}
+
+async function ensureCartGoalRuleColumns() {
+  const columns = [
+    ["priority", "INTEGER NOT NULL DEFAULT 0"],
+    ["customerTags", "LONGTEXT NULL"],
+  ];
+
+  for (const [columnName, definition] of columns) {
+    if (await cartGoalColumnExists(columnName)) continue;
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE \`cartgoalrule\` ADD COLUMN \`${columnName}\` ${definition}`
+    );
+  }
+}
+
 async function syncCartGoalDiscounts({
   admin,
   shop,
@@ -671,11 +697,18 @@ export const action = async ({ request }) => {
   };
 
   let record;
-  if (Number.isFinite(id)) {
-    await prisma.cartGoalRule.updateMany({ where: { id, shop: session.shop }, data });
-    record = { id };
-  } else {
-    record = await prisma.cartGoalRule.create({ data });
+  try {
+    await ensureCartGoalRuleColumns();
+
+    if (Number.isFinite(id)) {
+      await prisma.cartGoalRule.updateMany({ where: { id, shop: session.shop }, data });
+      record = { id };
+    } else {
+      record = await prisma.cartGoalRule.create({ data });
+    }
+  } catch (err) {
+    console.error("[Cart Goal] Save failed:", err);
+    return { error: err?.message || "Cart Goal campaign save failed" };
   }
 
   try {

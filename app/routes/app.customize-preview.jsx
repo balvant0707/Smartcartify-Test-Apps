@@ -1715,7 +1715,18 @@ function CartDrawerPreview({
             </button>
           </InlineStack>
         </div>
-         <div className="cp-preview-discount-codes">
+        <div
+          className="cp-preview-discount-codes"
+          style={{
+            background: "#ffffff",
+            borderRadius: previewRadius,
+            overflow: "hidden",
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
         {activeDrawerTab === "cart" ? (
           <>
             <div

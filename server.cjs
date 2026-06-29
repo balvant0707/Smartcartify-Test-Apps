@@ -127,6 +127,9 @@ const runStartupDatabaseTasks = () => {
 
   if (fs.existsSync(prismaCliJs)) {
     runStartupTask("prisma migrate deploy", process.execPath, [prismaCliJs, "migrate", "deploy"]);
+    if (fs.existsSync(bootstrapScript)) {
+      runStartupTask("shop bootstrap", process.execPath, [bootstrapScript]);
+    }
     return;
   }
 
@@ -139,6 +142,9 @@ const runStartupDatabaseTasks = () => {
 
   if (fs.existsSync(prismaBin)) {
     runStartupTask("prisma migrate deploy", prismaBin, ["migrate", "deploy"]);
+    if (fs.existsSync(bootstrapScript)) {
+      runStartupTask("shop bootstrap", process.execPath, [bootstrapScript]);
+    }
   }
 };
 

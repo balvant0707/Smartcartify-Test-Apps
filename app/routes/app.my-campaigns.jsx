@@ -589,6 +589,7 @@ export default function MyRules() {
   const [deletingKey, setDeletingKey] = useState(null);
   const [busyKey, setBusyKey] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+  const [createCampaignLoading, setCreateCampaignLoading] = useState(false);
 
   useEffect(() => {
     if (fetcher.state === "idle" && (deletingKey || busyKey)) {
@@ -651,6 +652,11 @@ export default function MyRules() {
     );
   };
 
+  const handleCreateCampaign = () => {
+    setCreateCampaignLoading(true);
+    navigate(withHost("/app/campaigns"));
+  };
+
   const tabsWithCounts = TABS.map((t) => ({
     ...t,
     content: t.id === "all"
@@ -664,7 +670,8 @@ export default function MyRules() {
       primaryAction={{
         content: "Create Campaign",
         icon: PlusIcon,
-        onAction: () => navigate(withHost("/app/campaigns")),
+        loading: createCampaignLoading,
+        onAction: handleCreateCampaign,
       }}
     >
       {successMsg && (
@@ -692,8 +699,9 @@ export default function MyRules() {
               <EmptyState
                 heading={activeType === "all" ? "No rules created yet" : `No ${RULE_META[activeType]?.label || activeType} rules yet`}
                 action={{
-                  content: "Create a rule",
-                  onAction: () => navigate(withHost("/app/campaigns")),
+                  content: "Create Campaign",
+                  loading: createCampaignLoading,
+                  onAction: handleCreateCampaign,
                 }}
                 image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
               >

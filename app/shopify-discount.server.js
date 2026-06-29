@@ -629,14 +629,31 @@ export async function upsertFreeShipping(admin, {
   };
 
   if (existingId) {
-    const data = await gql(admin, FREE_SHIPPING_UPDATE, {
+    let data = await gql(admin, FREE_SHIPPING_UPDATE, {
       id: automaticDiscountNodeId(existingId),
       input,
     });
+    if (hasUniqueTitleError(data, "discountAutomaticFreeShippingUpdate")) {
+      data = await gql(admin, FREE_SHIPPING_UPDATE, {
+        id: automaticDiscountNodeId(existingId),
+        input: {
+          ...input,
+          title: uniqueDiscountTitle(input.title),
+        },
+      });
+    }
     assertDiscountMutationSuccess(data, "discountAutomaticFreeShippingUpdate", "Shopify free shipping discount update");
     return data?.data?.discountAutomaticFreeShippingUpdate?.automaticDiscountNode?.id || existingId;
   }
-  const data = await gql(admin, FREE_SHIPPING_CREATE, { input });
+  let data = await gql(admin, FREE_SHIPPING_CREATE, { input });
+  if (hasUniqueTitleError(data, "discountAutomaticFreeShippingCreate")) {
+    data = await gql(admin, FREE_SHIPPING_CREATE, {
+      input: {
+        ...input,
+        title: uniqueDiscountTitle(input.title),
+      },
+    });
+  }
   assertDiscountMutationSuccess(data, "discountAutomaticFreeShippingCreate", "Shopify free shipping discount create");
   const createdId = data?.data?.discountAutomaticFreeShippingCreate?.automaticDiscountNode?.id;
   if (!createdId) throw new Error("Shopify free shipping discount create failed: missing discount id");

@@ -1,11 +1,11 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "7a85831b0c4fec1f323dc285f026c1fd"
-name = "Smartcartify Test App"
-application_url = "https://smartcartify-test-apps.vercel.app/"
+client_id = "b55a28208623440fd6a8987892e4aec3"
+name = "CartLift: Cart Drawer & Upsell"
+application_url = "https://cartmilestone.smartreminder.in/"
 embedded = true
 
-handle = "smartcartify-test-app"
+handle = "cartlift-cart-drawer-upsell"
 
 [build]
 automatically_update_urls_on_dev = true
@@ -35,15 +35,15 @@ scopes = "read_discounts,write_discounts,read_products,write_products,read_shipp
 
 [auth]
 redirect_urls = [
-  "https://smartcartify-test-apps.vercel.app/auth/callback",
-  "https://smartcartify-test-apps.vercel.app/auth/shopify/callback",
-  "https://smartcartify-test-apps.vercel.app/api/auth/callback"
+  "https://cartmilestone.smartreminder.in/auth/callback",
+  "https://cartmilestone.smartreminder.in/auth/shopify/callback",
+  "https://cartmilestone.smartreminder.in/api/auth/callback"
 ]
 
 [app_proxy]
 prefix = "apps"
 subpath = "smart"
-url = "https://smartcartify-test-apps.vercel.app/proxy/smart"
+url = "https://cartmilestone.smartreminder.in/proxy/smart"
 
 [pos]
 embedded = true
